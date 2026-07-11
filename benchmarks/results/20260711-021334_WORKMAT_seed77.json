@@ -1,0 +1,331 @@
+{
+  "config": {
+    "seed": 77,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_simple_techstack"
+    ],
+    "projectDir": "/Users/admin/Desktop/WORKMAT",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_9ddc5aae148a",
+      "task_id": "external_simple_techstack",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 77,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "What programming language, framework, and database does WORKMAT use? Respond with JSON: {\"language\":\"...\",\"framework\":\"...\",\"database\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_Csa90hxuUm4BkdjStFel8026",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_MyXMs81lWM2UdEFHrBEh0976",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"WORKMAT\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_eQr9cU1cLS89TptLWCrH9779",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Q3dZfwZD34ENropaeYNS4036",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"prisma/schema.prisma\"}"
+          }
+        }
+      ],
+      "response": "Based on the source code analysis:\n\n- **Language**: TypeScript — the entire codebase is written in TypeScript (200 `.ts` files, 77 `.tsx` files), with Node.js v20 as the runtime.\n- **Framework**: Next.js (v15) with React 19 — confirmed by the `package.json` dependencies (`\"next\": \"^15.5.7\"`, `\"react\": \"19.1.0\"`) and build scripts (`next build`, `next start`).\n- **Database**: PostgreSQL — the Prisma schema (`prisma/schema.prisma`) explicitly sets `provider = \"postgresql\"` as the datasource, with Prisma as the ORM layer.\n\n```json\n{\n  \"language\": \"TypeScript\",\n  \"framework\": \"Next.js\",\n  \"database\": \"PostgreSQL\"\n}\n```",
+      "responseHash": "0dd92fc026580fb5",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 27435,
+        "output_tokens": 769,
+        "cached_tokens": 12160,
+        "reasoning_tokens": 181,
+        "tool_call_count": 4,
+        "files_read": 2,
+        "bytes_read": 35333,
+        "wall_time_ms": 8640,
+        "api_latency_ms": 8640,
+        "cost_usd": 0.00252406,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "language": "TypeScript",
+        "framework": "Next.js",
+        "database": "PostgreSQL"
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_3766e43d3a12",
+      "task_id": "external_simple_techstack",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 77,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "What programming language, framework, and database does WORKMAT use? Respond with JSON: {\"language\":\"...\",\"framework\":\"...\",\"database\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_FjGJrdo9UJGvlocjlMUw1014",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_sbKKEiPuBj8R98t6tqWm5789",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"\\\"dependencies\\\"\", \"include\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_I9tM05c381EeRq6kEwn82901",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"datasource\", \"include\": \"schema.prisma\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_t22AiQizzyQoesqrj3Ne8502",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"prisma/schema.prisma\"}"
+          }
+        }
+      ],
+      "response": "Based on the project's configuration files:\n\n**Language**: TypeScript — the project uses TypeScript throughout (`typescript` as a devDependency, `tsx` for running scripts, and `.ts` file extensions).\n\n**Framework**: Next.js (version 15.5.7) with React (version 19.1.0) — evident from the `next`, `react`, and `react-dom` dependencies and `next build`/`next start` scripts.\n\n**Database**: PostgreSQL — defined explicitly in the Prisma schema (`prisma/schema.prisma`) with `provider = \"postgresql\"` and `@db.Uuid` field annotations.\n\n```json\n{\n  \"language\": \"TypeScript\",\n  \"framework\": \"Next.js\",\n  \"database\": \"PostgreSQL\"\n}\n```",
+      "responseHash": "a5e95dc1ad8fb2df",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 72911,
+        "output_tokens": 611,
+        "cached_tokens": 43776,
+        "reasoning_tokens": 97,
+        "tool_call_count": 4,
+        "files_read": 2,
+        "bytes_read": 35333,
+        "wall_time_ms": 10090,
+        "api_latency_ms": 10090,
+        "cost_usd": 0.00486284,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "language": "TypeScript",
+        "framework": "Next.js",
+        "database": "PostgreSQL"
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 8640,
+        "p95": 8640
+      },
+      "input_tokens": {
+        "median": 27435,
+        "total": 27435
+      },
+      "output_tokens": {
+        "median": 769,
+        "total": 769
+      },
+      "cached_tokens": {
+        "median": 12160,
+        "total": 12160
+      },
+      "reasoning_tokens": {
+        "median": 181,
+        "total": 181
+      },
+      "tool_calls": {
+        "median": 4,
+        "total": 4
+      },
+      "cost_usd": {
+        "median": 0.00252406,
+        "total": 0.00252406
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 10090,
+        "p95": 10090
+      },
+      "input_tokens": {
+        "median": 72911,
+        "total": 72911
+      },
+      "output_tokens": {
+        "median": 611,
+        "total": 611
+      },
+      "cached_tokens": {
+        "median": 43776,
+        "total": 43776
+      },
+      "reasoning_tokens": {
+        "median": 97,
+        "total": 97
+      },
+      "tool_calls": {
+        "median": 4,
+        "total": 4
+      },
+      "cost_usd": {
+        "median": 0.00486284,
+        "total": 0.00486284
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "8640ms",
+        "without_caesar": "10090ms",
+        "delta": "-14.4%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "27435",
+        "without_caesar": "72911",
+        "delta": "-62.4%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "769",
+        "without_caesar": "611",
+        "delta": "25.9%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "4",
+        "without_caesar": "4",
+        "delta": "0.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.002524",
+        "without_caesar": "$0.004863",
+        "delta": "-48.1%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/WORKMAT; CAESAR state remains temporary."
+  ]
+}

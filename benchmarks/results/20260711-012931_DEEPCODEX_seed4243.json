@@ -1,0 +1,1032 @@
+{
+  "config": {
+    "seed": 4243,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_generic_architecture"
+    ],
+    "projectDir": "/Users/admin/Desktop/DEEPCODEX/source",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_68e67b01c21c",
+      "task_id": "external_generic_architecture",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 4243,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "You have just joined the source team. Explore the project as you would in a real onboarding session. Explain its architecture, principal entry points, important modules, technical hotspots, and the most important missing or existing tests. Choose whatever tools you consider useful. Respond with JSON: {\"architecture\":[\"...\"],\"entry_points\":[\"...\"],\"important_modules\":[\"...\"],\"hotspots\":[\"...\"],\"test_observations\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_SaJVSGGiuS9XW3tQ0GEO2982",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"hotspots\", \"clusters\", \"file_tree\", \"entry_points\", \"brief\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_jarSRs2GL0w98XXDtdpd4634",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/App.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_FwphYIBHMz6SbQV6NEan9731",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/AppState.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_spsZzWSrzslNF38AmGbV3015",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContentView.swift\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_bohQTJRkv548uAjA4OiA2374",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/MenuBarManager.swift\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_Mytr36E43mBLBvemNBIj0122",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/CompletionAlertManager.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OslqcmRwXU2yTIoRnzmu8648",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContextExporter.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_9UqzB7HZozp4W0P7r3C34117",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContinueWorkModal.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_JnQHoxsHjTvXDnFYPXvn9878",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/AdvancedCapabilities.swift\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_sBXIjR127ey8orHNfh216678",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/Theme.swift\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_TaeIcH9TfCSXbLEj5fre9324",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Package.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_HmsyvKtd1cAE2bSgjF1m6093",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"test|TestCase|XCTest\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_PLOYJCswecPw3uyGS9Ir2128",
+          "type": "function",
+          "function": {
+            "name": "analyze_hotspots",
+            "arguments": "{\"limit\": 15}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_m5NCgCyYF4xUVeThESI79113",
+          "type": "function",
+          "function": {
+            "name": "get_graph_schema",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_IQFVhhS2doBxYEPmWIFg8792",
+          "type": "function",
+          "function": {
+            "name": "detect_changes",
+            "arguments": "{\"scope\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_8aCPD08eaTH0ydIYZe896814",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"test\", \"label\": \"Method\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kxD1SRo9wJOGQmMmFEOE2828",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (m1:Method)-[r:TESTS]->(m2:Method) RETURN m1.name, m1.qualified_name, m2.name, m2.qualified_name\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_FZO60nkgUHrDbhXwHw729670",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"test suite test class XCTestCase unit test\", \"kind\": \"Class\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Mcww8rBYuPFRwdNv8Xmj4902",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (m1)-[r:TESTS]->(m2) RETURN labels(m1), labels(m2), count(*) as cnt\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_y6hTXiDlNTcqwyK4YVtg1881",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"XCTest|Tests|Spec|describe\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_oPw1bOXrt7pFRxrZGmF65421",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"Test\", \"file_pattern\": \"Package.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_hYHqxVdI2Ej8tXx33HlA7506",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Package.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JAMQTcLbqS70LpV52pX04071",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\"]}"
+          }
+        }
+      ],
+      "response": "Now I have a thorough understanding of the project. Here is my onboarding report:\n\n```json\n{\n  \"architecture\": [\n    \"The project is a macOS (SwiftUI, macOS 14+) application called DeepCodex that manages AI coding assistant workflows.\",\n    \"Architecture follows a centralized state management pattern: AppState is the root ObservableObject holding all application state, business logic, and shell orchestration.\",\n    \"Views (ContentView, ContinueWorkModal) read from and mutate AppState reactively; MenuBarManager polls AppState for changes via a timer.\",\n    \"The app controls three Codex modes (Normal/GPT-5.5, DeepSeek V4 Pro, DeepSeek V4 Flash) by orchestrating shell scripts (status.sh, codex-switch.sh, start-moonbridge.sh).\",\n    \"Two supporting subsystems are pure-logic modules: ContextExporter (reads Codex JSONL session files via embedded Python scripts) and CompletionAlertManager (polls filesystem events for task completion).\",\n    \"A Moon Bridge proxy service provides the DeepSeek models; its status is checked via lsof directly and via status.sh output parsing.\",\n    \"Package.swift defines only a single executable target with no test targets or test dependencies.\"\n  ],\n  \"entry_points\": [\n    \"Sources/DeepCodex/App.swift \u2014 @main struct DeepCodexApp: App, the SwiftUI application entry point\",\n    \"ContentView.onAppear triggers MenuBarManager.setup() and AppState.refreshStatus() on launch\",\n    \"MenuBarManager \u2014 system menu bar icon with mode switching and window show/quit actions\"\n  ],\n  \"important_modules\": [\n    \"Sources/DeepCodex/AppState.swift (577 lines) \u2014 Central state hub: mode switching, shell execution, JSON parsing, Moon Bridge detection, thread detection, clipboard operations, advanced capabilities polling. Fan-in hotspot for debugLog(10), runShell(9), runCommand(4).\",\n    \"Sources/DeepCodex/ContentView.swift (862 lines) \u2014 Main UI with action cards (Normal/DeepSeek Pro/DeepSeek Flash), Moon Bridge status panel, tools panel, system info panel, and expandable advanced capabilities section. God component.\",\n    \"Sources/DeepCodex/CompletionAlertManager.swift (340 lines) \u2014 Detects Codex task completion by polling a notification events directory, plays/configures sound alerts, detects user return via mouse/keyboard and app focus (Codex/VS Code/Cursor). Requires Accessibility permissions for global event monitoring.\",\n    \"Sources/DeepCodex/ContextExporter.swift (396 lines) \u2014 Pure read-only layer that extracts user messages, assistant messages, agent messages, function calls, file paths, and errors from Codex JSONL session files via embedded python3 scripts. Generates portable Markdown context for cross-mode continuation.\",\n    \"Sources/DeepCodex/ContinueWorkModal.swift (636 lines) \u2014 Multi-phase modal dialog (loading\u2192selecting\u2192generating\u2192ready\u2192exporting/done/error) for picking a conversation thread and target mode, previewing context, and triggering the copy+switch workflow. God component.\",\n    \"Sources/DeepCodex/MenuBarManager.swift (169 lines) \u2014 System status bar item showing current mode with colored emoji dot; context menu for mode switching and window management.\",\n    \"Sources/DeepCodex/AdvancedCapabilities.swift \u2014 Pure data models for web search, image input, and routing capabilities from the external shell status script.\",\n    \"Sources/DeepCodex/Theme.swift \u2014 Design system: colors, gradients, spacing constants used across all views.\"\n  ],\n  \"hotspots\": [\n    \"AppState.parseJson (complexity 8, fan-in 5) \u2014 Core JSON parsing from current-mode.json, critical for all mode/config detection\",\n    \"AppState.getCurrentProvider (complexity 5, fan-in 3) \u2014 Mode-to-provider mapping, used for SQLite queries and context detection\",\n    \"AppState.runShell / AppState.runCommand (fan-in 9 and 4) \u2014 Ubiquitous shell execution wrappers; error handling is basic (catch returns string)\",\n    \"AppState.detectLatestThreads (104 lines, god component) \u2014 Complex SQLite + filesystem-fallback logic with embedded debug logging; two fallback strategies\",\n    \"ContextExporter.generateMarkdown (126 lines, god component) \u2014 Massive string template function building structured Markdown\",\n    \"ContextExporter.runCommand \u2014 All context extraction methods delegate through this private shell runner; any failure silently returns empty strings\",\n    \"CompletionAlertManager.checkStopCondition + setupGlobalEventMonitor \u2014 Accessibility-dependent runtime monitoring; silent failure if permissions not granted\",\n    \"20 god components detected overall \u2014 every major view/manager exceeds recommended size limits\"\n  ],\n  \"test_observations\": [\n    \"There are zero test files in the entire project. No test targets in Package.swift, no XCTest imports, no test directory exists.\",\n    \"The only method named 'testAlert' is a feature method (not a unit test) that creates an artificial notification file to trigger the alert system at runtime.\",\n    \"All critical business logic is untested: JSON parsing (parseJson), SQLite thread detection (detectLatestThreads), context extraction via embedded Python scripts (ContextExporter), mode switching orchestration, Moon Bridge status detection, and completion alert lifecycle.\",\n    \"The ContextExporter module is the most testable candidate \u2014 it is a pure struct with no AppState dependency and clearly defined input/output boundaries. Adding XCTest tests for extractUserMessages, extractAssistantMessages, generateMarkdown, and extractSessionMeta would provide high-value coverage.\",\n    \"Complex branching logic in AppState (modes, shell fallbacks, Moon Bridge detection) is exercised only via manual UI testing at runtime.\",\n    \"The single 'TESTS' edge (1 occurrence) in the knowledge graph likely points to the testAlert() methods, not to actual unit tests.\"\n  ],\n  \"evidence\": [\n    \"Project file tree: 10 Swift files under Sources/DeepCodex, no test directories or test targets\",\n    \"Package.swift defines only .executableTarget(name: 'DeepCodex') with no test target or test dependency\",\n    \"search_graph for 'test' found only detectLatestThreads, testAlert (runtime feature), and testAlert passthrough \u2014 no XCTestCase subclasses\",\n    \"search_code for 'XCTest|Tests|Spec' returned zero matches across all files\",\n    \"Hotspot analysis shows parseJson (complexity 8), getCurrentProvider (complexity 5), detectLatestThreads (104 lines), generateMarkdown (126 lines) as high-risk functions\",\n    \"Architecture analysis confirms centralized AppState pattern with 10 fan-in for debugLog and runShell\",\n    \"CompletionAlertManager relies on AXIsProcessTrusted() for global event monitoring with fallback to polling\"\n  ],\n  \"summary\": \"DeepCodex is a macOS SwiftUI app (~7,700 lines) that manages AI coding assistant mode switching (GPT-5.5 / DeepSeek V4 Pro / DeepSeek V4 Flash), monitors task completion with audio alerts, and exports portable conversation context between modes. It is a single-executable-target project with zero automated tests. The architecture is centralized around AppState (577 lines), which orchestrates shell scripts, parses JSON, detects Moon Bridge status, and manages full UI state. Every major file is a god component (ContentView 862 lines, ContinueWorkModal 636 lines, AppState 577 lines, ContextExporter 396 lines, CompletionAlertManager 340 lines). The highest-risk, highest-value areas for testing are the JSON/config parsing (parseJson), the SQLite+filesystem thread detection (detectLatestThreads with two fallback strategies), the entire ContextExporter (which is already well-isolated as a pure struct), and the completion alert lifecycle. Adding a Test target with XCTest for ContextExporter's extraction and Markdown generation methods would be the most impactful first step toward test coverage.\"\n}\n```",
+      "responseHash": "6c8beeac5217e8cf",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 312911,
+        "output_tokens": 3646,
+        "cached_tokens": 273664,
+        "reasoning_tokens": 691,
+        "tool_call_count": 23,
+        "files_read": 10,
+        "bytes_read": 135451,
+        "wall_time_ms": 43031,
+        "api_latency_ms": 43029,
+        "cost_usd": 0.01034676,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "architecture": [
+          "The project is a macOS (SwiftUI, macOS 14+) application called DeepCodex that manages AI coding assistant workflows.",
+          "Architecture follows a centralized state management pattern: AppState is the root ObservableObject holding all application state, business logic, and shell orchestration.",
+          "Views (ContentView, ContinueWorkModal) read from and mutate AppState reactively; MenuBarManager polls AppState for changes via a timer.",
+          "The app controls three Codex modes (Normal/GPT-5.5, DeepSeek V4 Pro, DeepSeek V4 Flash) by orchestrating shell scripts (status.sh, codex-switch.sh, start-moonbridge.sh).",
+          "Two supporting subsystems are pure-logic modules: ContextExporter (reads Codex JSONL session files via embedded Python scripts) and CompletionAlertManager (polls filesystem events for task completion).",
+          "A Moon Bridge proxy service provides the DeepSeek models; its status is checked via lsof directly and via status.sh output parsing.",
+          "Package.swift defines only a single executable target with no test targets or test dependencies."
+        ],
+        "entry_points": [
+          "Sources/DeepCodex/App.swift \u2014 @main struct DeepCodexApp: App, the SwiftUI application entry point",
+          "ContentView.onAppear triggers MenuBarManager.setup() and AppState.refreshStatus() on launch",
+          "MenuBarManager \u2014 system menu bar icon with mode switching and window show/quit actions"
+        ],
+        "important_modules": [
+          "Sources/DeepCodex/AppState.swift (577 lines) \u2014 Central state hub: mode switching, shell execution, JSON parsing, Moon Bridge detection, thread detection, clipboard operations, advanced capabilities polling. Fan-in hotspot for debugLog(10), runShell(9), runCommand(4).",
+          "Sources/DeepCodex/ContentView.swift (862 lines) \u2014 Main UI with action cards (Normal/DeepSeek Pro/DeepSeek Flash), Moon Bridge status panel, tools panel, system info panel, and expandable advanced capabilities section. God component.",
+          "Sources/DeepCodex/CompletionAlertManager.swift (340 lines) \u2014 Detects Codex task completion by polling a notification events directory, plays/configures sound alerts, detects user return via mouse/keyboard and app focus (Codex/VS Code/Cursor). Requires Accessibility permissions for global event monitoring.",
+          "Sources/DeepCodex/ContextExporter.swift (396 lines) \u2014 Pure read-only layer that extracts user messages, assistant messages, agent messages, function calls, file paths, and errors from Codex JSONL session files via embedded python3 scripts. Generates portable Markdown context for cross-mode continuation.",
+          "Sources/DeepCodex/ContinueWorkModal.swift (636 lines) \u2014 Multi-phase modal dialog (loading\u2192selecting\u2192generating\u2192ready\u2192exporting/done/error) for picking a conversation thread and target mode, previewing context, and triggering the copy+switch workflow. God component.",
+          "Sources/DeepCodex/MenuBarManager.swift (169 lines) \u2014 System status bar item showing current mode with colored emoji dot; context menu for mode switching and window management.",
+          "Sources/DeepCodex/AdvancedCapabilities.swift \u2014 Pure data models for web search, image input, and routing capabilities from the external shell status script.",
+          "Sources/DeepCodex/Theme.swift \u2014 Design system: colors, gradients, spacing constants used across all views."
+        ],
+        "hotspots": [
+          "AppState.parseJson (complexity 8, fan-in 5) \u2014 Core JSON parsing from current-mode.json, critical for all mode/config detection",
+          "AppState.getCurrentProvider (complexity 5, fan-in 3) \u2014 Mode-to-provider mapping, used for SQLite queries and context detection",
+          "AppState.runShell / AppState.runCommand (fan-in 9 and 4) \u2014 Ubiquitous shell execution wrappers; error handling is basic (catch returns string)",
+          "AppState.detectLatestThreads (104 lines, god component) \u2014 Complex SQLite + filesystem-fallback logic with embedded debug logging; two fallback strategies",
+          "ContextExporter.generateMarkdown (126 lines, god component) \u2014 Massive string template function building structured Markdown",
+          "ContextExporter.runCommand \u2014 All context extraction methods delegate through this private shell runner; any failure silently returns empty strings",
+          "CompletionAlertManager.checkStopCondition + setupGlobalEventMonitor \u2014 Accessibility-dependent runtime monitoring; silent failure if permissions not granted",
+          "20 god components detected overall \u2014 every major view/manager exceeds recommended size limits"
+        ],
+        "test_observations": [
+          "There are zero test files in the entire project. No test targets in Package.swift, no XCTest imports, no test directory exists.",
+          "The only method named 'testAlert' is a feature method (not a unit test) that creates an artificial notification file to trigger the alert system at runtime.",
+          "All critical business logic is untested: JSON parsing (parseJson), SQLite thread detection (detectLatestThreads), context extraction via embedded Python scripts (ContextExporter), mode switching orchestration, Moon Bridge status detection, and completion alert lifecycle.",
+          "The ContextExporter module is the most testable candidate \u2014 it is a pure struct with no AppState dependency and clearly defined input/output boundaries. Adding XCTest tests for extractUserMessages, extractAssistantMessages, generateMarkdown, and extractSessionMeta would provide high-value coverage.",
+          "Complex branching logic in AppState (modes, shell fallbacks, Moon Bridge detection) is exercised only via manual UI testing at runtime.",
+          "The single 'TESTS' edge (1 occurrence) in the knowledge graph likely points to the testAlert() methods, not to actual unit tests."
+        ],
+        "evidence": [
+          "Project file tree: 10 Swift files under Sources/DeepCodex, no test directories or test targets",
+          "Package.swift defines only .executableTarget(name: 'DeepCodex') with no test target or test dependency",
+          "search_graph for 'test' found only detectLatestThreads, testAlert (runtime feature), and testAlert passthrough \u2014 no XCTestCase subclasses",
+          "search_code for 'XCTest|Tests|Spec' returned zero matches across all files",
+          "Hotspot analysis shows parseJson (complexity 8), getCurrentProvider (complexity 5), detectLatestThreads (104 lines), generateMarkdown (126 lines) as high-risk functions",
+          "Architecture analysis confirms centralized AppState pattern with 10 fan-in for debugLog and runShell",
+          "CompletionAlertManager relies on AXIsProcessTrusted() for global event monitoring with fallback to polling"
+        ],
+        "summary": "DeepCodex is a macOS SwiftUI app (~7,700 lines) that manages AI coding assistant mode switching (GPT-5.5 / DeepSeek V4 Pro / DeepSeek V4 Flash), monitors task completion with audio alerts, and exports portable conversation context between modes. It is a single-executable-target project with zero automated tests. The architecture is centralized around AppState (577 lines), which orchestrates shell scripts, parses JSON, detects Moon Bridge status, and manages full UI state. Every major file is a god component (ContentView 862 lines, ContinueWorkModal 636 lines, AppState 577 lines, ContextExporter 396 lines, CompletionAlertManager 340 lines). The highest-risk, highest-value areas for testing are the JSON/config parsing (parseJson), the SQLite+filesystem thread detection (detectLatestThreads with two fallback strategies), the entire ContextExporter (which is already well-isolated as a pure struct), and the completion alert lifecycle. Adding a Test target with XCTest for ContextExporter's extraction and Markdown generation methods would be the most impactful first step toward test coverage."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1262
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "get_architecture",
+          "args_redacted": {
+            "aspects": [
+              "languages",
+              "hotspots",
+              "clusters",
+              "file_tree",
+              "entry_points",
+              "brief"
+            ]
+          },
+          "duration_ms": 8,
+          "result_bytes": 7763,
+          "content_hash": "76cef02427005ccb"
+        },
+        {
+          "seq": 3,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1965
+        },
+        {
+          "seq": 4,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/App.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2687,
+          "content_hash": "b39c0ccc71ac9694"
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/AppState.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 26717,
+          "content_hash": "1bb67c954d3e0bbb"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContentView.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 38002,
+          "content_hash": "7195f67d5343b58d"
+        },
+        {
+          "seq": 7,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/MenuBarManager.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 6674,
+          "content_hash": "f30b1938262ffdad"
+        },
+        {
+          "seq": 8,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/CompletionAlertManager.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 12145,
+          "content_hash": "16899d21e2efbcf0"
+        },
+        {
+          "seq": 9,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2633
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContextExporter.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 13985,
+          "content_hash": "2ffd59f5102f8b37"
+        },
+        {
+          "seq": 11,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContinueWorkModal.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 25372,
+          "content_hash": "0dad54a400fd2040"
+        },
+        {
+          "seq": 12,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/AdvancedCapabilities.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 5316,
+          "content_hash": "45e5116879840119"
+        },
+        {
+          "seq": 13,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/Theme.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4011,
+          "content_hash": "7f95d1ec2a37d10c"
+        },
+        {
+          "seq": 14,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Package.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 271,
+          "content_hash": "746ffa851528006c"
+        },
+        {
+          "seq": 15,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1944
+        },
+        {
+          "seq": 16,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "test|TestCase|XCTest",
+            "file_pattern": "*.swift"
+          },
+          "duration_ms": 17,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 17,
+          "role": "tool_exec",
+          "tool_name": "analyze_hotspots",
+          "args_redacted": {
+            "limit": 15
+          },
+          "duration_ms": 1,
+          "result_bytes": 11024,
+          "content_hash": "950d4e82f04a4648"
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "get_graph_schema",
+          "args_redacted": {},
+          "duration_ms": 2,
+          "result_bytes": 1430,
+          "content_hash": "389e6c5189385fd2"
+        },
+        {
+          "seq": 19,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1714
+        },
+        {
+          "seq": 20,
+          "role": "tool_exec",
+          "tool_name": "detect_changes",
+          "args_redacted": {
+            "scope": "files"
+          },
+          "duration_ms": 60,
+          "result_bytes": 987,
+          "content_hash": "f2d0b59321ec0e2e"
+        },
+        {
+          "seq": 21,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "test",
+            "label": "Method"
+          },
+          "duration_ms": 4,
+          "result_bytes": 1162,
+          "content_hash": "33680bf63ca1e957"
+        },
+        {
+          "seq": 22,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2095
+        },
+        {
+          "seq": 23,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (m1:Method)-[r:TESTS]->(m2:Method) RETURN m1.name, m1.qualified_name, m2.name, m2.qualified_name"
+          },
+          "duration_ms": 2,
+          "result_bytes": 205,
+          "content_hash": "76076b9db20214a8"
+        },
+        {
+          "seq": 24,
+          "role": "tool_exec",
+          "tool_name": "semantic_search",
+          "args_redacted": {
+            "query": "test suite test class XCTestCase unit test",
+            "kind": "Class"
+          },
+          "duration_ms": 4,
+          "result_bytes": 380,
+          "content_hash": "74004dcbb1ca8d46"
+        },
+        {
+          "seq": 25,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2015
+        },
+        {
+          "seq": 26,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (m1)-[r:TESTS]->(m2) RETURN labels(m1), labels(m2), count(*) as cnt"
+          },
+          "duration_ms": 1,
+          "result_bytes": 171,
+          "content_hash": "6faf846e7fcad3ab"
+        },
+        {
+          "seq": 27,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "XCTest|Tests|Spec|describe"
+          },
+          "duration_ms": 14,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 28,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1801
+        },
+        {
+          "seq": 29,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "Test",
+            "file_pattern": "Package.swift"
+          },
+          "duration_ms": 15,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 30,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Package.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 271,
+          "content_hash": "746ffa851528006c"
+        },
+        {
+          "seq": 31,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1878
+        },
+        {
+          "seq": 32,
+          "role": "tool_exec",
+          "tool_name": "get_architecture",
+          "args_redacted": {
+            "aspects": [
+              "file_tree"
+            ]
+          },
+          "duration_ms": 6,
+          "result_bytes": 1257,
+          "content_hash": "2e0d525173e9756a"
+        },
+        {
+          "seq": 33,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 25582,
+          "content_hash": "6c8beeac5217e8cf"
+        }
+      ]
+    },
+    {
+      "run_id": "run_2_ad2be476ca23",
+      "task_id": "external_generic_architecture",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 4243,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "You have just joined the source team. Explore the project as you would in a real onboarding session. Explain its architecture, principal entry points, important modules, technical hotspots, and the most important missing or existing tests. Choose whatever tools you consider useful. Respond with JSON: {\"architecture\":[\"...\"],\"entry_points\":[\"...\"],\"important_modules\":[\"...\"],\"hotspots\":[\"...\"],\"test_observations\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_bPqY4JF6QArMn9wHtTp92921",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"package.json\", \"include\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_gMFlHknsr20GGMG3qgYF3762",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"\\\"main\\\"|\\\"module\\\"|\\\"types\\\"\", \"include\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_auHz4Gg3cVp4KcqVjdn83790",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8ps94vB5h7fBiorIK9pH9205",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_LPyyZ2WvTpyicKtkNRW14761",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^\", \"include\": \"*\"}"
+          }
+        }
+      ],
+      "response": "Now I have a thorough understanding. Here is the full assessment:\n\n```json\n{\n  \"architecture\": [\n    \"Single-module SwiftUI macOS app (target macOS 14+) built with SwiftPM, zero external dependencies.\",\n    \"MVVM-like structure: `AppState` (ObservableObject) is the central model; views (`ContentView`, `ContinueWorkModal`) observe it.\",\n    \"Dark-only design system via `DeepTheme` (hex-based colors, gradients, spacing constants).\",\n    \"Drives OpenAI Codex CLI mode-switching via shell scripts (`status.sh`, `codex-switch.sh`, `start-moonbridge.sh`).\",\n    \"Runs external processes (bash, sqlite3, python3, lsof, osascript) to detect mode state, thread history, and Moon Bridge status.\",\n    \"Menu bar status item (`MenuBarManager`) polls `AppState.activeMode` every 2 seconds to update display.\",\n    \"Completion alert system monitors a notifications directory for JSON event files via polling `Timer`.\",\n    \"Context export reads Codex session JSONL files via inline python3 scripts, produces portable Markdown.\"\n  ],\n  \"entry_points\": [\n    \"`Sources/DeepCodex/App.swift` \u2014 `@main struct DeepCodexApp` creates `AppState()`, renders `ContentView`, configures hidden-title-bar window.\",\n    \"`Sources/DeepCodex/ContentView.swift` \u2014 Main view rendering: header, action cards, tools panel, system info panel, advanced capabilities section.\",\n    \"`Sources/DeepCodex/MenuBarManager.swift` \u2014 `@MainActor final class MenuBarManager` creates `NSStatusItem` with attributed title and a mode-switching NSMenu.\"\n  ],\n  \"important_modules\": [\n    \"`AppState.swift` \u2014 Central observable state: mode detection, thread/context detection, shell execution helpers, backup/restore, alert passthroughs. ~600 lines.\",\n    \"`ContentView.swift` \u2014 Full UI: header with logo, 3 action cards (Normal/DeepSeek Pro/Flash), tools panel with collapse, system info panel, advanced capabilities expandable section. ~873 lines.\",\n    \"`ContinueWorkModal.swift` \u2014 Sheet presented for 'continue work' workflow: thread picker grouped by folder, destination mode picker, context preview, export/copy actions. ~674 lines.\",\n    \"`CompletionAlertManager.swift` \u2014 File-watching alert system: polls `eventsDir` for `agent-turn-complete-*.json`, plays looping sound, monitors mouse/keyboard activity to auto-silence. ~347 lines.\",\n    \"`ContextExporter.swift` \u2014 Pure read-only logic layer: extracts session meta, user/assistant/agent messages, function calls, file paths, errors from Codex JSONL files via inline python3 scripts. Generates structured Markdown context. ~400 lines.\",\n    \"`AdvancedCapabilities.swift` \u2014 Codable models (`AdvancedCapabilities`, `WebSearchStatus`, `ImageInputInfo`, `RoutingInfo`) plus display helpers. ~162 lines.\",\n    \"`Theme.swift` \u2014 `DeepTheme` enum with color palette, gradients, border styles, corner radii. ~111 lines.\",\n    \"`MenuBarManager.swift` \u2014 Shared singleton managing `NSStatusItem` rendering and NSMenu for mode switching via shell commands. ~192 lines.\"\n  ],\n  \"hotspots\": [\n    \"**Shell execution pattern** \u2014 `AppState.runShell`/`runCommand` and `ContextExporter.runCommand` use `Process` + `Pipe`. Reading `readDataToEndOfFile()` before `waitUntilExit()` mitigates deadlocks, but error handling relies on try/catch swallowing errors.\",\n    \"**SQLite thread detection fallback** \u2014 `AppState.detectLatestThreads()` tries SQLite JSON query first then falls back to filesystem `find+grep`. The SQL parsing uses `JSONSerialization` with manual `[[String:Any]]` casting \u2014 fragile.\",\n    \"**Inline python3 scripts** \u2014 `ContextExporter` embeds python3 code as command-line strings for extracting messages, function calls, file paths, errors. These are un-escaped and un-tested strings.\",\n    \"**Accessibility monitoring** \u2014 `CompletionAlertManager` uses `AXIsProcessTrusted()` and `NSEvent.addGlobalMonitorForEvents` for mouse/keyboard detection. The `focusBundleIds` set hard-codes bundle identifiers for Codex, VS Code, Cursor, etc.\",\n    \"**Window auto-resize** \u2014 `ContentView` uses `GeometryReader` + `PreferenceKey(ContentHeightKey)` + `WindowSizer` with `NSAnimationContext` to dynamically adjust window height. Has a 10px threshold guard.\",\n    \"**Menu bar polling** \u2014 `MenuBarManager.setup()` spawns an unstructured `Task` with a `while true` loop sleeping 2 seconds to detect `activeMode` changes instead of using Combine publishers.\",\n    \"**Debug log file appends** \u2014 `AppState.debugLog()` opens/closes `FileHandle` per call (or creates file on first write). Thread-safety is not guaranteed for concurrent writes from `Task.detached` closures.\",\n    \"**Busy guard pattern** \u2014 Multiple `openCodex*` methods and `detectLatestThreads`/`continueToTargetMode` use a shared `isBusy` flag. If an operation fails without resetting the flag, the entire UI becomes permanently disabled.\"\n  ],\n  \"test_observations\": [\n    \"**No tests exist** \u2014 There is no `Tests/` directory, no test targets in `Package.swift`, and the build description (`plugin-tools-description.json`) shows `builtTestProducts: []` and empty test discovery commands.\",\n    \"**Highest priority test targets**: `ContextExporter.generateMarkdown()` (pure function, complex string output), shell command parsing in `ContextExporter.extract*` methods, `AdvancedCapabilities` Codable round-trip, `AppState.Mode` enum logic, `WebSearchStatus` display helpers.\",\n    \"**Integration risk areas with no coverage**: SQLite JSON parsing fallback chain, inline python3 scripts' output parsing (separator splitting), thread detection race conditions, alert state transitions, `shouldAlert` duration logic.\",\n    \"**UI/logic coupling** \u2014 Views directly call `state.openCodexNormal()` etc. with no abstraction layer, making unit testing of business logic impossible without refactoring `AppState` into a testable protocol or extracting a pure domain layer.\"\n  ],\n  \"evidence\": [\n    \"`Package.swift` defines only `.executableTarget(name:\\\"DeepCodex\\\", resources:[.process(\\\"Resources\\\")])` with no test targets.\",\n    \"Build description file `.build/arm64-apple-macosx/release/description.json` shows empty `builtTestProducts` array and empty `testDiscoveryCommands` dictionary.\",\n    \"Grep for any `XCTest` import or test class pattern across all files returned no results.\",\n    \"`AppState.swift` (600 lines) and `ContentView.swift` (873 lines) contain both business logic and UI code with no separation for testability.\",\n    \"The `ContextExporter.swift` struct is purely functional (read-only, static methods) and would be the easiest module to unit-test \u2014 yet has zero tests.\"\n  ],\n  \"summary\": \"DeepCodex is a single-module macOS SwiftUI app (~10 source files, ~3500 lines) that manages OpenAI Codex mode switching, monitors Moon Bridge proxy status, detects recent Codex threads via SQLite/filesystem, exports context as Markdown, and plays completion alerts via file-watching. It has zero tests, no test target, and significant technical debt in shell execution patterns, inline python scripts, polling-based state observation, and tight UI/logic coupling. The most easily testable module is `ContextExporter` (pure functions), while the highest-risk untested areas are the shell-parsing fallback chains in `AppState.detectLatestThreads()` and the `CompletionAlertManager` alert lifecycle state machine.\"\n}\n```",
+      "responseHash": "95b2c5ff7ec95ad2",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 475973,
+        "output_tokens": 2638,
+        "cached_tokens": 2944,
+        "reasoning_tokens": 624,
+        "tool_call_count": 5,
+        "files_read": 1,
+        "bytes_read": 0,
+        "wall_time_ms": 36773,
+        "api_latency_ms": 36773,
+        "cost_usd": 0.06700392,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "architecture": [
+          "Single-module SwiftUI macOS app (target macOS 14+) built with SwiftPM, zero external dependencies.",
+          "MVVM-like structure: `AppState` (ObservableObject) is the central model; views (`ContentView`, `ContinueWorkModal`) observe it.",
+          "Dark-only design system via `DeepTheme` (hex-based colors, gradients, spacing constants).",
+          "Drives OpenAI Codex CLI mode-switching via shell scripts (`status.sh`, `codex-switch.sh`, `start-moonbridge.sh`).",
+          "Runs external processes (bash, sqlite3, python3, lsof, osascript) to detect mode state, thread history, and Moon Bridge status.",
+          "Menu bar status item (`MenuBarManager`) polls `AppState.activeMode` every 2 seconds to update display.",
+          "Completion alert system monitors a notifications directory for JSON event files via polling `Timer`.",
+          "Context export reads Codex session JSONL files via inline python3 scripts, produces portable Markdown."
+        ],
+        "entry_points": [
+          "`Sources/DeepCodex/App.swift` \u2014 `@main struct DeepCodexApp` creates `AppState()`, renders `ContentView`, configures hidden-title-bar window.",
+          "`Sources/DeepCodex/ContentView.swift` \u2014 Main view rendering: header, action cards, tools panel, system info panel, advanced capabilities section.",
+          "`Sources/DeepCodex/MenuBarManager.swift` \u2014 `@MainActor final class MenuBarManager` creates `NSStatusItem` with attributed title and a mode-switching NSMenu."
+        ],
+        "important_modules": [
+          "`AppState.swift` \u2014 Central observable state: mode detection, thread/context detection, shell execution helpers, backup/restore, alert passthroughs. ~600 lines.",
+          "`ContentView.swift` \u2014 Full UI: header with logo, 3 action cards (Normal/DeepSeek Pro/Flash), tools panel with collapse, system info panel, advanced capabilities expandable section. ~873 lines.",
+          "`ContinueWorkModal.swift` \u2014 Sheet presented for 'continue work' workflow: thread picker grouped by folder, destination mode picker, context preview, export/copy actions. ~674 lines.",
+          "`CompletionAlertManager.swift` \u2014 File-watching alert system: polls `eventsDir` for `agent-turn-complete-*.json`, plays looping sound, monitors mouse/keyboard activity to auto-silence. ~347 lines.",
+          "`ContextExporter.swift` \u2014 Pure read-only logic layer: extracts session meta, user/assistant/agent messages, function calls, file paths, errors from Codex JSONL files via inline python3 scripts. Generates structured Markdown context. ~400 lines.",
+          "`AdvancedCapabilities.swift` \u2014 Codable models (`AdvancedCapabilities`, `WebSearchStatus`, `ImageInputInfo`, `RoutingInfo`) plus display helpers. ~162 lines.",
+          "`Theme.swift` \u2014 `DeepTheme` enum with color palette, gradients, border styles, corner radii. ~111 lines.",
+          "`MenuBarManager.swift` \u2014 Shared singleton managing `NSStatusItem` rendering and NSMenu for mode switching via shell commands. ~192 lines."
+        ],
+        "hotspots": [
+          "**Shell execution pattern** \u2014 `AppState.runShell`/`runCommand` and `ContextExporter.runCommand` use `Process` + `Pipe`. Reading `readDataToEndOfFile()` before `waitUntilExit()` mitigates deadlocks, but error handling relies on try/catch swallowing errors.",
+          "**SQLite thread detection fallback** \u2014 `AppState.detectLatestThreads()` tries SQLite JSON query first then falls back to filesystem `find+grep`. The SQL parsing uses `JSONSerialization` with manual `[[String:Any]]` casting \u2014 fragile.",
+          "**Inline python3 scripts** \u2014 `ContextExporter` embeds python3 code as command-line strings for extracting messages, function calls, file paths, errors. These are un-escaped and un-tested strings.",
+          "**Accessibility monitoring** \u2014 `CompletionAlertManager` uses `AXIsProcessTrusted()` and `NSEvent.addGlobalMonitorForEvents` for mouse/keyboard detection. The `focusBundleIds` set hard-codes bundle identifiers for Codex, VS Code, Cursor, etc.",
+          "**Window auto-resize** \u2014 `ContentView` uses `GeometryReader` + `PreferenceKey(ContentHeightKey)` + `WindowSizer` with `NSAnimationContext` to dynamically adjust window height. Has a 10px threshold guard.",
+          "**Menu bar polling** \u2014 `MenuBarManager.setup()` spawns an unstructured `Task` with a `while true` loop sleeping 2 seconds to detect `activeMode` changes instead of using Combine publishers.",
+          "**Debug log file appends** \u2014 `AppState.debugLog()` opens/closes `FileHandle` per call (or creates file on first write). Thread-safety is not guaranteed for concurrent writes from `Task.detached` closures.",
+          "**Busy guard pattern** \u2014 Multiple `openCodex*` methods and `detectLatestThreads`/`continueToTargetMode` use a shared `isBusy` flag. If an operation fails without resetting the flag, the entire UI becomes permanently disabled."
+        ],
+        "test_observations": [
+          "**No tests exist** \u2014 There is no `Tests/` directory, no test targets in `Package.swift`, and the build description (`plugin-tools-description.json`) shows `builtTestProducts: []` and empty test discovery commands.",
+          "**Highest priority test targets**: `ContextExporter.generateMarkdown()` (pure function, complex string output), shell command parsing in `ContextExporter.extract*` methods, `AdvancedCapabilities` Codable round-trip, `AppState.Mode` enum logic, `WebSearchStatus` display helpers.",
+          "**Integration risk areas with no coverage**: SQLite JSON parsing fallback chain, inline python3 scripts' output parsing (separator splitting), thread detection race conditions, alert state transitions, `shouldAlert` duration logic.",
+          "**UI/logic coupling** \u2014 Views directly call `state.openCodexNormal()` etc. with no abstraction layer, making unit testing of business logic impossible without refactoring `AppState` into a testable protocol or extracting a pure domain layer."
+        ],
+        "evidence": [
+          "`Package.swift` defines only `.executableTarget(name:\"DeepCodex\", resources:[.process(\"Resources\")])` with no test targets.",
+          "Build description file `.build/arm64-apple-macosx/release/description.json` shows empty `builtTestProducts` array and empty `testDiscoveryCommands` dictionary.",
+          "Grep for any `XCTest` import or test class pattern across all files returned no results.",
+          "`AppState.swift` (600 lines) and `ContentView.swift` (873 lines) contain both business logic and UI code with no separation for testability.",
+          "The `ContextExporter.swift` struct is purely functional (read-only, static methods) and would be the easiest module to unit-test \u2014 yet has zero tests."
+        ],
+        "summary": "DeepCodex is a single-module macOS SwiftUI app (~10 source files, ~3500 lines) that manages OpenAI Codex mode switching, monitors Moon Bridge proxy status, detects recent Codex threads via SQLite/filesystem, exports context as Markdown, and plays completion alerts via file-watching. It has zero tests, no test target, and significant technical debt in shell execution patterns, inline python scripts, polling-based state observation, and tight UI/logic coupling. The most easily testable module is `ContextExporter` (pure functions), while the highest-risk untested areas are the shell-parsing fallback chains in `AppState.detectLatestThreads()` and the `CompletionAlertManager` alert lifecycle state machine."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1647
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "package.json",
+            "include": "package.json"
+          },
+          "duration_ms": 8,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "\"main\"|\"module\"|\"types\"",
+            "include": "package.json"
+          },
+          "duration_ms": 7,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 4,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1177
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "."
+          },
+          "duration_ms": 0,
+          "result_bytes": 36,
+          "content_hash": "5f97366500deb953"
+        },
+        {
+          "seq": 6,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1299
+        },
+        {
+          "seq": 7,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "package.json"
+          },
+          "duration_ms": 0,
+          "result_bytes": 38,
+          "content_hash": "5c2191445b122204"
+        },
+        {
+          "seq": 8,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "^",
+            "include": "*"
+          },
+          "duration_ms": 1297,
+          "result_bytes": 1318443,
+          "content_hash": "6f7f6df04f54da9c"
+        },
+        {
+          "seq": 9,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 31336,
+          "content_hash": "95b2c5ff7ec95ad2"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 43031,
+        "p95": 43031
+      },
+      "input_tokens": {
+        "median": 312911,
+        "total": 312911
+      },
+      "output_tokens": {
+        "median": 3646,
+        "total": 3646
+      },
+      "cached_tokens": {
+        "median": 273664,
+        "total": 273664
+      },
+      "reasoning_tokens": {
+        "median": 691,
+        "total": 691
+      },
+      "tool_calls": {
+        "median": 23,
+        "total": 23
+      },
+      "cost_usd": {
+        "median": 0.01034676,
+        "total": 0.01034676
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 36773,
+        "p95": 36773
+      },
+      "input_tokens": {
+        "median": 475973,
+        "total": 475973
+      },
+      "output_tokens": {
+        "median": 2638,
+        "total": 2638
+      },
+      "cached_tokens": {
+        "median": 2944,
+        "total": 2944
+      },
+      "reasoning_tokens": {
+        "median": 624,
+        "total": 624
+      },
+      "tool_calls": {
+        "median": 5,
+        "total": 5
+      },
+      "cost_usd": {
+        "median": 0.06700392,
+        "total": 0.06700392
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "43031ms",
+        "without_caesar": "36773ms",
+        "delta": "17.0%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "312911",
+        "without_caesar": "475973",
+        "delta": "-34.3%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "3646",
+        "without_caesar": "2638",
+        "delta": "38.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "23",
+        "without_caesar": "5",
+        "delta": "360.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.010347",
+        "without_caesar": "$0.067004",
+        "delta": "-84.6%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/DEEPCODEX/source; CAESAR state remains temporary."
+  ]
+}

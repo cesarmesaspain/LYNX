@@ -1,0 +1,584 @@
+/*
+ * metrics-db.ts — Persistent metrics store (SQLite).
+ *
+ * Complements usage.jsonl with a DB that never rotates. Daily snapshots
+ * let the dashboard show long-term trends without keeping infinite JSONL.
+ *
+ * Schema:
+ *   daily_snapshots(project, date TEXT, tokens_saved, files_avoided,
+ *     unique_files, llm_events, llm_top_changed, llm_cost, events_count)
+ *   events_archive(id INTEGER PK, ts, type, project, query, query_hash,
+ *     result_count, unique_files, files_avoided, tokens_saved, confidence,
+ *     llm_provider, llm_latency_ms, estimated_llm_cost_usd, rank_changed,
+ *     top_changed, tool_hint, files_json)
+ */
+
+import Database from 'better-sqlite3';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
+import { lynxHome } from '../config/runtime.js';
+import type { UsageEvent } from '../usage/metrics.js';
+
+let _db: Database.Database | null = null;
+
+function metricsDbPath(): string {
+  return path.join(lynxHome(), 'metrics.db');
+}
+
+function open(): Database.Database {
+  if (_db) return _db;
+  const dbPath = metricsDbPath();
+  const dir = path.dirname(dbPath);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  const db = new Database(dbPath);
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS daily_snapshots (
+      project TEXT NOT NULL,
+      date TEXT NOT NULL,
+      tokens_saved INTEGER NOT NULL DEFAULT 0,
+      files_avoided INTEGER NOT NULL DEFAULT 0,
+      unique_files INTEGER NOT NULL DEFAULT 0,
+      llm_events INTEGER NOT NULL DEFAULT 0,
+      llm_top_changed INTEGER NOT NULL DEFAULT 0,
+      llm_cost REAL NOT NULL DEFAULT 0,
+      events_count INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (project, date)
+    );
+
+    CREATE TABLE IF NOT EXISTS events_archive (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts TEXT NOT NULL,
+      type TEXT NOT NULL,
+      project TEXT NOT NULL,
+      query TEXT,
+      query_hash TEXT,
+      result_count INTEGER,
+      unique_files INTEGER,
+      files_avoided INTEGER,
+      tokens_saved INTEGER,
+      confidence TEXT,
+      llm_provider TEXT,
+      llm_latency_ms INTEGER,
+      estimated_llm_cost_usd REAL,
+      rank_changed INTEGER,
+      top_changed INTEGER,
+      tool_hint TEXT,
+      files_json TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_events_project ON events_archive(project);
+    CREATE INDEX IF NOT EXISTS idx_events_ts ON events_archive(ts);
+  `);
+
+  // ── v3 migration: add provenance/dedup columns if missing ──
+  migrateV3(db);
+
+  _db = db;
+  return db;
+}
+
+/** Safe migration that adds v3 columns without breaking existing data. */
+function migrateV3(db: Database.Database): void {
+  const cols = db.prepare("PRAGMA table_info('events_archive')").all() as { name: string }[];
+  const names = new Set(cols.map((c) => c.name));
+
+  const additions: string[] = [];
+  if (!names.has('session_id')) additions.push('ALTER TABLE events_archive ADD COLUMN session_id TEXT');
+  if (!names.has('task_id')) additions.push('ALTER TABLE events_archive ADD COLUMN task_id TEXT');
+  if (!names.has('event_id')) additions.push('ALTER TABLE events_archive ADD COLUMN event_id TEXT');
+  if (!names.has('deterministic_mode')) additions.push('ALTER TABLE events_archive ADD COLUMN deterministic_mode INTEGER');
+
+  // Also add to daily_snapshots
+  const dCols = db.prepare("PRAGMA table_info('daily_snapshots')").all() as { name: string }[];
+  const dNames = new Set(dCols.map((c) => c.name));
+  if (!dNames.has('sessions_count')) additions.push('ALTER TABLE daily_snapshots ADD COLUMN sessions_count INTEGER NOT NULL DEFAULT 0');
+  if (!dNames.has('tasks_count')) additions.push('ALTER TABLE daily_snapshots ADD COLUMN tasks_count INTEGER NOT NULL DEFAULT 0');
+  if (!dNames.has('deterministic_events')) additions.push('ALTER TABLE daily_snapshots ADD COLUMN deterministic_events INTEGER NOT NULL DEFAULT 0');
+
+  for (const stmt of additions) {
+    try { db.exec(stmt); } catch { /* already exists (race) */ }
+  }
+
+  // Add index on event_id for dedup queries
+  if (!names.has('event_id')) {
+    try { db.exec('CREATE INDEX IF NOT EXISTS idx_events_event_id ON events_archive(event_id)'); } catch { /* ok */ }
+  }
+}
+
+export function closeMetricsDb(): void {
+  if (_db) {
+    try { _db.close(); } catch { /* ok */ }
+    _db = null;
+  }
+}
+
+// ── Snapshot rebuild ────────────────────────────────────────────
+
+export interface RebuildResult {
+  projects_rebuilt: number;
+  rows_before: number;
+  rows_after: number;
+  backup_path: string | null;
+  error?: string;
+}
+
+/**
+ * Safely rebuild all daily_snapshots from events_archive with backup,
+ * transaction, before/after comparison, and rollback on failure.
+ * Idempotent: calling twice produces the same result.
+ */
+export function rebuildDailySnapshots(dryRun = false): RebuildResult {
+  try {
+    const db = open();
+    const dbPath = metricsDbPath();
+
+    // Backup metrics.db before mutation
+    const backupPath = dbPath + '.backup-' + new Date().toISOString().replace(/[:.]/g, '-');
+    let backupCreated = false;
+    if (!dryRun) {
+      try {
+        fs.copyFileSync(dbPath, backupPath);
+        backupCreated = true;
+      } catch {
+        // Non-critical — proceed without backup
+      }
+    }
+
+    // Count before
+    const rowsBefore = (db.prepare('SELECT COUNT(*) FROM daily_snapshots').get() as { 'COUNT(*)': number })['COUNT(*)'];
+
+    if (dryRun) {
+      // Simulate: count what would be rebuilt
+      const projects = (db.prepare('SELECT DISTINCT project FROM events_archive').all() as { project: string }[]);
+      return {
+        projects_rebuilt: projects.length,
+        rows_before: rowsBefore,
+        rows_after: projects.length,
+        backup_path: null,
+      };
+    }
+
+    // Rebuild in a transaction
+    let projectsRebuilt = 0;
+    const rebuildAll = db.transaction(() => {
+      // Delete all existing snapshots
+      db.exec('DELETE FROM daily_snapshots');
+
+      // Recalculate from events_archive
+      const today = new Date().toISOString().slice(0, 10);
+      const projects = db.prepare('SELECT DISTINCT project FROM events_archive').all() as { project: string }[];
+
+      const insertStmt = db.prepare(`
+        INSERT INTO daily_snapshots
+          (project, date, tokens_saved, files_avoided, unique_files,
+           llm_events, llm_top_changed, llm_cost, events_count,
+           sessions_count, tasks_count, deterministic_events)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const { project } of projects) {
+        const stats = db.prepare(`
+          SELECT
+            COALESCE(SUM(tokens_saved), 0) as tokens,
+            COALESCE(SUM(files_avoided), 0) as files,
+            COALESCE(MAX(unique_files), 0) as uniq_files,
+            COUNT(CASE WHEN llm_provider IS NOT NULL AND llm_provider != 'heuristic' THEN 1 END) as llm_ev,
+            COUNT(CASE WHEN top_changed = 1 THEN 1 END) as llm_tc,
+            COALESCE(SUM(estimated_llm_cost_usd), 0) as llm_c,
+            COUNT(*) as ev_cnt,
+            COUNT(DISTINCT session_id) as sess_cnt,
+            COUNT(DISTINCT task_id) as task_cnt,
+            COUNT(CASE WHEN deterministic_mode = 1 THEN 1 END) as det_ev
+          FROM events_archive WHERE project = ?
+        `).get(project) as Record<string, unknown>;
+
+        const evCnt = Number(stats.ev_cnt || 0);
+        if (evCnt > 0) {
+          insertStmt.run(
+            project, today,
+            Number(stats.tokens || 0),
+            Number(stats.files || 0),
+            Number(stats.uniq_files || 0),
+            Number(stats.llm_ev || 0),
+            Number(stats.llm_tc || 0),
+            Number(stats.llm_c || 0),
+            evCnt,
+            Number(stats.sess_cnt || 0),
+            Number(stats.task_cnt || 0),
+            Number(stats.det_ev || 0)
+          );
+          projectsRebuilt++;
+        }
+      }
+    });
+
+    rebuildAll();
+
+    // Count after
+    const rowsAfter = (db.prepare('SELECT COUNT(*) FROM daily_snapshots').get() as { 'COUNT(*)': number })['COUNT(*)'];
+
+    return {
+      projects_rebuilt: projectsRebuilt,
+      rows_before: rowsBefore,
+      rows_after: rowsAfter,
+      backup_path: backupCreated ? backupPath : null,
+    };
+  } catch (err) {
+    return {
+      projects_rebuilt: 0,
+      rows_before: 0,
+      rows_after: 0,
+      backup_path: null,
+      error: String(err),
+    };
+  }
+}
+
+// ── Write ──────────────────────────────────────────────────────
+
+export function archiveEvent(event: UsageEvent): void {
+  try {
+    const db = open();
+    db.prepare(`
+      INSERT INTO events_archive
+        (ts, type, project, query, query_hash, result_count, unique_files,
+         files_avoided, tokens_saved, confidence, llm_provider,
+         llm_latency_ms, estimated_llm_cost_usd, rank_changed, top_changed,
+         tool_hint, files_json, session_id, task_id, event_id, deterministic_mode)
+      VALUES
+        (@ts, @type, @project, @query, @query_hash, @result_count, @unique_files,
+         @files_avoided, @tokens_saved, @confidence, @llm_provider,
+         @llm_latency_ms, @estimated_llm_cost_usd, @rank_changed, @top_changed,
+         @tool_hint, @files_json, @session_id, @task_id, @event_id, @deterministic_mode)
+    `).run({
+      ts: event.ts,
+      type: event.type,
+      project: event.project,
+      query: event.query || null,
+      query_hash: event.query_hash || null,
+      result_count: event.result_count ?? null,
+      unique_files: event.unique_files ?? null,
+      files_avoided: event.files_avoided ?? null,
+      tokens_saved: event.tokens_saved ?? null,
+      confidence: event.confidence || null,
+      llm_provider: event.llm_provider || null,
+      llm_latency_ms: event.llm_latency_ms ?? null,
+      estimated_llm_cost_usd: event.estimated_llm_cost_usd ?? null,
+      rank_changed: event.rank_changed === undefined ? null : (event.rank_changed ? 1 : 0),
+      top_changed: event.top_changed === undefined ? null : (event.top_changed ? 1 : 0),
+      tool_hint: event.tool_hint || null,
+      files_json: event.files ? JSON.stringify(event.files) : null,
+      session_id: event.session_id || null,
+      task_id: event.task_id || null,
+      event_id: event.event_id || null,
+      deterministic_mode: event.deterministic_mode === undefined ? null : (event.deterministic_mode ? 1 : 0),
+    });
+  } catch {
+    // Non-critical — DB write failures must never affect product.
+  }
+}
+
+// ── Daily rollup ───────────────────────────────────────────────
+
+export function upsertDailySnapshot(
+  project: string,
+  date: string,
+  tokensSaved: number,
+  filesAvoided: number,
+  uniqueFiles: number,
+  llmEvents: number,
+  llmTopChanged: number,
+  llmCost: number,
+  eventsCount: number,
+  sessionsCount = 0,
+  tasksCount = 0,
+  deterministicEvents = 0
+): void {
+  try {
+    const db = open();
+    db.prepare(`
+      INSERT INTO daily_snapshots
+        (project, date, tokens_saved, files_avoided, unique_files,
+         llm_events, llm_top_changed, llm_cost, events_count,
+         sessions_count, tasks_count, deterministic_events)
+      VALUES
+        (@project, @date, @tokens_saved, @files_avoided, @unique_files,
+         @llm_events, @llm_top_changed, @llm_cost, @events_count,
+         @sessions_count, @tasks_count, @deterministic_events)
+      ON CONFLICT(project, date) DO UPDATE SET
+        tokens_saved = @tokens_saved,
+        files_avoided = @files_avoided,
+        unique_files = @unique_files,
+        llm_events = @llm_events,
+        llm_top_changed = @llm_top_changed,
+        llm_cost = @llm_cost,
+        events_count = @events_count,
+        sessions_count = @sessions_count,
+        tasks_count = @tasks_count,
+        deterministic_events = @deterministic_events
+    `).run({
+      project,
+      date,
+      tokens_saved: tokensSaved,
+      files_avoided: filesAvoided,
+      unique_files: uniqueFiles,
+      llm_events: llmEvents,
+      llm_top_changed: llmTopChanged,
+      llm_cost: llmCost,
+      events_count: eventsCount,
+      sessions_count: sessionsCount,
+      tasks_count: tasksCount,
+      deterministic_events: deterministicEvents,
+    });
+  } catch {
+    // Non-critical.
+  }
+}
+
+// ── Read ───────────────────────────────────────────────────────
+
+export interface DailySnapshot {
+  project: string;
+  date: string;
+  tokens_saved: number;
+  files_avoided: number;
+  unique_files: number;
+  llm_events: number;
+  llm_top_changed: number;
+  llm_cost: number;
+  events_count: number;
+  sessions_count: number;
+  tasks_count: number;
+  deterministic_events: number;
+}
+
+export interface HistorySummary {
+  total_tokens_saved: number;
+  total_files_avoided: number;
+  total_unique_files: number;
+  total_llm_events: number;
+  total_llm_top_changed: number;
+  total_llm_cost: number;
+  total_events: number;
+  total_sessions: number;
+  total_tasks: number;
+  total_deterministic_events: number;
+  daily: DailySnapshot[];
+  first_date: string | null;
+  last_date: string | null;
+}
+
+export function summarizeHistory(
+  project?: string,
+  limitDays = 90
+): HistorySummary {
+  try {
+    const db = open();
+
+    const stmt = project
+      ? db.prepare('SELECT * FROM daily_snapshots WHERE project = ? ORDER BY date DESC LIMIT ?')
+      : db.prepare('SELECT * FROM daily_snapshots ORDER BY date DESC LIMIT ?');
+
+    const rows = project
+      ? stmt.all(project, limitDays) as DailySnapshot[]
+      : stmt.all(limitDays) as DailySnapshot[];
+
+    const totalsRow = project
+      ? db.prepare(`
+          SELECT
+            COALESCE(SUM(tokens_saved), 0) as tokens,
+            COALESCE(SUM(files_avoided), 0) as files,
+            COALESCE(MAX(unique_files), 0) as uniq_files,
+            COALESCE(SUM(llm_events), 0) as llm_ev,
+            COALESCE(SUM(llm_top_changed), 0) as llm_tc,
+            COALESCE(SUM(llm_cost), 0) as llm_c,
+            COALESCE(SUM(events_count), 0) as ev_cnt,
+            COALESCE(SUM(sessions_count), 0) as sess_cnt,
+            COALESCE(SUM(tasks_count), 0) as task_cnt,
+            COALESCE(SUM(deterministic_events), 0) as det_ev,
+            MIN(date) as first_d,
+            MAX(date) as last_d
+          FROM daily_snapshots WHERE project = ?
+        `).get(project) as Record<string, unknown>
+      : db.prepare(`
+          SELECT
+            COALESCE(SUM(tokens_saved), 0) as tokens,
+            COALESCE(SUM(files_avoided), 0) as files,
+            COALESCE(MAX(unique_files), 0) as uniq_files,
+            COALESCE(SUM(llm_events), 0) as llm_ev,
+            COALESCE(SUM(llm_top_changed), 0) as llm_tc,
+            COALESCE(SUM(llm_cost), 0) as llm_c,
+            COALESCE(SUM(events_count), 0) as ev_cnt,
+            COALESCE(SUM(sessions_count), 0) as sess_cnt,
+            COALESCE(SUM(tasks_count), 0) as task_cnt,
+            COALESCE(SUM(deterministic_events), 0) as det_ev,
+            MIN(date) as first_d,
+            MAX(date) as last_d
+          FROM daily_snapshots
+        `).get() as Record<string, unknown>;
+
+    return {
+      total_tokens_saved: Number(totalsRow.tokens || 0),
+      total_files_avoided: Number(totalsRow.files || 0),
+      total_unique_files: Number(totalsRow.uniq_files || 0),
+      total_llm_events: Number(totalsRow.llm_ev || 0),
+      total_llm_top_changed: Number(totalsRow.llm_tc || 0),
+      total_llm_cost: Number(totalsRow.llm_c || 0),
+      total_events: Number(totalsRow.ev_cnt || 0),
+      total_sessions: Number(totalsRow.sess_cnt || 0),
+      total_tasks: Number(totalsRow.task_cnt || 0),
+      total_deterministic_events: Number(totalsRow.det_ev || 0),
+      daily: rows,
+      first_date: totalsRow.first_d as string | null,
+      last_date: totalsRow.last_d as string | null,
+    };
+  } catch {
+    return {
+      total_tokens_saved: 0,
+      total_files_avoided: 0,
+      total_unique_files: 0,
+      total_llm_events: 0,
+      total_llm_top_changed: 0,
+      total_llm_cost: 0,
+      total_events: 0,
+      total_sessions: 0,
+      total_tasks: 0,
+      total_deterministic_events: 0,
+      daily: [],
+      first_date: null,
+      last_date: null,
+    };
+  }
+}
+
+/** Read raw events from events_archive (persistent, never rotated).
+ *  Returns properly typed UsageEvents with all v3 provenance fields.
+ *  Used for time-window aggregation and dedup-safe total computation.
+ *
+ *  Dedup key: event_id (v3) or stable hash of ts|project|type|query_hash|files_avoided|tokens_saved (legacy).
+ *  Legacy hash has documented collision risk: same values within same second.
+ *  Coverage: ~99.9% of events from 2026-07-10 onward have event_id; legacy before that.
+ */
+export function readArchivedEvents(
+  project?: string,
+  limit = 10000
+): import('../usage/metrics.js').UsageEvent[] {
+  try {
+    const db = open();
+    const clause = project ? 'WHERE project = ?' : '';
+    const params = project ? [project, limit] : [limit];
+
+    type ArchivedRow = {
+      ts: string;
+      type: string;
+      project: string;
+      query: string | null;
+      query_hash: string | null;
+      result_count: number | null;
+      unique_files: number | null;
+      files_avoided: number | null;
+      tokens_saved: number | null;
+      confidence: string | null;
+      latency_ms: number | null;
+      llm_provider: string | null;
+      llm_latency_ms: number | null;
+      estimated_llm_cost_usd: number | null;
+      rank_changed: number | null;
+      top_changed: number | null;
+      tool_hint: string | null;
+      files_json: string | null;
+      session_id: string | null;
+      task_id: string | null;
+      event_id: string | null;
+      deterministic_mode: number | null;
+    };
+
+    const stmt = db.prepare(`
+      SELECT ts, type, project, query, query_hash, result_count, unique_files,
+             files_avoided, tokens_saved, confidence,
+             llm_provider, llm_latency_ms, estimated_llm_cost_usd,
+             rank_changed, top_changed, tool_hint, files_json,
+             session_id, task_id, event_id, deterministic_mode
+      FROM events_archive
+      ${clause}
+      ORDER BY ts DESC
+      LIMIT ?
+    `);
+
+    const rows = stmt.all(...params) as ArchivedRow[];
+
+    return rows.map((r) => ({
+      ts: r.ts,
+      type: r.type as import('../usage/metrics.js').UsageEventType,
+      project: r.project,
+      query: r.query || undefined,
+      query_hash: r.query_hash || undefined,
+      result_count: r.result_count ?? undefined,
+      unique_files: r.unique_files ?? undefined,
+      files_avoided: r.files_avoided ?? undefined,
+      tokens_saved: r.tokens_saved ?? undefined,
+      confidence: (r.confidence as 'low' | 'medium' | 'high') || undefined,
+      latency_ms: r.latency_ms ?? undefined,
+      llm_provider: r.llm_provider || undefined,
+      llm_latency_ms: r.llm_latency_ms ?? undefined,
+      estimated_llm_cost_usd: r.estimated_llm_cost_usd ?? undefined,
+      rank_changed: r.rank_changed === null ? undefined : r.rank_changed === 1,
+      top_changed: r.top_changed === null ? undefined : r.top_changed === 1,
+      tool_hint: r.tool_hint || undefined,
+      files: r.files_json ? JSON.parse(r.files_json) : undefined,
+      session_id: r.session_id || undefined,
+      task_id: r.task_id || undefined,
+      event_id: r.event_id || undefined,
+      deterministic_mode: r.deterministic_mode === null ? undefined : r.deterministic_mode === 1,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export function flushTodayEvents(project: string): void {
+  try {
+    const db = open();
+    const today = new Date().toISOString().slice(0, 10);
+
+    const row = db.prepare(`
+      SELECT
+        COUNT(*) as ev_count,
+        COALESCE(SUM(tokens_saved), 0) as tokens,
+        COALESCE(SUM(files_avoided), 0) as files,
+        COUNT(DISTINCT files_json) as uniq_files_json,
+        COUNT(CASE WHEN llm_provider IS NOT NULL AND llm_provider != 'heuristic' THEN 1 END) as llm_ev,
+        COUNT(CASE WHEN top_changed = 1 THEN 1 END) as llm_tc,
+        COALESCE(SUM(estimated_llm_cost_usd), 0) as llm_c,
+        COUNT(DISTINCT session_id) as sess_cnt,
+        COUNT(DISTINCT task_id) as task_cnt,
+        COUNT(CASE WHEN deterministic_mode = 1 THEN 1 END) as det_ev
+      FROM events_archive
+      WHERE project = ? AND ts >= ?
+    `).get(project, today + 'T00:00:00.000Z') as Record<string, unknown>;
+
+    const count = Number(row.ev_count || 0);
+    if (count === 0) return;
+
+    upsertDailySnapshot(
+      project,
+      today,
+      Number(row.tokens || 0),
+      Number(row.files || 0),
+      Number(row.uniq_files_json || 0),
+      Number(row.llm_ev || 0),
+      Number(row.llm_tc || 0),
+      Number(row.llm_c || 0),
+      count,
+      Number(row.sess_cnt || 0),
+      Number(row.task_cnt || 0),
+      Number(row.det_ev || 0)
+    );
+  } catch {
+    // Non-critical.
+  }
+}

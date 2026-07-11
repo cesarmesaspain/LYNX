@@ -1,0 +1,62 @@
+{
+  "generated": "2026-07-11T13:46:30.612Z",
+  "project": "WORKMAT",
+  "seed": 100,
+  "model": "mlx-community/Qwen3.6-35B-A3B-4bit",
+  "tier": "screening",
+  "tasks": [
+    {
+      "task_id": "external_scalability_snapshot",
+      "lynx": {
+        "response": "Error: TypeError: fetch failed",
+        "wall_ms": 340808,
+        "tool_calls": 0,
+        "tool_call_summary": {},
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: TypeError: fetch failed"
+        ],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "{\n  \"largest_files\": [],\n  \"most_complex\": [],\n  \"tightest_coupling\": [],\n  \"god_objects\": [],\n  \"methodology\": \"No structural analysis tools (e.g., code graph, AST parser, or dependency analyzer) are available in the current environment. The only available tool is `grep`, which performs text pattern matching and cannot compute line counts, cyclomatic complexity, fan-in metrics, or architectural coupling without reading every file — which violates the constraint 'Do NOT read every file.'\",\n  \"summary\": \"Scalability health check for WORKMAT cannot be completed with available tools. To perform this analysis, you would need access to static analysis tools such as: (1) `wc -l` or a file-size scanner for largest files, (2) a cyclomatic complexity calculator (e.g., radon, eslint complexity rule) for most complex functions, (3) a dependency graph analyzer (e.g., import/export parser) for fan-in metrics, and (4) a code smell detector (e.g., SonarQube, CodeClimate) for god objects. Please integrate such tools into your pipeline or provide a pre-computed analysis report.\"\n}",
+        "wall_ms": 76404,
+        "tool_calls": 0,
+        "tool_call_summary": {},
+        "input_tokens": 707,
+        "cost_usd": 0,
+        "errors": []
+      }
+    },
+    {
+      "task_id": "external_dead_code",
+      "lynx": {
+        "response": "Error: TypeError: fetch failed",
+        "wall_ms": 299687,
+        "tool_calls": 0,
+        "tool_call_summary": {},
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: TypeError: fetch failed"
+        ],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "Error: TypeError: fetch failed",
+        "wall_ms": 325396,
+        "tool_calls": 0,
+        "tool_call_summary": {},
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: TypeError: fetch failed"
+        ]
+      }
+    }
+  ]
+}

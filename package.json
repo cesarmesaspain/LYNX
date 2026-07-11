@@ -1,0 +1,49 @@
+{
+  "name": "lynx",
+  "version": "0.1.0",
+  "description": "LYNX — Code Analysis & Exploration with Semantic Architecture Reasoning. A codebase intelligence MCP server with persistent memory and narrative explanations.",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "lynx": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "cli": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "bundle": "npm run build && node scripts/fix-pkg-deps.js && node scripts/build-native-extractor.js && pkg dist/cli.js --targets node20-macos-arm64 --output dist/bin/lynx",
+    "bundle:all": "npm run build && node scripts/fix-pkg-deps.js && node scripts/build-native-extractor.js && pkg dist/cli.js --targets node20-macos-arm64,node20-macos-x64,node20-linux-x64,node20-linux-arm64,node20-win-x64 --output dist/bin/lynx"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@types/chokidar": "^1.7.5",
+    "better-sqlite3": "^11.10.0",
+    "chokidar": "^5.0.0",
+    "tree-sitter-wasm": "^1.1.2",
+    "web-tree-sitter": "^0.26.10",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/ws": "^8.18.1",
+    "@yao-pkg/pkg": "^6.14.2",
+    "tsx": "^4.19.0",
+    "typescript": "^5",
+    "vitest": "^4.1.7"
+  },
+  "pkg": {
+    "assets": [
+      "node_modules/web-tree-sitter/web-tree-sitter.wasm",
+      "node_modules/tree-sitter-wasm/out/**/*.wasm",
+      "node_modules/tree-sitter-wasm/manifest.json",
+      "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
+      "node_modules/better-sqlite3/lib/binding/**/*.node",
+      "native/lynx_ts_extractor"
+    ],
+    "outputPath": "dist/bin"
+  }
+}

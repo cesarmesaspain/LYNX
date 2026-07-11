@@ -1,0 +1,270 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 4242,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_trade_flow",
+      "external_safety_change_impact",
+      "external_project_overview"
+    ],
+    "projectDir": "/Users/admin/Desktop/LINCE",
+    "dryRun": false
+  },
+  "methodology": [
+    "checkpoint — benchmark in progress"
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 74676,
+        "p95": 74676
+      },
+      "input_tokens": {
+        "median": 924752,
+        "total": 924752
+      },
+      "output_tokens": {
+        "median": 5924,
+        "total": 5924
+      },
+      "cached_tokens": {
+        "median": 816512,
+        "total": 816512
+      },
+      "reasoning_tokens": {
+        "median": 904,
+        "total": 904
+      },
+      "tool_calls": {
+        "median": 31,
+        "total": 31
+      },
+      "cost_usd": {
+        "median": 0.02824349,
+        "total": 0.02824349
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 72582,
+        "p95": 72582
+      },
+      "input_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "output_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 0,
+        "total": 0
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "74676ms",
+        "without_caesar": "72582ms",
+        "delta": "2.9%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "924752",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "5924",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "31",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.028243",
+        "without_caesar": "$0.000000",
+        "delta": "N/A",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "experiment_protocol": {
+    "model": "deepseek-v4-flash",
+    "temperature": 0,
+    "seeds": [
+      4242
+    ],
+    "prompt_hash": "8d4ec4b176414fd5",
+    "task_order": [
+      "external_safety_change_impact"
+    ],
+    "max_tokens": null,
+    "max_tool_calls": null,
+    "timeout_ms": null,
+    "max_retries": null,
+    "base_url": "https://api.deepseek.com/v1"
+  },
+  "tasks": [
+    {
+      "run_id": "run_1_18aa824cbfb5",
+      "task_id": "external_safety_change_impact",
+      "condition": "with_caesar",
+      "not_executed": false,
+      "order_position": 0,
+      "seed": 4242,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "The LINCE team wants to tighten a safety guard before automated trades are sent. Identify where the change should likely be made, what callers or dependencies may be affected, and what tests or checks should be added before release. Respond with JSON: {\"change_areas\":[\"...\"],\"affected_dependencies\":[\"...\"],\"test_plan\":[\"...\"],\"risks\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 924752,
+        "output_tokens": 5924,
+        "cached_tokens": 816512,
+        "reasoning_tokens": 904,
+        "tool_call_count": 31,
+        "files_read": 4,
+        "bytes_read": 209800,
+        "wall_time_ms": 74676,
+        "api_latency_ms": 74675,
+        "cost_usd": 0.02824349,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "tool_loop_exhausted": false,
+      "errors": [],
+      "response": "Now I have a thorough understanding of the full trade execution pipeline. Here is the analysis:\n\n```json\n{\n  \"change_areas\": [\n    \"backend/app/coinbase_public.py — submit_order(): The `_allow_real_orders()` guard at lines ~3600-3611 is the final safety barrier before real orders reach Coinbase. It checks `ALLOW_REAL_ORDERS` env (default True) AND NOT `SANDBOX_STRICT_ONLY` (default True). The combination means if someone flips off `SANDBOX_STRICT_ONLY` without setting `ALLOW_REAL_ORDERS=0`, real orders become possible without an explicit opt-in.\",\n    \"backend/app/coinbase_public.py — _allow_real_orders_flag(): Defaults to `True`. Tightening this to default `False` would require an explicit env opt-in for real orders (defense in depth). Currently, the env default True can be a single-point failure if strict sandbox gets disabled.\",\n    \"backend/app/routers/trading.py — trading_mobile_arm_lince(): The Android mobile arm endpoint (line 777) verifies PIN and runs trading_preflight, but does NOT call `ensure_real_mode_allowed()` before proceeding in REAL mode. It writes the armed robot order to storage and registers authorization. If SANDBOX_STRICT_ONLY is somehow disabled, this endpoint could arm a real robot without the extra guard that `trading_order` and `trading_market_order` enforce.\",\n    \"backend/app/routers/trading.py — trading_order() and trading_market_order(): These ARE properly guarded (require_trading_auth + enforce_robot_execution_authorization + enforce_real_order_rate_limit), but they are called AFTER the robot is already armed in the frontend. The arm-phase is where the strongest checks belong.\",\n    \"frontend/src/hooks/useRobotOrderExecution.ts — executeRobotOrder(): The frontend execution engine (2129 lines, complexity 591) has spread/slippage/liquidity guards but the backend-side `isRobotExecutionAuthorized` check is the only auth guard before orders reach `submitTradingOrder`. Additional client-side mode validation before each micro-order submission would add resilience.\"\n  ],\n  \"affected_dependencies\": [\n    \"backend/app/coinbase_public.py:submit_order — Called by 3 functions (submit_market_order, trading_order, trading_market_order). Any change affects all order paths.\",\n    \"backend/app/coinbase_public.py:_allow_real_orders — Used by submit_order and trading_preflight. Change would affect sandbox mode behavior too.\",\n    \"backend/app/coinbase_public.py:_sandbox_strict_only — Linked to _allow_real_orders via logical AND. Affects set_sandbox_strict_only and is_sandbox_strict_only callers.\",\n    \"backend/app/api_shared.py:ensure_real_mode_allowed — Called by trading_mode_set and should be called by trading_mobile_arm_lince. Depends on is_sandbox_strict_only.\",\n    \"backend/app/routers/trading.py:trading_mobile_arm_lince — Direct endpoint for Android-monitor. Writes robot orders to storage and registers auth.\",\n    \"backend/app/services/security.py:enforce_robot_execution_authorization — Called by trading_order and trading_market_order. Validates pre-registered robot auth.\",\n    \"frontend/src/api.ts:submitTradingOrder — Called by 4 frontend hooks (useTradeTicketSubmit, useRobotOrderExecution, usePendingLimitExecution, submitTradingMarketOrder).\",\n    \"frontend/src/hooks/useTradeTicketSubmit.ts:submitTicketOrder — Arms robots in REAL mode via PUT /api/trading/robot/auth before submission.\",\n    \"frontend/src/hooks/useRobotOrderExecution.ts:executeRobotOrder — The automated execution engine that submits micro-orders via submitTradingOrder.\",\n    \"backend/run.sh — Sets ALLOW_REAL_ORDERS=0 and SANDBOX_STRICT_ONLY=1. This is the operational safeguard but is not enforced at the code-default level.\"\n  ],\n  \"test_plan\": [\n    \"T1: Verify that _allow_real_orders() returns False when neither ALLOW_REAL_ORDERS nor SANDBOX_STRICT_ONLY are set (default-deny principle). Test both env absent and env=0 scenarios.\",\n    \"T2: Integration test: arm a robot in REAL mode via trade ticket → verify that if SANDBOX_STRICT_ONLY is active, submit_order raises RuntimeError before any Coinbase API call.\",\n    \"T3: Integration test: mobile arm-lince endpoint in REAL mode → verify that ensure_real_mode_allowed check fires before writing to storage or registering auth.\",\n    \"T4: Rate limit test: enforce_real_order_rate_limit fires correctly when >8 orders are sent in a 60s window from the same client. Verify 429 response.\",\n    \"T5: Authorization expiry test: verify that expired TRADING_AUTH and ROBOT_EXECUTION_AUTH tokens are rejected at both the router-level and the executeRobotOrder auth check.\",\n    \"T6: Frontend guard test: verify that useRobotOrderExecution checks isRobotExecutionAuthorized BEFORE each packet and refuses to submit if auth is missing/revoked.\",\n    \"T7: Slippage guard test: executeRobotOrder with maxRealSlippagePct set low → verify abort/pause decision triggers correctly when real execution exceeds the threshold.\",\n    \"T8: Mode transition test: switch from REAL→SANDBOX while robot orders are active → verify _reject_sandbox_switch_if_real_active blocks the switch with 409.\",\n    \"T9: Concurrent arm test: attempt to arm two robots simultaneously via mobile arm-lince → verify _has_active_operations_for_mode blocks the second (409 response).\",\n    \"T10: Regression test: verify sandbox mode still works end-to-end (order simulation, balance adjustments, fills) after any guard changes.\"\n  ],\n  \"risks\": [\n    \"HIGH — Default ALLOW_REAL_ORDERS=True: If SANDBOX_STRICT_ONLY is ever disabled (via toggle or env misconfig), real orders become possible without explicit opt-in. The code default should be False (deny-by-default).\",\n    \"HIGH — trading_mobile_arm_lince bypasses ensure_real_mode_allowed: The Android endpoint only requires a PIN check and trading_preflight verification, but does NOT call ensure_real_mode_allowed(). This means a compromised PIN could arm a real robot even when SANDBOX_STRICT_ONLY is active, though submit_order would still block it at final submission. Still, the arm-phase writes orders to storage, creating phantom state.\",\n    \"MEDIUM — executeRobotOrder complexity (591): The frontend execution engine has 59x the recommended complexity threshold. High bug surface for edge cases around spread/slippage guards, micro-order splitting, and fund adjustments. A bug could bypass guard conditions.\",\n    \"MEDIUM — No per-order maximum exposure cap: The robot packet system has slippage and spread limits, but there is no hard cap on the total order size (e.g., maximum EUR or BTC per order) independent of wallet balance. A balance-reading race condition could allow larger-than-intended execution.\",\n    \"LOW — Rate limit keyed by client IP: enforce_real_order_rate_limit uses the request client IP as the rate-limit key. Behind NAT/proxy, multiple users share the same rate limit budget, and a single user could exhaust it for all behind the same IP.\"\n  ],\n  \"summary\": \"The LINCE trade pipeline has multiple defense layers: (1) env-flag guard `_allow_real_orders()` in submit_order, (2) auth-guarded routers, (3) pre-registration of robot execution auth, (4) frontend spread/slippage guards, and (5) rate limiting. The most critical tightening opportunity is changing the default of `_allow_real_orders_flag()` from `True` to `False` — this enforces deny-by-default even when `SANDBOX_STRICT_ONLY` is inadvertently disabled. Additionally, `trading_mobile_arm_lince` should call `ensure_real_mode_allowed()` before arming orders in REAL mode, mirroring what `trading_mode_set` does. On the frontend, `executeRobotOrder` should validate the current trading mode from the backend at the start of each execution cycle to catch mid-execution mode switches. Finally, adding a maximum order size cap (independent of wallet balance) at the `submit_order` level would provide a last-resort circuit breaker against balance-read races or stale auth.\"\n}\n```",
+      "response_hash": "7cec37bd7293ff23",
+      "tool_calls": 31,
+      "tool_call_summary": {
+        "get_architecture": 1,
+        "get_code_snippet": 6,
+        "pack_context": 1,
+        "read_file": 4,
+        "search_code": 9,
+        "search_graph": 9,
+        "semantic_search": 1
+      }
+    },
+    {
+      "run_id": "run_2_29edf1b108b7",
+      "task_id": "external_safety_change_impact",
+      "condition": "without_caesar",
+      "not_executed": false,
+      "order_position": 0,
+      "seed": 4242,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "The LINCE team wants to tighten a safety guard before automated trades are sent. Identify where the change should likely be made, what callers or dependencies may be affected, and what tests or checks should be added before release. Respond with JSON: {\"change_areas\":[\"...\"],\"affected_dependencies\":[\"...\"],\"test_plan\":[\"...\"],\"risks\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "tool_call_count": 0,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 72582,
+        "api_latency_ms": 0,
+        "cost_usd": 0,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "correct": false,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "tool_loop_exhausted": false,
+      "errors": [
+        "No JSON object found in response",
+        "provider_request_failed: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1554936 tokens (1554936 in the messages, 0 in the completion). Please reduce the length of the messag"
+      ],
+      "response": "Error: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1554936 tokens (1554936 in the messages, 0 in the completion). Please reduce the length of the messag",
+      "response_hash": "db795c55e9b246d6",
+      "tool_calls": 0,
+      "tool_call_summary": {}
+    }
+  ],
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/LINCE; CAESAR state remains temporary."
+  ]
+}

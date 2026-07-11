@@ -1,0 +1,31 @@
+{
+  "generated": "2026-07-11T03:26:50.430Z",
+  "project": "CAESAR-authoritative",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tasks": [
+    {
+      "task_id": "external_dead_code",
+      "lynx": {
+        "response": "I now have comprehensive, verified data. Here is my final report:\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"defaultInputs\",\n      \"file\": \"src/commercial/roi-calculator.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"formatRoiAsMarkdown\",\n      \"file\": \"src/commercial/roi-calculator.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"detectRecursion\",\n      \"file\": \"src/extraction/metrics.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"isSupportedExtension\",\n      \"file\": \"src/extraction/language-registry.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"getAllLanguageNames\",\n      \"file\": \"src/extraction/language-registry.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"getSupportedExtensions\",\n      \"file\": \"src/extraction/languages.ts\",\n      \"kind\": \"function\"\n    }\n  ],\n  \"evidence\": [\n    \"Graph query confirmed zero incoming CALLS or USAGE edges for all six symbols (verified via node-edge JOIN analysis).\",\n    \"`isSupportedExtension` is imported by `src/extraction/languages.ts` but that file never invokes it — it uses `isSupportedFilePath` instead.\",\n    \"`defaultInputs` and `formatRoiAsMarkdown` are exported from `src/commercial/roi-calculator.ts` but no file anywhere imports or calls them (zero IMPORT, CALLS, USAGE edges).\",\n    \"`detectRecursion` is exported from `src/extraction/metrics.ts` with zero incoming edges — it's a utility that was likely written for the extractor but never wired in.\",\n    \"`getAllLanguageNames` and `getSupportedExtensions` are exported convenience functions with zero callers across the entire codebase.\",\n    \"`find_tests` confirmed zero tests cover any of the six symbols.\",\n    \"Source code inspection confirmed each symbol is a real function definition (not a graph indexing artifact like a callback parameter).\"\n  ],\n  \"summary\": \"Found 6 verified unused symbols across 4 source files: 2 in src/commercial/roi-calculator.ts (defaultInputs, formatRoiAsMarkdown — ROI model helpers that were exported but never consumed), 2 in src/extraction/language-registry.ts (isSupportedExtension, getAllLanguageNames — extension lookup helpers with zero callers), 1 in src/extraction/languages.ts (getSupportedExtensions — backward-compat wrapper that nothing imports), and 1 in src/extraction/metrics.ts (detectRecursion — recursion-detection utility never wired into the extraction pipeline). All are genuine function definitions, exported but dead. An additional 6 functions in src/extraction/metrics.ts (defaultMetrics, computeTransitiveLoopDepth, isDecisionNode, isLoopNode, isNestingNode, isLinearScan, isAllocation) are also zero-caller — the entire metrics.ts module appears to be orphaned legacy code.\"\n}\n```",
+        "wall_ms": 104583,
+        "tool_calls": 61,
+        "input_tokens": 681966,
+        "cost_usd": 0.01788774,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "Error: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1816012 tokens (1816012 in the messages, 0 in the completion). Please reduce the length of the messag",
+        "wall_ms": 21187,
+        "tool_calls": 0,
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1816012 tokens (1816012 in the messages, 0 in the completion). Please reduce the length of the messag"
+        ]
+      }
+    }
+  ]
+}

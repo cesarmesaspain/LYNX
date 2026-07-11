@@ -1,0 +1,34 @@
+{
+  "generated": "2026-07-11T01:52:33.929Z",
+  "project": "CAESAR-authoritative",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tasks": [
+    {
+      "task_id": "external_dead_code",
+      "lynx": {
+        "response": "Error: SyntaxError: Expected ',' or '}' after property value in JSON at position 60",
+        "wall_ms": 169131,
+        "tool_calls": 116,
+        "input_tokens": 3511849,
+        "cost_usd": 0.06718244,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: SyntaxError: Expected ',' or '}' after property value in JSON at position 60"
+        ],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "Error: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 2168507 tokens (2168507 in the messages, 0 in the completion). Please reduce the length of the messag",
+        "wall_ms": 11772,
+        "tool_calls": 0,
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 2168507 tokens (2168507 in the messages, 0 in the completion). Please reduce the length of the messag"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1188 @@
+/*
+ * tree-sitter-extractor.ts — Unified extractor using tree-sitter WASM.
+ *
+ * Loads pre-compiled WASM grammars when available.
+ * Languages without bundled WASM fall back to lightweight text extraction.
+ * Walks the syntax tree extracting definitions, calls, imports, and usages.
+ * Complements the TypeScript compiler API extractor for .ts/.tsx files.
+ *
+ * Key design decision: we use imperative tree walking (descendantsOfType)
+ * rather than Query patterns. Queries are for highlighting, not graph extraction.
+ * Imperative walking gives us precise control over what gets extracted.
+ */
+
+import { Parser, Language, Node as SyntaxNode } from 'web-tree-sitter';
+import { getWasmPath } from 'tree-sitter-wasm';
+import type { SupportedLanguage } from 'tree-sitter-wasm';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { LanguageConfig } from './language-registry.js';
+import type { LynxNode, LynxNodeKind } from '../types.js';
+import { resolveAssetPath, assetExists, isPkg } from '../paths.js';
+
+// ── Types ────────────────────────────────────────────────────────
+
+export interface TSExtractedCall {
+  calleeName: string;
+  enclosingFuncQn: string;
+  args: string[];
+  startLine: number;
+}
+
+export interface TSExtractedImport {
+  localName: string;
+  modulePath: string;
+  startLine: number;
+}
+
+export interface TSExtractedUsage {
+  refName: string;
+  enclosingFuncQn: string;
+  startLine: number;
+  isWrite?: boolean;
+}
+
+export interface TSExtractedChannel {
+  channelName: string;
+  kind: 'publish' | 'subscribe' | 'emit' | 'listen';
+  startLine: number;
+}
+
+export interface TSExtractedThrow {
+  exceptionName: string;
+  enclosingFuncQn: string;
+  startLine: number;
+}
+
+export interface TSExtractedDecorator {
+  name: string;
+  targetQn: string;       // QN of the decorated function/class/method
+  startLine: number;
+}
+
+export interface TSExtractionResult {
+  nodes: LynxNode[];
+  calls: TSExtractedCall[];
+  imports: TSExtractedImport[];
+  usages: TSExtractedUsage[];
+  channels: TSExtractedChannel[];
+  throws: TSExtractedThrow[];
+  decorators: TSExtractedDecorator[];
+  hasError: boolean;
+  errorMsg: string | null;
+  isTestFile: boolean;
+  language: string;
+}
+
+// ── WASM Cache ────────────────────────────────────────────────────
+
+const wasmCache = new Map<string, Language>();
+
+let parserInitialized = false;
+
+async function ensureInit(): Promise<void> {
+  if (!parserInitialized) {
+    // Resolve web-tree-sitter WASM runtime relative to the project root
+    // (works in both dev and pkg binary)
+    const wasmRelPath = 'node_modules/web-tree-sitter/web-tree-sitter.wasm';
+    const wasmFile = resolveAssetPath(wasmRelPath);
+    const options: Record<string, unknown> = {};
+    if (assetExists(wasmRelPath)) {
+      options.locateFile = () => wasmFile;
+    }
+    await Parser.init(options as any);
+    parserInitialized = true;
+  }
+}
+
+async function loadWasmlanguage(
+  tsLang: string
+): Promise<Language> {
+  await ensureInit();
+
+  if (wasmCache.has(tsLang)) {
+    return wasmCache.get(tsLang)!;
+  }
+
+  const wasmPath = getWasmPath(tsLang as SupportedLanguage);
+  if (!fs.existsSync(wasmPath)) {
+    throw new Error(`Missing WASM grammar for ${tsLang}`);
+  }
+  const wasmBytes = fs.readFileSync(wasmPath);
+  const lang = await Language.load(wasmBytes);
+  wasmCache.set(tsLang, lang);
+  return lang;
+}
+
+// Lazy-loaded native TS parser — only works in dev mode (not in pkg binary).
+// In pkg, node-gyp-build fails because pkg reports as 'electron' runtime.
+let _nativeParser: any = undefined;
+let _tsLanguages: any = undefined;
+let _nativeLoaded = false;
+
+async function getNativeParser(): Promise<{ NativeParser: any; tsLanguages: any } | null> {
+  if (_nativeLoaded) return _nativeParser && _tsLanguages ? { NativeParser: _nativeParser, tsLanguages: _tsLanguages } : null;
+  _nativeLoaded = true;
+  // Dynamic import() is not supported in pkg binaries — skip silently
+  if (isPkg()) return null;
+  try {
+    // @ts-ignore — optional native dep
+    const np = await import('tree-sitter');
+    // @ts-ignore — optional native dep
+    const ts = await import('tree-sitter-typescript');
+    _nativeParser = np.default || np;
+    _tsLanguages = ts;
+    return { NativeParser: _nativeParser, tsLanguages: _tsLanguages };
+  } catch {
+    return null;
+  }
+}
+
+async function createParser(tsLang: string): Promise<{ parser: any; dispose: () => void } | null> {
+  const native = await getNativeParser();
+  if (!native) return null;
+  if (tsLang === 'typescript' || tsLang === 'tsx') {
+    const parser = new native.NativeParser();
+    const lang = tsLang === 'tsx' ? native.tsLanguages.tsx : native.tsLanguages.typescript;
+    parser.setLanguage(lang);
+    return { parser, dispose: () => undefined };
+  }
+  return null;
+}
+
+// ── Main extraction function ──────────────────────────────────────
+
+export async function extractWithTreeSitter(
+  source: string,
+  filePath: string,
+  project: string,
+  config: LanguageConfig
+): Promise<TSExtractionResult> {
+  const nodes: LynxNode[] = [];
+  const calls: TSExtractedCall[] = [];
+  const imports: TSExtractedImport[] = [];
+  const usages: TSExtractedUsage[] = [];
+  const channels: TSExtractedChannel[] = [];
+  const throws: TSExtractedThrow[] = [];
+  const decorators: TSExtractedDecorator[] = [];
+
+  try {
+    const moduleQn = filePathToModuleQn(filePath);
+    const fileLineCount = countLines(source);
+    let native = await createParser(config.tsLang);
+    let parser: any;
+    if (native) {
+      parser = native.parser;
+    } else {
+      const lang = await loadWasmlanguage(config.tsLang);
+      parser = new Parser();
+      parser.setLanguage(lang);
+    }
+
+    let tree: any;
+    try {
+      tree = native ? parseNative(parser, source) : parser.parse(source);
+    } catch (err) {
+      if (!native) throw err;
+      const lang = await loadWasmlanguage(config.tsLang);
+      parser = new Parser();
+      parser.setLanguage(lang);
+      native = null;
+      tree = parser.parse(source);
+    }
+    if (!tree) {
+      return {
+        nodes, calls, imports, usages, channels, throws, decorators,
+        hasError: true,
+        errorMsg: `Failed to parse: ${filePath}`,
+        isTestFile: false,
+        language: config.tsLang,
+      };
+    }
+
+    const rootNode = tree.rootNode;
+    // ── Extract File node ──
+    nodes.push(...createFileModuleNodes(project, filePath, moduleQn, fileLineCount));
+
+    // ── Extract function/class/variable definitions ──
+    const defNodes = extractDefinitions(rootNode, source, config, project, filePath, moduleQn);
+    nodes.push(...defNodes);
+
+    // ── Extract calls ──
+    if (config.callTypes.length > 0) {
+      const callNodes = rootNode.descendantsOfType(config.callTypes);
+      for (const callNode of callNodes) {
+        const calleeName = extractCalleeName(callNode, source, config.tsLang);
+        if (!calleeName) continue;
+
+        const enclosingFunc = findEnclosingFunction(callNode, config);
+        const enclosingFuncQn = enclosingFunc
+          ? `${moduleQn}.${enclosingFunc}`
+          : `${moduleQn}._global`;
+
+        calls.push({
+          calleeName,
+          enclosingFuncQn,
+          args: extractCallArgs(callNode, source),
+          startLine: callNode.startPosition.row + 1,
+        });
+      }
+    }
+
+    // ── Extract usages (identifier references) ──
+    extractUsages(rootNode, config, moduleQn, usages);
+
+    // ── Extract throws ──
+    extractThrows(rootNode, source, config, moduleQn, throws);
+    extractDecorators(rootNode, config, moduleQn, decorators);
+
+    // ── Extract imports ──
+    if (config.hasImports && config.importTypes.length > 0) {
+      const importNodes = rootNode.descendantsOfType(config.importTypes);
+      for (const impNode of importNodes) {
+        imports.push(...extractImportInfos(impNode, source, config.tsLang));
+      }
+    }
+
+    // ── Detect test files ──
+    const isTestFile = isTestFilePath(filePath);
+    if (isTestFile) {
+      for (const node of nodes) node.isTest = true;
+    }
+
+    // Cleanup
+    if (native) native.dispose();
+    else parser.delete();
+
+    return {
+      nodes, calls, imports, usages, channels, throws, decorators,
+      hasError: false,
+      errorMsg: null,
+      isTestFile,
+      language: config.tsLang,
+    };
+  } catch (err: any) {
+    if (isMissingGrammarError(err)) {
+      return extractWithTextFallback(source, filePath, project, config);
+    }
+    return {
+      nodes, calls, imports, usages, channels, throws, decorators,
+      hasError: true,
+      errorMsg: err.message || String(err),
+      isTestFile: false,
+      language: config.tsLang,
+    };
+  }
+}
+
+function isMissingGrammarError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return message.includes('Missing WASM grammar') || message.includes('ENOENT');
+}
+
+function extractWithTextFallback(
+  source: string,
+  filePath: string,
+  project: string,
+  config: LanguageConfig
+): TSExtractionResult {
+  const moduleQn = filePathToModuleQn(filePath);
+  const fileLineCount = countLines(source);
+  const nodes: LynxNode[] = createFileModuleNodes(project, filePath, moduleQn, fileLineCount);
+  const calls: TSExtractedCall[] = [];
+  const imports: TSExtractedImport[] = [];
+  const usages: TSExtractedUsage[] = [];
+
+  const lines = source.split(/\r?\n/);
+  const symbolNames = new Set<string>();
+  const defPattern = /\b(?:function|def|fn|func|proc|sub|method|class|struct|enum|interface|trait|module|contract|type|let|const|var)\s+([A-Za-z_$][\w$-]*)/g;
+  const callPattern = /\b([A-Za-z_$][\w$-]*)\s*\(/g;
+  const importPattern = /\b(?:import|include|require|use|using|from|open)\b\s*["'<]?([^"'<>\s;]+)/g;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNo = i + 1;
+
+    defPattern.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = defPattern.exec(line))) {
+      const keyword = match[0].split(/\s+/)[0];
+      const name = match[1];
+      if (!name || symbolNames.has(`${keyword}:${name}:${lineNo}`)) continue;
+      symbolNames.add(`${keyword}:${name}:${lineNo}`);
+      const kind = textNodeKind(keyword);
+      nodes.push(createTextNode(project, kind, name, `${moduleQn}.${name}`, filePath, lineNo));
+    }
+
+    callPattern.lastIndex = 0;
+    while ((match = callPattern.exec(line))) {
+      const name = match[1];
+      if (!name || textCallSkip.has(name)) continue;
+      calls.push({
+        calleeName: name,
+        enclosingFuncQn: `${moduleQn}._global`,
+        args: [],
+        startLine: lineNo,
+      });
+    }
+
+    importPattern.lastIndex = 0;
+    while ((match = importPattern.exec(line))) {
+      imports.push({
+        localName: 'import',
+        modulePath: match[1],
+        startLine: lineNo,
+      });
+    }
+  }
+
+  const isTestFile = isTestFilePath(filePath);
+  if (isTestFile) {
+    for (const node of nodes) node.isTest = true;
+  }
+
+  return {
+    nodes,
+    calls,
+    imports,
+    usages,
+    channels: [],
+    throws: [],
+    decorators: [],
+    hasError: false,
+    errorMsg: null,
+    isTestFile,
+    language: config.tsLang,
+  };
+}
+
+const textCallSkip = new Set([
+  'if', 'for', 'while', 'switch', 'catch', 'return', 'sizeof', 'typeof',
+  'function', 'class', 'struct', 'enum', 'interface',
+]);
+
+const usageNameSkip = new Set([
+  'abstract', 'any', 'as', 'async', 'await', 'boolean', 'break', 'case', 'catch',
+  'class', 'className', 'const', 'constructor', 'continue', 'debugger', 'declare', 'default',
+  'delete', 'do', 'else', 'enum', 'export', 'extends', 'false', 'finally', 'for',
+  'from', 'function', 'if', 'implements', 'import', 'in', 'infer', 'instanceof',
+  'interface', 'is', 'keyof', 'let', 'module', 'namespace', 'never', 'new', 'not',
+  'null', 'number', 'object', 'of', 'package', 'private', 'protected', 'public',
+  'readonly', 'return', 'satisfies', 'static', 'string', 'super', 'switch',
+  'symbol', 'this', 'throw', 'true', 'try', 'type', 'typeof', 'undefined',
+  'unknown', 'var', 'void', 'while', 'with', 'yield',
+]);
+
+const jsxAttributeSkip = new Set([
+  'alt', 'aria', 'ariaLabel', 'children', 'className', 'colSpan', 'disabled',
+  'height', 'href', 'htmlFor', 'id', 'key', 'placeholder', 'rel', 'role',
+  'rowSpan', 'src', 'style', 'target', 'title', 'type', 'value', 'width',
+]);
+
+function textNodeKind(keyword: string): LynxNodeKind {
+  if (keyword === 'class' || keyword === 'struct' || keyword === 'contract') return 'Class';
+  if (keyword === 'interface' || keyword === 'trait') return 'Interface';
+  if (keyword === 'enum') return 'Enum';
+  if (keyword === 'type') return 'Type';
+  if (keyword === 'let' || keyword === 'const' || keyword === 'var') return 'Variable';
+  return 'Function';
+}
+
+function createTextNode(
+  project: string,
+  kind: LynxNodeKind,
+  name: string,
+  qualifiedName: string,
+  filePath: string,
+  line: number
+): LynxNode {
+  const base = {
+    project,
+    kind,
+    name,
+    qualifiedName,
+    filePath,
+    startLine: line,
+    endLine: line,
+    isExported: false,
+    isTest: isTestFilePath(filePath),
+    isEntryPoint: false,
+  };
+
+  if (kind === 'Class') return { ...base, baseClasses: [], lineCount: 1, cyclomaticComplexity: 0 } as LynxNode;
+  if (kind === 'Interface') return { ...base, baseInterfaces: [] } as LynxNode;
+  if (kind === 'Enum') return { ...base, members: [] } as LynxNode;
+  if (kind === 'Variable') return { ...base, typeAnnotation: null } as LynxNode;
+  if (kind === 'Type') return base as LynxNode;
+  return {
+    ...base,
+    signature: null,
+    returnType: null,
+    paramNames: [],
+    cyclomaticComplexity: 0,
+    cognitiveComplexity: 0,
+    lineCount: 1,
+    loopCount: 0,
+    loopDepth: 0,
+    transitiveLoopDepth: 0,
+    linearScanInLoop: 0,
+    allocInLoop: 0,
+    recursive: false,
+  } as LynxNode;
+}
+
+function isTestFilePath(filePath: string): boolean {
+  const baseName = path.basename(filePath).toLowerCase();
+  return (
+    filePath.includes('.test.') ||
+    filePath.includes('.spec.') ||
+    filePath.includes('__tests__') ||
+    filePath.includes('_test.') ||
+    filePath.startsWith('test/') ||
+    filePath.startsWith('tests/') ||
+    /^(?:test|tests|spec)\.[^.]+$/.test(baseName)
+  );
+}
+
+function parseNative(parser: any, source: string): any {
+  return parser.parse(source);
+}
+
+function createFileModuleNodes(
+  project: string,
+  filePath: string,
+  moduleQn: string,
+  fileLineCount: number
+): LynxNode[] {
+  const ext = path.extname(filePath);
+  return [
+    {
+      project,
+      kind: 'File',
+      name: path.basename(filePath),
+      qualifiedName: `${project}.file.${moduleQn}`,
+      filePath,
+      startLine: 1,
+      endLine: fileLineCount,
+      isExported: false,
+      isTest: false,
+      isEntryPoint: false,
+      extension: ext,
+      lastModified: null as any,
+      changeCount: null as any,
+    } as any,
+    {
+      project,
+      kind: 'Module',
+      name: moduleQn.split('.').pop() || moduleQn || path.basename(filePath),
+      qualifiedName: `${project}.module.${moduleQn}`,
+      filePath,
+      startLine: 1,
+      endLine: fileLineCount,
+      isExported: false,
+      isTest: false,
+      isEntryPoint: filePath.endsWith('index.ts') || filePath.endsWith('index.tsx'),
+      lineCount: fileLineCount,
+    } as any,
+  ];
+}
+
+function extractLargeTypeScript(
+  source: string,
+  filePath: string,
+  project: string,
+  language: string,
+  moduleQn: string,
+  fileLineCount: number
+): TSExtractionResult {
+  const nodes: LynxNode[] = createFileModuleNodes(project, filePath, moduleQn, fileLineCount);
+  const calls: TSExtractedCall[] = [];
+  const imports: TSExtractedImport[] = [];
+  const usages: TSExtractedUsage[] = [];
+  const channels: TSExtractedChannel[] = [];
+  const lineStarts = computeLineStarts(source);
+
+  const addNode = (kind: LynxNodeKind, name: string, index: number, extra: Record<string, unknown> = {}) => {
+    if (!name || name.startsWith('_')) return;
+    const line = lineForIndex(lineStarts, index);
+    nodes.push({
+      project,
+      kind,
+      name,
+      qualifiedName: `${moduleQn}.${name}`,
+      filePath,
+      startLine: line,
+      endLine: line,
+      isExported: source.slice(Math.max(0, index - 20), index).includes('export'),
+      isTest: false,
+      isEntryPoint: false,
+      ...extra,
+    } as any);
+  };
+
+  for (const match of source.matchAll(/\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/g)) {
+    addNode('Function', match[1], match.index || 0, { signature: match[0], paramNames: [], lineCount: 1, cyclomaticComplexity: 0 });
+  }
+  for (const match of source.matchAll(/\b(?:export\s+)?const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>/g)) {
+    addNode('Function', match[1], match.index || 0, { signature: match[0], paramNames: [], lineCount: 1, cyclomaticComplexity: 0 });
+  }
+  for (const match of source.matchAll(/\b(?:export\s+)?class\s+([A-Za-z_$][\w$]*)/g)) {
+    addNode('Class', match[1], match.index || 0, { baseClasses: [], lineCount: 1, cyclomaticComplexity: 0 });
+  }
+  for (const match of source.matchAll(/\b(?:export\s+)?interface\s+([A-Za-z_$][\w$]*)/g)) {
+    addNode('Interface', match[1], match.index || 0, { baseInterfaces: [] });
+  }
+  for (const match of source.matchAll(/\b(?:export\s+)?type\s+([A-Za-z_$][\w$]*)/g)) {
+    addNode('Type', match[1], match.index || 0);
+  }
+  for (const match of source.matchAll(/\b(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)) {
+    addNode('Variable', match[1], match.index || 0, { typeAnnotation: null });
+  }
+
+  for (const match of source.matchAll(/\bimport\s+(?:type\s+)?(?:[^'"]+from\s+)?['"]([^'"]+)['"]/g)) {
+    imports.push({ localName: importedLocalName(match[0]), modulePath: match[1], startLine: lineForIndex(lineStarts, match.index || 0) });
+  }
+
+  for (const match of source.matchAll(/\b([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)?)\s*\(/g)) {
+    const callee = match[1].split('.').pop() || match[1];
+    if (['if', 'for', 'while', 'switch', 'catch', 'function'].includes(callee)) continue;
+    calls.push({ calleeName: callee, enclosingFuncQn: `${moduleQn}._global`, args: [], startLine: lineForIndex(lineStarts, match.index || 0) });
+  }
+
+  const seen = new Set<string>();
+  for (const match of source.matchAll(/\b[A-Za-z_$][\w$]*\b/g)) {
+    const refName = match[0];
+    if (refName.length < 3 || seen.has(refName) || usageNameSkip.has(refName)) continue;
+    seen.add(refName);
+    usages.push({ refName, enclosingFuncQn: `${moduleQn}._global`, startLine: lineForIndex(lineStarts, match.index || 0) });
+    if (seen.size >= 160) break;
+  }
+
+  return {
+    nodes,
+    calls,
+    imports,
+    usages,
+    channels,
+    throws: [],
+    decorators: [],
+    hasError: false,
+    errorMsg: null,
+    isTestFile: filePath.includes('.test.') || filePath.includes('.spec.') || filePath.includes('__tests__'),
+    language,
+  };
+}
+
+function importedLocalName(importText: string): string {
+  const named = importText.match(/\{\s*([A-Za-z_$][\w$]*)/);
+  if (named) return named[1];
+  const def = importText.match(/import\s+(?:type\s+)?([A-Za-z_$][\w$]*)/);
+  return def ? def[1] : importText;
+}
+
+function computeLineStarts(source: string): number[] {
+  const starts = [0];
+  for (let i = 0; i < source.length; i++) {
+    if (source.charCodeAt(i) === 10) starts.push(i + 1);
+  }
+  return starts;
+}
+
+function lineForIndex(starts: number[], index: number): number {
+  let lo = 0;
+  let hi = starts.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    if (starts[mid] <= index) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return hi + 1;
+}
+
+// ── Definition extraction ─────────────────────────────────────────
+
+function extractDefinitions(
+  rootNode: SyntaxNode,
+  source: string,
+  config: LanguageConfig,
+  project: string,
+  filePath: string,
+  moduleQn: string
+): LynxNode[] {
+  const nodes: LynxNode[] = [];
+
+  // Collect all relevant definition nodes
+  const allDefTypes = [
+    ...config.functionTypes,
+    ...config.classTypes,
+    ...config.variableTypes,
+    ...extraDefinitionTypes(config.tsLang),
+  ];
+
+  if (allDefTypes.length === 0) return nodes;
+
+  const defNodes = rootNode.descendantsOfType(allDefTypes);
+
+  for (const node of defNodes) {
+    const name = extractDefinitionName(node, source, config.tsLang);
+    if (!name || name.startsWith('_')) continue; // Skip unnamed and private-by-convention
+
+    const rawKind = classifyNodeKind(node.type, config);
+    if (!rawKind) continue; // Skip non-definition types (property_signature, etc.)
+    const kind = reclassifyMethod(rawKind, node, config);
+    if (!kind) continue;
+    if (kind === 'Variable' && findEnclosingFunction(node, config)) continue;
+
+    // Build QN: include enclosing class name for Methods
+    let qualifiedName = `${moduleQn}.${name}`;
+    if (kind === 'Method') {
+      const className = findEnclosingClassName(node, config);
+      if (className) qualifiedName = `${moduleQn}.${className}.${name}`;
+    }
+
+    const startLine = node.startPosition.row + 1;
+    const endLine = node.endPosition.row + 1;
+    const lineCount = endLine - startLine + 1;
+    const isExported = isNodeExported(node, source, config.tsLang);
+
+    const baseNode: LynxNode = {
+      project,
+      kind,
+      name,
+      qualifiedName,
+      filePath,
+      startLine,
+      endLine,
+      isExported,
+      isTest: false,
+      isEntryPoint: false,
+    } as any;
+
+    // Add kind-specific properties
+    switch (kind) {
+      case 'Function':
+        (baseNode as any).signature = extractSignature(node, source);
+        (baseNode as any).paramNames = extractParamNames(node, source, config.tsLang);
+        (baseNode as any).lineCount = lineCount;
+        (baseNode as any).cyclomaticComplexity = 0; // Computed later
+        break;
+      case 'Class':
+      case 'Interface':
+      case 'Type':
+      case 'Enum':
+        (baseNode as any).lineCount = lineCount;
+        if (kind === 'Class') (baseNode as any).baseClasses = extractBaseNames(node);
+        if (kind === 'Interface') (baseNode as any).baseInterfaces = extractBaseNames(node);
+        if (kind === 'Enum') (baseNode as any).members = extractEnumMembers(node);
+        break;
+      case 'Method':
+        (baseNode as any).parentClass = findEnclosingClass(node, config, source);
+        (baseNode as any).signature = extractSignature(node, source);
+        (baseNode as any).lineCount = lineCount;
+        break;
+      case 'Variable':
+        (baseNode as any).typeAnnotation = extractTypeAnnotation(node, source, config.tsLang);
+        break;
+    }
+
+    nodes.push(baseNode);
+  }
+
+  return nodes;
+}
+
+// ── Node classification ──────────────────────────────────────────
+
+function classifyNodeKind(nodeType: string, config: LanguageConfig): LynxNodeKind | null {
+  if (nodeType.includes('interface')) return 'Interface';
+  if (nodeType.includes('type_alias') || nodeType === 'type_declaration') return 'Type';
+  if (nodeType.includes('enum')) return 'Enum';
+  if (config.functionTypes.includes(nodeType)) return 'Function';
+  if (config.classTypes.includes(nodeType)) return 'Class';
+  if (config.variableTypes.includes(nodeType)) return 'Variable';
+  return null;
+}
+
+/** Find the enclosing class/interface name for a node (used for Method QN). */
+function findEnclosingClassName(node: SyntaxNode, config: LanguageConfig): string | null {
+  let parent: SyntaxNode | null = node.parent;
+  while (parent) {
+    if (config.classTypes.includes(parent.type) || parent.type === 'class_declaration' || parent.type === 'interface_declaration' || parent.type === 'trait_declaration') {
+      const nameNode = parent.childForFieldName?.('name') || parent.children.find((c) => c.type === 'type_identifier' || c.type === 'identifier');
+      return nameNode?.text || null;
+    }
+    parent = parent.parent;
+  }
+  return null;
+}
+
+/** Re-classify a Function node as Method if its parent is a class/interface/trait. */
+function reclassifyMethod(
+  kind: LynxNodeKind,
+  node: SyntaxNode,
+  config: LanguageConfig
+): LynxNodeKind {
+  if (kind !== 'Function') return kind;
+  let parent: SyntaxNode | null = node.parent;
+  // Track whether we're inside a class (Method) vs interface (skip)
+  let insideClass = false;
+  while (parent) {
+    if (config.classTypes.includes(parent.type)) { insideClass = true; break; }
+    if (parent.type.includes('interface_declaration') || parent.type.includes('trait')) {
+      // Interface members are signatures, not real methods — skip
+      return kind;
+    }
+    if (
+      parent.type === 'class_body' ||
+      parent.type === 'interface_body' ||
+      parent.type === 'enum_body' ||
+      parent.type === 'declaration_list' ||
+      parent.type === 'block' ||
+      parent.type === 'statement_block'
+    ) {
+      parent = parent.parent;
+      continue;
+    }
+    if (parent.type === 'class_declaration') {
+      insideClass = true;
+      break;
+    }
+    if (parent.type === 'interface_declaration' || parent.type === 'trait_declaration') {
+      return kind;
+    }
+    parent = parent.parent;
+  }
+  return insideClass ? 'Method' : kind;
+}
+
+function extraDefinitionTypes(lang: string): string[] {
+  if (lang === 'typescript' || lang === 'tsx' || lang === 'javascript') {
+    return ['interface_declaration', 'type_alias_declaration', 'enum_declaration', 'public_field_definition', 'property_signature'];
+  }
+  return [];
+}
+
+// ── Name extraction per language ──────────────────────────────────
+
+function extractDefinitionName(node: SyntaxNode, source: string, lang: string): string | null {
+  // Try name/identifier child first (most languages)
+  const nameNode = node.childForFieldName?.('name');
+  if (nameNode) return nameNode.text;
+
+  // Anonymous JavaScript/TypeScript function nodes are already represented by
+  // their enclosing variable declaration. Treating the first parameter as the
+  // function name creates false symbols such as `string` for `const f = string => ...`.
+  if (
+    ['javascript', 'typescript', 'tsx'].includes(lang) &&
+    ['arrow_function', 'function_expression'].includes(node.type)
+  ) {
+    return null;
+  }
+
+  // Fallback: find first identifier descendant
+  const identifiers = node.descendantsOfType(['identifier', 'property_identifier', 'word']);
+  if (identifiers.length > 0) return identifiers[0].text;
+
+  // Last resort: use first line of the node
+  const text = node.text;
+  const firstLine = text.split('\n')[0];
+  // Try to extract name from common patterns
+  const match = firstLine.match(/(?:function|def|func|fn|class|struct|enum|trait|interface|module|object)\s+(\w+)/);
+  if (match) return match[1];
+
+  return null;
+}
+
+function extractCalleeName(callNode: SyntaxNode, source: string, lang: string): string | null {
+  // Most languages: first child of call_expression is the function name
+  const firstChild = callNode.firstChild;
+  if (!firstChild) return null;
+
+  // Check for member calls (obj.method)
+  if (firstChild.type.includes('member') || firstChild.type.includes('dot') || firstChild.type.includes('field')) {
+    const parts = firstChild.text.split('.');
+    return parts[parts.length - 1] || firstChild.text;
+  }
+
+  // Direct function call
+  return firstChild.text;
+}
+
+// ── Usage extraction ──────────────────────────────────────────────
+
+function extractUsages(
+  rootNode: SyntaxNode,
+  config: LanguageConfig,
+  moduleQn: string,
+  usages: TSExtractedUsage[]
+): void {
+  // Walk all identifier-like nodes and collect as usages.
+  // The resolve phase filters via the global name index.
+  const identTypes = ['identifier', 'variable_name', 'type_identifier', 'binding_identifier'];
+
+  const identNodes = rootNode.descendantsOfType(identTypes);
+  const seen = new Set<string>();
+
+  // Track which QNs are defined locally so we skip self-references
+  const localDefNames = new Set<string>();
+  const allDefTypes = [...config.functionTypes, ...config.classTypes, ...config.variableTypes];
+  if (allDefTypes.length > 0) {
+    const defNodes = rootNode.descendantsOfType(allDefTypes);
+    for (const defNode of defNodes) {
+      const name = extractDefinitionName(defNode, '', config.tsLang);
+      if (name) localDefNames.add(name);
+    }
+  }
+
+  for (const ident of identNodes) {
+    const refName = ident.text;
+    // Skip very short names, keywords, and common globals
+    if (refName.length < 2) continue;
+    if (usageNameSkip.has(refName)) continue;
+    if (isJsxAttributeName(ident) && jsxAttributeSkip.has(refName)) continue;
+
+    // Only record references to things defined in this file (or external)
+    // Skip local-only names that won't resolve
+    const enclosingFunc = findEnclosingFunction(ident, config);
+    const enclosingFuncQn = enclosingFunc
+      ? `${moduleQn}.${enclosingFunc}`
+      : `${moduleQn}._global`;
+    const key = `${enclosingFuncQn}:${refName}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    usages.push({
+      refName,
+      enclosingFuncQn,
+      startLine: ident.startPosition.row + 1,
+      isWrite: isWriteIdentifier(ident),
+    });
+  }
+}
+
+function isWriteIdentifier(node: SyntaxNode): boolean {
+  if (isJsxAttributeName(node)) return false;
+  let current: SyntaxNode | null = node;
+  while (current?.parent) {
+    const parent: SyntaxNode = current.parent;
+    if (
+      parent.type === 'assignment_expression' ||
+      parent.type === 'augmented_assignment_expression' ||
+      parent.type === 'update_expression'
+    ) {
+      return parent.firstChild?.text === node.text || parent.type === 'update_expression';
+    }
+    if (parent.type.includes('statement') || parent.type.includes('declaration')) break;
+    current = parent;
+  }
+  return false;
+}
+
+function isJsxAttributeName(node: SyntaxNode): boolean {
+  const parent = node.parent;
+  if (!parent) return false;
+  return (
+    parent.type === 'jsx_attribute' ||
+    parent.type === 'jsx_self_closing_element' ||
+    parent.type === 'jsx_opening_element'
+  );
+}
+
+// ── Helper functions ──────────────────────────────────────────────
+
+function extractCallArgs(callNode: SyntaxNode, source: string): string[] {
+  const args: string[] = [];
+  const argList = callNode.descendantsOfType(['arguments', 'argument_list', 'args', 'parameter_list']);
+  if (argList.length > 0) {
+    for (const child of argList[0].children) {
+      const text = child.text.trim();
+      if (text && text !== '(' && text !== ')' && text !== ',') {
+        args.push(text.substring(0, 80)); // Truncate long args
+      }
+    }
+  }
+  return args;
+}
+
+function extractImportInfos(
+  node: SyntaxNode,
+  source: string,
+  lang: string
+): TSExtractedImport[] {
+  const text = node.text;
+  const startLine = node.startPosition.row + 1;
+  const imports: TSExtractedImport[] = [];
+
+  const moduleMatch =
+    text.match(/\bfrom\s*['"]([^'"]+)['"]/) ||
+    text.match(/\b(?:import|require|use|open)\s*\(?\s*['"]([^'"]+)['"]/) ||
+    text.match(/#include\s*[<"]([^>"]+)[>"]/);
+  const modulePath = moduleMatch?.[1] || '';
+  if (!modulePath && !text.trim()) return [];
+
+  const add = (localName: string): void => {
+    const clean = localName.trim();
+    if (!clean || clean === 'type') return;
+    imports.push({ localName: clean, modulePath, startLine });
+  };
+
+  const namespaceMatch = text.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+  if (namespaceMatch) add(namespaceMatch[1]);
+
+  const namedMatch = text.match(/\{([^}]+)\}/);
+  if (namedMatch) {
+    for (const part of namedMatch[1].split(',')) {
+      const trimmed = part.trim();
+      if (!trimmed) continue;
+      const alias = trimmed.match(/\bas\s+([A-Za-z_$][\w$]*)$/);
+      add(alias?.[1] || trimmed.split(/\s+/)[0]);
+    }
+  }
+
+  const defaultMatch = text.match(/\bimport\s+(?:type\s+)?([A-Za-z_$][\w$]*)\s*(?:,|\bfrom\b)/);
+  if (defaultMatch) add(defaultMatch[1]);
+
+  const csharpUsing = text.match(/\busing\s+([A-Za-z_][\w.]+)/);
+  if (csharpUsing) add(csharpUsing[1].split('.').pop() || csharpUsing[1]);
+
+  const javaImport = text.match(/\bimport\s+(?:static\s+)?([A-Za-z_][\w.]*)(?:\.\*)?\s*;?/);
+  if (javaImport && !modulePath) {
+    const qn = javaImport[1];
+    imports.push({ localName: qn.split('.').pop() || qn, modulePath: qn.replace(/\./g, '/'), startLine });
+  }
+
+  if (imports.length === 0) {
+    const fallbackName = modulePath.split('/').pop()?.replace(/\W+/g, '') || text.split('\n')[0].substring(0, 60);
+    if (fallbackName) add(fallbackName);
+  }
+
+  return imports;
+}
+
+function findEnclosingFunction(node: SyntaxNode, config: LanguageConfig): string | null {
+  let current = node.parent;
+  while (current) {
+    if (config.functionTypes.includes(current.type)) {
+      return extractDefinitionName(current, '', config.tsLang);
+    }
+    current = current.parent;
+  }
+  return null;
+}
+
+function findEnclosingClass(node: SyntaxNode, config: LanguageConfig, source: string): string | null {
+  let current = node.parent;
+  while (current) {
+    if (config.classTypes.includes(current.type)) {
+      return extractDefinitionName(current, source, config.tsLang);
+    }
+    current = current.parent;
+  }
+  return null;
+}
+
+function extractSignature(node: SyntaxNode, source: string): string {
+  const text = node.text;
+  const firstLine = text.split('\n')[0];
+  // Return up to the first { or :
+  const endIdx = Math.min(
+    firstLine.indexOf('{') !== -1 ? firstLine.indexOf('{') : Infinity,
+    firstLine.indexOf(':') !== -1 ? firstLine.indexOf(':') : Infinity,
+    firstLine.length
+  );
+  return firstLine.substring(0, endIdx).trim();
+}
+
+function extractParamNames(node: SyntaxNode, source: string, lang: string): string[] {
+  const params = node.descendantsOfType(['parameter', 'formal_parameter', 'param']);
+  return params.map((p: SyntaxNode) => {
+    const text = p.text.split('\n')[0].trim();
+    const match = text.match(/^(\w+)/);
+    return match ? match[1] : text.substring(0, 30);
+  });
+}
+
+function extractTypeAnnotation(node: SyntaxNode, source: string, lang: string): string | undefined {
+  const types = node.descendantsOfType(['type_annotation', 'type', 'return_type']);
+  if (types.length > 0) return types[0].text.trim();
+  return undefined;
+}
+
+function extractBaseNames(node: SyntaxNode): string[] {
+  // Try tree-sitter fields first
+  const names: string[] = [];
+  for (const child of node.namedChildren) {
+    if (child.type === 'class_heritage' || child.type === 'implements_clause' || child.type === 'extends_clause' || child.type === 'superclass_clause') {
+      for (const ident of child.descendantsOfType(['identifier', 'type_identifier'])) {
+        names.push(ident.text);
+      }
+    }
+    if (child.type === 'interface_extends' || child.type === 'extends_clause') {
+      for (const ident of child.descendantsOfType(['identifier', 'type_identifier'])) {
+        names.push(ident.text);
+      }
+    }
+  }
+  if (names.length > 0) return names;
+
+  // Fallback: text-based extraction
+  const text = node.text.split('{')[0] || '';
+  const match = text.match(/\b(?:extends|implements)\s+([^{]+)/);
+  if (!match) return [];
+  return match[1]
+    .split(',')
+    .map((part) => part.trim().split(/\s+/)[0])
+    .filter(Boolean);
+}
+
+function extractEnumMembers(node: SyntaxNode): string[] {
+  return node
+    .descendantsOfType(['property_identifier', 'identifier'])
+    .map((child: SyntaxNode) => child.text)
+    .filter((name: string) => name && name !== extractDefinitionName(node, '', ''));
+}
+
+function isNodeExported(
+  node: SyntaxNode,
+  source: string,
+  lang: string
+): boolean {
+  const text = node.text;
+  const firstLine = text.split('\n')[0].trim();
+  return (
+    firstLine.startsWith('export ') ||
+    firstLine.startsWith('pub ') ||
+    firstLine.startsWith('public ') ||
+    firstLine.includes(' @export')
+  );
+}
+
+// ── Throw extraction ─────────────────────────────────────────────
+
+function extractThrows(
+  rootNode: SyntaxNode,
+  source: string,
+  config: LanguageConfig,
+  moduleQn: string,
+  throws: TSExtractedThrow[]
+): void {
+  const throwTypes = ['throw_statement', 'raise_statement', 'throw_expression', 'raise'];
+  const throwNodes = rootNode.descendantsOfType(throwTypes);
+  if (throwNodes.length === 0) return;
+
+  for (const tn of throwNodes) {
+    const startLine = tn.startPosition.row + 1;
+    const enclosingFunc = findEnclosingFunction(tn, config);
+    const enclosingFuncQn = enclosingFunc
+      ? `${moduleQn}.${enclosingFunc}`
+      : `${moduleQn}._global`;
+
+    let exceptionName = '';
+    for (const child of tn.children) {
+      if (child.type === 'new_expression') {
+        const idNodes = child.descendantsOfType(['identifier', 'type_identifier']);
+        if (idNodes.length > 0) exceptionName = idNodes[0].text;
+      }
+      if (!exceptionName) {
+        const idents = child.descendantsOfType(['identifier', 'type_identifier']);
+        if (idents.length > 0) exceptionName = idents[0].text;
+      }
+    }
+    if (!exceptionName) {
+      const text = tn.text;
+      const m = text.match(/(?:throw|raise)\s+(?:new\s+)?(\w+)/i);
+      if (m) exceptionName = m[1];
+    }
+    if (exceptionName) {
+      throws.push({ exceptionName, enclosingFuncQn, startLine });
+    }
+  }
+}
+
+// ── Decorator extraction ──────────────────────────────────────────
+
+function extractDecorators(
+  rootNode: SyntaxNode,
+  config: LanguageConfig,
+  moduleQn: string,
+  decorators: TSExtractedDecorator[]
+): void {
+  const decoratorTypes = ['decorator', 'annotation', 'attribute'];
+  for (const node of rootNode.descendantsOfType(decoratorTypes)) {
+    const decoratorText = node.text;
+    let cleaned = decoratorText;
+    if (cleaned.startsWith('@')) cleaned = cleaned.slice(1);
+    if (cleaned.startsWith('#')) cleaned = cleaned.slice(1);
+    if (cleaned.startsWith('[')) cleaned = cleaned.slice(1).replace(/\]$/, '');
+    const parenIdx = cleaned.indexOf('(');
+    const name = parenIdx > 0 ? cleaned.substring(0, parenIdx).trim() : cleaned.trim();
+    if (!name || name.length === 0) continue;
+
+    // Find decorated target: walk parent chain up past decorator nodes
+    let target: SyntaxNode | null = node;
+    while (target && (decoratorTypes.includes(target.type) || target.type === 'decorator')) {
+      target = target.nextNamedSibling || target.parent;
+      if (target && !decoratorTypes.includes(target.type)) break;
+      target = target?.parent || null;
+    }
+    // Better: find first non-decorator sibling, then use prev-sibling parent
+    // Walk parent up to the first non-decorator parent
+    let targetParent = node.parent;
+    while (targetParent && decoratorTypes.includes(targetParent.type)) {
+      targetParent = targetParent.parent;
+    }
+
+    let targetQn = moduleQn + '._global';
+    if (targetParent) {
+      const isClass = config.classTypes.includes(targetParent.type);
+      const isFunc = config.functionTypes.includes(targetParent.type) ||
+                     targetParent.type === 'method_definition' ||
+                     targetParent.type === 'arrow_function';
+      if (isClass || isFunc) {
+        const targetName = targetParent.childForFieldName?.('name')?.text
+          || targetParent.descendantsOfType(['identifier', 'type_identifier'])[0]?.text;
+        if (targetName) {
+          targetQn = moduleQn + '.' + targetName;
+          // For methods inside classes, include class name
+          if (isFunc) {
+            const gp = targetParent.parent;
+            if (gp && config.classTypes.includes(gp.type)) {
+              const className = gp.childForFieldName?.('name')?.text
+                || gp.descendantsOfType(['identifier', 'type_identifier'])[0]?.text;
+              if (className) targetQn = moduleQn + '.' + className + '.' + targetName;
+            }
+          }
+        }
+      }
+    }
+
+    decorators.push({
+      name,
+      targetQn,
+      startLine: node.startPosition.row + 1,
+    });
+  }
+}
+
+// ── Utility ───────────────────────────────────────────────────────
+
+function filePathToModuleQn(filePath: string): string {
+  const withoutExt = filePath.replace(/\.[^.]+$/, '');
+  const qn = withoutExt
+    .replace(/^\//, '')
+    .replace(/\//g, '.')
+    .replace(/\\/g, '.');
+  const parts = qn.split('.');
+  if (parts.length > 1 && parts[parts.length - 1] === 'index') parts.pop();
+  if (parts.length > 1 && parts[0] === 'src') parts.shift();
+  return parts.join('.') || path.basename(withoutExt) || 'root';
+}
+
+function countLines(source: string): number {
+  if (source.length === 0) return 1;
+  let lines = 1;
+  for (let i = 0; i < source.length; i++) {
+    if (source.charCodeAt(i) === 10) lines++;
+  }
+  return lines;
+}

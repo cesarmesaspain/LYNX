@@ -1,0 +1,2123 @@
+{
+  "config": {
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_safety_change_impact"
+    ],
+    "projectDir": "/Users/admin/Desktop/DEEPCODEX/source",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_9b03d1377a68",
+      "task_id": "external_safety_change_impact",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "The source team wants to tighten a safety guard before automated trades are sent. Identify where the change should likely be made, what callers or dependencies may be affected, and what tests or checks should be added before release. Respond with JSON: {\"change_areas\":[\"...\"],\"affected_dependencies\":[\"...\"],\"test_plan\":[\"...\"],\"risks\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_iAcMx9nLd3FPhiiKsnWG5486",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"brief\", \"languages\", \"entry_points\", \"clusters\", \"hotspots\"]}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_B9cvAIJi9MLClCr8PYWR4564",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"trade\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_P0je6QZTK6AhUsG758aK9941",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"safety guard\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_P5cuXoq9qydraHiG5AMY5747",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"automated trade order execution\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_0AvHPlujjrsDczVdLK6A0402",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"order\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_XeLF2WRLNFj4ogEXVpS21852",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"send\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YJGnR3I2x5s3Fc9n7Rmt1192",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"trade|order|execute|automated|safety|guard|confirm|approve\", \"file_pattern\": \"*.swift\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Wya70TL83yKfTr7iaZeH3030",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"runShell\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_jLdNW3R0PEGN3UvC4gYh5235",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"checkAdvancedCapabilities\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_uiULU6Me2uuDOW3AC4ek2683",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/AppState.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_qHTV0a0RLg5SFupkLVhw2978",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/AdvancedCapabilities.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_gcO3h8L8n5MRrrCGgZIx5730",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContinueWorkModal.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_UXwiKN7r8PjqbWinXwGa5869",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContextExporter.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_K59pBcd6PnVYuOD9ldH74628",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/CompletionAlertManager.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ApnnqC09vSOjg1Ex5TmY2314",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContentView.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_ZrFeQ5eA0q2aDSDHVdoI1005",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/MenuBarManager.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_pTJBVJuKiukhrslol8tm9554",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"continueToTargetMode\", \"direction\": \"both\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_jK6uCLuvaYTMWksUGDDD8570",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"switchMode\", \"direction\": \"both\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_JDsP36uBV0zPCahtU31F5402",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"openCodexDeepSeekPro\", \"direction\": \"both\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_h7dStpv93MJjulKJVML98375",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"openCodexDeepSeekFlash\", \"direction\": \"both\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZtKPTfEqYkpjD62ttpzR7755",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"continueToTargetMode\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_GVuxvTiYNif2jjFTk4s53720",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"AppState\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_c9qs9xlf3PWxXN5hUOxq9093",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"switchMode\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_0EqYphqE8ansKatd1Ln43884",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"openCodexDeepSeekPro\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xkjOYCdfJcyDvYBOpaC93032",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"continueToTargetMode\", \"qualified_name\": \"Sources.DeepCodex.AppState.AppState.continueToTargetMode\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Tuz4nhP8Y19YFGkOGzQu1181",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"switchMode\", \"qualified_name\": \"Sources.DeepCodex.MenuBarManager.MenuBarManager.switchMode\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Kb7pBDhoStaVdY6CAfbE1925",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"class.*Test|func test|XCTest\", \"file_pattern\": \"*.swift\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_qdXkYR3G8syRNqL3Nt7m6435",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"isBusy|guard.*!isBusy\", \"file_pattern\": \"*.swift\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_UeAXOOHjRCwpMRVSd8Bl0798",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"codex-switch|start-moonbridge\", \"file_pattern\": \"*.swift\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Mdt1ZhigHaSnDNgr05Eb9959",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\"]}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_qKfvQ41D3zuDsPtJ33qw4065",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Package.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QgJkbXmYPC8kIMznVhth9037",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/App.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Lj4lgNxJ8S980f028fH45204",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/Theme.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_w5C9Ix5IvYYvvG8axCcV9071",
+          "type": "function",
+          "function": {
+            "name": "smart_review",
+            "arguments": "{\"file\": \"Sources/DeepCodex/AppState.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Q5vhXwQ9yYT5lBd3yI6x9282",
+          "type": "function",
+          "function": {
+            "name": "smart_review",
+            "arguments": "{\"file\": \"Sources/DeepCodex/MenuBarManager.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QjzJSXVQFFfAL00hM2U36766",
+          "type": "function",
+          "function": {
+            "name": "detect_changes",
+            "arguments": "{\"scope\": \"symbols\"}"
+          }
+        }
+      ],
+      "response": "Here is my analysis based on a thorough inspection of the entire codebase:\n\n```json\n{\n  \"change_areas\": [\n    \"Sources/DeepCodex/AppState.swift — continueToTargetMode (line 452): The primary automated 'trade' that copies context, switches AI profile, starts Moon Bridge, and opens Codex Desktop — all with no intermediate confirmation or rollback.\",\n    \"Sources/DeepCodex/MenuBarManager.swift — switchMode (line 100): A second automated path triggered from the menu bar that runs shell scripts to switch modes and start services without any guard or warning.\",\n    \"Sources/DeepCodex/AppState.swift — openCodexDeepSeekPro (line 140) and openCodexDeepSeekFlash (line 162): Similar automated mode switches that run start-moonbridge.sh and codex-switch.sh, albeit with a quit-before-switch pattern that continueToTargetMode lacks.\"\n  ],\n  \"affected_dependencies\": [\n    \"Sources.DeepCodex.AppState.AppState.runShell (line 559) — called by all automation paths to execute shell scripts; has fan-in=9\",\n    \"Sources.DeepCodex.AppState.AppState.parseJson (line 498) — updates active state from current-mode.json after switches\",\n    \"Sources.DeepCodex.AppState.AppState.openCodexDesktopApp (line 239) — launches Codex after switching\",\n    \"Sources.DeepCodex.AppState.AppState.quitCodexDesktopApp (line 220) — called by openCodexDeepSeekPro/Flash but NOT by continueToTargetMode (inconsistency)\",\n    \"Sources.DeepCodex.AppState.AppState.runCommand (line 576) — underlying process runner; fan-in=4\",\n    \"Sources.DeepCodex.MenuBarManager.Shell.run (line 149 in MenuBarManager.swift) — used by switchMode; fan-in=10 (highest in project)\",\n    \"Sources/DeepCodex/ContinueWorkModal.swift — actionButtons (line 340) calls continueToTargetMode from the UI; depends on state.generatedContext being non-empty\",\n    \"Sources/DeepCodex/ContextExporter.swift — generateMarkdown generates the context payload that gets passed through the trade; if it fails, an empty/invalid markdown can propagate\",\n    \"External dependencies: ~/Developer/ai-tools/codex-mode/codex-switch.sh and start-moonbridge.sh (no pre-flight validation that these scripts exist or are executable)\"\n  ],\n  \"test_plan\": [\n    \"Add XCTest tests with mocked Process/FileManager for continueToTargetMode covering: valid switch to different mode, switch to same mode (no-op guard), empty/invalid markdown input, target rawValue validation, shell script failure (error propagation), Moon Bridge startup vs non-startup paths.\",\n    \"Add unit tests for switchMode in MenuBarManager covering: each mode case (.normal, .deepseekV4Pro, .deepseekV4Flash, .unknown), script execution ordering (Moon Bridge before codex-switch for DeepSeek modes), error when representedObject is nil.\",\n    \"Add confirmation-dialog tests: simulate user cancel vs confirm, verify shell scripts are NOT executed on cancel.\",\n    \"Add pre-flight validation tests: verify that codex-switch.sh and start-moonbridge.sh exist and are executable before execution, add a capabilities gate that checks advancedCapabilities before allowing a switch (e.g., don't try to start Moon Bridge if it's already marked inactive).\",\n    \"Add integration/espresso-style tests (UI testing) that verify the 'Copiar y abrir destino' button is disabled when no target mode or thread is selected, and that the guard !isBusy prevents double-triggering.\",\n    \"Add regression tests for isBusy race condition: simulate rapid successive calls to continueToTargetMode and verify only the first executes.\"\n  ],\n  \"risks\": [\n    \"No confirmation dialog before executing shell scripts — user error or accidental click can trigger an unwanted switch of the AI provider, potentially losing the current session state.\",\n    \"continueToTargetMode does NOT call quitCodexDesktopApp() before switching, unlike openCodexDeepSeekPro/Flash. This means Codex Desktop may still be running with the old config when codex-switch.sh runs, causing race conditions or corruption of the ~/.codex state.\",\n    \"No pre-flight validation of shell script existence or exit codes — failed switches silently leave the system in an inconsistent state, and the error is swallowed (lastActionResult / contextExportResult still shows success).\",\n    \"No sanity check that the target mode differs from the current mode — switching to the same mode runs codex-switch.sh unnecessarily, wasting time and risking side effects.\",\n    \"No rollback mechanism if codex-switch.sh or start-moonbridge.sh fails mid-sequence (e.g., Moon Bridge starts but codex-switch fails, leaving Moon Bridge orphaned).\",\n    \"Empty or invalid markdown context can be passed through — generateMarkdown in ContextExporter can return minimal output with '(sin mensaje)' and continueToTargetMode still copies and switches regardless.\",\n    \"Zero test coverage exists across the entire project for any of these critical paths — any change is at high risk of regression.\",\n    \"The runShell and Shell.run helpers swallow errors silently (return 'Error: ...' strings instead of throwing) — callers never inspect the return value and proceed as if success.\",\n    \"switchMode (MenuBarManager) runs synchronously on the main thread via Shell.run, blocking the UI for the duration of the shell commands.\"\n  ],\n  \"summary\": \"The automated mode-switching operations ('trades') — primarily continueToTargetMode in AppState.swift and switchMode in MenuBarManager.swift — lack safety guards at every layer: no confirmation dialog, no pre-flight script validation, no target-vs-current-mode comparison, no rollback on failure, no error propagation from shell commands, and no test coverage. The most impactful change area is continueToTargetMode (AppState.swift:452-495), which orchestrates clipboard copy, file save, profile switch via codex-switch.sh, optional Moon Bridge startup, and Codex Desktop launch — all without user reconfirmation. Before release, the team should: (1) add an explicit confirmation alert with target mode summary and a 'Cancel' button, (2) validate that the target mode differs from activeMode and that required shell scripts exist, (3) add error/rollback handling so a failed switch restores the previous state, (4) ensure quitCodexDesktopApp() is called before switching (matching the pattern in openCodexDeepSeekPro/Flash), and (5) add comprehensive XCTest coverage for all switch paths. Dependencies most affected include runShell (fan-in=9), parseJson, openCodexDesktopApp, Shell.run (fan-in=10), and the external codex-switch.sh/start-moonbridge.sh scripts.\"\n}\n```",
+      "responseHash": "cd29efb037554282",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 436312,
+        "output_tokens": 4864,
+        "cached_tokens": 391808,
+        "reasoning_tokens": 25,
+        "tool_call_count": 36,
+        "files_read": 10,
+        "bytes_read": 135180,
+        "wall_time_ms": 66039,
+        "api_latency_ms": 66039,
+        "cost_usd": 0.01307779,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "change_areas": [
+          "Sources/DeepCodex/AppState.swift — continueToTargetMode (line 452): The primary automated 'trade' that copies context, switches AI profile, starts Moon Bridge, and opens Codex Desktop — all with no intermediate confirmation or rollback.",
+          "Sources/DeepCodex/MenuBarManager.swift — switchMode (line 100): A second automated path triggered from the menu bar that runs shell scripts to switch modes and start services without any guard or warning.",
+          "Sources/DeepCodex/AppState.swift — openCodexDeepSeekPro (line 140) and openCodexDeepSeekFlash (line 162): Similar automated mode switches that run start-moonbridge.sh and codex-switch.sh, albeit with a quit-before-switch pattern that continueToTargetMode lacks."
+        ],
+        "affected_dependencies": [
+          "Sources.DeepCodex.AppState.AppState.runShell (line 559) — called by all automation paths to execute shell scripts; has fan-in=9",
+          "Sources.DeepCodex.AppState.AppState.parseJson (line 498) — updates active state from current-mode.json after switches",
+          "Sources.DeepCodex.AppState.AppState.openCodexDesktopApp (line 239) — launches Codex after switching",
+          "Sources.DeepCodex.AppState.AppState.quitCodexDesktopApp (line 220) — called by openCodexDeepSeekPro/Flash but NOT by continueToTargetMode (inconsistency)",
+          "Sources.DeepCodex.AppState.AppState.runCommand (line 576) — underlying process runner; fan-in=4",
+          "Sources.DeepCodex.MenuBarManager.Shell.run (line 149 in MenuBarManager.swift) — used by switchMode; fan-in=10 (highest in project)",
+          "Sources/DeepCodex/ContinueWorkModal.swift — actionButtons (line 340) calls continueToTargetMode from the UI; depends on state.generatedContext being non-empty",
+          "Sources/DeepCodex/ContextExporter.swift — generateMarkdown generates the context payload that gets passed through the trade; if it fails, an empty/invalid markdown can propagate",
+          "External dependencies: ~/Developer/ai-tools/codex-mode/codex-switch.sh and start-moonbridge.sh (no pre-flight validation that these scripts exist or are executable)"
+        ],
+        "test_plan": [
+          "Add XCTest tests with mocked Process/FileManager for continueToTargetMode covering: valid switch to different mode, switch to same mode (no-op guard), empty/invalid markdown input, target rawValue validation, shell script failure (error propagation), Moon Bridge startup vs non-startup paths.",
+          "Add unit tests for switchMode in MenuBarManager covering: each mode case (.normal, .deepseekV4Pro, .deepseekV4Flash, .unknown), script execution ordering (Moon Bridge before codex-switch for DeepSeek modes), error when representedObject is nil.",
+          "Add confirmation-dialog tests: simulate user cancel vs confirm, verify shell scripts are NOT executed on cancel.",
+          "Add pre-flight validation tests: verify that codex-switch.sh and start-moonbridge.sh exist and are executable before execution, add a capabilities gate that checks advancedCapabilities before allowing a switch (e.g., don't try to start Moon Bridge if it's already marked inactive).",
+          "Add integration/espresso-style tests (UI testing) that verify the 'Copiar y abrir destino' button is disabled when no target mode or thread is selected, and that the guard !isBusy prevents double-triggering.",
+          "Add regression tests for isBusy race condition: simulate rapid successive calls to continueToTargetMode and verify only the first executes."
+        ],
+        "risks": [
+          "No confirmation dialog before executing shell scripts — user error or accidental click can trigger an unwanted switch of the AI provider, potentially losing the current session state.",
+          "continueToTargetMode does NOT call quitCodexDesktopApp() before switching, unlike openCodexDeepSeekPro/Flash. This means Codex Desktop may still be running with the old config when codex-switch.sh runs, causing race conditions or corruption of the ~/.codex state.",
+          "No pre-flight validation of shell script existence or exit codes — failed switches silently leave the system in an inconsistent state, and the error is swallowed (lastActionResult / contextExportResult still shows success).",
+          "No sanity check that the target mode differs from the current mode — switching to the same mode runs codex-switch.sh unnecessarily, wasting time and risking side effects.",
+          "No rollback mechanism if codex-switch.sh or start-moonbridge.sh fails mid-sequence (e.g., Moon Bridge starts but codex-switch fails, leaving Moon Bridge orphaned).",
+          "Empty or invalid markdown context can be passed through — generateMarkdown in ContextExporter can return minimal output with '(sin mensaje)' and continueToTargetMode still copies and switches regardless.",
+          "Zero test coverage exists across the entire project for any of these critical paths — any change is at high risk of regression.",
+          "The runShell and Shell.run helpers swallow errors silently (return 'Error: ...' strings instead of throwing) — callers never inspect the return value and proceed as if success.",
+          "switchMode (MenuBarManager) runs synchronously on the main thread via Shell.run, blocking the UI for the duration of the shell commands."
+        ],
+        "summary": "The automated mode-switching operations ('trades') — primarily continueToTargetMode in AppState.swift and switchMode in MenuBarManager.swift — lack safety guards at every layer: no confirmation dialog, no pre-flight script validation, no target-vs-current-mode comparison, no rollback on failure, no error propagation from shell commands, and no test coverage. The most impactful change area is continueToTargetMode (AppState.swift:452-495), which orchestrates clipboard copy, file save, profile switch via codex-switch.sh, optional Moon Bridge startup, and Codex Desktop launch — all without user reconfirmation. Before release, the team should: (1) add an explicit confirmation alert with target mode summary and a 'Cancel' button, (2) validate that the target mode differs from activeMode and that required shell scripts exist, (3) add error/rollback handling so a failed switch restores the previous state, (4) ensure quitCodexDesktopApp() is called before switching (matching the pattern in openCodexDeepSeekPro/Flash), and (5) add comprehensive XCTest coverage for all switch paths. Dependencies most affected include runShell (fan-in=9), parseJson, openCodexDesktopApp, Shell.run (fan-in=10), and the external codex-switch.sh/start-moonbridge.sh scripts."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1964
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "get_architecture",
+          "args_redacted": {
+            "aspects": [
+              "brief",
+              "languages",
+              "entry_points",
+              "clusters",
+              "hotspots"
+            ]
+          },
+          "duration_ms": 8,
+          "result_bytes": 8476,
+          "content_hash": "d6ed478f52977eb2"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "trade",
+            "limit": 20
+          },
+          "duration_ms": 4,
+          "result_bytes": 434,
+          "content_hash": "69f2513dcd9a86f6"
+        },
+        {
+          "seq": 4,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "safety guard",
+            "limit": 10
+          },
+          "duration_ms": 2,
+          "result_bytes": 927,
+          "content_hash": "cdceb919169caeb8"
+        },
+        {
+          "seq": 5,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3041
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "semantic_search",
+          "args_redacted": {
+            "query": "automated trade order execution",
+            "limit": 20
+          },
+          "duration_ms": 5,
+          "result_bytes": 358,
+          "content_hash": "45204d296b8bc05c"
+        },
+        {
+          "seq": 7,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "order",
+            "limit": 20
+          },
+          "duration_ms": 1,
+          "result_bytes": 434,
+          "content_hash": "aef17510ddc44e9c"
+        },
+        {
+          "seq": 8,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "send",
+            "limit": 20
+          },
+          "duration_ms": 2,
+          "result_bytes": 433,
+          "content_hash": "4643f2bda6b66f18"
+        },
+        {
+          "seq": 9,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2690
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "trade|order|execute|automated|safety|guard|confirm|approve",
+            "file_pattern": "*.swift",
+            "limit": 30
+          },
+          "duration_ms": 21,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 11,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "runShell",
+            "limit": 10
+          },
+          "duration_ms": 2,
+          "result_bytes": 622,
+          "content_hash": "e3425090522bd37b"
+        },
+        {
+          "seq": 12,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "checkAdvancedCapabilities",
+            "limit": 10
+          },
+          "duration_ms": 1,
+          "result_bytes": 706,
+          "content_hash": "d31afc6fda743933"
+        },
+        {
+          "seq": 13,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1810
+        },
+        {
+          "seq": 14,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/AppState.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 26717,
+          "content_hash": "1bb67c954d3e0bbb"
+        },
+        {
+          "seq": 15,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3954
+        },
+        {
+          "seq": 16,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/AdvancedCapabilities.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 5316,
+          "content_hash": "45e5116879840119"
+        },
+        {
+          "seq": 17,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContinueWorkModal.swift"
+          },
+          "duration_ms": 2,
+          "result_bytes": 25372,
+          "content_hash": "0dad54a400fd2040"
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContextExporter.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 13985,
+          "content_hash": "2ffd59f5102f8b37"
+        },
+        {
+          "seq": 19,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 5017
+        },
+        {
+          "seq": 20,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/CompletionAlertManager.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 12145,
+          "content_hash": "16899d21e2efbcf0"
+        },
+        {
+          "seq": 21,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContentView.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 38002,
+          "content_hash": "7195f67d5343b58d"
+        },
+        {
+          "seq": 22,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/MenuBarManager.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 6674,
+          "content_hash": "f30b1938262ffdad"
+        },
+        {
+          "seq": 23,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 4891,
+          "content_hash": "3b972d4154d2c70b"
+        },
+        {
+          "seq": 24,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "continueToTargetMode",
+            "direction": "both",
+            "depth": 2
+          },
+          "duration_ms": 5,
+          "result_bytes": 1930,
+          "content_hash": "320d61b89898376c"
+        },
+        {
+          "seq": 25,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "switchMode",
+            "direction": "both",
+            "depth": 2
+          },
+          "duration_ms": 2,
+          "result_bytes": 1244,
+          "content_hash": "29e33bc087ca288f"
+        },
+        {
+          "seq": 26,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "openCodexDeepSeekPro",
+            "direction": "both",
+            "depth": 2
+          },
+          "duration_ms": 3,
+          "result_bytes": 2100,
+          "content_hash": "147fc3dc32272cdd"
+        },
+        {
+          "seq": 27,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "openCodexDeepSeekFlash",
+            "direction": "both",
+            "depth": 2
+          },
+          "duration_ms": 3,
+          "result_bytes": 2110,
+          "content_hash": "dc69c9679adb1428"
+        },
+        {
+          "seq": 28,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2516
+        },
+        {
+          "seq": 29,
+          "role": "tool_exec",
+          "tool_name": "find_tests",
+          "args_redacted": {
+            "name": "continueToTargetMode"
+          },
+          "duration_ms": 1,
+          "result_bytes": 254,
+          "content_hash": "70945c859ecd090b"
+        },
+        {
+          "seq": 30,
+          "role": "tool_exec",
+          "tool_name": "find_tests",
+          "args_redacted": {
+            "name": "AppState"
+          },
+          "duration_ms": 0,
+          "result_bytes": 254,
+          "content_hash": "f38066031269064c"
+        },
+        {
+          "seq": 31,
+          "role": "tool_exec",
+          "tool_name": "find_tests",
+          "args_redacted": {
+            "name": "switchMode"
+          },
+          "duration_ms": 0,
+          "result_bytes": 246,
+          "content_hash": "7d5056b45333c960"
+        },
+        {
+          "seq": 32,
+          "role": "tool_exec",
+          "tool_name": "find_tests",
+          "args_redacted": {
+            "name": "openCodexDeepSeekPro"
+          },
+          "duration_ms": 0,
+          "result_bytes": 254,
+          "content_hash": "e690c6b266259c23"
+        },
+        {
+          "seq": 33,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2353
+        },
+        {
+          "seq": 34,
+          "role": "tool_exec",
+          "tool_name": "explain_symbol",
+          "args_redacted": {
+            "name": "continueToTargetMode",
+            "qualified_name": "Sources.DeepCodex.AppState.AppState.continueToTargetMode"
+          },
+          "duration_ms": 2,
+          "result_bytes": 3939,
+          "content_hash": "c330398b36b41ca3"
+        },
+        {
+          "seq": 35,
+          "role": "tool_exec",
+          "tool_name": "explain_symbol",
+          "args_redacted": {
+            "name": "switchMode",
+            "qualified_name": "Sources.DeepCodex.MenuBarManager.MenuBarManager.switchMode"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2915,
+          "content_hash": "ecdc8404babebbb7"
+        },
+        {
+          "seq": 36,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3214
+        },
+        {
+          "seq": 37,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "class.*Test|func test|XCTest",
+            "file_pattern": "*.swift",
+            "limit": 10
+          },
+          "duration_ms": 18,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 38,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "isBusy|guard.*!isBusy",
+            "file_pattern": "*.swift",
+            "limit": 10
+          },
+          "duration_ms": 10,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 39,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "codex-switch|start-moonbridge",
+            "file_pattern": "*.swift",
+            "limit": 10
+          },
+          "duration_ms": 9,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 40,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2022
+        },
+        {
+          "seq": 41,
+          "role": "tool_exec",
+          "tool_name": "get_architecture",
+          "args_redacted": {
+            "aspects": [
+              "file_tree"
+            ]
+          },
+          "duration_ms": 6,
+          "result_bytes": 1257,
+          "content_hash": "2e0d525173e9756a"
+        },
+        {
+          "seq": 42,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Package.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 271,
+          "content_hash": "746ffa851528006c"
+        },
+        {
+          "seq": 43,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2247
+        },
+        {
+          "seq": 44,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/App.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2687,
+          "content_hash": "b39c0ccc71ac9694"
+        },
+        {
+          "seq": 45,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/Theme.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4011,
+          "content_hash": "7f95d1ec2a37d10c"
+        },
+        {
+          "seq": 46,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2388
+        },
+        {
+          "seq": 47,
+          "role": "tool_exec",
+          "tool_name": "smart_review",
+          "args_redacted": {
+            "file": "Sources/DeepCodex/AppState.swift"
+          },
+          "duration_ms": 5,
+          "result_bytes": 8701,
+          "content_hash": "513b040d31c6fe3d"
+        },
+        {
+          "seq": 48,
+          "role": "tool_exec",
+          "tool_name": "smart_review",
+          "args_redacted": {
+            "file": "Sources/DeepCodex/MenuBarManager.swift"
+          },
+          "duration_ms": 2,
+          "result_bytes": 1431,
+          "content_hash": "92bbcd960c264336"
+        },
+        {
+          "seq": 49,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 6148,
+          "content_hash": "163444cb2e2ff552"
+        },
+        {
+          "seq": 50,
+          "role": "tool_exec",
+          "tool_name": "detect_changes",
+          "args_redacted": {
+            "scope": "symbols"
+          },
+          "duration_ms": 19,
+          "result_bytes": 1123,
+          "content_hash": "fd8ebebbcd0ec4ed"
+        },
+        {
+          "seq": 51,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 21646,
+          "content_hash": "cd29efb037554282"
+        }
+      ]
+    },
+    {
+      "run_id": "run_2_7d357df98e5b",
+      "task_id": "external_safety_change_impact",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "The source team wants to tighten a safety guard before automated trades are sent. Identify where the change should likely be made, what callers or dependencies may be affected, and what tests or checks should be added before release. Respond with JSON: {\"change_areas\":[\"...\"],\"affected_dependencies\":[\"...\"],\"test_plan\":[\"...\"],\"risks\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_8xUUnvo2i5dCWHDh6Ga76297",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"automated trade|safety guard|before.*trade.*send|trade guard\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_1A89HZM1kS1ur6pUli2I0382",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"sendTrade|send_trade|executeTrade|execute_trade\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_eJ0XfGJlHydrNzxVWKXr4449",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"trade|Trade\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_bDNlotl9BHJJubCFYAHU8661",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"trade|Trade\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_cRsuN5doNUAulUtYJvVe4848",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"trade|Trade\", \"include\": \"*.sol\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_h4t4HEwCHDMxHskdk8le4727",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"trade|Trade\", \"include\": \"*.go\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_ythScL7khz29wHpvi4yP7585",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"trade|Trade\", \"include\": \"*.rs\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_xhSbh2idvDzx9VrntNh96746",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"trade|Trade\", \"include\": \"*.java\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_IcdrZCqlkQURJ9gfwKpv4781",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"trade|Trade\", \"include\": \"*.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dG713PhwfUtFxW4OrxTq6123",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"order|Order\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_7qPdwfS3J3KUOobjeYJX9485",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"order|Order\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_p4mzIQcZs2FczPa9Ucq18090",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YpfIGAVbQfiz6gtHUQ0Z3126",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"guard|safety|pre.*trade|pre.*order|validate.*order|order.*validate\", \"include\": \"*.*\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_chY3SUrekJd91yFh5FEh8145",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"\\\\.ts|\\\\.py|\\\\.js|\\\\.go|\\\\.java|\\\\.sol|\\\\.rs\", \"include\": \"*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZU02lWdV900woRgpUW4E8242",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"main|app|index|entry\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_CHywLNSWnPxuCJVtiZsa0472",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"main|app|index|entry\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_bydb3cZLl4fIZmo17zGP4377",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def |function |export \", \"include\": \"*.*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_J7aFCOh7t5Q0ugKfDOgJ3261",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"package\", \"include\": \"*.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_uQSJTPMmtP9NRxeilExF1633",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"requirements|setup\", \"include\": \"*.txt\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_h3McweBH412CqC3zOUUd2377",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"name|description\", \"include\": \"*.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1GUK1qspGOkA6JRvQvFA3081",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"trade|Trade|order|Order|guard|safety|guard\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_582MtHCv5epOlqQV2lgu8334",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"send|execute|submit\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_SYI30HQFPfdpIu4AbnJn8148",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/.build/arm64-apple-macosx/release/plugin-tools-description.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_O6aJvXGtLno8AkpfyXpq8771",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/AdvancedCapabilities.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_8FhHPjHEOemQPbAU0xhw6995",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/AppState.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_0Ugm9hZGs0XjurBFc4fo7336",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/App.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LYgxNgTyhoKjhiE0Q1ls5028",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/CompletionAlertManager.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_LV3DzjNus6QrSGMWwlxX9295",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContentView.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_MNIWyAoSYDSqkOgQTRhd4619",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContextExporter.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_uECQmtKq2H0XGc0miNLY4869",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContinueWorkModal.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_yzmSu4kb9TdYvBAXisyc3088",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/MenuBarManager.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_lUGvJV5GT75Ti1Bfj0a90472",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/Theme.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_SUHq67b3Nck0IoVE3BVL9151",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"test|Test|spec|Spec\", \"include\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_uWL2SeRo3Swcx8ESrRZ31530",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"guard|confirm|confirm|validate|check|safety\", \"include\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UDMomIbiiGacGFVfaOpm3644",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"import Testing|XCTest|Quick|Nimble\", \"include\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_8qMFH4hAIb0NW1LIoT8y1289",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"Tests|tests\", \"include\": \"Package.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zJ6QesfWKKnNt77YjFJT7930",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"Package.swift\", \"pattern\": \".\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_rqDRGnPYzZdwMo83tdFB5726",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*Tests*\", \"pattern\": \".\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_i8FJ9bMkgiBIq4kthM6e6600",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Package.swift\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"change_areas\": [\n    \"AppState.swift — openCodexNormal(), openCodexDeepSeekPro(), openCodexDeepSeekFlash(), continueToTargetMode(), startMoonBridge()\",\n    \"AppState.swift — add confirmation gate before any mode-switch shell execution\",\n    \"AppState.swift — add shell script exit-code validation after each codex-switch.sh / start-moonbridge.sh call\",\n    \"AppState.swift — add pre-switch guard (e.g., same-mode detection, Moon Bridge health check)\",\n    \"MenuBarManager.swift — switchMode() bypasses AppState.isBusy and all guards; route through AppState instead\",\n    \"ContinueWorkModal.swift — add explicit user confirmation step before continueToTargetMode() fires the switch\",\n    \"CompletionAlertManager.swift — tighten file polling guard (minimumTaskDuration check already exists but could validate event source integrity)\"\n  ],\n  \"affected_dependencies\": [\n    \"Shell scripts: codex-switch.sh, start-moonbridge.sh, status.sh (no output validation exists today)\",\n    \"Codex Desktop App (com.openai.codex) — quit-and-reopen flow can lose unsaved work\",\n    \"Moon Bridge service (port 38440) — started/stopped without health-assertion before proceeding\",\n    \"Configuration file: ~/.codex/state_5.sqlite (read during context export, no write guard needed)\",\n    \"Notification/Focus infrastructure (AXIsProcessTrusted, NSWorkspace.frontmostApplication) — used for alert dismissal but not for switch gating\",\n    \"MenuBarManager.swift currently calls Shell.run() directly, bypassing AppState's isBusy lock and all validation\"\n  ],\n  \"test_plan\": [\n    \"Add a test target to Package.swift with XCTest or Swift Testing\",\n    \"Unit test AppState pre-switch validation logic: reject same-mode switch, reject when Moon Bridge health check fails, reject when isBusy\",\n    \"Unit test shell-script exit-code parser: distinguish success (exit 0) from failure (non-zero) using controlled stubs\",\n    \"Unit test ContinueWorkModal flow: assert that a confirmation step appears before continueToTargetMode() proceeds\",\n    \"Integration test safe quit: verify Codex Desktop app is not terminated when it has unsaved changes (listen for NSApplication termination delay)\",\n    \"Integration test MenuBarManager switchMode() when routed through AppState: confirm isBusy is respected\",\n    \"Smoke test: verify that all three mode-switch paths (Normal, Pro, Flash) produce no side effects when validation gates fail\"\n  ],\n  \"risks\": [\n    \"Overly restrictive guards could frustrate users who expect quick one-click mode switching\",\n    \"Health-check calls (e.g., lsof on port 38440) add latency before every switch — may need caching or async pre-warming\",\n    \"Adding a confirmation dialog in ContinueWorkModal changes the UX flow — users accustomed to auto-switch may miss it\",\n    \"Refactoring MenuBarManager.switchMode() to use AppState requires careful thread coordination (@MainActor isolation)\",\n    \"Shell script output parsing may be fragile if scripts produce stderr messages interleaved with stdout; could introduce false negatives\",\n    \"Same-mode guard (rejecting switch to current mode) must be toggleable for recovery scenarios (e.g., re-apply config)\"\n  ],\n  \"summary\": \"The most impactful safety improvement is adding a **pre-execution validation gate** in AppState before any mode switch shell scripts run. Currently, openCodexDeepSeekPro(), openCodexDeepSeekFlash(), openCodexNormal(), and continueToTargetMode() fire shell commands and quit/restart Codex Desktop without checking exit codes or confirming with the user. The gate should: (1) confirm the target differs from the current mode, (2) verify Moon Bridge health if needed, (3) capture and surface shell script exit codes, and (4) require explicit user confirmation in the continue-work flow. MenuBarManager’s switchMode() bypasses all of this and should be refactored to call AppState methods instead of running shells directly. The project has zero tests today — a test target should be added covering these pre-switch guards. The largest risk is UX friction from added confirmations, which can be mitigated with a 'Don’t ask again' preference.\"\n}\n```",
+      "responseHash": "d8f9f8c862c386d8",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 276503,
+        "output_tokens": 5358,
+        "cached_tokens": 237696,
+        "reasoning_tokens": 15,
+        "tool_call_count": 39,
+        "files_read": 11,
+        "bytes_read": 152587,
+        "wall_time_ms": 75920,
+        "api_latency_ms": 75919,
+        "cost_usd": 0.01026096,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "change_areas": [
+          "AppState.swift — openCodexNormal(), openCodexDeepSeekPro(), openCodexDeepSeekFlash(), continueToTargetMode(), startMoonBridge()",
+          "AppState.swift — add confirmation gate before any mode-switch shell execution",
+          "AppState.swift — add shell script exit-code validation after each codex-switch.sh / start-moonbridge.sh call",
+          "AppState.swift — add pre-switch guard (e.g., same-mode detection, Moon Bridge health check)",
+          "MenuBarManager.swift — switchMode() bypasses AppState.isBusy and all guards; route through AppState instead",
+          "ContinueWorkModal.swift — add explicit user confirmation step before continueToTargetMode() fires the switch",
+          "CompletionAlertManager.swift — tighten file polling guard (minimumTaskDuration check already exists but could validate event source integrity)"
+        ],
+        "affected_dependencies": [
+          "Shell scripts: codex-switch.sh, start-moonbridge.sh, status.sh (no output validation exists today)",
+          "Codex Desktop App (com.openai.codex) — quit-and-reopen flow can lose unsaved work",
+          "Moon Bridge service (port 38440) — started/stopped without health-assertion before proceeding",
+          "Configuration file: ~/.codex/state_5.sqlite (read during context export, no write guard needed)",
+          "Notification/Focus infrastructure (AXIsProcessTrusted, NSWorkspace.frontmostApplication) — used for alert dismissal but not for switch gating",
+          "MenuBarManager.swift currently calls Shell.run() directly, bypassing AppState's isBusy lock and all validation"
+        ],
+        "test_plan": [
+          "Add a test target to Package.swift with XCTest or Swift Testing",
+          "Unit test AppState pre-switch validation logic: reject same-mode switch, reject when Moon Bridge health check fails, reject when isBusy",
+          "Unit test shell-script exit-code parser: distinguish success (exit 0) from failure (non-zero) using controlled stubs",
+          "Unit test ContinueWorkModal flow: assert that a confirmation step appears before continueToTargetMode() proceeds",
+          "Integration test safe quit: verify Codex Desktop app is not terminated when it has unsaved changes (listen for NSApplication termination delay)",
+          "Integration test MenuBarManager switchMode() when routed through AppState: confirm isBusy is respected",
+          "Smoke test: verify that all three mode-switch paths (Normal, Pro, Flash) produce no side effects when validation gates fail"
+        ],
+        "risks": [
+          "Overly restrictive guards could frustrate users who expect quick one-click mode switching",
+          "Health-check calls (e.g., lsof on port 38440) add latency before every switch — may need caching or async pre-warming",
+          "Adding a confirmation dialog in ContinueWorkModal changes the UX flow — users accustomed to auto-switch may miss it",
+          "Refactoring MenuBarManager.switchMode() to use AppState requires careful thread coordination (@MainActor isolation)",
+          "Shell script output parsing may be fragile if scripts produce stderr messages interleaved with stdout; could introduce false negatives",
+          "Same-mode guard (rejecting switch to current mode) must be toggleable for recovery scenarios (e.g., re-apply config)"
+        ],
+        "summary": "The most impactful safety improvement is adding a **pre-execution validation gate** in AppState before any mode switch shell scripts run. Currently, openCodexDeepSeekPro(), openCodexDeepSeekFlash(), openCodexNormal(), and continueToTargetMode() fire shell commands and quit/restart Codex Desktop without checking exit codes or confirming with the user. The gate should: (1) confirm the target differs from the current mode, (2) verify Moon Bridge health if needed, (3) capture and surface shell script exit codes, and (4) require explicit user confirmation in the continue-work flow. MenuBarManager’s switchMode() bypasses all of this and should be refactored to call AppState methods instead of running shells directly. The project has zero tests today — a test target should be added covering these pre-switch guards. The largest risk is UX friction from added confirmations, which can be mitigated with a 'Don’t ask again' preference."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1484
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "automated trade|safety guard|before.*trade.*send|trade guard"
+          },
+          "duration_ms": 12,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "sendTrade|send_trade|executeTrade|execute_trade"
+          },
+          "duration_ms": 4,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 4,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1584
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "trade|Trade",
+            "include": "*.ts"
+          },
+          "duration_ms": 3,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "trade|Trade",
+            "include": "*.py"
+          },
+          "duration_ms": 3,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 7,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2422
+        },
+        {
+          "seq": 8,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "trade|Trade",
+            "include": "*.sol"
+          },
+          "duration_ms": 7,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 9,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "trade|Trade",
+            "include": "*.go"
+          },
+          "duration_ms": 5,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "trade|Trade",
+            "include": "*.rs"
+          },
+          "duration_ms": 5,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 11,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "trade|Trade",
+            "include": "*.java"
+          },
+          "duration_ms": 4,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 12,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "trade|Trade",
+            "include": "*.js"
+          },
+          "duration_ms": 4,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 13,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1482
+        },
+        {
+          "seq": 14,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "order|Order",
+            "include": "*.ts"
+          },
+          "duration_ms": 4,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 15,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "order|Order",
+            "include": "*.py"
+          },
+          "duration_ms": 3,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 16,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1094
+        },
+        {
+          "seq": 17,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "."
+          },
+          "duration_ms": 0,
+          "result_bytes": 36,
+          "content_hash": "5f97366500deb953"
+        },
+        {
+          "seq": 18,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1962
+        },
+        {
+          "seq": 19,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "guard|safety|pre.*trade|pre.*order|validate.*order|order.*validate",
+            "include": "*.*"
+          },
+          "duration_ms": 2544,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 20,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "\\.ts|\\.py|\\.js|\\.go|\\.java|\\.sol|\\.rs",
+            "include": "*"
+          },
+          "duration_ms": 2308,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 21,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2246
+        },
+        {
+          "seq": 22,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "main|app|index|entry",
+            "include": "*.ts"
+          },
+          "duration_ms": 10,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 23,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "main|app|index|entry",
+            "include": "*.py"
+          },
+          "duration_ms": 8,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 24,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "def |function |export ",
+            "include": "*.*"
+          },
+          "duration_ms": 2392,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 25,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2365
+        },
+        {
+          "seq": 26,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "package",
+            "include": "*.json"
+          },
+          "duration_ms": 9,
+          "result_bytes": 739,
+          "content_hash": "298983217597ce6a"
+        },
+        {
+          "seq": 27,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "requirements|setup",
+            "include": "*.txt"
+          },
+          "duration_ms": 5,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 28,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "name|description",
+            "include": "*.json"
+          },
+          "duration_ms": 7,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 29,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2078
+        },
+        {
+          "seq": 30,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.swift",
+            "pattern": "trade|Trade|order|Order|guard|safety|guard"
+          },
+          "duration_ms": 9,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 31,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.swift",
+            "pattern": "send|execute|submit"
+          },
+          "duration_ms": 6,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 32,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1593
+        },
+        {
+          "seq": 33,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/.build/arm64-apple-macosx/release/plugin-tools-description.json"
+          },
+          "duration_ms": 0,
+          "result_bytes": 17407,
+          "content_hash": "e160747e76f92704"
+        },
+        {
+          "seq": 34,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2130,
+          "content_hash": "e3f23005229ad054"
+        },
+        {
+          "seq": 35,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/AdvancedCapabilities.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 5316,
+          "content_hash": "45e5116879840119"
+        },
+        {
+          "seq": 36,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/AppState.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 26717,
+          "content_hash": "1bb67c954d3e0bbb"
+        },
+        {
+          "seq": 37,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/App.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2687,
+          "content_hash": "b39c0ccc71ac9694"
+        },
+        {
+          "seq": 38,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3314
+        },
+        {
+          "seq": 39,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/CompletionAlertManager.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 12145,
+          "content_hash": "16899d21e2efbcf0"
+        },
+        {
+          "seq": 40,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContentView.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 38002,
+          "content_hash": "7195f67d5343b58d"
+        },
+        {
+          "seq": 41,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContextExporter.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 13985,
+          "content_hash": "2ffd59f5102f8b37"
+        },
+        {
+          "seq": 42,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2300
+        },
+        {
+          "seq": 43,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContinueWorkModal.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 25372,
+          "content_hash": "0dad54a400fd2040"
+        },
+        {
+          "seq": 44,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/MenuBarManager.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 6674,
+          "content_hash": "f30b1938262ffdad"
+        },
+        {
+          "seq": 45,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/Theme.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4011,
+          "content_hash": "7f95d1ec2a37d10c"
+        },
+        {
+          "seq": 46,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 14103
+        },
+        {
+          "seq": 47,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "test|Test|spec|Spec",
+            "include": "*.swift"
+          },
+          "duration_ms": 13,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 48,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "guard|confirm|confirm|validate|check|safety",
+            "include": "*.swift"
+          },
+          "duration_ms": 8,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 49,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2240
+        },
+        {
+          "seq": 50,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "import Testing|XCTest|Quick|Nimble",
+            "include": "*.swift"
+          },
+          "duration_ms": 13,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 51,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "Tests|tests",
+            "include": "Package.swift"
+          },
+          "duration_ms": 7,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 52,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1858
+        },
+        {
+          "seq": 53,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "Package.swift",
+            "pattern": "."
+          },
+          "duration_ms": 9,
+          "result_bytes": 922,
+          "content_hash": "bfcc609afb469853"
+        },
+        {
+          "seq": 54,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*Tests*",
+            "pattern": "."
+          },
+          "duration_ms": 7,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 55,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 10927,
+          "content_hash": "b55d8daf926d925c"
+        },
+        {
+          "seq": 56,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/DEEPCODEX/source/Package.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 271,
+          "content_hash": "746ffa851528006c"
+        },
+        {
+          "seq": 57,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 13322,
+          "content_hash": "d8f9f8c862c386d8"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 66039,
+        "p95": 66039
+      },
+      "input_tokens": {
+        "median": 436312,
+        "total": 436312
+      },
+      "output_tokens": {
+        "median": 4864,
+        "total": 4864
+      },
+      "cached_tokens": {
+        "median": 391808,
+        "total": 391808
+      },
+      "reasoning_tokens": {
+        "median": 25,
+        "total": 25
+      },
+      "tool_calls": {
+        "median": 36,
+        "total": 36
+      },
+      "cost_usd": {
+        "median": 0.01307779,
+        "total": 0.01307779
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 75920,
+        "p95": 75920
+      },
+      "input_tokens": {
+        "median": 276503,
+        "total": 276503
+      },
+      "output_tokens": {
+        "median": 5358,
+        "total": 5358
+      },
+      "cached_tokens": {
+        "median": 237696,
+        "total": 237696
+      },
+      "reasoning_tokens": {
+        "median": 15,
+        "total": 15
+      },
+      "tool_calls": {
+        "median": 39,
+        "total": 39
+      },
+      "cost_usd": {
+        "median": 0.01026096,
+        "total": 0.01026096
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "66039ms",
+        "without_caesar": "75920ms",
+        "delta": "-13.0%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "436312",
+        "without_caesar": "276503",
+        "delta": "57.8%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "4864",
+        "without_caesar": "5358",
+        "delta": "-9.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "36",
+        "without_caesar": "39",
+        "delta": "-7.7%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.013078",
+        "without_caesar": "$0.010261",
+        "delta": "27.5%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/DEEPCODEX/source; CAESAR state remains temporary."
+  ]
+}

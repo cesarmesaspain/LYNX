@@ -1,0 +1,1014 @@
+{
+  "config": {
+    "seed": 77,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_project_overview"
+    ],
+    "projectDir": "/Users/admin/Desktop/WORKMAT",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 48185,
+        "p95": 48185
+      },
+      "input_tokens": {
+        "median": 431472,
+        "total": 431472
+      },
+      "output_tokens": {
+        "median": 3814,
+        "total": 3814
+      },
+      "cached_tokens": {
+        "median": 354304,
+        "total": 354304
+      },
+      "reasoning_tokens": {
+        "median": 730,
+        "total": 730
+      },
+      "tool_calls": {
+        "median": 32,
+        "total": 32
+      },
+      "cost_usd": {
+        "median": 0.0168317,
+        "total": 0.0168317
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 23639,
+        "p95": 23639
+      },
+      "input_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "output_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 0,
+        "total": 0
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "48185ms",
+        "without_caesar": "23639ms",
+        "delta": "103.8%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "431472",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "3814",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "32",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.016832",
+        "without_caesar": "$0.000000",
+        "delta": "N/A",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "experiment_protocol": {
+    "model": "deepseek-v4-flash",
+    "temperature": 0,
+    "seeds": [
+      77
+    ],
+    "prompt_hash": "2e1178c610e1dafc",
+    "task_order": [
+      "external_project_overview"
+    ],
+    "max_tokens": null,
+    "max_tool_calls": null,
+    "timeout_ms": null,
+    "max_retries": null,
+    "base_url": "https://api.deepseek.com/v1"
+  },
+  "tasks": [
+    {
+      "run_id": "run_1_4c7c7fecdbf8",
+      "task_id": "external_project_overview",
+      "condition": "with_caesar",
+      "not_executed": false,
+      "order_position": 0,
+      "seed": 77,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "You have just joined the WORKMAT team. Analyze the project and give a concise technical orientation: its primary architecture, main entry points, important hotspots, and relevant tests. Respond with JSON: {\"primary_language\":\"...\",\"entry_points\":[\"...\"],\"hotspots\":[\"...\"],\"relevant_tests\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 431472,
+        "output_tokens": 3814,
+        "cached_tokens": 354304,
+        "reasoning_tokens": 730,
+        "tool_call_count": 32,
+        "files_read": 6,
+        "bytes_read": 236124,
+        "wall_time_ms": 48185,
+        "api_latency_ms": 48185,
+        "cost_usd": 0.0168317,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "tool_loop_exhausted": false,
+      "errors": [],
+      "response": "Here is your concise technical orientation for the **WORKMAT** project.\n\n```json\n{\n  \"primary_language\": \"TypeScript\",\n  \"entry_points\": [\n    \"src/app/api/chat/route.ts (POST/GET/DELETE/PATCH) — multi-provider chat hub (Vapi, local LLM, OpenAI); orchestrates conversation logic, lead extraction, and session lifecycle\",\n    \"src/app/api/vapi_chat/route.ts — Vapi-specific chat integration connector\",\n    \"src/app/api/admin/analytics/overview/route.ts — analytics GET endpoint; aggregates visits, leads, chats, sources and time-series data (development + production via SSH)\",\n    \"src/lib/maintenance/index.ts — server maintenance library (disk usage, catalog cleanup, pgBackRest expire)\",\n    \"src/app/admin/mailing/page.tsx — Admin mailing campaign manager (4519-line god component: templates, audiences, A/B testing, sending)\",\n    \"src/components/chat/ChatWidget.tsx — main chat React UI widget (2993 lines, handles local/OpenAI/Vapi providers)\",\n    \"src/components/call/CallWidget.tsx — voice/video call React UI widget (2262 lines)\"\n  ],\n  \"hotspots\": [\n    \"app.api.admin.analytics.overview.route.map — 309 inbound deps (analytics aggregation logic, massive blast radius)\",\n    \"components.ConsoleNoiseFilter.useEffect — 275 inbound deps (audio filtering hook, UI coupling)\",\n    \"components.ContactForm.test — 249 inbound deps (contact form component)\",\n    \"app.api.vapi_chat.route.Number — 194 inbound deps (Vapi chat route helper)\",\n    \"lib.chatActionAuth.Boolean — 166 inbound deps (chat action authorization, complexity: 23)\",\n    \"lib.backups.toRecord — 134 inbound deps (backup record serialization)\",\n    \"components.call.CallWidget.t — 117 inbound deps (translation lookup in CallWidget)\",\n    \"app.admin.mailing.page.error — 112 inbound deps (mailing page error state)\",\n    \"lib.companyProfile.readString — 110 inbound deps (company profile reads)\",\n    \"app.admin.mailing.page.filter — 110 inbound deps (mailing page filtering logic)\"\n  ],\n  \"relevant_tests\": [\n    \"No test files found. The project declares tsx --test tests/**/*.test.ts in package.json scripts and includes Playwright as a devDependency, but no .test.ts or __tests__ directories exist in the indexed codebase.\"\n  ],\n  \"summary\": \"WORKMAT (workmat-web) is a Next.js 15 + React 19 + Prisma/PostgreSQL multi-tenant web application for managing agent communication (chat, voice calls, email marketing). It uses an event-driven architecture with three chat provider backends (Vapi AI, local LLM, OpenAI), an admin panel with analytics, user/TOTP MFA management, mailing campaign orchestration, and server maintenance tooling. The most critical risk areas are the analytics overview route (309 deps), chat authorization logic (complexity 23), and several god components (mailing page at 4519 lines, admin backups at 4381 lines, ChatWidget at 2993 lines). No test files currently exist despite Playwright and Node test runner being available. Changes to the analytics overview, chat routes, or admin mailing page have the highest blast radius and demand thorough regression testing.\"\n}\n```",
+      "response_hash": "c605e50a6c2f0082",
+      "tool_calls": 32,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1276
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "get_architecture",
+          "args_redacted": {},
+          "duration_ms": 77,
+          "result_bytes": 18474,
+          "content_hash": "42e00e799ad613a6"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "analyze_hotspots",
+          "args_redacted": {
+            "limit": 10
+          },
+          "duration_ms": 13,
+          "result_bytes": 10502,
+          "content_hash": "558a3ce3decfdebf"
+        },
+        {
+          "seq": 4,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2440
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "test",
+            "label": "Function",
+            "limit": 20
+          },
+          "duration_ms": 14,
+          "result_bytes": 4680,
+          "content_hash": "c7b324e724a623fd"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "ChatWidget",
+            "label": "Function",
+            "limit": 5
+          },
+          "duration_ms": 5,
+          "result_bytes": 1522,
+          "content_hash": "4e3141a7aa2b224a"
+        },
+        {
+          "seq": 7,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "CallWidget",
+            "label": "Function",
+            "limit": 5
+          },
+          "duration_ms": 4,
+          "result_bytes": 1486,
+          "content_hash": "06d23f5bdf98208d"
+        },
+        {
+          "seq": 8,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2159
+        },
+        {
+          "seq": 9,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "describe\\(",
+            "file_pattern": "*.test.*"
+          },
+          "duration_ms": 18,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "\\.test\\.",
+            "file_pattern": "*.ts*",
+            "limit": 15
+          },
+          "duration_ms": 12,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 11,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "prisma/schema.prisma"
+          },
+          "duration_ms": 0,
+          "result_bytes": 33163,
+          "content_hash": "f966252fa6c4b4d2"
+        },
+        {
+          "seq": 12,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2323
+        },
+        {
+          "seq": 13,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "\\.test\\.ts",
+            "limit": 20
+          },
+          "duration_ms": 18,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 14,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "\\.spec\\.",
+            "limit": 20
+          },
+          "duration_ms": 14,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 15,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "__tests__",
+            "limit": 20
+          },
+          "duration_ms": 11,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 16,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1625
+        },
+        {
+          "seq": 17,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "test",
+            "file_pattern": "*.test.*",
+            "limit": 20
+          },
+          "duration_ms": 16,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "get_graph_schema",
+          "args_redacted": {},
+          "duration_ms": 25,
+          "result_bytes": 3243,
+          "content_hash": "9006da90d81c10b6"
+        },
+        {
+          "seq": 19,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1902
+        },
+        {
+          "seq": 20,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (f:Function)-[t:TESTS]->(target) RETURN f.name, f.file_path, target.name LIMIT 30"
+          },
+          "duration_ms": 1,
+          "result_bytes": 189,
+          "content_hash": "028e1a830705d0a7"
+        },
+        {
+          "seq": 21,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "it\\(",
+            "limit": 20
+          },
+          "duration_ms": 18,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 22,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1823
+        },
+        {
+          "seq": 23,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (f)-[t:TESTS]->(target) RETURN f.qualified_name, target.qualified_name LIMIT 30"
+          },
+          "duration_ms": 1,
+          "result_bytes": 197,
+          "content_hash": "49fc3b79ec31f5d5"
+        },
+        {
+          "seq": 24,
+          "role": "tool_exec",
+          "tool_name": "find_tests",
+          "args_redacted": {
+            "name": "test"
+          },
+          "duration_ms": 0,
+          "result_bytes": 246,
+          "content_hash": "b3c82b8f3576c935"
+        },
+        {
+          "seq": 25,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1843
+        },
+        {
+          "seq": 26,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "@vitest|vitest|jest|describe|test\\(",
+            "file_pattern": "*.ts*",
+            "limit": 20
+          },
+          "duration_ms": 19,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 27,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "\\.test",
+            "limit": 20
+          },
+          "duration_ms": 14,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 28,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2015
+        },
+        {
+          "seq": 29,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "test",
+            "file_pattern": "package.json"
+          },
+          "duration_ms": 17,
+          "result_bytes": 356,
+          "content_hash": "1623fdd1eccf15be"
+        },
+        {
+          "seq": 30,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "vitest|jest|playwright|cypress",
+            "file_pattern": "*",
+            "limit": 20
+          },
+          "duration_ms": 12,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 31,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1471
+        },
+        {
+          "seq": 32,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "package.json"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2170,
+          "content_hash": "9bb23606faa390d8"
+        },
+        {
+          "seq": 33,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2457
+        },
+        {
+          "seq": 34,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "tests/",
+            "file_pattern": "*",
+            "limit": 20
+          },
+          "duration_ms": 19,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 35,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "tests"
+          },
+          "duration_ms": 0,
+          "result_bytes": 31,
+          "content_hash": "7ceb6b6eb753fb3c"
+        },
+        {
+          "seq": 36,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1405
+        },
+        {
+          "seq": 37,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "tests/",
+            "limit": 20
+          },
+          "duration_ms": 20,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 38,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1745
+        },
+        {
+          "seq": 39,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (n) WHERE n.qualified_name CONTAINS 'test' AND n.qualified_name CONTAINS '.test' RETURN n.qualified_name, labels(n) LIMIT 20"
+          },
+          "duration_ms": 1,
+          "result_bytes": 241,
+          "content_hash": "cf32c690fe4ede5f"
+        },
+        {
+          "seq": 40,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1636
+        },
+        {
+          "seq": 41,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (f:Function) WHERE f.lineCount < 1000 AND (f.qualified_name LIKE '%test%' OR f.signature LIKE '%test%') RETURN f.qualified_name, f.file_path, f.lineCount LIMIT 15"
+          },
+          "duration_ms": 1,
+          "result_bytes": 275,
+          "content_hash": "b6eaa4c8d4f9fe14"
+        },
+        {
+          "seq": 42,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1463
+        },
+        {
+          "seq": 43,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (f:Function) WHERE f.qualified_name LIKE '%test%' RETURN f.qualified_name, f.file_path, f.lineCount LIMIT 20"
+          },
+          "duration_ms": 2,
+          "result_bytes": 3365,
+          "content_hash": "91c1c6c59d9b5956"
+        },
+        {
+          "seq": 44,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2076
+        },
+        {
+          "seq": 45,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "test",
+            "file_pattern": "*.test.ts"
+          },
+          "duration_ms": 19,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 46,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2431
+        },
+        {
+          "seq": 47,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/lib/maintenance/index.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 12562,
+          "content_hash": "20d3d9b73ea17cf9"
+        },
+        {
+          "seq": 48,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/app/api/chat/route.ts",
+            "limit": 50
+          },
+          "duration_ms": 1,
+          "result_bytes": 151289,
+          "content_hash": "596a36389fefe23f"
+        },
+        {
+          "seq": 49,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/app/api/admin/analytics/overview/route.ts",
+            "limit": 50
+          },
+          "duration_ms": 0,
+          "result_bytes": 36684,
+          "content_hash": "43ae2a5d62b327aa"
+        },
+        {
+          "seq": 50,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 15720,
+          "content_hash": "c605e50a6c2f0082"
+        }
+      ]
+    },
+    {
+      "run_id": "run_2_55de121d07d7",
+      "task_id": "external_project_overview",
+      "condition": "without_caesar",
+      "not_executed": false,
+      "order_position": 0,
+      "seed": 77,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "You have just joined the WORKMAT team. Analyze the project and give a concise technical orientation: its primary architecture, main entry points, important hotspots, and relevant tests. Respond with JSON: {\"primary_language\":\"...\",\"entry_points\":[\"...\"],\"hotspots\":[\"...\"],\"relevant_tests\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "tool_call_count": 0,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 23639,
+        "api_latency_ms": 0,
+        "cost_usd": 0,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "correct": false,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "tool_loop_exhausted": false,
+      "errors": [
+        "No JSON object found in response",
+        "provider_request_failed: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1234793 tokens (1234793 in the messages, 0 in the completion). Please reduce the length of the messag"
+      ],
+      "response": "Error: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1234793 tokens (1234793 in the messages, 0 in the completion). Please reduce the length of the messag",
+      "response_hash": "ac557a65fff9ff39",
+      "tool_calls": 0,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1486
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "package.json",
+            "include": "*.json"
+          },
+          "duration_ms": 662,
+          "result_bytes": 167856,
+          "content_hash": "46e1e18b79c50791"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "def main",
+            "include": "*.py"
+          },
+          "duration_ms": 342,
+          "result_bytes": 1818,
+          "content_hash": "fa30c411a22b3589"
+        },
+        {
+          "seq": 4,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3448,
+          "content_hash": "724ff0c0cf2a3b4d"
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "\"scripts\"",
+            "include": "package.json"
+          },
+          "duration_ms": 243,
+          "result_bytes": 54176,
+          "content_hash": "434d0ed976bb12d9"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "\"description\"",
+            "include": "package.json"
+          },
+          "duration_ms": 201,
+          "result_bytes": 129724,
+          "content_hash": "0c9d4010afd7e3bc"
+        },
+        {
+          "seq": 7,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2361,
+          "content_hash": "98afc0c27d01206b"
+        },
+        {
+          "seq": 8,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/WORKMAT/package.json"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2170,
+          "content_hash": "9bb23606faa390d8"
+        },
+        {
+          "seq": 9,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.tsx",
+            "pattern": "export default function|export default class"
+          },
+          "duration_ms": 255,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 10,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1873
+        },
+        {
+          "seq": 11,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.tsx",
+            "pattern": "export default"
+          },
+          "duration_ms": 246,
+          "result_bytes": 2829,
+          "content_hash": "a94a1760b4c1cd3b"
+        },
+        {
+          "seq": 12,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/WORKMAT/src"
+          },
+          "duration_ms": 0,
+          "result_bytes": 58,
+          "content_hash": "396ca4f4f5e2d98a"
+        },
+        {
+          "seq": 13,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1920
+        },
+        {
+          "seq": 14,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/WORKMAT/src/app/layout.tsx"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4425,
+          "content_hash": "1cd333831986b6f2"
+        },
+        {
+          "seq": 15,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/WORKMAT/src/app/page.tsx"
+          },
+          "duration_ms": 0,
+          "result_bytes": 274,
+          "content_hash": "98423e99bb182118"
+        },
+        {
+          "seq": 16,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2099
+        },
+        {
+          "seq": 17,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/WORKMAT/tsconfig.json"
+          },
+          "duration_ms": 1,
+          "result_bytes": 761,
+          "content_hash": "3cfbbf7f930f6bef"
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.test.ts",
+            "pattern": "describe|test\\("
+          },
+          "duration_ms": 4,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 19,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1989
+        },
+        {
+          "seq": 20,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "/Users/admin/Desktop/WORKMAT/tests"
+          },
+          "duration_ms": 0,
+          "result_bytes": 60,
+          "content_hash": "54b2c2d5484fa81b"
+        },
+        {
+          "seq": 21,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "describe\\(|it\\(|test\\("
+          },
+          "duration_ms": 4,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 22,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2355
+        },
+        {
+          "seq": 23,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "test",
+            "include": "*.test.ts"
+          },
+          "duration_ms": 249,
+          "result_bytes": 239576,
+          "content_hash": "2aa06688d5e99337"
+        },
+        {
+          "seq": 24,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.test.ts",
+            "pattern": "."
+          },
+          "duration_ms": 228,
+          "result_bytes": 3426656,
+          "content_hash": "3734694feccbeb47"
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/WORKMAT; CAESAR state remains temporary."
+  ]
+}

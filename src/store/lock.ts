@@ -1,0 +1,100 @@
+/*
+ * lock.ts — Per-project lock files for index freshness.
+ *
+ * Prevents concurrent index runs on the same project and recovers
+ * from stale locks left by crashed or killed processes.
+ */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { lynxHome, readLynxConfig } from '../config/runtime.js';
+
+function locksDir(): string {
+  const dir = path.join(lynxHome(), 'locks');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function lockPath(project: string): string {
+  return path.join(locksDir(), `${project}.lock`);
+}
+
+export interface LockInfo {
+  pid: number;
+  timestamp: number;
+  project: string;
+}
+
+function readLockInfo(project: string): LockInfo | null {
+  try {
+    const raw = fs.readFileSync(lockPath(project), 'utf-8');
+    return JSON.parse(raw) as LockInfo;
+  } catch {
+    return null;
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function acquireProjectLock(project: string): { acquired: boolean; reason?: string } {
+  const cfg = readLynxConfig();
+  const ttlMs = cfg.lock_ttl_minutes * 60 * 1000;
+  const existing = readLockInfo(project);
+
+  if (existing) {
+    // Check if the owning process is still alive
+    if (isProcessAlive(existing.pid)) {
+      return { acquired: false, reason: `Project ${project} is already being indexed (pid ${existing.pid})` };
+    }
+    // Stale lock — process is dead
+    const age = Date.now() - existing.timestamp;
+    if (age < ttlMs) {
+      return { acquired: false, reason: `Project ${project} has a recent lock (pid ${existing.pid} died ${Math.round(age / 1000)}s ago, TTL ${cfg.lock_ttl_minutes}m). Waiting for TTL expiry.` };
+    }
+    // Stale lock past TTL — break it
+    releaseProjectLock(project);
+  }
+
+  const info: LockInfo = { pid: process.pid, timestamp: Date.now(), project };
+  fs.writeFileSync(lockPath(project), JSON.stringify(info));
+  return { acquired: true };
+}
+
+export function releaseProjectLock(project: string): void {
+  try { fs.rmSync(lockPath(project), { force: true }); } catch { /* ok */ }
+}
+
+export function isProjectLocked(project: string): boolean {
+  return readLockInfo(project) !== null;
+}
+
+export interface StaleLockInfo {
+  project: string;
+  pid: number;
+  ageMs: number;
+  processAlive: boolean;
+}
+
+export function listOrphanedLocks(): StaleLockInfo[] {
+  const dir = path.join(lynxHome(), 'locks');
+  if (!fs.existsSync(dir)) return [];
+  const results: StaleLockInfo[] = [];
+  for (const file of fs.readdirSync(dir)) {
+    if (!file.endsWith('.lock')) continue;
+    const project = file.replace(/\.lock$/, '');
+    const info = readLockInfo(project);
+    if (!info) continue;
+    const alive = isProcessAlive(info.pid);
+    if (!alive) {
+      results.push({ project, pid: info.pid, ageMs: Date.now() - info.timestamp, processAlive: false });
+    }
+  }
+  return results;
+}

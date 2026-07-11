@@ -1,0 +1,1374 @@
+{
+  "config": {
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_impact_analysis"
+    ],
+    "projectDir": "/Users/admin/Desktop/CAESAR-authoritative",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_58a273f59553",
+      "task_id": "external_impact_analysis",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I need to modify the function handleSearchGraph in CAESAR-authoritative. Before I touch it, I need to know: (1) what other functions call it directly or indirectly, (2) what functions it calls, (3) what tests cover it, and (4) what routes or entry points would be affected. Find this information precisely — do not make guesses. Respond with JSON: {\"callers\":[\"...\"],\"callees\":[\"...\"],\"tests\":[\"...\"],\"affected_entry_points\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_7THPMxq6FXzK8dLK28FZ0213",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"handleSearchGraph\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_pVJSmgPKUEJp561wOSHl2259",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"handleSearchGraph\", \"direction\": \"both\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_9h5lS8kneunpRduTeQL58863",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"handleSearchGraph\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_ORZNxZRT0mLe030EzcUL0593",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"mcp.handlers.search_graph.handleSearchGraph\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Ndmg1ofz59l7WOfIwbXl2444",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"handleSearchGraph\", \"direction\": \"outbound\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_X7Yg0GQzdEDQYlvQiYPE9829",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"handleSearchGraph\", \"direction\": \"inbound\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_inlFW1N0uGALygncsUuz0142",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"handleSearchGraph\", \"file_pattern\": \"*.ts\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_54DQbZhR9AmhFNfoKhAt5438",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"search_graph\", \"file_pattern\": \"*.ts\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Mr9UHMX200SE8ElZel196337",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/mcp/handlers/search_graph.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Bz1IgmIYxiTXHruYP6R10882",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"searchGraph|search_graph|handleSearchGraph\", \"file_pattern\": \"*.ts\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_x7U2QzGUAHap4bI3XBKh2874",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"entry_points\", \"file_tree\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_a5LDcUAeK9OmyqB1JTMz4987",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"searchGraph\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_nqfWngpwixCunGpaWf890699",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"search_graph\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bDOJayvWGJt4tDOybbsv5287",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"handleSearchGraph\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_QCepmh7F8FZRkZljlgRk7010",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (f:Function {name:'handleSearchGraph'})-[r:CALLED_BY|IMPORTED_BY|EXPORTED_BY]-(caller) RETURN caller.name, caller.file_path, labels(caller), type(r)\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MWoYSvhM2fFYADzwyc2B0587",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (f:Function {name:'handleSearchGraph'})<-[:CALLS]-(caller:Function) RETURN caller.name, caller.file_path, caller.start_line\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_QNpsP8VKImXPZNFe7HtT6472",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/mcp/server.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_gG78qWArKjEKtIXCCPtc0327",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"search_graph\", \"file_pattern\": \"src/mcp/tools.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_0G1Ih2xZAVbCFhtqktlB6706",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"cli.agent-ab.benchmark.executeCaesarTool\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_SJOnpaFnzNgWwzQeuyHf1036",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"cli.agent-ab.realistic-suite.executeCaesarToolRealistic\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_9gPhIRamnXwVh4S81Kxa2949",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"cli.ab-benchmark.project\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_fI88AxJNTlY5YoSVtvjq8947",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/mcp/tools.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_c4aUuOK7Trf1ZNTSApPz9448",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/unit/mcp/search_graph.test.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_HZWgBqRnfcNnF2snRk5s9812",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/unit/federation/handler-federation.test.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_U4uXlVYyh1tpvDsSrfvx5725",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/unit/federation/search-core.test.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_KpVIiyvotzw6tIdNHrNK3886",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (t:Test)-[:TESTS]->(f:Function {name:'handleSearchGraph'}) RETURN t.name, t.file_path\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_y1UutFAzwOq4KVMRjRwQ0224",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"handleSearchGraph\", \"qualified_name\": \"mcp.handlers.search_graph.handleSearchGraph\"}"
+          }
+        }
+      ],
+      "response": "Now I have all the information needed. Here is the comprehensive analysis:\n\n```json\n{\n  \"callers\": [\n    \"cli.agent-ab.benchmark.executeCaesarTool (src/cli/agent-ab/benchmark.ts:235)\",\n    \"cli.agent-ab.realistic-suite.executeCaesarToolRealistic (src/cli/agent-ab/realistic-suite.ts:543)\",\n    \"cli.ab-benchmark.project (src/cli/ab-benchmark.ts:612)\",\n    \"cli.agent-ab.benchmark.tc (src/cli/agent-ab/benchmark.ts) — indirect via executeCaesarTool\"\n  ],\n  \"callees\": [\n    \"mcp.server.getDb (src/mcp/server.ts)\",\n    \"store.database.CaesarDatabase.getProject (src/store/database.ts)\",\n    \"mcp.diagnostics.projectNotIndexed (src/mcp/diagnostics.ts)\",\n    \"federation.handler-bridge.getFederatedConfig (src/federation/handler-bridge.ts)\",\n    \"federation.gateway.federatedSearchGraph (src/federation/gateway.ts) — conditional on federated config\",\n    \"federation.search-core.executeLocalSearchGraph (src/federation/search-core.ts) — fallback path\",\n    \"llm.client.getRerankProviderMode (src/llm/client.ts)\",\n    \"llm.client.rerankSearchWithMeta (src/llm/client.ts)\",\n    \"usage.metrics.estimateRerankCostUsd (src/usage/metrics.ts)\",\n    \"usage.metrics.estimateTokensSaved (src/usage/metrics.ts)\",\n    \"usage.metrics.recordUsageEvent (src/usage/metrics.ts) — called twice (llm_rerank + search_graph events)\",\n    \"usage.session.computeRealSavings (src/usage/session.ts)\",\n    \"intelligence.narrative.narrateSearchResults (src/intelligence/narrative.ts)\"\n  ],\n  \"tests\": [\n    \"tests.unit.federation.handler-federation.test.result — without config: handler output matches pre-federation baseline\",\n    \"tests.unit.federation.handler-federation.test.sn — with config: handler returns provenance_summary and shared results\",\n    \"tests.unit.federation.handler-federation.test.baseline — mixed: overlapping qualified_name tagged as mixed\",\n    \"tests.unit.federation.handler-federation.test.slowShared — timeout: handler returns local_fallback=true\",\n    \"tests.unit.federation.handler-federation.test.brokenShared — shared error: handler returns shared_error, local_fallback=true (calls handleTracePath, not handleSearchGraph directly)\",\n    \"tests.unit.federation.handler-federation.test.setFederatedConfig — handler respects limit even with gateway\",\n    \"tests.unit.federation.search-core.test.handlerSearch — helper function wrapping handleSearchGraph, used by all search-core parity tests\",\n    \"tests.unit.federation.search-core.test.result — handler returns diagnostic when project not indexed\",\n    \"tests.unit.mcp.search_graph.test (LLM boundary block) — enable_llm=false skips LLM entirely\",\n    \"tests.unit.mcp.search_graph.test — enable_llm=true defaults to enabled\",\n    \"tests.unit.mcp.search_graph.test — no query skips rerank (llm_usage.used=false)\",\n    \"tests.unit.mcp.search_graph.test — fewer than 3 candidates skips rerank\",\n    \"tests.unit.mcp.search_graph.test — 3+ candidates with query triggers LLM call\",\n    \"tests.unit.mcp.search_graph.test — llm_usage present even when no LLM runs\",\n    \"tests.unit.mcp.search_graph.test.result — result semantics unchanged with enable_llm=false\"\n  ],\n  \"affected_entry_points\": [\n    \"MCP tools/call JSON-RPC endpoint — registered as HANDLERS['search_graph'] in src/mcp/server.ts:37, dispatched via the JSON-RPC dispatch() function on any tools/call request with name='search_graph'\",\n    \"Tool definition in TOOLS array (src/mcp/tools.ts) — the search_graph tool definition with its full input schema is what MCP clients see via tools/list; it maps to this handler\",\n    \"CLI A/B benchmark (src/cli/ab-benchmark.ts:612) — project() → withCaesar callback calls handleSearchGraph for tool output verification\",\n    \"CLI agent-ab benchmark (src/cli/agent-ab/benchmark.ts:235) — executeCaesarTool → case 'search_graph'\",\n    \"CLI agent-ab realistic suite (src/cli/agent-ab/realistic-suite.ts:543) — executeCaesarToolRealistic → case 'search_graph'\"\n  ],\n  \"summary\": \"handleSearchGraph is a CRITICAL function (fan-in=57, complexity=41) in src/mcp/handlers/search_graph.ts:23–284. It serves as the MCP 'search_graph' tool handler, dispatched from the JSON-RPC server's HANDLERS registry. It branches between a federated gateway (federatedSearchGraph) and a local core (executeLocalSearchGraph) for data retrieval, then optionally applies LLM-based re-ranking via rerankSearchWithMeta. Three CLI benchmarks call it directly (ab-benchmark, agent-ab benchmark, realistic-suite). At least 15 test functions across 3 test files exercise it. Modifying it risks breaking the MCP tool interface exposed to all MCP clients, plus the CLI benchmarks that depend on its output.\"\n}\n```",
+      "responseHash": "f562bcf0f05975ec",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 237156,
+        "output_tokens": 6878,
+        "cached_tokens": 197760,
+        "reasoning_tokens": 1592,
+        "tool_call_count": 27,
+        "files_read": 6,
+        "bytes_read": 85183,
+        "wall_time_ms": 62461,
+        "api_latency_ms": 62461,
+        "cost_usd": 0.01020992,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "callers": [
+          "cli.agent-ab.benchmark.executeCaesarTool (src/cli/agent-ab/benchmark.ts:235)",
+          "cli.agent-ab.realistic-suite.executeCaesarToolRealistic (src/cli/agent-ab/realistic-suite.ts:543)",
+          "cli.ab-benchmark.project (src/cli/ab-benchmark.ts:612)",
+          "cli.agent-ab.benchmark.tc (src/cli/agent-ab/benchmark.ts) — indirect via executeCaesarTool"
+        ],
+        "callees": [
+          "mcp.server.getDb (src/mcp/server.ts)",
+          "store.database.CaesarDatabase.getProject (src/store/database.ts)",
+          "mcp.diagnostics.projectNotIndexed (src/mcp/diagnostics.ts)",
+          "federation.handler-bridge.getFederatedConfig (src/federation/handler-bridge.ts)",
+          "federation.gateway.federatedSearchGraph (src/federation/gateway.ts) — conditional on federated config",
+          "federation.search-core.executeLocalSearchGraph (src/federation/search-core.ts) — fallback path",
+          "llm.client.getRerankProviderMode (src/llm/client.ts)",
+          "llm.client.rerankSearchWithMeta (src/llm/client.ts)",
+          "usage.metrics.estimateRerankCostUsd (src/usage/metrics.ts)",
+          "usage.metrics.estimateTokensSaved (src/usage/metrics.ts)",
+          "usage.metrics.recordUsageEvent (src/usage/metrics.ts) — called twice (llm_rerank + search_graph events)",
+          "usage.session.computeRealSavings (src/usage/session.ts)",
+          "intelligence.narrative.narrateSearchResults (src/intelligence/narrative.ts)"
+        ],
+        "tests": [
+          "tests.unit.federation.handler-federation.test.result — without config: handler output matches pre-federation baseline",
+          "tests.unit.federation.handler-federation.test.sn — with config: handler returns provenance_summary and shared results",
+          "tests.unit.federation.handler-federation.test.baseline — mixed: overlapping qualified_name tagged as mixed",
+          "tests.unit.federation.handler-federation.test.slowShared — timeout: handler returns local_fallback=true",
+          "tests.unit.federation.handler-federation.test.brokenShared — shared error: handler returns shared_error, local_fallback=true (calls handleTracePath, not handleSearchGraph directly)",
+          "tests.unit.federation.handler-federation.test.setFederatedConfig — handler respects limit even with gateway",
+          "tests.unit.federation.search-core.test.handlerSearch — helper function wrapping handleSearchGraph, used by all search-core parity tests",
+          "tests.unit.federation.search-core.test.result — handler returns diagnostic when project not indexed",
+          "tests.unit.mcp.search_graph.test (LLM boundary block) — enable_llm=false skips LLM entirely",
+          "tests.unit.mcp.search_graph.test — enable_llm=true defaults to enabled",
+          "tests.unit.mcp.search_graph.test — no query skips rerank (llm_usage.used=false)",
+          "tests.unit.mcp.search_graph.test — fewer than 3 candidates skips rerank",
+          "tests.unit.mcp.search_graph.test — 3+ candidates with query triggers LLM call",
+          "tests.unit.mcp.search_graph.test — llm_usage present even when no LLM runs",
+          "tests.unit.mcp.search_graph.test.result — result semantics unchanged with enable_llm=false"
+        ],
+        "affected_entry_points": [
+          "MCP tools/call JSON-RPC endpoint — registered as HANDLERS['search_graph'] in src/mcp/server.ts:37, dispatched via the JSON-RPC dispatch() function on any tools/call request with name='search_graph'",
+          "Tool definition in TOOLS array (src/mcp/tools.ts) — the search_graph tool definition with its full input schema is what MCP clients see via tools/list; it maps to this handler",
+          "CLI A/B benchmark (src/cli/ab-benchmark.ts:612) — project() → withCaesar callback calls handleSearchGraph for tool output verification",
+          "CLI agent-ab benchmark (src/cli/agent-ab/benchmark.ts:235) — executeCaesarTool → case 'search_graph'",
+          "CLI agent-ab realistic suite (src/cli/agent-ab/realistic-suite.ts:543) — executeCaesarToolRealistic → case 'search_graph'"
+        ],
+        "summary": "handleSearchGraph is a CRITICAL function (fan-in=57, complexity=41) in src/mcp/handlers/search_graph.ts:23–284. It serves as the MCP 'search_graph' tool handler, dispatched from the JSON-RPC server's HANDLERS registry. It branches between a federated gateway (federatedSearchGraph) and a local core (executeLocalSearchGraph) for data retrieval, then optionally applies LLM-based re-ranking via rerankSearchWithMeta. Three CLI benchmarks call it directly (ab-benchmark, agent-ab benchmark, realistic-suite). At least 15 test functions across 3 test files exercise it. Modifying it risks breaking the MCP tool interface exposed to all MCP clients, plus the CLI benchmarks that depend on its output."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1182
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "handleSearchGraph"
+          },
+          "duration_ms": 8,
+          "result_bytes": 661,
+          "content_hash": "08c8510f1a671051"
+        },
+        {
+          "seq": 3,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1697
+        },
+        {
+          "seq": 4,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "handleSearchGraph",
+            "direction": "both",
+            "depth": 3
+          },
+          "duration_ms": 17,
+          "result_bytes": 2889,
+          "content_hash": "0997c6ae4c6e3f68"
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "find_tests",
+          "args_redacted": {
+            "name": "handleSearchGraph"
+          },
+          "duration_ms": 2,
+          "result_bytes": 6554,
+          "content_hash": "51f056844f69a2a3"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "get_code_snippet",
+          "args_redacted": {
+            "qualified_name": "mcp.handlers.search_graph.handleSearchGraph"
+          },
+          "duration_ms": 1,
+          "result_bytes": 10769,
+          "content_hash": "0131bb3e8e245606"
+        },
+        {
+          "seq": 7,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2542
+        },
+        {
+          "seq": 8,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "handleSearchGraph",
+            "direction": "outbound",
+            "depth": 3
+          },
+          "duration_ms": 6,
+          "result_bytes": 2359,
+          "content_hash": "cb741dd85aa4b39a"
+        },
+        {
+          "seq": 9,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "handleSearchGraph",
+            "direction": "inbound",
+            "depth": 3
+          },
+          "duration_ms": 4,
+          "result_bytes": 1323,
+          "content_hash": "4ec0963dd551ff43"
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "handleSearchGraph",
+            "file_pattern": "*.ts",
+            "limit": 30
+          },
+          "duration_ms": 27,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 11,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1789
+        },
+        {
+          "seq": 12,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "search_graph",
+            "file_pattern": "*.ts",
+            "limit": 30
+          },
+          "duration_ms": 34,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 13,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/mcp/handlers/search_graph.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 11040,
+          "content_hash": "2895c1abb409d762"
+        },
+        {
+          "seq": 14,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2399,
+          "content_hash": "ac9b7a5c26188eca"
+        },
+        {
+          "seq": 15,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "searchGraph|search_graph|handleSearchGraph",
+            "file_pattern": "*.ts",
+            "limit": 30
+          },
+          "duration_ms": 36,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 16,
+          "role": "tool_exec",
+          "tool_name": "get_architecture",
+          "args_redacted": {
+            "aspects": [
+              "entry_points",
+              "file_tree"
+            ]
+          },
+          "duration_ms": 57,
+          "result_bytes": 8961,
+          "content_hash": "96029f5f94401994"
+        },
+        {
+          "seq": 17,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1773
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "searchGraph",
+            "limit": 30
+          },
+          "duration_ms": 35,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 19,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "search_graph",
+            "limit": 30
+          },
+          "duration_ms": 26,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 20,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2281
+        },
+        {
+          "seq": 21,
+          "role": "tool_exec",
+          "tool_name": "semantic_search",
+          "args_redacted": {
+            "query": "handleSearchGraph",
+            "limit": 20
+          },
+          "duration_ms": 17,
+          "result_bytes": 3581,
+          "content_hash": "907a7fcd7ea26360"
+        },
+        {
+          "seq": 22,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (f:Function {name:'handleSearchGraph'})-[r:CALLED_BY|IMPORTED_BY|EXPORTED_BY]-(caller) RETURN caller.name, caller.file_path, labels(caller), type(r)"
+          },
+          "duration_ms": 0,
+          "result_bytes": 334,
+          "content_hash": "42014f99943b3a43"
+        },
+        {
+          "seq": 23,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1847
+        },
+        {
+          "seq": 24,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (f:Function {name:'handleSearchGraph'})<-[:CALLS]-(caller:Function) RETURN caller.name, caller.file_path, caller.start_line"
+          },
+          "duration_ms": 0,
+          "result_bytes": 309,
+          "content_hash": "238954e84a295fd7"
+        },
+        {
+          "seq": 25,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/mcp/server.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 14458,
+          "content_hash": "ced136896fd6fd22"
+        },
+        {
+          "seq": 26,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2499
+        },
+        {
+          "seq": 27,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "search_graph",
+            "file_pattern": "src/mcp/tools.ts",
+            "limit": 10
+          },
+          "duration_ms": 20,
+          "result_bytes": 365,
+          "content_hash": "735d53bd435333a1"
+        },
+        {
+          "seq": 28,
+          "role": "tool_exec",
+          "tool_name": "get_code_snippet",
+          "args_redacted": {
+            "qualified_name": "cli.agent-ab.benchmark.executeCaesarTool"
+          },
+          "duration_ms": 1,
+          "result_bytes": 2051,
+          "content_hash": "3a561cb9c05b8145"
+        },
+        {
+          "seq": 29,
+          "role": "tool_exec",
+          "tool_name": "get_code_snippet",
+          "args_redacted": {
+            "qualified_name": "cli.agent-ab.realistic-suite.executeCaesarToolRealistic"
+          },
+          "duration_ms": 0,
+          "result_bytes": 5209,
+          "content_hash": "4d3c0e69a40a7b61"
+        },
+        {
+          "seq": 30,
+          "role": "tool_exec",
+          "tool_name": "get_code_snippet",
+          "args_redacted": {
+            "qualified_name": "cli.ab-benchmark.project"
+          },
+          "duration_ms": 1,
+          "result_bytes": 1444,
+          "content_hash": "3b61c7c7af986e0b"
+        },
+        {
+          "seq": 31,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1306
+        },
+        {
+          "seq": 32,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/mcp/tools.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 17443,
+          "content_hash": "eec8f3e5f2d88773"
+        },
+        {
+          "seq": 33,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2139,
+          "content_hash": "acc9b0928bdeb474"
+        },
+        {
+          "seq": 34,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "tests/unit/mcp/search_graph.test.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 15038,
+          "content_hash": "611722d62b78317b"
+        },
+        {
+          "seq": 35,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "tests/unit/federation/handler-federation.test.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 14066,
+          "content_hash": "86cae667e33fb04f"
+        },
+        {
+          "seq": 36,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "tests/unit/federation/search-core.test.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 13138,
+          "content_hash": "e54d51929ec9403d"
+        },
+        {
+          "seq": 37,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 18431,
+          "content_hash": "7c0fffae3fcdccb1"
+        },
+        {
+          "seq": 38,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (t:Test)-[:TESTS]->(f:Function {name:'handleSearchGraph'}) RETURN t.name, t.file_path"
+          },
+          "duration_ms": 2,
+          "result_bytes": 159,
+          "content_hash": "7c0c2ba73b8bc6e4"
+        },
+        {
+          "seq": 39,
+          "role": "tool_exec",
+          "tool_name": "explain_symbol",
+          "args_redacted": {
+            "name": "handleSearchGraph",
+            "qualified_name": "mcp.handlers.search_graph.handleSearchGraph"
+          },
+          "duration_ms": 2,
+          "result_bytes": 11595,
+          "content_hash": "3988b4fb0c607f86"
+        },
+        {
+          "seq": 40,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 22275,
+          "content_hash": "f562bcf0f05975ec"
+        }
+      ]
+    },
+    {
+      "run_id": "run_2_9b3875dc74c5",
+      "task_id": "external_impact_analysis",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I need to modify the function handleSearchGraph in CAESAR-authoritative. Before I touch it, I need to know: (1) what other functions call it directly or indirectly, (2) what functions it calls, (3) what tests cover it, and (4) what routes or entry points would be affected. Find this information precisely — do not make guesses. Respond with JSON: {\"callers\":[\"...\"],\"callees\":[\"...\"],\"tests\":[\"...\"],\"affected_entry_points\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_ph5j0meqFmUMTN4MfREJ3806",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"handleSearchGraph\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_yIPfSS6L7PQaWSHS4ctA0720",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"handleSearchGraph\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_OfLiczwrc2tPG21PVv3h2024",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"handleSearchGraph\", \"include\": \"*.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UXW5oKlzjk2fbaXmQpac9453",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/mcp/handlers/search_graph.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_wfJk3cQQKRH6bgLYwAnQ9166",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/mcp/server.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_67VOf10vsK66ptb8mu680766",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/federation/search-core.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_E0uNWTJJvcVb92mNaMl05842",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/ab-benchmark.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_wHiBuHrQiN7MSAUYRy7z8099",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/agent-ab/benchmark.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_PxKD6U82QNV30AaMA1as2408",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/agent-ab/realistic-suite.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_9Y2jVLFFfI4aeHFHXvdF5041",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/unit/mcp/search_graph.test.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_CcfUIMi2MH1dKMdoHQoS2760",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/unit/federation/search-core.test.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_zeNRUytPES0qr7J7Fd7Y6483",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/unit/federation/handler-federation.test.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_k7gDpTfuodRRebNUu1MK4220",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"export function federatedSearchGraph\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ROyvw16C8Trn8um72yok0384",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"export function getFederatedConfig\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_vyd077lXc4u3BpKQ2Jd97780",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"export function narrateSearchResults\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_rKjH9EZZchwZlwP7iMPt9146",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"handleSearchGraph\", \"path\": \"src/cli\"}"
+          }
+        }
+      ],
+      "response": "Now I have complete information. Here is the final answer:\n\n```json\n{\n  \"callers\": [\n    \"server.ts (HANDLERS registry, line 55) — dispatch for MCP tool 'search_graph' via JSON-RPC tools/call\",\n    \"ab-benchmark.ts (makeTasks → withCaesar lambdas, lines 380, 615) — A/B benchmark task execution\",\n    \"agent-ab/benchmark.ts (executeCaesarTool, line 243) — LLM agent tool executor for 'search_graph'\",\n    \"agent-ab/realistic-suite.ts (executeCaesarToolRealistic, line 552) — LLM agent tool executor for 'search_graph' in realistic suite\"\n  ],\n  \"callees\": [\n    \"getDb (from src/server.js) — obtains the CaesarDatabase handle\",\n    \"projectNotIndexed (from src/mcp/diagnostics.js) — diagnostic hint if project not found\",\n    \"getFederatedConfig (from src/federation/handler-bridge.js) — checks for Team federation config\",\n    \"federatedSearchGraph (from src/federation/gateway.js) — federated search (conditional on Team config)\",\n    \"executeLocalSearchGraph (from src/federation/search-core.js) — local search (when no Team config)\",\n    \"getRerankProviderMode (from src/llm/client.js) — determines LLM rerank provider\",\n    \"rerankSearchWithMeta (from src/llm/client.js) — performs LLM re-ranking (conditional: enableLlm && query && >=3 candidates)\",\n    \"estimateRerankCostUsd (from src/usage/metrics.js) — estimates LLM rerank cost\",\n    \"estimateTokensSaved (from src/usage/metrics.js) — computes tokens-saved value metric\",\n    \"computeRealSavings (from src/usage/session.js) — real session savings (best-effort)\",\n    \"recordUsageEvent (from src/usage/metrics.js) — records usage telemetry events\",\n    \"narrateSearchResults (from src/intelligence/narrative.js) — generates natural-language narrative (conditional: includeNarrative && query)\"\n  ],\n  \"tests\": [\n    \"tests/unit/mcp/search_graph.test.ts — AND filter semantics and LLM boundary tests (10 test cases)\",\n    \"tests/unit/federation/search-core.test.ts — Result parity between executeLocalSearchGraph and handleSearchGraph (15 test cases)\",\n    \"tests/unit/federation/handler-federation.test.ts — Handler-gateway integration for federation (7 test cases for search_graph + 4 for trace_path)\"\n  ],\n  \"affected_entry_points\": [\n    \"MCP tool 'search_graph' — registered in src/mcp/server.ts HANDLERS map, dispatched via JSON-RPC 'tools/call' with method name 'search_graph'\",\n    \"CLI A/B Benchmark (src/cli/ab-benchmark.ts) — cmdABBenchmark entry, used in find_definition and locate_definitions tasks\",\n    \"CLI Agent A/B Benchmark (src/cli/agent-ab/benchmark.ts) — cmdAgentABBenchmark entry, used in executeCaesarTool for all tasks when LLM agent calls search_graph\",\n    \"CLI Agent A/B Realistic Suite (src/cli/agent-ab/realistic-suite.ts) — used in executeCaesarToolRealistic for realistic benchmark tasks when LLM agent calls search_graph\"\n  ],\n  \"summary\": \"handleSearchGraph is the MCP handler for the 'search_graph' tool, defined in src/mcp/handlers/search_graph.ts. It is directly called by 4 callers: the MCP server dispatch (server.ts), the A/B benchmark (ab-benchmark.ts), the agent A/B benchmark executor (agent-ab/benchmark.ts), and the realistic suite executor (agent-ab/realistic-suite.ts). It calls 12 helper functions internally, with conditional branching for federated vs local search, LLM re-ranking, and narrative generation. It is covered by 3 test files with ~32 test cases across AND filter semantics, LLM boundary, core parity, and federation integration. The primary entry point is the MCP tool 'search_graph' routed via JSON-RPC; secondary entry points are the three CLI benchmarks that invoke it directly.\"\n}\n```",
+      "responseHash": "559035da424f590a",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 250474,
+        "output_tokens": 3530,
+        "cached_tokens": 188288,
+        "reasoning_tokens": 730,
+        "tool_call_count": 16,
+        "files_read": 9,
+        "bytes_read": 224783,
+        "wall_time_ms": 34855,
+        "api_latency_ms": 34854,
+        "cost_usd": 0.01233047,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "callers": [
+          "server.ts (HANDLERS registry, line 55) — dispatch for MCP tool 'search_graph' via JSON-RPC tools/call",
+          "ab-benchmark.ts (makeTasks → withCaesar lambdas, lines 380, 615) — A/B benchmark task execution",
+          "agent-ab/benchmark.ts (executeCaesarTool, line 243) — LLM agent tool executor for 'search_graph'",
+          "agent-ab/realistic-suite.ts (executeCaesarToolRealistic, line 552) — LLM agent tool executor for 'search_graph' in realistic suite"
+        ],
+        "callees": [
+          "getDb (from src/server.js) — obtains the CaesarDatabase handle",
+          "projectNotIndexed (from src/mcp/diagnostics.js) — diagnostic hint if project not found",
+          "getFederatedConfig (from src/federation/handler-bridge.js) — checks for Team federation config",
+          "federatedSearchGraph (from src/federation/gateway.js) — federated search (conditional on Team config)",
+          "executeLocalSearchGraph (from src/federation/search-core.js) — local search (when no Team config)",
+          "getRerankProviderMode (from src/llm/client.js) — determines LLM rerank provider",
+          "rerankSearchWithMeta (from src/llm/client.js) — performs LLM re-ranking (conditional: enableLlm && query && >=3 candidates)",
+          "estimateRerankCostUsd (from src/usage/metrics.js) — estimates LLM rerank cost",
+          "estimateTokensSaved (from src/usage/metrics.js) — computes tokens-saved value metric",
+          "computeRealSavings (from src/usage/session.js) — real session savings (best-effort)",
+          "recordUsageEvent (from src/usage/metrics.js) — records usage telemetry events",
+          "narrateSearchResults (from src/intelligence/narrative.js) — generates natural-language narrative (conditional: includeNarrative && query)"
+        ],
+        "tests": [
+          "tests/unit/mcp/search_graph.test.ts — AND filter semantics and LLM boundary tests (10 test cases)",
+          "tests/unit/federation/search-core.test.ts — Result parity between executeLocalSearchGraph and handleSearchGraph (15 test cases)",
+          "tests/unit/federation/handler-federation.test.ts — Handler-gateway integration for federation (7 test cases for search_graph + 4 for trace_path)"
+        ],
+        "affected_entry_points": [
+          "MCP tool 'search_graph' — registered in src/mcp/server.ts HANDLERS map, dispatched via JSON-RPC 'tools/call' with method name 'search_graph'",
+          "CLI A/B Benchmark (src/cli/ab-benchmark.ts) — cmdABBenchmark entry, used in find_definition and locate_definitions tasks",
+          "CLI Agent A/B Benchmark (src/cli/agent-ab/benchmark.ts) — cmdAgentABBenchmark entry, used in executeCaesarTool for all tasks when LLM agent calls search_graph",
+          "CLI Agent A/B Realistic Suite (src/cli/agent-ab/realistic-suite.ts) — used in executeCaesarToolRealistic for realistic benchmark tasks when LLM agent calls search_graph"
+        ],
+        "summary": "handleSearchGraph is the MCP handler for the 'search_graph' tool, defined in src/mcp/handlers/search_graph.ts. It is directly called by 4 callers: the MCP server dispatch (server.ts), the A/B benchmark (ab-benchmark.ts), the agent A/B benchmark executor (agent-ab/benchmark.ts), and the realistic suite executor (agent-ab/realistic-suite.ts). It calls 12 helper functions internally, with conditional branching for federated vs local search, LLM re-ranking, and narrative generation. It is covered by 3 test files with ~32 test cases across AND filter semantics, LLM boundary, core parity, and federation integration. The primary entry point is the MCP tool 'search_graph' routed via JSON-RPC; secondary entry points are the three CLI benchmarks that invoke it directly."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1599
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "handleSearchGraph",
+            "include": "*.ts"
+          },
+          "duration_ms": 206,
+          "result_bytes": 6647,
+          "content_hash": "6afe6fbcde871878"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "handleSearchGraph",
+            "include": "*.tsx"
+          },
+          "duration_ms": 45,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 4,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "handleSearchGraph",
+            "include": "*.js"
+          },
+          "duration_ms": 259,
+          "result_bytes": 2155,
+          "content_hash": "8be58e348b702087"
+        },
+        {
+          "seq": 5,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1779,
+          "content_hash": "0dc49eb6dd53c43b"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/mcp/handlers/search_graph.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 11040,
+          "content_hash": "2895c1abb409d762"
+        },
+        {
+          "seq": 7,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/mcp/server.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 14458,
+          "content_hash": "ced136896fd6fd22"
+        },
+        {
+          "seq": 8,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/federation/search-core.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 3373,
+          "content_hash": "0e0e1cc4b6526be9"
+        },
+        {
+          "seq": 9,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2036,
+          "content_hash": "d0f7bc508e8d7463"
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/ab-benchmark.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 48548,
+          "content_hash": "7871ed6aa6f53e1d"
+        },
+        {
+          "seq": 11,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/agent-ab/benchmark.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 67429,
+          "content_hash": "c5e84ea22fbd15f9"
+        },
+        {
+          "seq": 12,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/agent-ab/realistic-suite.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 37693,
+          "content_hash": "a66235db3333b080"
+        },
+        {
+          "seq": 13,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2527,
+          "content_hash": "1441adcc0237124a"
+        },
+        {
+          "seq": 14,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "tests/unit/mcp/search_graph.test.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 15038,
+          "content_hash": "611722d62b78317b"
+        },
+        {
+          "seq": 15,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "tests/unit/federation/search-core.test.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 13138,
+          "content_hash": "e54d51929ec9403d"
+        },
+        {
+          "seq": 16,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "tests/unit/federation/handler-federation.test.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 14066,
+          "content_hash": "86cae667e33fb04f"
+        },
+        {
+          "seq": 17,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3114,
+          "content_hash": "119eb5e1c0fe4b39"
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "export function federatedSearchGraph",
+            "include": "*.ts"
+          },
+          "duration_ms": 257,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 19,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "export function getFederatedConfig",
+            "include": "*.ts"
+          },
+          "duration_ms": 223,
+          "result_bytes": 148,
+          "content_hash": "c74d899225c09ce5"
+        },
+        {
+          "seq": 20,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "export function narrateSearchResults",
+            "include": "*.ts"
+          },
+          "duration_ms": 222,
+          "result_bytes": 114,
+          "content_hash": "082d3a9f7272470d"
+        },
+        {
+          "seq": 21,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 8856,
+          "content_hash": "aa509af8a8a1c977"
+        },
+        {
+          "seq": 22,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "handleSearchGraph",
+            "path": "src/cli"
+          },
+          "duration_ms": 266,
+          "result_bytes": 6647,
+          "content_hash": "6afe6fbcde871878"
+        },
+        {
+          "seq": 23,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 13460,
+          "content_hash": "559035da424f590a"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 62461,
+        "p95": 62461
+      },
+      "input_tokens": {
+        "median": 237156,
+        "total": 237156
+      },
+      "output_tokens": {
+        "median": 6878,
+        "total": 6878
+      },
+      "cached_tokens": {
+        "median": 197760,
+        "total": 197760
+      },
+      "reasoning_tokens": {
+        "median": 1592,
+        "total": 1592
+      },
+      "tool_calls": {
+        "median": 27,
+        "total": 27
+      },
+      "cost_usd": {
+        "median": 0.01020992,
+        "total": 0.01020992
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 34855,
+        "p95": 34855
+      },
+      "input_tokens": {
+        "median": 250474,
+        "total": 250474
+      },
+      "output_tokens": {
+        "median": 3530,
+        "total": 3530
+      },
+      "cached_tokens": {
+        "median": 188288,
+        "total": 188288
+      },
+      "reasoning_tokens": {
+        "median": 730,
+        "total": 730
+      },
+      "tool_calls": {
+        "median": 16,
+        "total": 16
+      },
+      "cost_usd": {
+        "median": 0.01233047,
+        "total": 0.01233047
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "62461ms",
+        "without_caesar": "34855ms",
+        "delta": "79.2%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "237156",
+        "without_caesar": "250474",
+        "delta": "-5.3%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "6878",
+        "without_caesar": "3530",
+        "delta": "94.8%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "27",
+        "without_caesar": "16",
+        "delta": "68.8%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.010210",
+        "without_caesar": "$0.012330",
+        "delta": "-17.2%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/CAESAR-authoritative; CAESAR state remains temporary."
+  ]
+}

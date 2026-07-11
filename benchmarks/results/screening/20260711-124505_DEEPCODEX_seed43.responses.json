@@ -1,0 +1,33 @@
+{
+  "generated": "2026-07-11T12:45:05.008Z",
+  "project": "DEEPCODEX",
+  "seed": 43,
+  "model": "mlx-community/Qwen3.6-35B-A3B-4bit",
+  "tier": "screening",
+  "tasks": [
+    {
+      "task_id": "external_dead_code",
+      "lynx": {
+        "response": "I found 16 verified dead code candidates. Here are 5 concrete examples:\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"testAlert\",\n      \"file\": \"Sources/DeepCodex/CompletionAlertManager.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"makeBody\",\n      \"file\": \"Sources/DeepCodex/ContinueWorkModal.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"shouldAlert\",\n      \"file\": \"Sources/DeepCodex/CompletionAlertManager.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"requestAccessibilityPermission\",\n      \"file\": \"Sources/DeepCodex/CompletionAlertManager.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"glowColor\",\n      \"file\": \"Sources/DeepCodex/Theme.swift\",\n      \"kind\": \"method\"\n    }\n  ],\n  \"evidence\": [\n    \"testAlert (Sources/DeepCodex/CompletionAlertManager.swift:178-192): Method with zero incoming CALLS, USAGE, READS, or TESTS edges. Definition verified via graph.\",\n    \"makeBody (Sources/DeepCodex/ContinueWorkModal.swift:659-673): Method with zero incoming CALLS, USAGE, READS, or TESTS edges. Definition verified via graph.\",\n    \"shouldAlert (Sources/DeepCodex/CompletionAlertManager.swift:272-282): Private method with zero incoming CALLS, USAGE, READS, or TESTS edges. Definition verified via graph.\",\n    \"requestAccessibilityPermission (Sources/DeepCodex/CompletionAlertManager.swift:196-205): Method with zero incoming CALLS, USAGE, READS, or TESTS edges. Definition verified via graph.\",\n    \"glowColor (Sources/DeepCodex/Theme.swift:70-77): Static method with zero incoming CALLS, USAGE, READS, or TESTS edges. Definition verified via graph.\"\n  ],\n  \"summary\": \"Found 16 verified dead code candidates (all methods) with zero incoming references (CALLS, USAGE, READS, or TESTS edges). These are defined in the codebase but never called, used, read, or tested. Notable files with unused methods include CompletionAlertManager.swift (4 candidates), AppState.swift (3 candidates), and MenuBarManager.swift (2 candidates). All candidates have high confidence and are not exported public APIs, making them safe removal candidates pending review.\"\n}\n```",
+        "wall_ms": 119748,
+        "tool_calls": 2,
+        "tool_call_summary": {},
+        "input_tokens": 5232,
+        "cost_usd": 0,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "```json\n{\n  \"unused_symbols\": [],\n  \"evidence\": [\n    \"No files were found in the project to analyze. The codebase appears to be empty or the file paths are not accessible.\",\n    \"To identify unused symbols, I need access to actual source code files containing function and class definitions.\",\n    \"Please provide file paths or ensure the project contains source code files (e.g., *.ts, *.js, *.py, *.java, etc.) that I can search through.\"\n  ],\n  \"summary\": \"Cannot identify unused symbols because no source code files are available in the current project context. Please provide a codebase with actual source files containing function and class definitions for analysis.\"\n}\n```",
+        "wall_ms": 5982,
+        "tool_calls": 0,
+        "tool_call_summary": {},
+        "input_tokens": 652,
+        "cost_usd": 0,
+        "errors": [
+          "unused_symbols: expected at least 5 candidates"
+        ]
+      }
+    }
+  ]
+}

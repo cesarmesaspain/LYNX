@@ -1,0 +1,719 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 3,
+    "taskIds": [
+      "external_find_definition"
+    ],
+    "projectDir": "/Users/admin/Desktop/MENTESIA/NEW_WEBSITE",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_14f2831719cf",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"hasGptActionScope\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_aAJ4ASuspAw4E1OyBnfB0762",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"hasGptActionScope\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_o70vUe5byteawTdouSPt7269",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"hasGptActionScope\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_z0GPsBB1qHfpx18eliB16041",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"hasGptActionScope\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_wUhXWBRHtwAfht46VaJp1829",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"hasGptActionScope\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_DUtTky1bb894L5TR7A5t5746",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.gpt-actions.keys.hasGptActionScope\"}"
+          }
+        }
+      ],
+      "response": "Here is the answer:\n\n```json\n{\"found_file\":\"src/lib/gpt-actions/keys.ts\",\"function_name\":\"hasGptActionScope\",\"kind\":\"function\"}\n```",
+      "responseHash": "c522ff489f898bb6",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 18126,
+        "output_tokens": 453,
+        "cached_tokens": 16640,
+        "reasoning_tokens": 14,
+        "tool_call_count": 5,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 6631,
+        "api_latency_ms": 6630,
+        "cost_usd": 0.00056784,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_855be444b226",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"hasGptActionScope\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_Qh92dQ2bM7FYg6E0yKyL3590",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"hasGptActionScope\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LWIAFFzCaH6g60FCiI1z9470",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/gpt-actions/keys.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zsf8GTHDK0xyg6jKctnQ7104",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"hasGptActionScope\", \"include\": \"*.ts\"}"
+          }
+        }
+      ],
+      "response": "I found the definition. Here is the answer:\n\n```json\n{\n  \"found_file\": \"src/lib/gpt-actions/keys.ts\",\n  \"function_name\": \"hasGptActionScope\",\n  \"kind\": \"function\"\n}\n```\n\n**Details:** `hasGptActionScope` is defined at line 47 of `src/lib/gpt-actions/keys.ts` as an **exported function** (`export function hasGptActionScope(scopes: unknown, required: GptActionScope) { ... }`). It checks whether a given set of scopes includes a required `GptActionScope` by delegating to `normalizeGptActionScopes` and using the array's `.includes()` method.",
+      "responseHash": "d9fe35f5f4fea58b",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 94688,
+        "output_tokens": 546,
+        "cached_tokens": 48640,
+        "reasoning_tokens": 68,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 1623,
+        "wall_time_ms": 19162,
+        "api_latency_ms": 19161,
+        "cost_usd": 0.00728056,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_3_71ed98a3e37f",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"hasGptActionScope\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_z8gKRC0kplTZekTREKxS7990",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"hasGptActionScope\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_n12CUFi2XGFVpZpwUmxG5089",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"hasGptActionScope\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Bz8wQM3lOQwxenZXiZ8x1956",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"hasGptActionScope\", \"regex\": true, \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_FbAKlEqiCJlTxPHlNuKy1196",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"hasGptActionScope\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_grlNoTicF0JhGBYWAmgc8027",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.gpt-actions.keys.hasGptActionScope\"}"
+          }
+        }
+      ],
+      "response": "Here are the results:\n\n- **Function:** `hasGptActionScope`\n- **File:** `src/lib/gpt-actions/keys.ts`\n- **Kind:** `Function`\n\n```json\n{\n  \"found_file\": \"src/lib/gpt-actions/keys.ts\",\n  \"function_name\": \"hasGptActionScope\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "e129923cfd71a5b6",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 18087,
+        "output_tokens": 451,
+        "cached_tokens": 16640,
+        "reasoning_tokens": 15,
+        "tool_call_count": 5,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 7048,
+        "api_latency_ms": 7048,
+        "cost_usd": 0.00056182,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_4_8e5d6e95d750",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"hasGptActionScope\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_1OqF8vVAA3IPFqEyjvBC2906",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"hasGptActionScope\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_J86Jez2PdHhH6ggXgCZX7025",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/gpt-actions/keys.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1wIFAIhK6AQpy99XHoao6731",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/gpt-actions/keys.ts\", \"startLine\": 47, \"endLine\": 48}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"src/lib/gpt-actions/keys.ts\",\n  \"function_name\": \"hasGptActionScope\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "d0039c3529378bea",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 72397,
+        "output_tokens": 389,
+        "cached_tokens": 48512,
+        "reasoning_tokens": 39,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 3246,
+        "wall_time_ms": 10233,
+        "api_latency_ms": 10233,
+        "cost_usd": 0.00413199,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_5_bd4aced2f1ea",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"hasGptActionScope\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_aUKCC97a8VUCqKJQVyLR1447",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"hasGptActionScope\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_80j9OwS45WNZ37kGfx3a2396",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"hasGptActionScope\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yqpkFPlJfkHTae2IVn4B9137",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"hasGptActionScope\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_9YITqTtPf9ZGBziPmJLn2752",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"hasGptActionScope\", \"regex\": true, \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_l6VvmAfgzqalHD22WgMd7796",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"hasGptActionScope\", \"kind\": \"Function\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_kvlTbrngDsQnLkTX7DGJ3208",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"GptActionScope\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ivS1uxKWaZ8qepPg5Z186520",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.gpt-actions.keys.hasGptActionScope\"}"
+          }
+        }
+      ],
+      "response": "Here is the result:\n\n```json\n{\n  \"found_file\": \"src/lib/gpt-actions/keys.ts\",\n  \"function_name\": \"hasGptActionScope\",\n  \"kind\": \"Function\"\n}\n```\n\nThe function `hasGptActionScope` is an **exported function** defined at line 47 in **`src/lib/gpt-actions/keys.ts`**. It takes `scopes` and a `required` `GptActionScope` parameter, normalizes the scopes, and checks if the required scope is included.",
+      "responseHash": "c613c669eff271fe",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 27671,
+        "output_tokens": 724,
+        "cached_tokens": 24320,
+        "reasoning_tokens": 9,
+        "tool_call_count": 7,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 10844,
+        "api_latency_ms": 10844,
+        "cost_usd": 0.00101234,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 1,
+        "fixes_needed": 1,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "Function"
+      },
+      "expected": {
+        "found_file": "gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "kind: expected \"function\", got \"Function\""
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_6_27e9bb7f82bd",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"hasGptActionScope\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_m7V2TP6kD1924FqjegWB3625",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"hasGptActionScope\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_DiDGj5ZXUJAOAVwBgIQx9516",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/MENTESIA/NEW_WEBSITE/.claude/worktrees/agent-a80b9ba97ab813bfe/src/lib/gpt-actions/keys.ts\"}"
+          }
+        }
+      ],
+      "response": "The function `hasGptActionScope` is defined in the file `src/lib/gpt-actions/keys.ts` as an exported function.\n\n```json\n{\n  \"found_file\": \"src/lib/gpt-actions/keys.ts\",\n  \"function_name\": \"hasGptActionScope\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "74949dc1f736a29a",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 47926,
+        "output_tokens": 300,
+        "cached_tokens": 24576,
+        "reasoning_tokens": 14,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 1623,
+        "wall_time_ms": 8662,
+        "api_latency_ms": 8662,
+        "cost_usd": 0.00369706,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "gpt-actions/keys.ts",
+        "function_name": "hasGptActionScope",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 7048,
+        "p95": 10844
+      },
+      "input_tokens": {
+        "median": 18126,
+        "total": 63884
+      },
+      "output_tokens": {
+        "median": 453,
+        "total": 1628
+      },
+      "cached_tokens": {
+        "median": 16640,
+        "total": 57600
+      },
+      "reasoning_tokens": {
+        "median": 14,
+        "total": 38
+      },
+      "tool_calls": {
+        "median": 5,
+        "total": 17
+      },
+      "cost_usd": {
+        "median": 0.00056784,
+        "total": 0.002142
+      },
+      "functional_success_rate": 0.6666666666666666,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0.3333333333333333
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 10233,
+        "p95": 19162
+      },
+      "input_tokens": {
+        "median": 72397,
+        "total": 215011
+      },
+      "output_tokens": {
+        "median": 389,
+        "total": 1235
+      },
+      "cached_tokens": {
+        "median": 48512,
+        "total": 121728
+      },
+      "reasoning_tokens": {
+        "median": 39,
+        "total": 121
+      },
+      "tool_calls": {
+        "median": 3,
+        "total": 8
+      },
+      "cost_usd": {
+        "median": 0.00413199,
+        "total": 0.01510961
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "7048ms",
+        "without_caesar": "10233ms",
+        "delta": "-31.1%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "18126",
+        "without_caesar": "72397",
+        "delta": "-75.0%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "453",
+        "without_caesar": "389",
+        "delta": "16.5%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "5",
+        "without_caesar": "3",
+        "delta": "66.7%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.000568",
+        "without_caesar": "$0.004132",
+        "delta": "-86.3%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "67%",
+        "without_caesar": "100%",
+        "delta": "-33.3%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 3 deterministic measured runs with real API calls (3 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (3 runs). Need at least 6."
+  },
+  "warnings": [
+    "External project mode: read-only source at /Users/admin/Desktop/MENTESIA/NEW_WEBSITE; CAESAR state remains temporary."
+  ],
+  "note": "NEW_WEBSITE es un proyecto grande (~16K nodos, ~78K edges) \u2014 el sweet spot donde CAESAR deberia brillar. Y brilla en coste y velocidad: 86% mas barato ($0.0006 vs $0.0041 mediana), 75% menos input tokens (18K vs 72K), 31% mas rapido (7s vs 10s), y 0 bytes leidos vs ~2KB del baseline que usa grep+read_file. PERO CAESAR falla en 1 de 3 runs (67% vs 100% del baseline). La causa: el modelo devolvio \"kind\": \"Function\" con mayuscula, y el evaluador lo rechazo. Este es el bug de case-sensitivity en el campo 'kind' que YA esta corregido en el codigo con normalizeKind() pero no estaba en el build ejecutado. Con el fix aplicado, las 3 runs de CAESAR habrian sido 100% exito. El baseline sin CAESAR fue impecable: 3/3 aciertos con grep+read_file, siempre encontro el archivo correcto. Conclusion: en proyectos grandes y bien estructurados, el baseline con grep puede ser sorprendentemente efectivo para tareas de find-definition simples. CAESAR gana en coste pero necesita el fix de kind para ser competitivo en success rate."
+}

@@ -1,0 +1,798 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 100,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 3,
+    "taskIds": [
+      "external_find_definition"
+    ],
+    "projectDir": "/Users/admin/Desktop/LINCE",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_8854f86d2f93",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 100,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"formatWalletAmount\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_dnlSX6FAsJXF6fzYIFAk3061",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JlwyFFt0klg7HAuoZLvc6689",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.App.formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EEsD6aKbkbRuEALSn7Si0009",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.App.formatWalletAmount\"}"
+          }
+        }
+      ],
+      "response": "{\"found_file\":\"frontend/src/App.tsx\",\"function_name\":\"formatWalletAmount\",\"kind\":\"function\"}",
+      "responseHash": "4d150b76e2e9f739",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 16253,
+        "output_tokens": 303,
+        "cached_tokens": 15232,
+        "reasoning_tokens": 13,
+        "tool_call_count": 3,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 5919,
+        "api_latency_ms": 5919,
+        "cost_usd": 0.00044103,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_e10752081cfe",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 100,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"formatWalletAmount\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_32HaoeIXD5ikVR1XFWNy5292",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_crGD7Jfh3ZTxVEMOWOO93931",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_i6OjoCNAwXlEIgEI4FNc4184",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\"}"
+          }
+        }
+      ],
+      "response": "The function is defined in `App.tsx` at line 1430. It's a standalone **function** declared with the `function` keyword.\n\n```json\n{\n  \"found_file\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\",\n  \"function_name\": \"formatWalletAmount\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "58db5fbd8a253b24",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 22446,
+        "output_tokens": 408,
+        "cached_tokens": 3072,
+        "reasoning_tokens": 78,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 443098,
+        "wall_time_ms": 6599,
+        "api_latency_ms": 6599,
+        "cost_usd": 0.00286961,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "/Users/admin/Desktop/LINCE/frontend/src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_3_80cf3440a678",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 1100,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"formatWalletAmount\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_jpDaZj6Q6VsU0eeXg5sU5044",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_S6ULaw8Qpn8zVZN1EQTV8519",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"formatWalletAmount\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_DUpdIwA8B4MHysgltbjc6395",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"formatWalletAmount\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yhOJk8oxJaC80OuxycOk9140",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.App.formatWalletAmount\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"frontend/src/App.tsx\",\n  \"function_name\": \"formatWalletAmount\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "d33456cab220adad",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 22556,
+        "output_tokens": 409,
+        "cached_tokens": 21120,
+        "reasoning_tokens": 43,
+        "tool_call_count": 4,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 8088,
+        "api_latency_ms": 8088,
+        "cost_usd": 0.00061124,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_4_0a7541545614",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 1100,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"formatWalletAmount\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_Gpq6hymFmdLnmXj4nzSy0741",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_fHCF7TGb8X5WBExqmF2i5325",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"(const|function|let|var)\\\\s+formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GxTXgS6fPopYk89oqkti4500",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"import.*formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bWihby6OJwzylYbpGNlD3321",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/hooks/useTradeTicketSubmit.ts\", \"startLine\": 1, \"endLine\": 50}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_WEA05Gl6VASiRrE7sEjV8341",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/hooks/useTradeTicket.ts\", \"startLine\": 1, \"endLine\": 50}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_20pp8ZWatb9xWEWxeabd9668",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"export.*formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0RhmYtfFnNFVMMRk5LL24085",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\\\\s*[:=]\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xWaLpDz9v9ypz3OkHqmR7009",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dJ9BeaS5VtbTCZV1FA5m4869",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"startLine\": 1425, \"endLine\": 1470}"
+          }
+        }
+      ],
+      "response": "I found the definition. Here is the result:\n\n```json\n{\n  \"found_file\": \"frontend/src/App.tsx\",\n  \"function_name\": \"formatWalletAmount\",\n  \"kind\": \"function\"\n}\n```\n\nThe function `formatWalletAmount` is defined at **line 1430** of `frontend/src/App.tsx`. It is a standalone **function** declaration (`function formatWalletAmount(...)`). It takes a numeric value and a currency code, formats the number according to the currency (EUR, USD, or other), and returns a localized string (Spanish locale, with `.` as thousand separator and `,` as decimal separator).",
+      "responseHash": "84499cab74b032fb",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 148873,
+        "output_tokens": 1174,
+        "cached_tokens": 106240,
+        "reasoning_tokens": 148,
+        "tool_call_count": 9,
+        "files_read": 3,
+        "bytes_read": 529480,
+        "wall_time_ms": 19898,
+        "api_latency_ms": 19897,
+        "cost_usd": 0.0077847,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_5_1437e6807743",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 2100,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"formatWalletAmount\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_XdkVtC5WEyMPXsRniLya1671",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_c1keNyXRJE91DOqDDXyi9521",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"formatWalletAmount\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_A9CkVS44VrQUF87DTEBh8219",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"formatWallet\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_4eX4QayUPF6tOtG3osXm5360",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZIbmAHsFpwzx7sqMkT4Q0393",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.App.formatWalletAmount\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JZFBc7HUUVpD76pqbWqx4052",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"qualified_name\": \"frontend.src.App.formatWalletAmount\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"frontend/src/App.tsx\",\n  \"function_name\": \"formatWalletAmount\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "d33456cab220adad",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 24985,
+        "output_tokens": 434,
+        "cached_tokens": 21760,
+        "reasoning_tokens": 12,
+        "tool_call_count": 6,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 7813,
+        "api_latency_ms": 7813,
+        "cost_usd": 0.00087766,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_6_4abd44a90a73",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 2100,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"formatWalletAmount\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_yjG4Irol9hiZvdyjZUo80771",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yh8WOo8dVdmjgH2utmLc9405",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"function formatWalletAmount|const formatWalletAmount|let formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lCFUqGp5U4K5VZuW2e8y5612",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\\\\s*[:=]\\\\s*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GYnkgm7eOy3pVRRWeuFA0196",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_vsLIUntL9UIAiQ5naKSz7777",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"import.*formatWalletAmount\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OVK5frkuz092CmOWNI2x4356",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/hooks/useTradeTicket.ts\", \"offset\": 200, \"limit\": 30}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_pSotBZornfNdEZJojSwS3746",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/hooks/useTradeTicketSubmit.ts\", \"offset\": 130, \"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_NDP4Rzueo8mC3tROZ9wL1620",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"formatWalletAmount\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UkBIDRDUcxKcdDRGhBMQ3474",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/App.tsx\", \"offset\": 1428, \"limit\": 25}"
+          }
+        }
+      ],
+      "response": "**Found.** The function `formatWalletAmount` is defined in `frontend/src/App.tsx` at line 1430 as a standalone **function** declaration.\n\n```json\n{\n  \"found_file\": \"frontend/src/App.tsx\",\n  \"function_name\": \"formatWalletAmount\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "3bbbe7a7b1d559b9",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 108300,
+        "output_tokens": 1368,
+        "cached_tokens": 64896,
+        "reasoning_tokens": 157,
+        "tool_call_count": 9,
+        "files_read": 3,
+        "bytes_read": 529480,
+        "wall_time_ms": 21244,
+        "api_latency_ms": 21243,
+        "cost_usd": 0.00736814,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "src/App.tsx",
+        "function_name": "formatWalletAmount",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 7813,
+        "p95": 8088
+      },
+      "input_tokens": {
+        "median": 22556,
+        "total": 63794
+      },
+      "output_tokens": {
+        "median": 409,
+        "total": 1146
+      },
+      "cached_tokens": {
+        "median": 21120,
+        "total": 58112
+      },
+      "reasoning_tokens": {
+        "median": 13,
+        "total": 68
+      },
+      "tool_calls": {
+        "median": 4,
+        "total": 13
+      },
+      "cost_usd": {
+        "median": 0.00061124,
+        "total": 0.0019299300000000003
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 19898,
+        "p95": 21244
+      },
+      "input_tokens": {
+        "median": 108300,
+        "total": 279619
+      },
+      "output_tokens": {
+        "median": 1174,
+        "total": 2950
+      },
+      "cached_tokens": {
+        "median": 64896,
+        "total": 174208
+      },
+      "reasoning_tokens": {
+        "median": 148,
+        "total": 383
+      },
+      "tool_calls": {
+        "median": 9,
+        "total": 21
+      },
+      "cost_usd": {
+        "median": 0.00736814,
+        "total": 0.01802245
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "7813ms",
+        "without_caesar": "19898ms",
+        "delta": "-60.7%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "22556",
+        "without_caesar": "108300",
+        "delta": "-79.2%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "409",
+        "without_caesar": "1174",
+        "delta": "-65.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "4",
+        "without_caesar": "9",
+        "delta": "-55.6%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.000611",
+        "without_caesar": "$0.007368",
+        "delta": "-91.7%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "100%",
+        "without_caesar": "100%",
+        "delta": "0.0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 3 deterministic measured runs with real API calls (3 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (3 runs). Need at least 6."
+  },
+  "warnings": [
+    "External project mode: read-only source at /Users/admin/Desktop/LINCE; CAESAR state remains temporary."
+  ],
+  "note": "Primera prueba con scoring deterministico en proyecto externo (external_find_definition). 100% de acierto en 3 runs con CAESAR: el modelo encontro correctamente el simbolo, fichero y kind usando search_graph. Sin CAESAR el baseline leyo 443KB del monolitico App.tsx de LINCE (108K tokens) para encontrar lo mismo \u2014 92% mas caro ($0.0074 vs $0.0006) y 61% mas lento (20s vs 8s). El ROI sigue bloqueado por necesitar 6 runs evaluados, pero la direccion es clara: en codebases grandes con archivos enormes, CAESAR evita lecturas masivas que disparan coste y latencia."
+}

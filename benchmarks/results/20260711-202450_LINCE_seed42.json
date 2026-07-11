@@ -1,0 +1,1472 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 3,
+    "taskIds": [
+      "external_trace_path"
+    ],
+    "projectDir": "/Users/admin/Desktop/LINCE",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_778dfbe1749f",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"useRobotOrderExecution\" in frontend/src/hooks/useRobotOrderExecution.ts call the function \"apiFetch\" in src/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_pdkObno8kzd5w7xKasMz3673",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"useRobotOrderExecution\", \"file_pattern\": \"frontend/src/hooks/useRobotOrderExecution.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_mFR4JD8klbdCOBSTEbXu9459",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"apiFetch\", \"file_pattern\": \"src/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Z6dtdEPlramWJEYe7cf44290",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"useRobotOrderExecution\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_5k2oHecqAuMilVMPiknr9449",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"apiFetch\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OZdc2Vbke0o1IF1Nu5Iz4213",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"useRobotOrderExecution hook\", \"file_pattern\": \"frontend/src/hooks/useRobotOrderExecution.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_mcQ1UiQLrjEsPzJjxNSb8673",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"file_pattern\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_K7elKxWSqhmM3IWHC2495008",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"apiFetch\", \"file_pattern\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lL1b5D1yoUdXcfaHWN9U0979",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"apiFetch\", \"file_pattern\": \"**/api.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_eyfaJcGVoMjLyG589pCR5454",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"apiFetch\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_P5dudJKCpjKgsSh0S6py6090",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"frontend.src.hooks.useRobotOrderExecution.useRobotOrderExecution\", \"direction\": \"outbound\", \"depth\": 4, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_CI3nlOib96u5rs4fEi5r0842",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.hooks.useRobotOrderExecution.useRobotOrderExecution\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JgeeMBEYvukrXXBxPTVx0280",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"frontend.src.api.apiFetch\", \"direction\": \"inbound\", \"depth\": 3, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xMGkdUSJJcovndqREWc48438",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.fetchOrderBook\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_jki8yiCDIVoPlR7mIQhE9522",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.submitTradingOrder\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_uBRsjwugjwGXKQCGFx0k3263",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.fetchTradingAccounts\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_PcVNGFIQM7NQrqc1J85b8898",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.fetchTradingOrder\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_rUkN5VK93zH6uom7zuyj0233",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.cancelTradingOrders\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_wUUWh3nt0fjcPyUV8d9s5450",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.fetchTradingFills\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QHoUiEDI1yHlsXJNPnSQ0160",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"fetchOrderBook\", \"file_pattern\": \"frontend/src/api.ts\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_OPexB9P2ENlXK1JjvOjb7527",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"fetchTradingFills\", \"file_pattern\": \"frontend/src/api.ts\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0GeWgmgremSwxzYvUzAu4715",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/api.ts\"}"
+          }
+        }
+      ],
+      "response": "Now I have all the evidence needed. Let me confirm the exact line numbers by looking at `fetchOrderBook` and one more function for completeness.\n\nFrom the source code in `frontend/src/api.ts`:\n\n- **`apiFetch`** (line 415) is a function that wraps `fetch()` with auth headers.\n- **`fetchOrderBook`** (lines 762-777) calls `apiFetch` internally (line 772).\n- **`submitTradingOrder`** (lines 840-856) calls `apiFetch` internally (line 843).\n- **`fetchTradingAccounts`** (lines 586-595) calls `apiFetch` internally (line 588).\n- **`fetchTradingOrder`** (lines 858-870) calls `apiFetch` internally (line 861).\n- **`cancelTradingOrders`** (lines 872-888) calls `apiFetch` internally (line 875).\n- **`fetchTradingFills`** (lines 695-712) calls `apiFetch` internally (line 699).\n\nIn `useRobotOrderExecution` (file `frontend/src/hooks/useRobotOrderExecution.ts`, line 124), the function receives these API functions as parameters and calls them throughout its body:\n- `fetchOrderBook` (used on lines ~240, ~720+ via `submitWithRetries`'s book fetch, etc.)\n- `submitTradingOrder` (used inside `submitWithRetries` inner function)\n- `fetchTradingAccounts` (used inside `readLiveQuoteAvailable` and `readLiveBaseAvailable`)\n- `fetchTradingOrder` (used in the maker post-only section)\n- `cancelTradingOrders` (used in `cancelMakerOrders`)\n- `fetchTradingFills` (used in `lookupFillByClientOrderId`)\n\nAll of these are intermediate functions that each call `apiFetch` directly. So the call is indirect.\n\n```json\n{\"connected\":true,\"path\":[\"useRobotOrderExecution\",\"fetchOrderBook\",\"apiFetch\"],\"hops\":2}\n```",
+      "responseHash": "2d9013ce85824a5a",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 208679,
+        "output_tokens": 3226,
+        "cached_tokens": 172672,
+        "reasoning_tokens": 519,
+        "tool_call_count": 21,
+        "files_read": 1,
+        "bytes_read": 28739,
+        "wall_time_ms": 37753,
+        "api_latency_ms": 37753,
+        "cost_usd": 0.00836167,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 1,
+        "fixes_needed": 1,
+        "not_executed": false
+      },
+      "result": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "fetchOrderBook",
+          "apiFetch"
+        ],
+        "hops": 2
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "fetchTradingAccounts",
+          "apiFetch"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "Missing expected item in path: fetchtradingaccounts"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_3357a58183b9",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"useRobotOrderExecution\" in frontend/src/hooks/useRobotOrderExecution.ts call the function \"apiFetch\" in src/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_3UUXEdrqHMB4QPQS2Cbq4972",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/hooks/useRobotOrderExecution.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_8z9QwbGZQz4ZsGsF03X81598",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_9iM6YrQhtQ9AyjKVlCJw9372",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"apiFetch\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_VCq4CCqrbWKCKqCxChD77245",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"export function apiFetch|export const apiFetch\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_oZThyc75iwpzvRPYsYpQ7166",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_udfnGA2bbuRwsyd3Ox111472",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts*\", \"pattern\": \"useRobotOrderExecution\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ItCWVH8YMGoMj88UMRH01858",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"startLine\": 5480, \"endLine\": 5600}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_3geUhTgncaic7Nr8Ooh34596",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.tsx\", \"pattern\": \"executeRobotOrder|useRobotOrderExecution\\\\(\\\\{\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ghAcNDAIoOfK4S3RvHvg3568",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.tsx\", \"pattern\": \"useRobotOrderExecution\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EsScWgYhEZFVLIxo24OG1632",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"startLine\": 5485, \"endLine\": 5600}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OJoXQzjpxawEzqUaoDyt0586",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"fetchTradingAccounts\\\\n\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_cMspK1Bq6RJvBiWXVXT76886",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"cancelTradingOrders.*\\\\{|submitTradingOrder.*\\\\{|fetchTradingFills.*\\\\{|fetchTradingOrder.*\\\\{|fetchTradingAccounts.*\\\\{|fetchOrderBook.*\\\\{\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UnW1vPwCmozFoagfIK1v2280",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"startLine\": 5485, \"endLine\": 5550}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_NLW9O79zGdiqlb3kulXm4135",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"const \\\\{ executeRobotOrder \\\\} = useRobotOrderExecution\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_j5EcjOMZjADlWuyoET4c4991",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"executeRobotOrder.*=.*useRobotOrderExecution\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_p5D3vSMVmHI1NOx46ygu5882",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"fetchTradingAccounts,\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_SHzEHaybMNRRo5l5juGv6297",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"startLine\": 5490, \"endLine\": 5540}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yfyYRWVZqldhUGwd25nf3394",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"submitTradingOrder\", \"include\": \"*.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on my thorough analysis of the codebase, here are the findings:\n\n1. **`useRobotOrderExecution`** (in `frontend/src/hooks/useRobotOrderExecution.ts`) does NOT directly import or call `apiFetch`. It only imports *types* from `../api` (line 1).\n\n2. Inside `useRobotOrderExecution`, the inner function **`executeRobotOrder`** (defined at line 134 and returned) calls several functions received via `params`, including `submitTradingOrder` (destructured at line 165, called at line 805).\n\n3. **`submitTradingOrder`** is the exported async function defined in `frontend/src/api.ts` (line 840). At line 844, it **directly calls `apiFetch`**:  \n   `const res = await apiFetch(${API_BASE}/api/trading/order, ...)`\n\n4. The same indirect pattern applies to other params (`fetchTradingAccounts` called at line 587 in api.ts → `apiFetch`, `fetchOrderBook` at line 771 → `apiFetch`, `fetchTradingOrder` at line 862 → `apiFetch`, `cancelTradingOrders` at line 876 → `apiFetch`, `fetchTradingFills` at line 752 → `apiFetch`).\n\n5. At the call site in `App.tsx` (line 5492), these functions are indeed the real API functions imported from `./api` (lines 15-19).\n\n```json\n{\n  \"connected\": true,\n  \"path\": [\"useRobotOrderExecution\", \"executeRobotOrder\", \"submitTradingOrder\", \"apiFetch\"],\n  \"hops\": 3\n}\n```",
+      "responseHash": "0d8c58d0ac7474f3",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 964058,
+        "output_tokens": 5450,
+        "cached_tokens": 864896,
+        "reasoning_tokens": 229,
+        "tool_call_count": 18,
+        "files_read": 4,
+        "bytes_read": 1904648,
+        "wall_time_ms": 74155,
+        "api_latency_ms": 74155,
+        "cost_usd": 0.02751722,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 2,
+        "fixes_needed": 2,
+        "not_executed": false
+      },
+      "result": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "executeRobotOrder",
+          "submitTradingOrder",
+          "apiFetch"
+        ],
+        "hops": 3
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "fetchTradingAccounts",
+          "apiFetch"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "Missing expected item in path: fetchtradingaccounts",
+        "hops: expected 2, got 3"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_3_8f49502a47f5",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"useRobotOrderExecution\" in frontend/src/hooks/useRobotOrderExecution.ts call the function \"apiFetch\" in src/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_mzLu0e67Z0xuTjMRppnl0467",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"useRobotOrderExecution\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_n9MaMV8UDetXLiDDq7cR3505",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"apiFetch\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_CN0yKVaAIB1NHyJZ2Mul8345",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"file_pattern\": \"**/useRobotOrderExecution*\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_mRvjcEmDFtCZagyaDkOL4305",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"apiFetch\", \"file_pattern\": \"**/api.ts\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_gkclyfMEOu0x1uKoxMFz4452",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2sN5EcE1fZ5AT7overTW2475",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"file_pattern\": \"**/*.ts\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Xk8MIkeTc2FziGGhap573635",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_KT9bhSIsTZbPNWPxvRdm1509",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"useRobotOrderExecution\", \"file_pattern\": \"**/*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_8IdVl6SWHWrodpnPLWiE5912",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1FZEl1mX2sxCEr6R1h2b5137",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"RobotOrderExecution\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_SpoxQJLnlJp1NN1BNjKX2218",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"robot.*order.*exec\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2wmi1mT9IJO2rwXgIkpT3969",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\"], \"path\": \"frontend/src/hooks\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dk29Gz2RyzoZT4ZlFAtZ9201",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"mode\": \"files\", \"path_filter\": \"frontend\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_eZlFxwDv1g7oz0A7BVmi5190",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"RobotOrderExecution\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_17zPUOZBzvQHkKnuipbv7345",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"robot.*execution\", \"mode\": \"files\", \"regex\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_DIn5QB3tfYQKOYzGVtk74466",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobot\", \"mode\": \"files\", \"regex\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yCwMnyLahNtqTMXSTHFb8023",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (n) WHERE n.name CONTAINS 'RobotOrderExecution' OR n.name CONTAINS 'robotOrderExecution' RETURN n LIMIT 10\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_igsSOddmurhQTkkl7S4r4998",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (n) WHERE n.file_path CONTAINS 'useRobotOrderExecution' RETURN n LIMIT 10\"}"
+          }
+        }
+      ],
+      "response": "Based on my thorough search across the entire codebase, the function **`useRobotOrderExecution`** in **`frontend/src/hooks/useRobotOrderExecution.ts`** does **not exist** in the LINCE codebase. I searched using:\n\n- `search_graph` with name pattern `useRobotOrderExecution`\n- `search_code` with the patterns `useRobotOrderExecution`, `RobotOrderExecution`, and regex `robot.*execution` and `useRobot`\n- `query_graph` for any node containing that name\n- The file tree of `frontend/src/hooks/` confirms no such file exists\n\nI **did** confirm that `apiFetch` exists in `frontend/src/api.ts` as a private (non-exported) function.\n\nTherefore, no call chain exists between the two.\n\n```json\n{\"connected\": false, \"path\": [], \"hops\": 0}\n```",
+      "responseHash": "26d86587248c0ceb",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 151760,
+        "output_tokens": 1899,
+        "cached_tokens": 135936,
+        "reasoning_tokens": 191,
+        "tool_call_count": 18,
+        "files_read": 1,
+        "bytes_read": 28739,
+        "wall_time_ms": 26692,
+        "api_latency_ms": 26692,
+        "cost_usd": 0.00465018,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "fetchTradingAccounts",
+          "apiFetch"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: userobotorderexecution",
+        "Missing expected item in path: fetchtradingaccounts",
+        "Missing expected item in path: apifetch",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_4_e42788fbca56",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"useRobotOrderExecution\" in frontend/src/hooks/useRobotOrderExecution.ts call the function \"apiFetch\" in src/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_wf1OlAGe08XvODqTU67c0936",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/hooks/useRobotOrderExecution.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_6D3fS97Jt3LzaIzIgG7k3802",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_u4q5U8aj1POavjdNvOmJ5178",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"export function apiFetch|export const apiFetch|export async function apiFetch\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_34O16I8JztnVBVAwj0cD3917",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"apiFetch\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_sTevgpd5GfZ98E5KyhmH6377",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PmGigjcNz9Fa43Ot69106099",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\\\\(\", \"include\": \"*.ts*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_AN3qG4PZeL3qipgyBaFn1397",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts*\", \"pattern\": \"useRobotOrderExecution\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_VbInlEg86BippkwUx8LJ7798",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"startLine\": 5480, \"endLine\": 5600}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_9PdzZEAsn51ucPAkkTwm3676",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"executeRobotOrder.*=.*useRobotOrderExecution\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0nmnj1osMsNZK0FnfkSC4403",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"startLine\": 5492, \"endLine\": 5600}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_3KGWfP58bI3kLXhjRztK5261",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"fetchOrderBook|fetchTradingAccounts|submitTradingOrder|cancelTradingOrders|fetchTradingFills|fetchTradingOrder\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_eq90zgAwg5vFZNb5rmLJ6178",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\\\\({\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_cifqSkbTU1e4Y3GScYL24902",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"executeRobotOrder\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_15cOEZ3ghQRYqqD3E14B3820",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"startLine\": 5485, \"endLine\": 5575}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZuuI1AqzZ85amRVp6ZIE9557",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"fetchOrderBook|fetchTradingAccounts|submitTradingOrder|cancelTradingOrders|fetchTradingFills|fetchTradingOrder\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZyuDGOwGxEYODnVVxtDI1336",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"submitTradingOrder\", \"include\": \"*.ts\"}"
+          }
+        }
+      ],
+      "response": "Now I have a complete picture. Let me trace the exact call relationship.\n\n**Analysis:**\n\n1. **`useRobotOrderExecution`** (`frontend/src/hooks/useRobotOrderExecution.ts`) does NOT import or call `apiFetch` directly. Instead, it receives several API-functions as **parameters** in its `params` object (these are passed in from `App.tsx`):\n   - `submitTradingOrder`\n   - `fetchOrderBook`\n   - `fetchTradingAccounts`\n   - `fetchTradingOrder`\n   - `cancelTradingOrders`\n   - `fetchTradingFills`\n\n2. Inside the hook's `executeRobotOrder` function, these parameter functions are called. For example, at **line 805** of `useRobotOrderExecution.ts`: `response = await submitTradingOrder({...})`, and at other points `fetchOrderBook(...)`, `fetchTradingAccounts(...)`, etc.\n\n3. **`submitTradingOrder`** (and all the other API functions) are defined in **`frontend/src/api.ts`** and they all **directly call `apiFetch`**. For example, at line 844 of `api.ts`:\n   ```ts\n   const res = await apiFetch(`${API_BASE}/api/trading/order`, { ... });\n   ```\n\n4. **`App.tsx`** imports the API functions from `./api` and passes them into `useRobotOrderExecution` as parameters.\n\nSo the connection is **indirect** — `useRobotOrderExecution` calls the API-functions (passed as parameters), and those functions call `apiFetch`.\n\nThe primary call chain is via `submitTradingOrder` (the most central one for order execution), but there are multiple paths. The exact chain with 2 hops is:\n\n```json\n{\"connected\":true,\"path\":[\"useRobotOrderExecution\",\"submitTradingOrder\",\"apiFetch\"],\"hops\":2}\n```",
+      "responseHash": "9a62490b2e3dcdfe",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 706433,
+        "output_tokens": 3745,
+        "cached_tokens": 625664,
+        "reasoning_tokens": 1430,
+        "tool_call_count": 16,
+        "files_read": 4,
+        "bytes_read": 1461550,
+        "wall_time_ms": 55369,
+        "api_latency_ms": 55369,
+        "cost_usd": 0.02111556,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 3,
+        "fixes_needed": 3,
+        "not_executed": false
+      },
+      "result": {},
+      "expected": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "fetchTradingAccounts",
+          "apiFetch"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "Could not parse JSON from response"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_5_683d59108b7f",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"useRobotOrderExecution\" in frontend/src/hooks/useRobotOrderExecution.ts call the function \"apiFetch\" in src/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_kiwnjJAMCLukOusVhzAE7149",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"useRobotOrderExecution\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_mRtdR5gv16LR6GgW57kv0275",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"apiFetch\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_KUu6Lpl9dO7QHvNWKvVc0151",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"file_pattern\": \"**/useRobotOrderExecution.ts\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_XMwNGmVldip34oLbBNJx9200",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"export.*apiFetch|function apiFetch\", \"file_pattern\": \"**/api.ts\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8AfyAZZ1Suei8TNmo1JA2858",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_3T0DOLiJ8QSIz4qTfs3v5674",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"apiFetch\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_K4XzQLs1F9rk8QK73XtR7643",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"brief\", \"file_tree\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_gHyV5HHPvZoMclT9frIk4745",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"file_pattern\": \"**/*.ts\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ytcrqzyzidwHdOSc8FfP2171",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/hooks\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_xTlWEbTVK381M4yU8qXv3021",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_J7ZeVunXAYTBcFaHQGZg3360",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"RobotOrderExecution\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_z3zuYbj6SQmhC5nqayY05602",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"mode\": \"files\"}"
+          }
+        }
+      ],
+      "response": "The file `frontend/src/hooks/useRobotOrderExecution.ts` does **not exist** in the LINCE codebase. I verified this by:\n\n1. Searching the file tree — no `useRobotOrderExecution.ts` file exists under `frontend/src/hooks/` (only files like `useFillsData.ts`, `useMarketData.ts`, `useOrderBookData.ts`, etc.)\n2. Searching the entire codebase via grep for `useRobotOrderExecution` — zero matches.\n3. Searching for `RobotOrderExecution` as a broader pattern — zero matches.\n\nAlthough `apiFetch` is indeed defined in `frontend/src/api.ts`, since `useRobotOrderExecution` does not exist, no call path exists between them.\n\n```json\n{\"connected\": false, \"path\": [], \"hops\": 0}\n```",
+      "responseHash": "08184e16a69a36c6",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 60586,
+        "output_tokens": 1209,
+        "cached_tokens": 48384,
+        "reasoning_tokens": 63,
+        "tool_call_count": 12,
+        "files_read": 2,
+        "bytes_read": 29795,
+        "wall_time_ms": 16512,
+        "api_latency_ms": 16512,
+        "cost_usd": 0.00272418,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "fetchTradingAccounts",
+          "apiFetch"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: userobotorderexecution",
+        "Missing expected item in path: fetchtradingaccounts",
+        "Missing expected item in path: apifetch",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_6_f376da9cac4e",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"useRobotOrderExecution\" in frontend/src/hooks/useRobotOrderExecution.ts call the function \"apiFetch\" in src/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_Z6SuY1CUz8c8LfZ6IxoB8173",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/hooks/useRobotOrderExecution.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_H8SCAh249VCNtT2Sh9KO0367",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_3C3uTy6fXnwni6KUgRyE0560",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"apiFetch\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_1fCWjJR8gv7U88fg3caM7325",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"apiFetch\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kF0jX0DRuKDAnGzxG2jg7667",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/api.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_FsbhzCpQMYxiOJCHgDMt1148",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\", \"include\": \"*.ts*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_eCjC7VAdp3jsTSAhprg91238",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/App.tsx\", \"offset\": 5485, \"limit\": 60}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Oo8od0k2aQYlWBeWAShR0891",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"useRobotOrderExecution\\\\(\\\\{\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wsdjekvbwL4SfUTkUM8k1414",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"executeRobotOrder\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QUB1MIPwFWGy0lbYwes66378",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/App.tsx\", \"offset\": 5480, \"limit\": 120}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ItpGPYIFWcj2aZAVBBeO1511",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"fetchOrderBook.*,|fetchTradingAccounts.*,|submitTradingOrder.*,|fetchTradingOrder.*,|cancelTradingOrders.*,|fetchTradingFills.*,\\\"\", \"include\": \"App.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_SUOWS3OzofYscDn5mO4M2984",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/App.tsx\", \"offset\": 5488, \"limit\": 85}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_O5AyWEFqPTHOfsgVczq99659",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"fetchOrderBook.*fetchTradingAccounts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_h24wOy5nxEEbmFkpqn1T7273",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"fetchOrderBook:\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WiirWNhVMZgTT95CxQSw8029",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"fetchOrderBook\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bYISwhvBMAFKwJTXKE6V6530",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/App.tsx\", \"offset\": 5490, \"limit\": 160}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Z6yTpC3Nsdt2MyKiXGvj5710",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"useRobotOrderExecution\\\\(\\\\{\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_gH8qVFCc46kAwREmNDFu7127",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"App.tsx\", \"pattern\": \"submitTradingOrder\"}"
+          }
+        }
+      ],
+      "response": "Now I have a complete picture. Let me provide the answer.\n\nThe file `frontend/src/api.ts` (imported as `'../api'` from the hook's perspective, since the hook is at `frontend/src/hooks/useRobotOrderExecution.ts`) defines both `apiFetch` (a non-exported local function) and several exported functions that call it.\n\nThe hook `useRobotOrderExecution` does NOT import or call `apiFetch` directly. Instead, it receives several API-calling functions as parameters in `UseRobotOrderExecutionParams`. These are wired up by `App.tsx` (line 5492), which imports the actual implementations from `./api` and passes them into the hook.\n\nThe key intermediate functions that the hook calls internally are:\n- `fetchOrderBook`\n- `fetchTradingAccounts`\n- `fetchTradingOrder`\n- `cancelTradingOrders`\n- `submitTradingOrder`\n- `fetchTradingFills`\n\nAll six of these are exported from `frontend/src/api.ts`, and each one calls `apiFetch`. So the connection is **indirect**, with multiple parallel call chains.\n\nThe primary/representative call chain is: **`useRobotOrderExecution` → `submitTradingOrder` (from api.ts) → `apiFetch`**.\n\n```json\n{\n  \"connected\": true,\n  \"path\": [\"useRobotOrderExecution\", \"submitTradingOrder\", \"apiFetch\"],\n  \"hops\": 2\n}\n```\n\n**Explanation**: `useRobotOrderExecution` receives `submitTradingOrder` (and five other API functions) as injected parameters from `App.tsx`. Inside the hook's `executeRobotOrder` function, it calls `submitTradingOrder(payload)` at line ~491 (within the `submitWithRetries` inner function). The `submitTradingOrder` function in `frontend/src/api.ts` (line 844) calls `apiFetch` directly. The same indirect pattern exists for `fetchOrderBook`, `fetchTradingAccounts`, `fetchTradingOrder`, `cancelTradingOrders`, and `fetchTradingFills` — all six `apiFetch`-based functions are used by the hook. The chain shown is the shortest representative path.",
+      "responseHash": "7a55df3b7c943fdc",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 856279,
+        "output_tokens": 3929,
+        "cached_tokens": 757504,
+        "reasoning_tokens": 999,
+        "tool_call_count": 18,
+        "files_read": 4,
+        "bytes_read": 1904648,
+        "wall_time_ms": 57015,
+        "api_latency_ms": 57014,
+        "cost_usd": 0.02553368,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 1,
+        "fixes_needed": 1,
+        "not_executed": false
+      },
+      "result": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "submitTradingOrder",
+          "apiFetch"
+        ],
+        "hops": 2
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "useRobotOrderExecution",
+          "fetchTradingAccounts",
+          "apiFetch"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "Missing expected item in path: fetchtradingaccounts"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 26692,
+        "p95": 37753
+      },
+      "input_tokens": {
+        "median": 151760,
+        "total": 421025
+      },
+      "output_tokens": {
+        "median": 1899,
+        "total": 6334
+      },
+      "cached_tokens": {
+        "median": 135936,
+        "total": 356992
+      },
+      "reasoning_tokens": {
+        "median": 191,
+        "total": 773
+      },
+      "tool_calls": {
+        "median": 18,
+        "total": 51
+      },
+      "cost_usd": {
+        "median": 0.00465018,
+        "total": 0.01573603
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 5.666666666666667
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 57015,
+        "p95": 74155
+      },
+      "input_tokens": {
+        "median": 856279,
+        "total": 2526770
+      },
+      "output_tokens": {
+        "median": 3929,
+        "total": 13124
+      },
+      "cached_tokens": {
+        "median": 757504,
+        "total": 2248064
+      },
+      "reasoning_tokens": {
+        "median": 999,
+        "total": 2658
+      },
+      "tool_calls": {
+        "median": 18,
+        "total": 52
+      },
+      "cost_usd": {
+        "median": 0.02553368,
+        "total": 0.07416646
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 2
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "26692ms",
+        "without_caesar": "57015ms",
+        "delta": "-53.2%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "151760",
+        "without_caesar": "856279",
+        "delta": "-82.3%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "1899",
+        "without_caesar": "3929",
+        "delta": "-51.7%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "18",
+        "without_caesar": "18",
+        "delta": "0.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.004650",
+        "without_caesar": "$0.025534",
+        "delta": "-81.8%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 3 deterministic measured runs with real API calls (3 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (3 runs). Need at least 6."
+  },
+  "warnings": [
+    "External project mode: read-only source at /Users/admin/Desktop/LINCE; CAESAR state remains temporary."
+  ]
+}

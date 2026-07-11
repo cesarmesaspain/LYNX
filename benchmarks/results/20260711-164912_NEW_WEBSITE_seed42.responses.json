@@ -1,0 +1,38 @@
+{
+  "generated": "2026-07-11T16:49:12.860Z",
+  "project": "NEW_WEBSITE",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tier": "official",
+  "tasks": [
+    {
+      "task_id": "external_find_definition",
+      "lynx": {
+        "response": "Here is the answer:\n\n```json\n{\"found_file\":\"src/lib/gpt-actions/keys.ts\",\"function_name\":\"hasGptActionScope\",\"kind\":\"function\"}\n```",
+        "wall_ms": 6631,
+        "tool_calls": 5,
+        "tool_call_summary": {
+          "get_code_snippet": 1,
+          "search_code": 2,
+          "search_graph": 2
+        },
+        "input_tokens": 18126,
+        "cost_usd": 0.00056784,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "I found the definition. Here is the answer:\n\n```json\n{\n  \"found_file\": \"src/lib/gpt-actions/keys.ts\",\n  \"function_name\": \"hasGptActionScope\",\n  \"kind\": \"function\"\n}\n```\n\n**Details:** `hasGptActionScope` is defined at line 47 of `src/lib/gpt-actions/keys.ts` as an **exported function** (`export function hasGptActionScope(scopes: unknown, required: GptActionScope) { ... }`). It checks whether a given set of scopes includes a required `GptActionScope` by delegating to `normalizeGptActionScopes` and using the array's `.includes()` method.",
+        "wall_ms": 19162,
+        "tool_calls": 3,
+        "tool_call_summary": {
+          "grep": 2,
+          "read_file": 1
+        },
+        "input_tokens": 94688,
+        "cost_usd": 0.00728056,
+        "errors": []
+      }
+    }
+  ]
+}

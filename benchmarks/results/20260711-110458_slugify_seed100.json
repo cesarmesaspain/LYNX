@@ -1,0 +1,736 @@
+{
+  "config": {
+    "seed": 100,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_dead_code"
+    ],
+    "projectDir": "/tmp/slugify",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_426d7e63c801",
+      "task_id": "external_dead_code",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 100,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a slugify cleanup sprint. Find symbols (functions, classes) in the codebase that appear to have zero callers and zero usages — these are candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Only report symbols you have verified are defined in the codebase. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_UH8Bh4LU2UgCtg17fLCY6674",
+          "type": "function",
+          "function": {
+            "name": "find_dead_code",
+            "arguments": "{\"kinds\": [\"Function\", \"Method\", \"Class\"], \"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_b57j5hrlAizB2qfurRFO3727",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\", \"entry_points\", \"node_labels\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_4vA7x7LKEfN9PSVq1ltg3456",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"label\": \"Function\", \"limit\": 20, \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ooNt35tHDYq3XAXc8jOt4521",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"label\": \"Variable\", \"limit\": 20, \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MRo1zl9xKVNxLpaB0GeP6673",
+          "type": "function",
+          "function": {
+            "name": "get_graph_schema",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_htGc80gJDbXuBvMl0Sqx5640",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \".string\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_33BqMnouGpJUhHOzJ6MY6940",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"test.t\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_W3dd0Y5QRfL3HbbdCfH00052",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \".slugifyWithCounter\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_T9kpBdkc9lnAD0G5AKSs5896",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \".slugify\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_qUuT5leYOmKeD5yEUbPq1908",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \".decamelize\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_GC3pVPUx7otpljRJda2O8303",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \".removeMootSeparators\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_EAh8lnMDubDvyzxBUAIH4596",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \".buildPatternSlug\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_N1IExoibDvL2oEPnwwSP8044",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"overridable-replacements.overridableReplacements\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LyC5uwpnB9mEpigmkQRm7599",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"index.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2p80CZnB69R9oK4sc1eE0463",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"index.d.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_s6QfCf9dtxCVbZ0Z48tE9064",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"test.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_x0JVOG13159Qymkvrjnj0149",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"package\\\\.json\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Etmtk7HeOhsUlHJJpE1d6907",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"overridable-replacements.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zc9oQY6hxLIi3xojM8ly1541",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (f:Function)\\nWHERE NOT (f)<-[:CALLS]-(:Function)\\n  AND NOT (f)<-[:USAGE]-(:Function)\\n  AND NOT (f)<-[:USAGE]-(:File)\\n  AND NOT (f)<-[:IMPORTS]-(:File)\\n  AND NOT (f)-[:DEFINES]->()<--(:File)\\nRETURN f.name, f.file_path, f.kind, f.start_line\\nORDER BY f.start_line\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_KUGVkKRVWLnm6EK2uh8T2025",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (f:Function)\\nWHERE NOT (f)<-[:CALLS]-(:Function)\\n  AND NOT (f)<-[:IMPORTS]-(:File)\\n  AND NOT (f)<-[:USAGE]-(:File)\\n  AND NOT (f)<-[:USAGE]-(:Function)\\nOPTIONAL MATCH (f)-[:DEFINES]->(m:Module)\\nRETURN f.name, f.file_path, f.kind, f.start_line, f.end_line, labels(f) as node_labels\\nORDER BY f.file_path, f.start_line\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_AJByeRYEbjznzOhwn3GA8815",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind, n.start_line\\nFROM nodes n\\nWHERE n.kind IN ('Function', 'Class')\\nAND NOT EXISTS (\\n  SELECT 1 FROM edges e\\n  WHERE (e.target_id = n.id OR e.source_id = n.id)\\n  AND e.type IN ('CALLS', 'USAGE')\\n)\\nLIMIT 50\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8tMLAW8xSNVP8aaEwXml9922",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind, n.start_line\\nFROM nodes n\\nWHERE n.kind = 'Function'\\nAND NOT EXISTS (\\n  SELECT 1 FROM edges e\\n  WHERE e.target_id = n.id\\n  AND e.type IN ('CALLS', 'USAGE')\\n)\\nLIMIT 50\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UfMresZBJmRmseVvLZZP1102",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind\\nFROM nodes n\\nWHERE n.kind IN ('Type', 'Variable')\\nAND NOT EXISTS (\\n  SELECT 1 FROM edges e\\n  WHERE e.target_id = n.id\\n  AND e.type IN ('READS', 'USAGE', 'IMPORTS')\\n)\\nLIMIT 20\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_L1hnRDh6dltV7uJ0xFm48102",
+          "type": "function",
+          "function": {
+            "name": "analyze_hotspots",
+            "arguments": "{\"limit\": 10}"
+          }
+        }
+      ],
+      "response": "After thorough analysis of the full codebase (4 files, 7 functions), here are my findings.\n\nThe `find_dead_code` tool — which checks for zero incoming `CALLS`, `USAGE`, `READS`, and `TESTS` edges — returned exactly **2 candidates**. I manually verified both by reading source, checking graph edges, and reviewing the code structure. Both are **false positives** for this particular project:\n\n1. **`string` (index.js:115)** — This is the inner arrow function `countable` inside `slugifyWithCounter()`. The graph sees zero incoming calls because it's assigned to a `const` and returned by reference, but it IS the return value of `slugifyWithCounter()` and is actively called by consumers. Not truly dead.\n\n2. **`t` (test.js:233)** — This is the callback for ava's `test('transliterate option disabled', ...)`. Ava auto-discovers tests; the graph doesn't track the test runner's implicit invocations. Not truly dead.\n\nA custom SQL query also confirmed **no nodes** (function, class, type, or variable) have zero incoming CALLS/USAGE/READS/IMPORTS edges. Every symbol in this compact library serves an active purpose.\n\n```json\n{\n  \"unused_symbols\": [],\n  \"evidence\": [\n    \"find_dead_code(kinds=[Function,Method,Class], limit=30) returned 2 candidates: .string (index.js:115) and test.t (test.js:233) — both are false positives\",\n    \"SQL query (nodes with zero incoming CALLS/USAGE edges) confirmed only those same 2 candidates\",\n    \"SQL query (Variable/Type nodes with zero incoming READS/USAGE/IMPORTS) returned 0 results — all variables and types are referenced\",\n    \"Code review: .string is the return value of slugifyWithCounter() — invoked by callers via the returned function reference\",\n    \"Code review: test.t is the callback for ava's test('transliterate option disabled', ...) — auto-discovered by the test runner\",\n    \"All 4 variables (decamelize, removeMootSeparators, buildPatternSlug, overridableReplacements) are referenced by slugify()\",\n    \"Both type exports (Options, CountableSlugify) from index.d.ts are used in function signatures\",\n    \"analyze_hotspots() confirmed all 7 functions have non-zero fan-in (t:1, string:1, up to slugify:125)\"\n  ],\n  \"summary\": \"This codebase has zero truly unused symbols. It is a compact 4-file library (@sindresorhus/slugify) with 7 functions and 4 variables — all actively used. The two candidates identified by graph analysis (the countable closure inside slugifyWithCounter and the ava test callback) are false positives arising from patterns the graph cannot track (closure returns and test-runner auto-discovery). For a cleanup sprint, there are no removal targets.\"\n}\n```",
+      "responseHash": "b693b6c5bfb5a30e",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 215110,
+        "output_tokens": 5854,
+        "cached_tokens": 198016,
+        "reasoning_tokens": 489,
+        "tool_call_count": 24,
+        "files_read": 4,
+        "bytes_read": 19130,
+        "wall_time_ms": 78143,
+        "api_latency_ms": 78143,
+        "cost_usd": 0.0068045,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [],
+        "evidence": [
+          "find_dead_code(kinds=[Function,Method,Class], limit=30) returned 2 candidates: .string (index.js:115) and test.t (test.js:233) — both are false positives",
+          "SQL query (nodes with zero incoming CALLS/USAGE edges) confirmed only those same 2 candidates",
+          "SQL query (Variable/Type nodes with zero incoming READS/USAGE/IMPORTS) returned 0 results — all variables and types are referenced",
+          "Code review: .string is the return value of slugifyWithCounter() — invoked by callers via the returned function reference",
+          "Code review: test.t is the callback for ava's test('transliterate option disabled', ...) — auto-discovered by the test runner",
+          "All 4 variables (decamelize, removeMootSeparators, buildPatternSlug, overridableReplacements) are referenced by slugify()",
+          "Both type exports (Options, CountableSlugify) from index.d.ts are used in function signatures",
+          "analyze_hotspots() confirmed all 7 functions have non-zero fan-in (t:1, string:1, up to slugify:125)"
+        ],
+        "summary": "This codebase has zero truly unused symbols. It is a compact 4-file library (@sindresorhus/slugify) with 7 functions and 4 variables — all actively used. The two candidates identified by graph analysis (the countable closure inside slugifyWithCounter and the ava test callback) are false positives arising from patterns the graph cannot track (closure returns and test-runner auto-discovery). For a cleanup sprint, there are no removal targets."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_e17258e674d0",
+      "task_id": "external_dead_code",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 100,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a slugify cleanup sprint. Find symbols (functions, classes) in the codebase that appear to have zero callers and zero usages — these are candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Only report symbols you have verified are defined in the codebase. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_9f6tS26RcfoYazhz8P3L9586",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^(def |class |export function|export const|export class|function |const [a-zA-Z].*=>)\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_MMUiitPdhukc7hX51RS98727",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^(def |class |export function|export const|export class|function |const [a-zA-Z].*=>)\", \"include\": \"*.{ts,js}\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1VGg9SQzUzjs2en86nAo9518",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def \"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_2QKJdG9Z7wwbnreyewiN1779",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.{ts,js}\", \"pattern\": \"function |const \"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_iXTVNbGsnfb1UYIhBbbz7196",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def |function |class \"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_re0GZeSDtMIFfoMO7WU34039",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \".\\\\n\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_5SjqQQomciTP1SQWoY9g4923",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LvnWhiCg2vAV0brRSi9E8630",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"slugify\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kmrmLi4lNDy1HRYJaLDG2037",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/slugify/index.d.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_xdkh12WVtvpM22X7g1yM0140",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def |function |class |export\", \"include\": \"*.{js,mjs,ts}\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_G7dMNmnbBcYaf5h2QqXs7148",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"\\\\.\", \"include\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_jST6dImarOOHZgrrUYds5766",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def |function |class \", \"include\": \"*.{js,mjs}\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_e4MhZoxhxJtIBfuOZ1MB4398",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/slugify/index.js\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_we0DW72T3BeyE4fZztJQ7825",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/slugify/overridable-replacements.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8raYkQapj4QFEmokp7O38448",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.{js,mjs,ts,md}\", \"pattern\": \"decamelize|removeMootSeparators|buildPatternSlug|overridableReplacements\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_RwFju8N5OrAIgFUMhLzz3005",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/slugify/package.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_4HzPEQKmV5Rldwgzqw4F7868",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"decamelize|removeMootSeparators|buildPatternSlug|overridableReplacements\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_FuJdA3cNwlSvUuL5xbmA5066",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"slugify\", \"include\": \"*.{js,mjs,ts}\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_pDzbk2koy2r5rWrn8Dom9234",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"slugify\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wgtN16eDe83U3Rt2kIqr4629",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"test\", \"include\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_g46TUd0j5tFenvcOshj11769",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"import|require\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OWyA3q14hpwR8XCZ7IHQ1910",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_l0J9tXsq2LbbWWHs8Dkk9244",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"nothingthatwilleverexist\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_U19FTEZpAtitI2tasMqW0155",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"export default|export function|const |function \"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_XClH1cBHiu5UZLQxbtuu1711",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"builtinOverridableReplacements\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_f9bDgm3OuqAAwgNBcLkX5291",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"builtin\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_KaUv1MSQRFCu2Z7fFgK18578",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/slugify/index.js\"}"
+          }
+        }
+      ],
+      "response": "I have thoroughly examined every file in the codebase. Let me compile the complete list of defined symbols and trace their usages.\n\n**Symbols defined in `/tmp/slugify/index.js`:**\n\n| Symbol | Kind | Defined at | Usage | Has callers? |\n|--------|------|-----------|-------|-------------|\n| `decamelize` | const arrow fn | line 7 | called internally by `slugify` at line 57 | ✅ Yes |\n| `removeMootSeparators` | const arrow fn | line 13 | called internally by `slugify` at line 74 | ✅ Yes |\n| `buildPatternSlug` | const arrow fn | line 20 | called internally by `slugify` at line 59 | ✅ Yes |\n| `slugify` (default export) | function | line 43 | called by `slugifyWithCounter` at line 83; public API | ✅ Yes |\n| `slugifyWithCounter` (named export) | function | line 79 | public API | ✅ Yes |\n\n**Symbols defined in `/tmp/slugify/overridable-replacements.js`:**\n\n| Symbol | Kind | Used at | Has callers? |\n|--------|------|---------|-------------|\n| `overridableReplacements` (default export) | array | imported as `builtinOverridableReplacements` in `index.js` line 3, spread at line 51 | ✅ Yes |\n\n**Types in `/tmp/slugify/index.d.ts`:**\n\n| Symbol | Kind | Used at | Has usage? |\n|--------|------|---------|-----------|\n| `Options` | exported type | referenced in `slugify()` signature (line 218) | ✅ Yes |\n| `CountableSlugify` | exported type | referenced as return type of `slugifyWithCounter()` (line 286) | ✅ Yes |\n\nEvery single symbol defined in the codebase has at least one internal or external caller/usage. There are no zero-call symbols.\n\n```json\n{\n  \"unused_symbols\": [],\n  \"evidence\": [\n    \"decamelize (index.js:7) is called by slugify at line 57\",\n    \"removeMootSeparators (index.js:13) is called by slugify at line 74\",\n    \"buildPatternSlug (index.js:20) is called by slugify at line 59\",\n    \"slugify (index.js:43) is the default export and called by slugifyWithCounter at line 83\",\n    \"slugifyWithCounter (index.js:79) is a named export (public API)\",\n    \"overridableReplacements (overridable-replacements.js:1) is default-exported and imported as builtinOverridableReplacements in index.js:3, used at line 51\",\n    \"Options type (index.d.ts:1) is used in the slugify function signature at line 218\",\n    \"CountableSlugify type (index.d.ts:220) is used as the return type of slugifyWithCounter at line 286\"\n  ],\n  \"summary\": \"After exhaustive analysis of all 3 source files (index.js, overridable-replacements.js, index.d.ts), no symbols with zero callers or zero usages were found. Every defined function, constant, and type has at least one internal or external usage. All internal helpers (decamelize, removeMootSeparators, buildPatternSlug) are called by the slugify function, all exports are part of the public API, and all types are referenced in function signatures. This codebase is clean with no dead code candidates.\"\n}\n```",
+      "responseHash": "83eec2e0c84d3409",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 167740,
+        "output_tokens": 6331,
+        "cached_tokens": 153856,
+        "reasoning_tokens": 964,
+        "tool_call_count": 27,
+        "files_read": 4,
+        "bytes_read": 14942,
+        "wall_time_ms": 84563,
+        "api_latency_ms": 84563,
+        "cost_usd": 0.00587042,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [],
+        "evidence": [
+          "decamelize (index.js:7) is called by slugify at line 57",
+          "removeMootSeparators (index.js:13) is called by slugify at line 74",
+          "buildPatternSlug (index.js:20) is called by slugify at line 59",
+          "slugify (index.js:43) is the default export and called by slugifyWithCounter at line 83",
+          "slugifyWithCounter (index.js:79) is a named export (public API)",
+          "overridableReplacements (overridable-replacements.js:1) is default-exported and imported as builtinOverridableReplacements in index.js:3, used at line 51",
+          "Options type (index.d.ts:1) is used in the slugify function signature at line 218",
+          "CountableSlugify type (index.d.ts:220) is used as the return type of slugifyWithCounter at line 286"
+        ],
+        "summary": "After exhaustive analysis of all 3 source files (index.js, overridable-replacements.js, index.d.ts), no symbols with zero callers or zero usages were found. Every defined function, constant, and type has at least one internal or external usage. All internal helpers (decamelize, removeMootSeparators, buildPatternSlug) are called by the slugify function, all exports are part of the public API, and all types are referenced in function signatures. This codebase is clean with no dead code candidates."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 78143,
+        "p95": 78143
+      },
+      "input_tokens": {
+        "median": 215110,
+        "total": 215110
+      },
+      "output_tokens": {
+        "median": 5854,
+        "total": 5854
+      },
+      "cached_tokens": {
+        "median": 198016,
+        "total": 198016
+      },
+      "reasoning_tokens": {
+        "median": 489,
+        "total": 489
+      },
+      "tool_calls": {
+        "median": 24,
+        "total": 24
+      },
+      "cost_usd": {
+        "median": 0.0068045,
+        "total": 0.0068045
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 84563,
+        "p95": 84563
+      },
+      "input_tokens": {
+        "median": 167740,
+        "total": 167740
+      },
+      "output_tokens": {
+        "median": 6331,
+        "total": 6331
+      },
+      "cached_tokens": {
+        "median": 153856,
+        "total": 153856
+      },
+      "reasoning_tokens": {
+        "median": 964,
+        "total": 964
+      },
+      "tool_calls": {
+        "median": 27,
+        "total": 27
+      },
+      "cost_usd": {
+        "median": 0.00587042,
+        "total": 0.00587042
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "78143ms",
+        "without_caesar": "84563ms",
+        "delta": "-7.6%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "215110",
+        "without_caesar": "167740",
+        "delta": "28.2%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "5854",
+        "without_caesar": "6331",
+        "delta": "-7.5%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "24",
+        "without_caesar": "27",
+        "delta": "-11.1%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.006804",
+        "without_caesar": "$0.005870",
+        "delta": "15.9%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /tmp/slugify; CAESAR state remains temporary."
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "generated": "2026-07-11T15:20:29.865Z",
+  "project": "default",
+  "seed": 200,
+  "model": "mlx-community/Qwen3.6-27B-4bit",
+  "tier": "screening",
+  "tasks": []
+}

@@ -1,0 +1,586 @@
+{
+  "config": {
+    "seed": 4242,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_generic_flow"
+    ],
+    "projectDir": "/Users/admin/Desktop/DEEPCODEX/source",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 55016,
+        "p95": 55016
+      },
+      "input_tokens": {
+        "median": 215485,
+        "total": 215485
+      },
+      "output_tokens": {
+        "median": 4822,
+        "total": 4822
+      },
+      "cached_tokens": {
+        "median": 178432,
+        "total": 178432
+      },
+      "reasoning_tokens": {
+        "median": 47,
+        "total": 47
+      },
+      "tool_calls": {
+        "median": 13,
+        "total": 13
+      },
+      "cost_usd": {
+        "median": 0.00903563,
+        "total": 0.00903563
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 50158,
+        "p95": 50158
+      },
+      "input_tokens": {
+        "median": 938983,
+        "total": 938983
+      },
+      "output_tokens": {
+        "median": 3440,
+        "total": 3440
+      },
+      "cached_tokens": {
+        "median": 466816,
+        "total": 466816
+      },
+      "reasoning_tokens": {
+        "median": 82,
+        "total": 82
+      },
+      "tool_calls": {
+        "median": 6,
+        "total": 6
+      },
+      "cost_usd": {
+        "median": 0.073602,
+        "total": 0.073602
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "55016ms",
+        "without_caesar": "50158ms",
+        "delta": "9.7%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "215485",
+        "without_caesar": "938983",
+        "delta": "-77.1%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "4822",
+        "without_caesar": "3440",
+        "delta": "40.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "13",
+        "without_caesar": "6",
+        "delta": "116.7%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.009036",
+        "without_caesar": "$0.073602",
+        "delta": "-87.7%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "experiment_protocol": {
+    "model": "deepseek-v4-flash",
+    "temperature": 0,
+    "seeds": [
+      4242
+    ],
+    "prompt_hash": "2810f45b32e4ad2b",
+    "task_order": [
+      "external_generic_flow"
+    ],
+    "max_tokens": null,
+    "max_tool_calls": null,
+    "timeout_ms": null,
+    "max_retries": null,
+    "base_url": "https://api.deepseek.com/v1"
+  },
+  "tasks": [
+    {
+      "run_id": "run_1_22b192703614",
+      "task_id": "external_generic_flow",
+      "condition": "with_caesar",
+      "not_executed": false,
+      "order_position": 0,
+      "seed": 4242,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Identify one representative user-facing workflow in source and trace it end to end through the code. Do not assume which tools to use. Explain the initiating action, control flow, state transitions, external boundaries, and failure points, citing concrete files and symbols. Respond with JSON: {\"workflow_name\":\"...\",\"flow\":[\"...\"],\"state_transitions\":[\"...\"],\"external_boundaries\":[\"...\"],\"failure_points\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 215485,
+        "output_tokens": 4822,
+        "cached_tokens": 178432,
+        "reasoning_tokens": 47,
+        "tool_call_count": 13,
+        "files_read": 9,
+        "bytes_read": 134909,
+        "wall_time_ms": 55016,
+        "api_latency_ms": 55015,
+        "cost_usd": 0.00903563,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "tool_loop_exhausted": false,
+      "errors": [],
+      "response": "Here is the traced workflow with complete evidence.\n\n```json\n{\n  \"workflow_name\": \"Continue Work (Exportar contexto a otro modo)\",\n  \"flow\": [\n    \"1. User clicks \\\"Continuar trabajo\\\" toolItem button in ContentView.swift \u2192 calls `state.detectLatestThreads()` + sets `showContinueWork = true`\",\n    \"2. ContentView.swift (line ~348): `state.detectLatestThreads()` is called, which sets `isBusy = true` and spawns a `Task.detached` that queries SQLite via `/usr/bin/sqlite3 -json -readonly ~/.codex/state_5.sqlite`, falling back to `/usr/bin/find` on `~/.codex/sessions/*.jsonl` with `ContextExporter.extractSessionMeta()` and `ContextExporter.extractModelName()` (each calling `/usr/bin/python3` inline scripts). Results stored in `self.detectedThreads`.\",\n    \"3. ContinueWorkModal.swift `.sheet(isPresented: $showContinueWork)` opens the modal at `ContinueWorkModal(state:isPresented:)`.\",\n    \"4. Modal's `loadOnAppear()` polls `state.isBusy` in a loop (up to 15s), then sets `phase = .selecting` or `.empty(provider:)` based on whether threads were found.\",\n    \"5. User selects a thread via `selectThread(thread:)` and a destination mode via `selectTarget(mode:)`. Once both are selected, `generateContext(thread:target:)` is called.\",\n    \"6. `generateContext()` (ContinueWorkModal.swift) dispatches to a `Task.detached` that calls six `ContextExporter` static methods \u2014 `extractUserMessages()`, `extractAssistantMessages()`, `extractAgentMessages()`, `extractFunctionCalls()`, `extractFilePaths()`, `extractErrors()` \u2014 each invokes `/usr/bin/python3 -c \\\"...\\\"` with an inline script to parse the session JSONL file at `thread.rolloutPath`.\",\n    \"7. Results are fed to `ContextExporter.generateMarkdown(thread:sourceMode:targetMode:...)` which assembles a Markdown string covering origin, summary, decisions, changes, files, errors, and recommended next steps.\",\n    \"8. Modal transitions to `phase = .ready(source:markdown:)`. User sees preview and can click \\\"Copiar contexto\\\" (calls `state.copyToClipboardAndSave()`) or \\\"Copiar y abrir destino\\\" (calls `state.continueToTargetMode()`).\",\n    \"9. `continueToTargetMode()` (AppState.swift) sets `isBusy = true`, copies markdown to `NSPasteboard.general`, saves to `~/Developer/ai-tools/codex-mode/context-exports/context_export_*.md`, runs `/bin/bash codex-switch.sh <target>` (detached), starts Moon Bridge if target is DeepSeek variant via `/bin/bash start-moonbridge.sh`, parses `current-mode.json` via `parseJson()`, and opens `/Applications/Codex.app` via `NSWorkspace.shared.open()`.\",\n    \"10. Final state: `isBusy = false`, `contextExportResult` set to success message, Codex Desktop app launches for user to paste the clipboard content.\"\n  ],\n  \"state_transitions\": [\n    \"`isBusy`: false \u2192 true (at detectLatestThreads) \u2192 false \u2192 true (at continueToTargetMode) \u2192 false\",\n    \"`detectedThreads`: [] \u2192 [ThreadInfo...] (populated from SQLite/find fallback)\",\n    \"`lastActionResult`: \\\"Listo.\\\" \u2192 \\\"Buscando conversaciones recientes...\\\" \u2192 \\\"N conversacion(es) encontrada(s).\\\" \u2192 \\\"Contexto copiado...\\\" \u2192 \\\"Listo. Modo cambiado a...\\\"\",\n    \"Modal `phase`: .loading \u2192 .selecting \u2192 .generating \u2192 .ready(source:markdown:) \u2192 .done(message:)\",\n    \"`activeMode`: [original] \u2192 [new target] (after parseJson reads current-mode.json)\",\n    \"`moonBridgeStatus`: [original] \u2192 active|stopped (after checkMoonBridgeDirect via lsof)\",\n    \"`generatedContext`: \\\"\\\" \u2192 [markdown string] (stored for review)\",\n    \"`contextExportResult`: \\\"\\\" \u2192 \\\"Contexto copiado al portapapeles y guardado en...\\\"\"\n  ],\n  \"external_boundaries\": [\n    \"`/usr/bin/sqlite3 -json -readonly ~/.codex/state_5.sqlite` \u2014 SQLite read of Codex conversation database\",\n    \"`/usr/bin/find ~/.codex/sessions -name *.jsonl` \u2014 filesystem fallback for thread detection\",\n    \"`/usr/bin/python3 -c \\\"...\\\"` \u2014 inline Python scripts to parse JSONL session files (called by every ContextExporter.extract* method)\",\n    \"`~/.codex/state_5.sqlite` \u2014 the Codex state database (read-only)\",\n    \"`~/.codex/sessions/**/*.jsonl` \u2014 Codex session rollout files\",\n    \"`~/Developer/ai-tools/codex-mode/codex-switch.sh` \u2014 shell script to change Codex provider profile\",\n    \"`~/Developer/ai-tools/codex-mode/start-moonbridge.sh` \u2014 shell script to start the Moon Bridge proxy\",\n    \"`~/Developer/ai-tools/codex-mode/current-mode.json` \u2014 JSON state file read by parseJson() to update AppState\",\n    \"`/usr/sbin/lsof -iTCP:38440 -sTCP:LISTEN -P -n` \u2014 checks Moon Bridge port 38440\",\n    \"`NSPasteboard.general` \u2014 macOS system clipboard\",\n    \"`/Applications/Codex.app` (or ~/Applications/Codex.app) \u2014 the Codex Desktop application launched via NSWorkspace\",\n    \"`NSUserDefaults` \u2014 persisted alert sound preference and minimum alert duration\"\n  ],\n  \"failure_points\": [\n    \"**SQLite database missing/unreadable** (`detectLatestThreads`): SQLite output may be empty or non-JSON. Falls back to filesystem `find`, which may also fail if sessions directory doesn't exist. Results in empty .detectedThreads and `.empty(provider:)` modal phase.\",\n    \"**Python3 missing or inline script error** (ContextExporter): All `extract*` methods rely on `/usr/bin/python3`. If unavailable or the inline script has a syntax error, returns empty arrays \u2192 markdown says \\\"(No se pudieron extraer respuestas)\\\" etc.\",\n    \"**JSONL session file format mismatch**: If Codex changes its JSONL schema, the Python parsing scripts silently return no data.\",\n    \"**Shell scripts missing/failing** (`codex-switch.sh`, `start-moonbridge.sh`): `runShell` catches exceptions and returns error string, but caller only logs and continues. The switch may silently fail, leaving `current-mode.json` unchanged.\",\n    \"**current-mode.json unreadable or malformed**: `parseJson()` silently returns without updating state, leaving `activeMode` at previous value or `.unknown`.\",\n    \"**lsof failure** (`checkMoonBridgeDirect`): If lsof returns empty output (permission denied, not found), `moonBridgeStatus` stays \\\"unknown\\\".\",\n    \"**Codex Desktop not found** (`openCodexDesktopApp`): Tries `/Applications/Codex.app` then `~/Applications/Codex.app`. If neither exists, silently does nothing.\",\n    \"**Clipboard failure** (`copyToClipboardAndSave` / `continueToTargetMode`): Non-fatal; context is still saved to file.\",\n    \"**File save failure** (context exports directory): `createDirectory` / `write` are wrapped in do/catch; fallback sets `contextExportResult` to \\\"copied but could not save file\\\".\",\n    \"**Busy guard** prevents re-entrancy: `guard !isBusy else { return }` blocks if user double-clicks rapidly.\",\n    \"**Modal polling timeout** (`loadOnAppear`): Waits up to 15s for `state.isBusy`; if detection hangs, phase stays `.loading` indefinitely from user perspective.\"\n  ],\n  \"evidence\": [\n    \"**Sources/DeepCodex/App.swift**: `@main struct DeepCodexApp` \u2014 entry point initializes `AppState` and `ContentView`. `.onAppear { state.refreshStatus() }` triggers initial state load.\",\n    \"**Sources/DeepCodex/AppState.swift**: `@MainActor final class AppState: ObservableObject` \u2014 central state container. `detectLatestThreads(count:)` (lines ~177-245) runs SQLite/find. `continueToTargetMode(markdown:target:)` (lines ~278-306) orchestrates the mode switch. `parseJson(_:)` (lines ~310-320) reads current-mode.json. `checkMoonBridgeDirect()` (lines ~328-339) uses lsof.\",\n    \"**Sources/DeepCodex/ContentView.swift**: `toolItem(symbol:title:sub:color:action:)` \u2014 tool button that triggers the workflow (line ~348): `state.detectLatestThreads(); showContinueWork = true`. `.sheet(isPresented: $showContinueWork) { ... }` opens the modal.\",\n    \"**Sources/DeepCodex/ContinueWorkModal.swift**: `enum ModalPhase` defines the state machine (loading\u2192selecting\u2192generating\u2192ready\u2192done/error). `loadOnAppear()` polls for thread detection. `generateContext(thread:target:)` (lines ~422-446) dispatches to ContextExporter. `actionButtons(source:markdown:)` (lines ~353-386) triggers copy/switch.\",\n    \"**Sources/DeepCodex/ContextExporter.swift**: `struct ContextExporter` \u2014 pure read-only extraction layer. `extractUserMessages(from:maxCount:)` \u2014 calls python3 to parse JSONL. `extractSessionMeta(from:)` \u2014 extracts provider/cwd from JSONL line 1. `generateMarkdown(thread:sourceMode:targetMode:...)` \u2014 assembles final markdown context.\",\n    \"**Sources/DeepCodex/CompletionAlertManager.swift**: `@MainActor final class CompletionAlertManager` \u2014 polls `~/Developer/ai-tools/codex-mode/notifications/events/` for `agent-turn-complete-*.json` files, plays system sound alerts. Not directly in this workflow but runs concurrently via `startWatching()` in `refreshStatus()`.\",\n    \"**Sources/DeepCodex/MenuBarManager.swift**: `@MainActor final class MenuBarManager` \u2014 system tray indicator with mode switching. `Shell.run()` (private enum) provides secondary mode-switching via zsh. Not primary path for this workflow but provides alternate entry.\",\n    \"**Sources/DeepCodex/AdvancedCapabilities.swift**: `struct AdvancedCapabilities` \u2014 models parsed from JSON output of `advanced-capabilities-status.sh`. Displayed in ContentView but orthogonal to the main flow.\",\n    \"**Sources/DeepCodex/Theme.swift**: `enum DeepTheme` \u2014 design tokens. No logic, purely visual styling.\"\n  ],\n  \"summary\": \"The 'Continue Work' workflow is a multi-phase user journey that begins when the user clicks 'Continuar trabajo' in the ContentView tool panel (Sources/DeepCodex/ContentView.swift, toolItem). AppState.detectLatestThreads() queries the Codex SQLite database at ~/.codex/state_5.sqlite (with filesystem fallback) to list recent conversations, then opens a modal (ContinueWorkModal.swift) in a .sheet. The modal cycles through phases (.loading\u2192.selecting\u2192.generating\u2192.ready\u2192.done) driven by an enum state machine. After the user picks a thread and a target mode, the modal calls six ContextExporter.extract* methods (Sources/DeepCodex/ContextExporter.swift) \u2014 each invoking /usr/bin/python3 with an inline script to parse JSONL session files \u2014 and assembles a portable Markdown context via generateMarkdown(). Finally, AppState.continueToTargetMode() copies context to the macOS clipboard, saves a timestamped .md file, runs codex-switch.sh and optionally start-moonbridge.sh shell scripts, re-reads current-mode.json, and launches Codex Desktop. The workflow spans all 10 Swift source files and touches 4 external binary boundaries (sqlite3, python3, bash via Process, lsof) plus the filesystem and clipboard.\"\n}\n```",
+      "response_hash": "af20c8250eee214a",
+      "tool_calls": 13,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1221
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "get_architecture",
+          "args_redacted": {
+            "aspects": [
+              "languages",
+              "hotspots",
+              "clusters",
+              "file_tree",
+              "entry_points",
+              "brief"
+            ]
+          },
+          "duration_ms": 9,
+          "result_bytes": 10041,
+          "content_hash": "2be7c432de2646d8"
+        },
+        {
+          "seq": 3,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2570
+        },
+        {
+          "seq": 4,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/App.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 2687,
+          "content_hash": "b39c0ccc71ac9694"
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/AppState.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 26717,
+          "content_hash": "1bb67c954d3e0bbb"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContentView.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 38002,
+          "content_hash": "7195f67d5343b58d"
+        },
+        {
+          "seq": 7,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2309
+        },
+        {
+          "seq": 8,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/MenuBarManager.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 6674,
+          "content_hash": "f30b1938262ffdad"
+        },
+        {
+          "seq": 9,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContinueWorkModal.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 25372,
+          "content_hash": "0dad54a400fd2040"
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/CompletionAlertManager.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 12145,
+          "content_hash": "16899d21e2efbcf0"
+        },
+        {
+          "seq": 11,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContextExporter.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 13985,
+          "content_hash": "2ffd59f5102f8b37"
+        },
+        {
+          "seq": 12,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 9847
+        },
+        {
+          "seq": 13,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/AdvancedCapabilities.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 5316,
+          "content_hash": "45e5116879840119"
+        },
+        {
+          "seq": 14,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1996
+        },
+        {
+          "seq": 15,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/Theme.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4011,
+          "content_hash": "7f95d1ec2a37d10c"
+        },
+        {
+          "seq": 16,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3448,
+          "content_hash": "0804f46789eb335b"
+        },
+        {
+          "seq": 17,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "continueToTargetMode",
+            "direction": "both",
+            "depth": 2
+          },
+          "duration_ms": 15,
+          "result_bytes": 1930,
+          "content_hash": "5e1fe95eb237dd7a"
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "generateContext",
+            "direction": "both",
+            "depth": 2
+          },
+          "duration_ms": 5,
+          "result_bytes": 3338,
+          "content_hash": "54297aa9c5a37919"
+        },
+        {
+          "seq": 19,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1801
+        },
+        {
+          "seq": 20,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "detectLatestThreads",
+            "direction": "both",
+            "depth": 2
+          },
+          "duration_ms": 6,
+          "result_bytes": 2496,
+          "content_hash": "b44a9e048e37c43f"
+        },
+        {
+          "seq": 21,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 31785,
+          "content_hash": "af20c8250eee214a"
+        }
+      ]
+    },
+    {
+      "run_id": "run_2_7177b2c9f49b",
+      "task_id": "external_generic_flow",
+      "condition": "without_caesar",
+      "not_executed": false,
+      "order_position": 0,
+      "seed": 4242,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Identify one representative user-facing workflow in source and trace it end to end through the code. Do not assume which tools to use. Explain the initiating action, control flow, state transitions, external boundaries, and failure points, citing concrete files and symbols. Respond with JSON: {\"workflow_name\":\"...\",\"flow\":[\"...\"],\"state_transitions\":[\"...\"],\"external_boundaries\":[\"...\"],\"failure_points\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 938983,
+        "output_tokens": 3440,
+        "cached_tokens": 466816,
+        "reasoning_tokens": 82,
+        "tool_call_count": 6,
+        "files_read": 2,
+        "bytes_read": 40689,
+        "wall_time_ms": 50158,
+        "api_latency_ms": 50157,
+        "cost_usd": 0.073602,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "tool_loop_exhausted": false,
+      "errors": [],
+      "response": "I have thoroughly analyzed the codebase. Here is the complete end-to-end trace of the most representative user-facing workflow:\n\n**Workflow: \"Continuar trabajo\" (Continue Work) \u2014 export context from one Codex mode to another and switch modes.**\n\n```json\n{\n  \"workflow_name\": \"Continue Work (Continuar trabajo) \u2014 Context export & mode switch\",\n  \"flow\": [\n    \"User clicks 'Continuar trabajo' toolItem button in ContentView.swift:670-673 (Sources/DeepCodex/ContentView.swift). This calls state.detectLatestThreads() and sets showContinueWork = true.\",\n    \"showContinueWork triggers a SwiftUI .sheet presenting ContinueWorkModal (Sources/DeepCodex/ContinueWorkModal.swift:48-50). The modal's .onAppear calls loadOnAppear() (ContinueWorkModal.swift:582-603).\",\n    \"loadOnAppear detects that state.detectedThreads is empty, sets phase = .loading, calls state.detectLatestThreads(), and polls state.isBusy in a Task loop (ContinueWorkModal.swift:586-599).\",\n    \"detectLatestThreads (AppState.swift:319-421) runs inside a Task.detached block. It first queries SQLite via /usr/bin/sqlite3 with -json output, then falls back to filesystem scanning via /usr/bin/find + grep. It creates [ThreadInfo] results and publishes them to state.detectedThreads (AppState.swift:413).\",\n    \"Once state.isBusy == false and threads are found, the modal transitions phase to .selecting (ContinueWorkModal.swift:597). The UI renders sourceInfoSection, threadPickerSection, and destinationPickerSection (ContinueWorkModal.swift:83-86).\",\n    \"User taps a thread row (ContinueWorkModal.swift:247-297). selectThread(_:) stores the selection and, if a target mode is already selected, immediately calls generateContext(thread:target:) (ContinueWorkModal.swift:605-611).\",\n    \"User taps a destination card (ContinueWorkModal.swift:345-383). selectTarget(_:) stores the target and, if a thread is already selected, calls generateContext(thread:target:) (ContinueWorkModal.swift:613-619).\",\n    \"generateContext (ContinueWorkModal.swift:621-653) sets phase = .generating, then in a Task.detached block calls ContextExporter methods: extractUserMessages, extractAssistantMessages, extractAgentMessages, extractFunctionCalls, extractFilePaths, extractErrors (all in Sources/DeepCodex/ContextExporter.swift:73-238). These shell out to /usr/bin/python3 to parse the JSONL session file.\",\n    \"The extracted data is passed to ContextExporter.generateMarkdown (ContextExporter.swift:252-377), which builds a full Markdown string with sections for source info, responses, decisions, changes, files, problems, etc.\",\n    \"On completion, phase = .ready(source:markdown:) (ContinueWorkModal.swift:651). The UI shows a preview of the Markdown, a warning, and two action buttons.\",\n    \"User clicks \\\"Copiar y abrir destino\\\" (ContinueWorkModal.swift:489-506). This calls state.continueToTargetMode(markdown:target:) (AppState.swift:452-495) and sets isPresented = false.\",\n    \"continueToTargetMode copies the markdown to NSPasteboard.general, saves it to a timestamped file, then runs codex-switch.sh via Task.detached { AppState.runShell(...) } (AppState.swift:482). If target is deepseek, also runs start-moonbridge.sh (AppState.swift:486).\",\n    \"After switching, it calls parseJson to re-read current-mode.json (AppState.swift:489) and opens Codex Desktop App via NSWorkspace.shared.open (AppState.swift:493 -> 546-553).\"\n  ],\n  \"state_transitions\": [\n    \"AppState.isBusy: false -> true (AppState.swift:321, detectLatestThreads)\",\n    \"AppState.detectedThreads: [] -> [ThreadInfo] (AppState.swift:413)\",\n    \"AppState.isBusy: true -> false (AppState.swift:420)\",\n    \"ContinueWorkModal.phase: .loading -> .selecting (ContinueWorkModal.swift:597)\",\n    \"ContinueWorkModal.phase: .selecting -> .generating (ContinueWorkModal.swift:622)\",\n    \"ContinueWorkModal.phase: .generating -> .ready(source:markdown:) (ContinueWorkModal.swift:651)\",\n    \"ContinueWorkModal.phase (alternate path): .loading -> .empty(provider:) if no threads found (ContinueWorkModal.swift:595)\",\n    \"AppState.activeMode changes after parseJson reads the new mode (AppState.swift:502)\",\n    \"AppState.moonBridgeStatus changes from checkMoonBridgeDirect() or parseMoonBridge() (AppState.swift:511-512, 524-527)\"\n  ],\n  \"external_boundaries\": [\n    \"Shell execution via Process: AppState.runShell (AppState.swift:559-570) and AppState.runCommand (AppState.swift:572-584) \u2014 calls /bin/bash scripts like codex-switch.sh, start-moonbridge.sh, status.sh\",\n    \"SQLite read: /usr/bin/sqlite3 -json -readonly ~/.codex/state_5.sqlite (AppState.swift:342) \u2014 reads Codex Desktop's internal database\",\n    \"Python3 parsing: /usr/bin/python3 invocations in ContextExporter (ContextExporter.swift:32-237) \u2014 reads JSONL session files from ~/.codex/sessions\",\n    \"AppleScript/Process: runAppleScript calls /usr/bin/osascript (AppState.swift:556)\",\n    \"NSPasteboard.general \u2014 system clipboard for context copy (AppState.swift:428-430, 460-461)\",\n    \"NSWorkspace.shared.open \u2014 opens Codex.app desktop application (AppState.swift:547-552)\",\n    \"NSWorkspace.shared.runningApplications with .terminate() \u2014 quits Codex Desktop App by bundle ID com.openai.codex (AppState.swift:531-542)\",\n    \"NSSound / AVAudioPlayer \u2014 system sound playback for alerts (CompletionAlertManager.swift:138-153, 215-241)\",\n    \"File system polling: Timer-driven check of ~/Developer/ai-tools/codex-mode/notifications/events/ for agent-turn-complete-*.json files (CompletionAlertManager.swift:250-264)\",\n    \"Accessibility API: AXIsProcessTrusted() / AXIsProcessTrustedWithOptions() for global event monitoring (CompletionAlertManager.swift:196-204, 331-346)\",\n    \"NSStatusBar \u2014 macOS menu bar integration (MenuBarManager.swift:8-191)\",\n    \"UserDefaults \u2014 persists alert sound selection and minimum alert duration (AppState.swift:57-60, 83, 102)\",\n    \"lsof check: /usr/sbin/lsof -iTCP:38440 -sTCP:LISTEN -P -n for direct Moon Bridge status (AppState.swift:518-528)\",\n    \"Bundle.module resource loading \u2014 app icon and logo images (ContentView.swift:109-112)\"\n  ],\n  \"failure_points\": [\n    \"isBusy guard blocks re-entry: openCodexNormal/Pro/Flash, detectLatestThreads, continueToTargetMode all check guard !isBusy (AppState.swift:181, 197, 214, 320, 453). If stuck true, the actions silently no-op.\",\n    \"shell script failures: runShell/runCommand catch errors and return error strings (AppState.swift:569, 583). The caller may not validate the output, leading to stale state.\",\n    \"SQLite failure: if sqlite3 returns empty or non-JSON output, detectLatestThreads falls back to filesystem scanning (AppState.swift:381-410). That fallback has limited metadata (no title, no updatedAt).\",\n    \"Python3 script errors: ContextExporter's python scripts are wrapped in try/except that silently pass on failure (ContextExporter.swift:36, 57, 78, etc.). A corrupt JSONL file returns empty arrays silently.\",\n    \"Moon Bridge status stuck in 'unknown': refreshStatus fallback calls checkMoonBridgeDirect() if status remains unknown after shell script (AppState.swift:170-172). But if lsof also fails (empty output), status stays unknown (AppState.swift:528).\",\n    \"Permission denial: AXIsProcessTrusted() returns false. The alert system degrades to .permissionsNeeded state and cannot monitor global events (CompletionAlertManager.swift:72-74, 331).\",\n    \"quitCodexDesktopApp runs app.terminate() but does not verify the app actually quit before the 1.5s sleep (AppState.swift:536-542). If termination is slow, the subsequent reopen may race.\",\n    \"Thread polling timeout: loadOnAppear polls for max 30*0.5s = 15 seconds (ContinueWorkModal.swift:590). If detectLatestThreads takes longer, the modal shows empty state even though threads may still be loading.\",\n    \"File write failure: context-export file save is non-fatal (AppState.swift:444-446, 477-479), but AppState.contextExportResult reflects the error while clipboard copy already happened.\",\n    \"Unicode decoding: runShell/runCommand use String(data:encoding:.utf8) which returns nil for non-UTF8, defaulting to \\\"No output\\\" (AppState.swift:567, 581). This can cause silent failures in shell parsing.\"\n  ],\n  \"evidence\": [\n    \"Sources/DeepCodex/App.swift:4-18 \u2014 @main DeepCodexApp entry point creates AppState and ContentView\",\n    \"Sources/DeepCodex/AppState.swift:26-601 \u2014 AppState class with all mode switching, shell execution, context detection logic\",\n    \"Sources/DeepCodex/ContentView.swift:12-873 \u2014 Main UI with toolItem trigger at line 670-673, sheet presentation at line 48-50\",\n    \"Sources/DeepCodex/ContinueWorkModal.swift:1-674 \u2014 Full modal lifecycle with phases, thread picker, context generation, action buttons\",\n    \"Sources/DeepCodex/ContextExporter.swift:1-400 \u2014 Pure-logic layer for JSONL parsing via python3, Markdown generation\",\n    \"Sources/DeepCodex/CompletionAlertManager.swift:1-347 \u2014 Timer-based file watcher, AVAudioPlayer/NSSound alerting, global event monitor\",\n    \"Sources/DeepCodex/MenuBarManager.swift:1-191 \u2014 NSStatusItem menu bar integration, shell-based mode switching\",\n    \"Sources/DeepCodex/AdvancedCapabilities.swift:1-162 \u2014 Decodable models for capabilities JSON\",\n    \"Sources/DeepCodex/Theme.swift:1-111 \u2014 DeepTheme color/gradient definitions\",\n    \"Sources/DeepCodex/Resources/ \u2014 PNG resources (AppIcon, deepcodex_black, deepcodex_black_2)\",\n    \"Package.swift:1-13 \u2014 Swift Package definition, macOS .v14 minimum, no external dependencies\"\n  ],\n  \"summary\": \"The 'Continue Work' workflow begins when the user clicks the 'Continuar trabajo' tool button in the main ContentView. This triggers AppState.detectLatestThreads(), which queries Codex Desktop's SQLite database (~/.codex/state_5.sqlite) to find recent chat threads, falling back to filesystem scanning of JSONL session files. A SwiftUI modal (ContinueWorkModal) guides the user through selecting a source thread and a target AI mode (Normal, DeepSeek V4 Pro, or DeepSeek V4 Flash). Once both are selected, ContextExporter reads the session file via python3, extracts messages, function calls, file paths, and errors, then generates a portable Markdown summary. The user can preview this context, copy it to the system clipboard, save it to disk, and optionally trigger a full mode switch by running shell scripts (codex-switch.sh, start-moonbridge.sh) and reopening the Codex Desktop app. The entire flow spans 9 Swift source files, involves shell, SQLite, Python3, clipboard, and macOS process boundaries, and has 12 identified failure points including silent shell failures, permission denials, and race conditions.\"\n}\n```",
+      "response_hash": "1a6c1562ba6eb1ba",
+      "tool_calls": 6,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1603
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "def main",
+            "include": "*.py"
+          },
+          "duration_ms": 9,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "if __name__ == \"__main__\"",
+            "include": "*.py"
+          },
+          "duration_ms": 7,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 4,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 984
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "def ",
+            "include": "*.py"
+          },
+          "duration_ms": 3,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 6,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1238
+        },
+        {
+          "seq": 7,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": ".",
+            "include": "*"
+          },
+          "duration_ms": 1284,
+          "result_bytes": 1284852,
+          "content_hash": "c21eb42f018dd08e"
+        },
+        {
+          "seq": 8,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 10077,
+          "content_hash": "96a2217a61ca0ab4"
+        },
+        {
+          "seq": 9,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/App.swift"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2687,
+          "content_hash": "b39c0ccc71ac9694"
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "Sources/DeepCodex/ContentView.swift"
+          },
+          "duration_ms": 1,
+          "result_bytes": 38002,
+          "content_hash": "7195f67d5343b58d"
+        },
+        {
+          "seq": 11,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 34948,
+          "content_hash": "1a6c1562ba6eb1ba"
+        }
+      ]
+    }
+  ],
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/DEEPCODEX/source; CAESAR state remains temporary."
+  ]
+}

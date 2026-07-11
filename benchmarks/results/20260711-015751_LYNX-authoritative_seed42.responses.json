@@ -1,0 +1,28 @@
+{
+  "generated": "2026-07-11T01:57:51.760Z",
+  "project": "CAESAR-authoritative",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tasks": [
+    {
+      "task_id": "external_multi_turn",
+      "lynx": {
+        "response": "Here is the complete answer:\n\n```json\n{\n  \"question1\": {\n    \"language\": \"TypeScript\",\n    \"framework\": \"MCP (Model Context Protocol) — using the @modelcontextprotocol/sdk, with Vitest for testing, Tree-sitter for code parsing, and SQLite (better-sqlite3) for storage\",\n    \"hotspot_name\": \"runPipeline\",\n    \"hotspot_file\": \"src/pipeline/orchestrator.ts\",\n    \"why_hotspot\": \"Complexity of 50 (5× the healthy threshold of 10), 246 lines of code (god-component size), fan-in of 17 (8 direct callers across CLI commands, MCP handlers, and the dashboard server), and it orchestrates the entire indexing pipeline (file discovery, extraction, resolution, analysis, and persistence). Any change here carries enormous blast radius.\"\n  },\n  \"question2\": {\n    \"callers\": [\n      \"runABBenchmark\",\n      \"runAgentABBenchmark\",\n      \"runBenchmark\",\n      \"cmdIndex\",\n      \"cmdWatch\",\n      \"handleIndexRepository\",\n      \"maybeAutoIndexCurrentProject\",\n      \"req\"\n    ],\n    \"callees\": [\n      \"LlmCache.get\",\n      \"CaesarDatabase.upsertProject\",\n      \"discoverFiles\",\n      \"maxFilesForTier\",\n      \"getTier\",\n      \"getAllFileHashes\",\n      \"extractAll\",\n      \"enrichFile\",\n      \"CaesarDatabase.beginBulk\",\n      \"CaesarDatabase.transaction\",\n      \"CaesarDatabase.endBulk\",\n      \"getGitContext\"\n    ],\n    \"tests\": []\n  },\n  \"summary\": \"CAESAR is a TypeScript code-analysis MCP server (using @modelcontextprotocol/sdk, Tree-sitter, SQLite). The hottest production function is `runPipeline` (src/pipeline/orchestrator.ts): complexity 50, 246 lines, called by 8 functions across CLI, MCP, and dashboard layers. It calls 12+ critical pipeline/database functions. No direct tests cover it, making it a high-risk refactoring target.\"\n}\n```",
+        "wall_ms": 42443,
+        "tool_calls": 16,
+        "input_tokens": 182617,
+        "cost_usd": 0.00612962,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "Now I have all the information needed. Here is the consolidated answer:\n\n```json\n{\n  \"question1\": {\n    \"language\": \"TypeScript\",\n    \"framework\": \"Model Context Protocol (MCP) SDK (@modelcontextprotocol/sdk)\",\n    \"hotspot_name\": \"handleSearchGraph\",\n    \"hotspot_file\": \"src/mcp/handlers/search_graph.ts\",\n    \"why_hotspot\": \"handleSearchGraph is a high-complexity function (~150+ lines) that handles federated vs. local search dispatch, LLM-based re-ranking with multiple providers and fallback logic, pagination, semantic query handling, narrative generation, usage metrics recording, and real-savings computation — all in one function with many conditional branches.\"\n  },\n  \"question2\": {\n    \"callers\": [\n      \"dispatch (in src/mcp/server.ts via HANDLERS registry)\",\n      \"ab-benchmark.ts (src/cli/ab-benchmark.ts, lines 380, 615)\",\n      \"realistic-suite.ts (src/cli/agent-ab/realistic-suite.ts, line 552)\",\n      \"benchmark.ts (src/cli/agent-ab/benchmark.ts, line 243)\"\n    ],\n    \"callees\": [\n      \"getDb (src/mcp/server.ts)\",\n      \"projectNotIndexed (src/mcp/diagnostics.ts)\",\n      \"getFederatedConfig (src/federation/handler-bridge.ts)\",\n      \"federatedSearchGraph (src/federation/gateway.ts)\",\n      \"executeLocalSearchGraph (src/federation/search-core.ts)\",\n      \"getRerankProviderMode (src/llm/client.ts)\",\n      \"rerankSearchWithMeta (src/llm/client.ts)\",\n      \"estimateRerankCostUsd (src/usage/metrics.ts)\",\n      \"recordUsageEvent (src/usage/metrics.ts)\",\n      \"estimateTokensSaved (src/usage/metrics.ts)\",\n      \"computeRealSavings (src/usage/session.ts)\",\n      \"narrateSearchResults (src/intelligence/narrative.ts)\"\n    ],\n    \"tests\": [\n      \"tests/unit/mcp/search_graph.test.ts\",\n      \"tests/unit/federation/search-core.test.ts\",\n      \"tests/unit/federation/handler-federation.test.ts\"\n    ]\n  },\n  \"summary\": \"CAESAR-authoritative is a TypeScript project using the Model Context Protocol (MCP) SDK framework. The hotspot function is handleSearchGraph in src/mcp/handlers/search_graph.ts — a high-complexity function orchestrating graph search with federated/local dispatch, LLM re-ranking, metrics tracking, and narrative generation. It's called by the MCP server dispatcher and benchmark scripts, calls 12 internal functions across federation, LLM, usage, and narrative modules, and has 3 test files covering it.\"\n}\n```",
+        "wall_ms": 61908,
+        "tool_calls": 24,
+        "input_tokens": 5602501,
+        "cost_usd": 0.15167228,
+        "errors": []
+      }
+    }
+  ]
+}

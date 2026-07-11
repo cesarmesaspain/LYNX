@@ -1,0 +1,214 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 43,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_dead_code"
+    ],
+    "projectDir": "/Users/admin/Desktop/DEEPCODEX/source",
+    "dryRun": false
+  },
+  "methodology": [
+    "checkpoint — benchmark in progress"
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 15468,
+        "p95": 15468
+      },
+      "input_tokens": {
+        "median": 17934,
+        "total": 17934
+      },
+      "output_tokens": {
+        "median": 1825,
+        "total": 1825
+      },
+      "cached_tokens": {
+        "median": 16000,
+        "total": 16000
+      },
+      "reasoning_tokens": {
+        "median": 57,
+        "total": 57
+      },
+      "tool_calls": {
+        "median": 7,
+        "total": 7
+      },
+      "cost_usd": {
+        "median": 0.00100576,
+        "total": 0.00100576
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 1,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 0,
+        "p95": 0
+      },
+      "input_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "output_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 0,
+        "total": 0
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "N/A",
+        "without_caesar": "N/A",
+        "delta": "N/A",
+        "interpretation": "Dry run — no measurements taken"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "N/A",
+        "without_caesar": "N/A",
+        "delta": "N/A",
+        "interpretation": "Dry run — no tokens consumed"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "N/A",
+        "without_caesar": "N/A",
+        "delta": "N/A",
+        "interpretation": "Dry run — no tokens consumed"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "N/A",
+        "without_caesar": "N/A",
+        "delta": "N/A",
+        "interpretation": "Dry run — no tool calls"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "N/A",
+        "without_caesar": "N/A",
+        "delta": "N/A",
+        "interpretation": "Dry run — no cost"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "N/A",
+        "without_caesar": "N/A",
+        "delta": "N/A",
+        "interpretation": "Dry run — not evaluated"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "experiment_protocol": {
+    "model": "deepseek-v4-flash",
+    "temperature": 0,
+    "seeds": [
+      43
+    ],
+    "prompt_hash": "a11724a24b05520f",
+    "task_order": [
+      "external_dead_code"
+    ],
+    "max_tokens": null,
+    "max_tool_calls": null,
+    "timeout_ms": null,
+    "max_retries": null,
+    "base_url": "https://api.deepseek.com/v1"
+  },
+  "tasks": [
+    {
+      "run_id": "run_1_2fc610cde809",
+      "task_id": "external_dead_code",
+      "condition": "with_caesar",
+      "not_executed": false,
+      "order_position": 0,
+      "seed": 43,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a source cleanup sprint. Find symbols (functions, classes) in the codebase that appear to have zero callers and zero usages — these are candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Only report symbols you have verified are defined in the codebase. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 17934,
+        "output_tokens": 1825,
+        "cached_tokens": 16000,
+        "reasoning_tokens": 57,
+        "tool_call_count": 7,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 15468,
+        "api_latency_ms": 15468,
+        "cost_usd": 0.00100576,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "partial",
+      "tool_loop_exhausted": false,
+      "errors": [],
+      "response": "All verified. Here is my final report:\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"testAlert\",\n      \"file\": \"Sources/DeepCodex/CompletionAlertManager.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"shouldAlert\",\n      \"file\": \"Sources/DeepCodex/CompletionAlertManager.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"requestAccessibilityPermission\",\n      \"file\": \"Sources/DeepCodex/CompletionAlertManager.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"openAccessibilitySettings\",\n      \"file\": \"Sources/DeepCodex/CompletionAlertManager.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"makeBody\",\n      \"file\": \"Sources/DeepCodex/ContinueWorkModal.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"glowColor\",\n      \"file\": \"Sources/DeepCodex/Theme.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"getProviderForMode\",\n      \"file\": \"Sources/DeepCodex/AppState.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"extractFirstRealUserMessage\",\n      \"file\": \"Sources/DeepCodex/ContextExporter.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"makeNSView\",\n      \"file\": \"Sources/DeepCodex/App.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"showWindow\",\n      \"file\": \"Sources/DeepCodex/MenuBarManager.swift\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"quitApp\",\n      \"file\": \"Sources/DeepCodex/MenuBarManager.swift\",\n      \"kind\": \"method\"\n    }\n  ],\n  \"evidence\": [\n    \"Graph analysis verified zero incoming CALLS, USAGE, READS, and TESTS edges for all listed symbols (confidence: high).\",\n    \"testAlert (CompletionAlertManager.swift:178-192, 15 lines): writes a test event JSON file and calls checkForNewEvents() — appears to be a developer/debug helper never wired to any caller.\",\n    \"shouldAlert (CompletionAlertManager.swift:272-282, 11 lines, private): filters events by duration threshold — unreferenced despite being a potential building block.\",\n    \"requestAccessibilityPermission (CompletionAlertManager.swift:196-205, 10 lines): prompts for macOS accessibility access — not called anywhere.\",\n    \"openAccessibilitySettings (CompletionAlertManager.swift:207-211, 5 lines): opens System Settings to Accessibility pane — not called anywhere.\",\n    \"makeBody (ContinueWorkModal.swift:659-673, 15 lines): provides a custom SwiftUI ButtonStyle — the style is defined but never applied to any view.\",\n    \"glowColor (Theme.swift:70-77, 8 lines): maps AppState.Mode to a glow color — defined but never referenced by any view or modifier.\",\n    \"getProviderForMode (AppState.swift:300-306, 7 lines): maps Mode to a provider string ('openai', 'moonbridge') — zero callers.\",\n    \"extractFirstRealUserMessage (ContextExporter.swift:242-248, 7 lines): static helper to find the first real user query from a rollout path — no callers.\",\n    \"makeNSView/updateNSView (App.swift:23-27, NSViewRepresentable conformance) — the WindowConfigurator struct's required methods are defined but the struct itself may be orphaned.\",\n    \"showWindow/quitApp (MenuBarManager.swift:123-130, @objc private) — selector-based methods never wired to any menu item or action.\"\n  ],\n  \"summary\": \"Found 11 unused symbols (all methods, all high confidence) across 6 files. The CompletionAlertManager.swift file is the biggest hotspot with 4 orphaned methods (testAlert, shouldAlert, requestAccessibilityPermission, openAccessibilitySettings). These are safe removal candidates but should be reviewed for potential external/selector-based invocations (especially @objc methods showWindow/quitApp in MenuBarManager) before deletion.\"\n}\n```",
+      "response_hash": "74425787982fc335",
+      "tool_calls": 7,
+      "tool_call_summary": {
+        "find_dead_code": 1,
+        "get_code_snippet": 6
+      }
+    }
+  ],
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/DEEPCODEX/source; CAESAR state remains temporary."
+  ]
+}

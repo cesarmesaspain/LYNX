@@ -1,0 +1,100 @@
+{
+  "generated": "2026-07-11T18:39:51.363Z",
+  "project": "qwen-chat-ui",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tier": "official",
+  "tasks": [
+    {
+      "task_id": "external_smart_review",
+      "lynx": {
+        "response": "Here are the results:\n\n```json\n{\n  \"function_name\": \"extract_external_domains_from_html\",\n  \"file\": \"app/services/web_search_service.py\",\n  \"issues_found\": 1,\n  \"has_issues\": true,\n  \"summary\": \"smart_review found 1 high-severity performance issue: the function contains loops nested 3 levels deep (a set comprehension over `re.findall`, a sorted iteration, and a loop over `blocked_fragments`), resulting in a structural risk signal. The suggestion is to inspect collection sizes and loop dependencies before claiming O(n^3) complexity, extract inner operations where useful, and consider indexed lookups only when profiling or data-flow evidence supports it.\"\n}\n```",
+        "wall_ms": 21176,
+        "tool_calls": 12,
+        "tool_call_summary": {
+          "get_architecture": 1,
+          "read_file": 1,
+          "search_code": 4,
+          "search_graph": 4,
+          "smart_review": 2
+        },
+        "input_tokens": 65746,
+        "cost_usd": 0.0022867,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "I have thoroughly reviewed the code. Here is my assessment:\n\n**Issues found (6 total):**\n\n1. **No proper HTML parsing (raw regex approach)** — The function uses a naive regex `r\"https?://[^\\\"'\\s<>]+\"` directly on raw HTML text instead of an HTML parser (e.g., BeautifulSoup, html.parser, lxml). This causes false positives (matches URLs inside JavaScript strings, CSS, JSON-LD, comments, plain text) and can miss URLs depending on escaping or encoding in the HTML.\n\n2. **Hardcoded `blocked_fragments` tuple inside function body** — Unlike `GENERIC_DIRECTORY_DOMAINS` (defined at module level for reuse), the blocked domains list is embedded inside the function body. This is inconsistent with the module's own patterns, harder to maintain, and impossible to override or extend via callers.\n\n3. **Imprecise substring matching for blocking** — The check `any(fragment in domain for fragment in blocked_fragments)` uses substring matching (e.g., `\"google.\"` matches any domain containing those characters). This is overly broad and could block legitimate domains that happen to contain those substrings.\n\n4. **No content-type validation** — `fetch_html_url(url)` is called without verifying that the response is actually HTML. If the URL redirects to a binary (PDF, image, etc.), the function still tries to regex-parse raw bytes decoded as text, yielding meaningless matches.\n\n5. **Blind exception swallowing** — The entire operation is wrapped in a bare `try/except Exception` that returns `[]`. This silently discards network errors, timeouts, encoding failures, and parsing issues, making debugging very difficult.\n\n6. **No protection against large payloads** — If the HTML page is very large, the regex search over the entire text could be slow or memory-intensive with no safeguard.\n\n```json\n{\n  \"function_name\": \"extract_external_domains_from_html\",\n  \"file\": \"/Users/admin/qwen-chat-ui/app/services/web_search_service.py\",\n  \"issues_found\": 6,\n  \"has_issues\": true,\n  \"summary\": \"Function uses naive regex on raw HTML instead of a proper HTML parser, causing false positives/negatives. Hardcoded blocked_fragments inside function body (inconsistent with module-level constants), substring-based domain blocking is imprecise, no content-type validation, silent exception swallowing, and no safeguards against large payloads.\"\n}\n```",
+        "wall_ms": 29309,
+        "tool_calls": 6,
+        "tool_call_summary": {
+          "grep": 5,
+          "read_file": 1
+        },
+        "input_tokens": 13764,
+        "cost_usd": 0.00134501,
+        "errors": []
+      }
+    },
+    {
+      "task_id": "external_find_definition",
+      "lynx": {
+        "response": "The function `resolve_model_path` is defined in **two** places in this codebase — both with identical implementations:\n\n1. **`app/services/model_service.py`** — the canonical service-layer definition (line 20)\n2. **`server.py`** — a duplicate definition (line 169)\n\nIn both cases the symbol is a **`Function`** (a top-level `def`).\n\nHere is the JSON response:\n\n```json\n{\"found_file\":\"app/services/model_service.py\",\"function_name\":\"resolve_model_path\",\"kind\":\"function\"}\n```\n\n(Note: `server.py` also defines its own copy of `resolve_model_path` at line 169 as a function, but `app/services/model_service.py` is the primary service-module definition.)",
+        "wall_ms": 12778,
+        "tool_calls": 6,
+        "tool_call_summary": {
+          "get_code_snippet": 2,
+          "search_code": 2,
+          "search_graph": 1,
+          "semantic_search": 1
+        },
+        "input_tokens": 26374,
+        "cost_usd": 0.00098448,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "The function `resolve_model_path` is **not defined** anywhere in the `qwen-chat-ui` codebase. No matches were found for that name or any closely related variant.\n\n```json\n{\"found_file\":null,\"function_name\":\"resolve_model_path\",\"kind\":null}\n```",
+        "wall_ms": 3981,
+        "tool_calls": 2,
+        "tool_call_summary": {
+          "grep": 2
+        },
+        "input_tokens": 2023,
+        "cost_usd": 0.00012071,
+        "errors": [
+          "found_file: expected \"services/model_service.py\", got \"\"",
+          "kind: expected \"function\", got \"\""
+        ]
+      }
+    },
+    {
+      "task_id": "external_trace_path",
+      "lynx": {
+        "response": "I now have the complete evidence. Here's the exact call chain:\n\n**Call chain confirmed: YES**\n\n1. `build_generation_messages` (in `app/services/prompt_builder.py`, line 487) calls `run_web_workflow` at line 556.\n2. `run_web_workflow` (in `app/services/web_workflow_service.py`, line 82) calls `dedupe_by_url` at **5 locations**: lines ~166, ~189, ~211, ~215, ~219 (same function in the same module).\n\nSo the chain is: `build_generation_messages` → `run_web_workflow` → `dedupe_by_url`.\n\n```json\n{\n  \"connected\": true,\n  \"path\": [\n    \"app.services.prompt_builder.build_generation_messages\",\n    \"app.services.web_workflow_service.run_web_workflow\",\n    \"app.services.web_workflow_service.dedupe_by_url\"\n  ],\n  \"hops\": 2\n}\n```",
+        "wall_ms": 14010,
+        "tool_calls": 6,
+        "tool_call_summary": {
+          "get_code_snippet": 3,
+          "pack_context": 1,
+          "search_graph": 2
+        },
+        "input_tokens": 36934,
+        "cost_usd": 0.00200799,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "The function `build_generation_messages` in `app/services/prompt_builder.py` imports and calls `run_web_workflow` from `app/services/web_workflow_service.py`. Inside `run_web_workflow`, `dedupe_by_url` is called directly multiple times (same file, no additional import needed). Therefore, the connection exists with 2 hops.\n\n```json\n{\n  \"connected\": true,\n  \"path\": [\n    \"build_generation_messages\",\n    \"run_web_workflow\",\n    \"dedupe_by_url\"\n  ],\n  \"hops\": 2\n}\n```",
+        "wall_ms": 7221,
+        "tool_calls": 2,
+        "tool_call_summary": {
+          "read_file": 2
+        },
+        "input_tokens": 11019,
+        "cost_usd": 0.00160947,
+        "errors": []
+      }
+    }
+  ]
+}

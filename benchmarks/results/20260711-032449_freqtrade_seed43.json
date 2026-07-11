@@ -1,0 +1,1040 @@
+{
+  "config": {
+    "seed": 43,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_generic_flow"
+    ],
+    "projectDir": "/tmp/caesar-bench-repos/freqtrade",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_0088314153e3",
+      "task_id": "external_generic_flow",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 43,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Identify one representative user-facing workflow in freqtrade and trace it end to end through the code. Do not assume which tools to use. Explain the initiating action, control flow, state transitions, external boundaries, and failure points, citing concrete files and symbols. Respond with JSON: {\"workflow_name\":\"...\",\"flow\":[\"...\"],\"state_transitions\":[\"...\"],\"external_boundaries\":[\"...\"],\"failure_points\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_Trk5Y9LhM18IIcMGODXe6363",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"hotspots\", \"clusters\", \"file_tree\", \"entry_points\", \"brief\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_AatZ16lCnyMHigFJ2z6p9499",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"main\", \"label\": \"Function\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_P6ebeFEOlHJfgDOd2Fhh8997",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"freqtrade main entry point\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_5MBDrLYwNC6fD2VYdIjc5909",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/main.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_SzKxkbLunJtS922j4FWE4257",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/__main__.py\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_yfXy6A7qZQjVJlpbT60k4232",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/commands/trade_commands.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_sTb79WvuRgC92y2MzBQe9050",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/worker.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PIC8hvPh1KU8h8I8pS2d6832",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"FreqtradeBot.process\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_W2VU9F8C3HBDh6HFJ34A2949",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"FreqtradeBot.startup\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_TtECvA1mLPs6i4Z1j2fJ9544",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"FreqtradeBot\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kL27Y7l0r1m1zlFM2wVz4884",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.process\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_JEYJG5CMTomFbFfFXTnW4544",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.startup\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_7Ity5T6ndX9NoBZqDsjv2690",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.enter_positions\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EqbeYY5kBgc7riiM3CkE5866",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"FreqtradeBot.create_trade\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_r3PC9n7YigrhfVS1yXFD3179",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"FreqtradeBot.execute_entry\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_19UJpJY7wCJddehF9txA4393",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.create_trade\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_t9ryb1tdaD8J8pxrtxBr7135",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.execute_entry\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_5g9C0h5PxNWn1u7DzgcE8988",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"FreqtradeBot.exit_positions\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_orQxNiCjPWgk26ybA0Ou0792",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"FreqtradeBot.process_open_trade_positions\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wTSewlSl6Qzx4lnmIBgI7445",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.exit_positions\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_X8WYRrbScb4kKDsqa3pB5779",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.process_open_trade_positions\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_Rv9piancU1crPzmAK0Zi2313",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"Exchange.create_order\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_qdqF8VnpBOSCYGTQW1VV9067",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.exchange.exchange.Exchange.create_order\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yxh8CIT9ExswN95KfZEt5395",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"IStrategy.get_entry_signal\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_CWZ6BaI7dLXa0ThdLDNf7000",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"IStrategy.analyze\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_imdL6FnKy8I1u0mSe55f1991",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"DataProvider.refresh\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_jT7BG1ypY6VhJKvDGWFW9890",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"class State\", \"label\": \"Class\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_59gMKORsSOdYmSz2QzpQ2243",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"RPCManager\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_BIAWoiyYxmlknBfTgyTX0991",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"class State\", \"file_pattern\": \"freqtrade/enums/*.py\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_C9ocEVxqUTlnxb9bK4SZ5271",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"_notify_enter\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZgFEpFc2ivvmYyrSHbUJ0972",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/enums/__init__.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_wQzZIOxKLNmx5C2gHVIJ9396",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"class State\", \"file_pattern\": \"*.py\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yrxvubKPpHITOCDJbiyD4978",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/enums/state.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_YFDS5MkLUtnjyOCxJOi19559",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"self\\\\._notify_enter\", \"file_pattern\": \"*.py\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WunIdUoDHqJEIRZiDtDF3969",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"def _notify_enter\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_jhpKjN68ZUaHOufad9177935",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"def _notify\", \"file_pattern\": \"freqtrade/freqtradebot.py\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ET_MKQ71tguDzVMftx5gQAO7844",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"notify_enter\", \"file_pattern\": \"freqtrade/freqtradebot.py\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GB1v7RgGJAAkMdFSDoI30952",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"_notify_enter\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_w5zFNLV6e34hsVAdZAwx7015",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/rpc/rpc_manager.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MpqZKipWYh1moQAeBKbr4870",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"notify\", \"file_pattern\": \"freqtrade/freqtradebot.py\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xSdYhQcoVh0Aon7eOH0U4643",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"notify_status\", \"file_pattern\": \"*.py\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_vD8ua4HqifSnOWTirVL07854",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"notify_status\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JXdQwSm3lBO4DMGVH0DE8395",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/freqtradebot.py\", \"start\": 196, \"end\": 210}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_x9IOUXG3WPSnQnUgMcJz1224",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.strategy.interface.IStrategy.get_entry_signal\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_7euSlUGYe8bHIEIDhKJ42041",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.strategy.interface.IStrategy.analyze\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MpwZI9OJayJmF1rTVGzI4307",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.strategy.interface.IStrategy.analyze_pair\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_75RaA0FWBuRlLCE2UxpG5068",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"IStrategy.should_exit\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_nszKIRIyAyr4YKYP6Wcf6607",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.exchange.exchange.Exchange.create_dry_run_order\"}"
+          }
+        }
+      ],
+      "response": "Here is the complete end-to-end trace of the **Live Trading Cycle** — the primary user-facing workflow in freqtrade.\n\n```json\n{\n  \"workflow_name\": \"Live Trading Cycle (Entry and Exit of Positions)\",\n  \"flow\": [\n    \"User runs `freqtrade trade [options]` from CLI → `freqtrade/__main__.py` calls `main.main()`\",\n    \"`freqtrade/main.py` → `main()` parses CLI args via `Arguments(sysargv)`, dispatches to `args[\\\"func\\\"](args)` where func=`start_trading`\",\n    \"`freqtrade/commands/trade_commands.py` → `start_trading()` creates `Worker(args)` and calls `worker.run()`\",\n    \"`freqtrade/worker.py` → `Worker.run()` infinite loop calls `self._worker(old_state=state)`. The worker manages state transitions: STOPPED ↔ RUNNING ↔ PAUSED ↔ RELOAD_CONFIG\",\n    \"When state==RUNNING, `Worker._worker()` calls `self._process_running()` which calls `self.freqtrade.process()`\",\n    \"`FreqtradeBot.process()` (freqtrade/freqtradebot.py:257-311) — the main iteration cycle: (a) `self.exchange.reload_markets()` → (b) `self.update_trades_without_assigned_fees()` → (c) fetch open trades from DB → (d) `self._refresh_active_whitelist(trades)` → (e) `self.dataprovider.refresh(...)` fetches fresh OHLCV data from exchange → (f) `self.strategy.bot_loop_start()` → (g) `self.strategy.analyze(whitelist)` computes indicators/signals → (h) `self.manage_open_orders()` checks timeouts & replacements → (i) `self.exit_positions(trades)` processes exiting → (j) `self.process_open_trade_positions()` handles DCA adjustments → (k) `self.enter_positions()` enters new trades → (l) scheduled tasks → (m) RPC message queue\",\n    \"ENTER path: `enter_positions()` (line 613) iterates active whitelist, filters out pairs with open trades & global locks → calls `create_trade(pair)` (line 663)\",\n    \"`create_trade()` → `self.strategy.get_entry_signal(pair, timeframe, analyzed_df)` (freqtrade/strategy/interface.py:1347) reads `enter_long`/`enter_short` columns from analyzed dataframe → checks pair locks → `self.wallets.get_trade_stake_amount()` → calls `self.execute_entry(pair, stake_amount, enter_tag, is_short)` (line 873)\",\n    \"`execute_entry()` → validates price & stake via `get_valid_enter_price_and_stake()` → calls `self.strategy.confirm_trade_entry()` (user hook) → `self.exchange.create_order(pair, ordertype, side, amount, rate, leverage, ...)` (freqtrade/exchange/exchange.py:1435) — if dry_run, routes to `create_dry_run_order()` (line 1143) which simulates orderbook fill; if live, routes to `self._api.create_order()` via ccxt\",\n    \"On order response: creates `Order.parse_from_ccxt_object()` → creates `Trade(...)` ORM object with fees, precision, leverage → `trade.orders.append(order_obj)` → `Trade.session.add(trade)` → `Trade.commit()` → `self.wallets.update()` → `self._notify_enter(trade, order_obj, order_type)` sends RPC message\",\n    \"If order filled immediately (market/FOK), `self.update_trade_state()` processes the fill, applies fees, adjusts stoploss, sends `_notify_enter` with `fill=True`\",\n    \"EXIT path: `exit_positions(trades)` (line 1300) iterates open trades → checks stoploss-on-exchange handling via `handle_stoploss_on_exchange()` → calls `handle_trade(trade)` (line 1347)\",\n    \"`handle_trade()` → `self.strategy.get_exit_signal()` reads exit columns from analyzed dataframe → `self.exchange.get_rate(pair, side='exit')` → `self._check_and_execute_exit()` → calls `self.strategy.should_exit(trade, exit_rate, ...)` (freqtrade/strategy/interface.py:1412) which checks ROI, stoploss, trailing stoploss, exit signals → if triggered, calls `self.execute_trade_exit()` (line 1537)\",\n    \"`execute_trade_exit()` → `self.strategy.confirm_trade_exit()` (user hook) → cancels stoploss-on-exchange → `self.exchange.create_order()` → creates `Order` → calls `self._notify_exit()` → if market order fills immediately, `update_trade_state()` closes the trade → `handle_protections()` locks the pair → RPC notification sent\"\n  ],\n  \"state_transitions\": [\n    \"State.STOPPED (initial, set in FreqtradeBot.__init__ from config initial_state) → on `/start` RPC command, state becomes State.RUNNING\",\n    \"State.RUNNING ↔ State.PAUSED (via `/stopentry` or `/stopbuy` RPC; no new entries, exits still happen)\",\n    \"State.RUNNING → State.STOPPED (via `/stop` RPC; bot sleeps, no processing)\",\n    \"State.STOPPED → State.RELOAD_CONFIG (via `/reload_config` RPC; triggers `Worker._reconfigure()` which calls `FreqtradeBot.cleanup()` then `_init(True)` recreating the bot)\",\n    \"State transitions are logged and notified via `self.freqtrade.notify_status()` in `Worker._worker()` (freqtrade/worker.py:63-89) — sends RPC message with RPCMessageType on each change\",\n    \"On transition to RUNNING/PAUSED from STOPPED/RELOAD_CONFIG: `self.freqtrade.startup()` is called (freqtrade/freqtradebot.py:237-255) which migrates DB, sends startup messages, backpopulates precision, reinitializes stoploss, updates open orders, updates liquidation prices & funding fees\"\n  ],\n  \"external_boundaries\": [\n    \"**Exchange API** (via ccxt library): `Exchange.create_order()` in `freqtrade/exchange/exchange.py:1435` calls `self._api.create_order()` (ccxt) — the single gateway for live order placement. Also: `fetch_order()`, `fetch_orders()`, `fetch_l2_order_book()`, `fetch_stoploss_order()`, `cancel_order_with_result()`, `reload_markets()`, `get_fee()`, `get_funding_fees()`, `get_trades_for_order()`\",\n    \"**Database**: SQLAlchemy ORM via `Trade` model (`freqtrade/persistence/trade_model.py`). `Trade.commit()` persists trade/order state. Default SQLite via `init_db(self.config['db_url'])` in `FreqtradeBot.__init__()`\",\n    \"**RPC channels**: `RPCManager` (`freqtrade/rpc/rpc_manager.py`) dispatches messages to configured modules: Telegram (`freqtrade/rpc/telegram.py`), Discord, Webhook, and REST API Server (`freqtrade/rpc/api_server`). `send_msg()` (line 66) iterates `self.registered_modules` and calls each module's `send_msg()`\",\n    \"**Systemd watchdog**: `Worker._notify()` uses `sdnotify.SystemdNotifier` to send WATCHDOG=1, READY=1, STOPPING=1 signals (freqtrade/worker.py:53-58)\"\n  ],\n  \"failure_points\": [\n    \"**Exchange API failures**: `ccxt.InsufficientFunds` → caught as `InsufficientFundsError`, triggers `handle_insufficient_funds()` recovery (line 381). `ccxt.InvalidOrder` → caught as `InvalidOrderException`. `ccxt.DDoSProtection` → caught, triggers retry. `ccxt.OperationFailed`/`ExchangeError` → caught as `TemporaryError`, triggers retry in `Worker._process_running()` (worker.py:117). Unhandled `ccxt.BaseError` → `OperationalException` → bot stops\",\n    \"**Order timeout**: `manage_open_orders()` (line 1282) checks `strategy.ft_check_timed_out()` and calls `handle_cancel_order()` with `CANCEL_REASON[\\\"TIMEOUT\\\"]`; for entry orders, routes to `handle_cancel_enter()` which may delete the trade if nothing filled\",\n    \"**Partial fill edge cases**: IOC orders may expire partially filled — `execute_entry()` (line 1012-1039) handles `expired`/`rejected` status with partial fulfillment logic; remaining amount is canceled\",\n    \"**Configuration errors**: `ConfigurationError` in `main()` (line 66-68) logs error and exits; `validate_config_consistency()` in `FreqtradeBot.__init__()` may raise on invalid config\",\n    \"**Strategy exceptions**: All strategy callbacks are wrapped in `strategy_safe_wrapper()` with `supress_error=True` so a strategy bug doesn't crash the bot (e.g., `analyze_pair()` line 1251 catches `StrategyError`)\",\n    \"**Network/connectivity**: `Worker._process_running()` catches `TemporaryError` and sleeps `RETRY_TIMEOUT` seconds before retrying; persistent failures stop the bot\",\n    \"**Wallet inconsistency**: `handle_onexchange_order()` (line 452) recovers when wallet balance doesn't match trade amount; may delete trade if all entry orders were fully cancelled\",\n    \"**RPC module failures**: `RPCManager.send_msg()` catches exceptions per module (line 76-80) so one broken RPC channel (e.g., Telegram network error) doesn't crash others\"\n  ],\n  \"evidence\": [\n    \"`freqtrade/__main__.py` — entry point calls `main.main()`\",\n    \"`freqtrade/main.py` lines 31-79 — `main()` dispatches to `args['func'](args)`\",\n    \"`freqtrade/commands/trade_commands.py` — `start_trading()` creates Worker\",\n    \"`freqtrade/worker.py` lines 38-111 — `Worker.run()`, `_worker()`, state machine\",\n    \"`freqtrade/freqtradebot.py` lines 237-255 — `startup()`\",\n    \"`freqtrade/freqtradebot.py` lines 257-311 — `process()` main iteration cycle\",\n    \"`freqtrade/freqtradebot.py` lines 613-661 — `enter_positions()`\",\n    \"`freqtrade/freqtradebot.py` lines 663-721 — `create_trade()`\",\n    \"`freqtrade/freqtradebot.py` lines 873-1077 — `execute_entry()`\",\n    \"`freqtrade/freqtradebot.py` lines 1300-1344 — `exit_positions()`\",\n    \"`freqtrade/freqtradebot.py` lines 1347-1394 — `handle_trade()`\",\n    \"`freqtrade/freqtradebot.py` lines 1396-1440 — `_check_and_execute_exit()`\",\n    \"`freqtrade/freqtradebot.py` lines 1537-1650 — `execute_trade_exit()`\",\n    \"`freqtrade/freqtradebot.py` lines 1282-1321 — `manage_open_orders()`\",\n    \"`freqtrade/exchange/exchange.py` lines 1435-1503 — `Exchange.create_order()` (ccxt boundary)\",\n    \"`freqtrade/exchange/exchange.py` lines 1143-1221 — `create_dry_run_order()`\",\n    \"`freqtrade/strategy/interface.py` lines 1266-1272 — `analyze()`\",\n    \"`freqtrade/strategy/interface.py` lines 1347-1401 — `get_entry_signal()`\",\n    \"`freqtrade/strategy/interface.py` lines 1412-1515 — `should_exit()`\",\n    \"`freqtrade/rpc/rpc_manager.py` lines 17-144 — `RPCManager` class\",\n    \"`freqtrade/enums/state.py` — `State` enum (RUNNING, PAUSED, STOPPED, RELOAD_CONFIG)\",\n    \"`freqtrade/persistence/trade_model.py` — `Trade` ORM model\"\n  ],\n  \"summary\": \"The **Live Trading Cycle** is the core user-facing workflow in freqtrade. It is initiated by `freqtrade trade` on the CLI, which bootstraps the Worker → FreqtradeBot → Exchange/Strategy pipeline. The Worker runs an infinite throttled loop driven by a 4-state machine (STOPPED/RUNNING/PAUSED/RELOAD_CONFIG). Each tick in RUNNING state executes `FreqtradeBot.process()`, which (1) refreshes market data from the exchange via ccxt, (2) computes strategy indicators/signals on all whitelisted pairs, (3) manages open orders (timeouts, replacements), (4) exits positions that hit stoploss/ROI/exit signals, (5) adjusts existing positions (DCA), and (6) enters new positions when entry signals fire. Every order is placed through `Exchange.create_order()` (ccxt layer), persisted via SQLAlchemy (`Trade` model), and notified to the user through pluggable RPC channels (Telegram/Discord/Webhook/API). The workflow handles numerous failure modes: exchange errors (insufficient funds, invalid orders, DDoS protection), partial fills, order timeouts, strategy exceptions, wallet inconsistencies, and RPC module failures — each with specific recovery or graceful degradation logic.\"\n}\n```",
+      "responseHash": "584f64f664d089d3",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 753485,
+        "output_tokens": 7527,
+        "cached_tokens": 698880,
+        "reasoning_tokens": 22,
+        "tool_call_count": 48,
+        "files_read": 8,
+        "bytes_read": 131958,
+        "wall_time_ms": 90324,
+        "api_latency_ms": 90324,
+        "cost_usd": 0.01953658,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "workflow_name": "Live Trading Cycle (Entry and Exit of Positions)",
+        "flow": [
+          "User runs `freqtrade trade [options]` from CLI → `freqtrade/__main__.py` calls `main.main()`",
+          "`freqtrade/main.py` → `main()` parses CLI args via `Arguments(sysargv)`, dispatches to `args[\"func\"](args)` where func=`start_trading`",
+          "`freqtrade/commands/trade_commands.py` → `start_trading()` creates `Worker(args)` and calls `worker.run()`",
+          "`freqtrade/worker.py` → `Worker.run()` infinite loop calls `self._worker(old_state=state)`. The worker manages state transitions: STOPPED ↔ RUNNING ↔ PAUSED ↔ RELOAD_CONFIG",
+          "When state==RUNNING, `Worker._worker()` calls `self._process_running()` which calls `self.freqtrade.process()`",
+          "`FreqtradeBot.process()` (freqtrade/freqtradebot.py:257-311) — the main iteration cycle: (a) `self.exchange.reload_markets()` → (b) `self.update_trades_without_assigned_fees()` → (c) fetch open trades from DB → (d) `self._refresh_active_whitelist(trades)` → (e) `self.dataprovider.refresh(...)` fetches fresh OHLCV data from exchange → (f) `self.strategy.bot_loop_start()` → (g) `self.strategy.analyze(whitelist)` computes indicators/signals → (h) `self.manage_open_orders()` checks timeouts & replacements → (i) `self.exit_positions(trades)` processes exiting → (j) `self.process_open_trade_positions()` handles DCA adjustments → (k) `self.enter_positions()` enters new trades → (l) scheduled tasks → (m) RPC message queue",
+          "ENTER path: `enter_positions()` (line 613) iterates active whitelist, filters out pairs with open trades & global locks → calls `create_trade(pair)` (line 663)",
+          "`create_trade()` → `self.strategy.get_entry_signal(pair, timeframe, analyzed_df)` (freqtrade/strategy/interface.py:1347) reads `enter_long`/`enter_short` columns from analyzed dataframe → checks pair locks → `self.wallets.get_trade_stake_amount()` → calls `self.execute_entry(pair, stake_amount, enter_tag, is_short)` (line 873)",
+          "`execute_entry()` → validates price & stake via `get_valid_enter_price_and_stake()` → calls `self.strategy.confirm_trade_entry()` (user hook) → `self.exchange.create_order(pair, ordertype, side, amount, rate, leverage, ...)` (freqtrade/exchange/exchange.py:1435) — if dry_run, routes to `create_dry_run_order()` (line 1143) which simulates orderbook fill; if live, routes to `self._api.create_order()` via ccxt",
+          "On order response: creates `Order.parse_from_ccxt_object()` → creates `Trade(...)` ORM object with fees, precision, leverage → `trade.orders.append(order_obj)` → `Trade.session.add(trade)` → `Trade.commit()` → `self.wallets.update()` → `self._notify_enter(trade, order_obj, order_type)` sends RPC message",
+          "If order filled immediately (market/FOK), `self.update_trade_state()` processes the fill, applies fees, adjusts stoploss, sends `_notify_enter` with `fill=True`",
+          "EXIT path: `exit_positions(trades)` (line 1300) iterates open trades → checks stoploss-on-exchange handling via `handle_stoploss_on_exchange()` → calls `handle_trade(trade)` (line 1347)",
+          "`handle_trade()` → `self.strategy.get_exit_signal()` reads exit columns from analyzed dataframe → `self.exchange.get_rate(pair, side='exit')` → `self._check_and_execute_exit()` → calls `self.strategy.should_exit(trade, exit_rate, ...)` (freqtrade/strategy/interface.py:1412) which checks ROI, stoploss, trailing stoploss, exit signals → if triggered, calls `self.execute_trade_exit()` (line 1537)",
+          "`execute_trade_exit()` → `self.strategy.confirm_trade_exit()` (user hook) → cancels stoploss-on-exchange → `self.exchange.create_order()` → creates `Order` → calls `self._notify_exit()` → if market order fills immediately, `update_trade_state()` closes the trade → `handle_protections()` locks the pair → RPC notification sent"
+        ],
+        "state_transitions": [
+          "State.STOPPED (initial, set in FreqtradeBot.__init__ from config initial_state) → on `/start` RPC command, state becomes State.RUNNING",
+          "State.RUNNING ↔ State.PAUSED (via `/stopentry` or `/stopbuy` RPC; no new entries, exits still happen)",
+          "State.RUNNING → State.STOPPED (via `/stop` RPC; bot sleeps, no processing)",
+          "State.STOPPED → State.RELOAD_CONFIG (via `/reload_config` RPC; triggers `Worker._reconfigure()` which calls `FreqtradeBot.cleanup()` then `_init(True)` recreating the bot)",
+          "State transitions are logged and notified via `self.freqtrade.notify_status()` in `Worker._worker()` (freqtrade/worker.py:63-89) — sends RPC message with RPCMessageType on each change",
+          "On transition to RUNNING/PAUSED from STOPPED/RELOAD_CONFIG: `self.freqtrade.startup()` is called (freqtrade/freqtradebot.py:237-255) which migrates DB, sends startup messages, backpopulates precision, reinitializes stoploss, updates open orders, updates liquidation prices & funding fees"
+        ],
+        "external_boundaries": [
+          "**Exchange API** (via ccxt library): `Exchange.create_order()` in `freqtrade/exchange/exchange.py:1435` calls `self._api.create_order()` (ccxt) — the single gateway for live order placement. Also: `fetch_order()`, `fetch_orders()`, `fetch_l2_order_book()`, `fetch_stoploss_order()`, `cancel_order_with_result()`, `reload_markets()`, `get_fee()`, `get_funding_fees()`, `get_trades_for_order()`",
+          "**Database**: SQLAlchemy ORM via `Trade` model (`freqtrade/persistence/trade_model.py`). `Trade.commit()` persists trade/order state. Default SQLite via `init_db(self.config['db_url'])` in `FreqtradeBot.__init__()`",
+          "**RPC channels**: `RPCManager` (`freqtrade/rpc/rpc_manager.py`) dispatches messages to configured modules: Telegram (`freqtrade/rpc/telegram.py`), Discord, Webhook, and REST API Server (`freqtrade/rpc/api_server`). `send_msg()` (line 66) iterates `self.registered_modules` and calls each module's `send_msg()`",
+          "**Systemd watchdog**: `Worker._notify()` uses `sdnotify.SystemdNotifier` to send WATCHDOG=1, READY=1, STOPPING=1 signals (freqtrade/worker.py:53-58)"
+        ],
+        "failure_points": [
+          "**Exchange API failures**: `ccxt.InsufficientFunds` → caught as `InsufficientFundsError`, triggers `handle_insufficient_funds()` recovery (line 381). `ccxt.InvalidOrder` → caught as `InvalidOrderException`. `ccxt.DDoSProtection` → caught, triggers retry. `ccxt.OperationFailed`/`ExchangeError` → caught as `TemporaryError`, triggers retry in `Worker._process_running()` (worker.py:117). Unhandled `ccxt.BaseError` → `OperationalException` → bot stops",
+          "**Order timeout**: `manage_open_orders()` (line 1282) checks `strategy.ft_check_timed_out()` and calls `handle_cancel_order()` with `CANCEL_REASON[\"TIMEOUT\"]`; for entry orders, routes to `handle_cancel_enter()` which may delete the trade if nothing filled",
+          "**Partial fill edge cases**: IOC orders may expire partially filled — `execute_entry()` (line 1012-1039) handles `expired`/`rejected` status with partial fulfillment logic; remaining amount is canceled",
+          "**Configuration errors**: `ConfigurationError` in `main()` (line 66-68) logs error and exits; `validate_config_consistency()` in `FreqtradeBot.__init__()` may raise on invalid config",
+          "**Strategy exceptions**: All strategy callbacks are wrapped in `strategy_safe_wrapper()` with `supress_error=True` so a strategy bug doesn't crash the bot (e.g., `analyze_pair()` line 1251 catches `StrategyError`)",
+          "**Network/connectivity**: `Worker._process_running()` catches `TemporaryError` and sleeps `RETRY_TIMEOUT` seconds before retrying; persistent failures stop the bot",
+          "**Wallet inconsistency**: `handle_onexchange_order()` (line 452) recovers when wallet balance doesn't match trade amount; may delete trade if all entry orders were fully cancelled",
+          "**RPC module failures**: `RPCManager.send_msg()` catches exceptions per module (line 76-80) so one broken RPC channel (e.g., Telegram network error) doesn't crash others"
+        ],
+        "evidence": [
+          "`freqtrade/__main__.py` — entry point calls `main.main()`",
+          "`freqtrade/main.py` lines 31-79 — `main()` dispatches to `args['func'](args)`",
+          "`freqtrade/commands/trade_commands.py` — `start_trading()` creates Worker",
+          "`freqtrade/worker.py` lines 38-111 — `Worker.run()`, `_worker()`, state machine",
+          "`freqtrade/freqtradebot.py` lines 237-255 — `startup()`",
+          "`freqtrade/freqtradebot.py` lines 257-311 — `process()` main iteration cycle",
+          "`freqtrade/freqtradebot.py` lines 613-661 — `enter_positions()`",
+          "`freqtrade/freqtradebot.py` lines 663-721 — `create_trade()`",
+          "`freqtrade/freqtradebot.py` lines 873-1077 — `execute_entry()`",
+          "`freqtrade/freqtradebot.py` lines 1300-1344 — `exit_positions()`",
+          "`freqtrade/freqtradebot.py` lines 1347-1394 — `handle_trade()`",
+          "`freqtrade/freqtradebot.py` lines 1396-1440 — `_check_and_execute_exit()`",
+          "`freqtrade/freqtradebot.py` lines 1537-1650 — `execute_trade_exit()`",
+          "`freqtrade/freqtradebot.py` lines 1282-1321 — `manage_open_orders()`",
+          "`freqtrade/exchange/exchange.py` lines 1435-1503 — `Exchange.create_order()` (ccxt boundary)",
+          "`freqtrade/exchange/exchange.py` lines 1143-1221 — `create_dry_run_order()`",
+          "`freqtrade/strategy/interface.py` lines 1266-1272 — `analyze()`",
+          "`freqtrade/strategy/interface.py` lines 1347-1401 — `get_entry_signal()`",
+          "`freqtrade/strategy/interface.py` lines 1412-1515 — `should_exit()`",
+          "`freqtrade/rpc/rpc_manager.py` lines 17-144 — `RPCManager` class",
+          "`freqtrade/enums/state.py` — `State` enum (RUNNING, PAUSED, STOPPED, RELOAD_CONFIG)",
+          "`freqtrade/persistence/trade_model.py` — `Trade` ORM model"
+        ],
+        "summary": "The **Live Trading Cycle** is the core user-facing workflow in freqtrade. It is initiated by `freqtrade trade` on the CLI, which bootstraps the Worker → FreqtradeBot → Exchange/Strategy pipeline. The Worker runs an infinite throttled loop driven by a 4-state machine (STOPPED/RUNNING/PAUSED/RELOAD_CONFIG). Each tick in RUNNING state executes `FreqtradeBot.process()`, which (1) refreshes market data from the exchange via ccxt, (2) computes strategy indicators/signals on all whitelisted pairs, (3) manages open orders (timeouts, replacements), (4) exits positions that hit stoploss/ROI/exit signals, (5) adjusts existing positions (DCA), and (6) enters new positions when entry signals fire. Every order is placed through `Exchange.create_order()` (ccxt layer), persisted via SQLAlchemy (`Trade` model), and notified to the user through pluggable RPC channels (Telegram/Discord/Webhook/API). The workflow handles numerous failure modes: exchange errors (insufficient funds, invalid orders, DDoS protection), partial fills, order timeouts, strategy exceptions, wallet inconsistencies, and RPC module failures — each with specific recovery or graceful degradation logic."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_b48fdc6933cf",
+      "task_id": "external_generic_flow",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 43,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Identify one representative user-facing workflow in freqtrade and trace it end to end through the code. Do not assume which tools to use. Explain the initiating action, control flow, state transitions, external boundaries, and failure points, citing concrete files and symbols. Respond with JSON: {\"workflow_name\":\"...\",\"flow\":[\"...\"],\"state_transitions\":[\"...\"],\"external_boundaries\":[\"...\"],\"failure_points\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_5RwrNpCyAoTaWlPv1ePm4590",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yT93BKJc4vjRUpmyJ3x66051",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def main\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Av2KZ0Ba7XRaZtvT63kC0688",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def start\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0KJj7p3RYST9vpQUNWJo9019",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/main.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_D9gER8c8S2hDLqdjIvLu0589",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/commands/trade_commands.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_HmUVTyEQ7OCUTvWjd77K4262",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/worker.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Y1ZJJErQ0Gbv3i5pkwLi2776",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/freqtradebot.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_vl1ETj74EglBcSnZotoS6376",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/commands/__init__.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_n10b9OSmFBwKKkQQ7Lwc8812",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"class Arguments\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_jJBvExaSgknH2P7MbA3n8643",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/commands/arguments.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_y4gdJiaXerRihLtX06g29904",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/enums.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ROjonFLu14xmlGRZDcKd2816",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"class State\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JBoL2D89mphZVk1zYuBv4463",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/enums/state.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_uH4qCXwwSTb2JSVcj0Cn8138",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/enums/__init__.py\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_3dPIRIS4JMgEBToUAmfq2098",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"class RPCMessageType\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_97RHtRmlg2J6bG8ca7Xj4485",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def analyze\\\\(\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_VqTVmzMLLHQVQvudydxN8091",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def get_entry_signal\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bYvb8FUkkgogF3moXUGi1614",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def analyze\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_243hiUBt8ZpY3lavcGGQ6539",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"class IStrategy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lFFOxXLUVuDVLTQw73SA8441",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/strategy/interface.py\", \"offset\": 1260, \"limit\": 120}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MzXWos6ScKZ3fk2sS6yO6684",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def create_order\\\\(\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_IplIcbbtbzIouxAkIMvu4902",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def get_rate\\\\(\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_eJ1BvGdGzYv03tuqAyoU1377",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def create_order\\\\(\", \"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/exchange\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_gTodCkLrSxS0iR5zlq1j8884",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/rpc/rpc_manager.py\"}"
+          }
+        }
+      ],
+      "response": "I now have a comprehensive understanding of the live trading workflow. Here is the complete end-to-end trace.\n\n```json\n{\n  \"workflow_name\": \"Live Trading (Dry-Run or Real Exchange)\",\n  \"flow\": [\n    \"1. User runs `freqtrade trade ...` CLI command\",\n    \"2. freqtrade/main.py::main() parses args via Arguments (freqtrade/commands/arguments.py), dispatches to `args[\\\\\\\"func\\\\\\\"](args)` → start_trading (freqtrade/commands/trade_commands.py:9)\",\n    \"3. start_trading() creates `Worker(args)` and calls `worker.run()` (freqtrade/worker.py:31,84)\",\n    \"4. Worker.__init__() loads config via Configuration, creates `FreqtradeBot(self._config)` (freqtrade/worker.py:43-49)\",\n    \"5. FreqtradeBot.__init__() (freqtrade/freqtradebot.py:76-165) initializes: exchange (ExchangeResolver), strategy (StrategyResolver), database (init_db), wallets (Wallets), pairlists (PairListManager), dataprovider (DataProvider), RPC (RPCManager), protections (ProtectionManager), sets initial State.STOPPED\",\n    \"6. worker.run() calls `self._worker()` in a loop. First call gets state=STOPPED, transitions to state from config (e.g. RUNNING), triggers `self.freqtrade.startup()` (worker.py:89-101)\",\n    \"7. FreqtradeBot.startup() (freqtradebot.py:237-256): runs DB migration, backpopulates precision, reinitializes stoploss, updates open orders, publication fees, liquidation prices\",\n    \"8. Worker._worker() enters RUNNING state and calls `self._throttle(func=self._process_running, ...)` → `self.freqtrade.process()` (worker.py:117-122)\",\n    \"9. FreqtradeBot.process() (freqtradebot.py:260-308): THE MAIN ITERATION LOOP\",\n    \"   a. `self.exchange.reload_markets()` — refresh exchange metadata\",\n    \"   b. `self.update_trades_without_assigned_fees()` — catch up on fee assignments\",\n    \"   c. Get open trades from DB: `Trade.get_open_trades()`\",\n    \"   d. `self._refresh_active_whitelist(trades)` — refresh pairlist, extend with open-trade pairs\",\n    \"   e. `self.dataprovider.refresh(...)` — download/refresh OHLCV candles for all whitelist + informative pairs\",\n    \"   f. `self.strategy.analyze(self.active_pair_whitelist)` — run strategy indicator + signal logic per pair (freqtrade/strategy/interface.py:1266-1277)\",\n    \"      - For each pair: `analyze_pair()` calls `dp.ohlcv()`, then `_analyze_ticker_internal()` → `analyze_ticker()` → `advise_indicators()`, `advise_entry()`, `advise_exit()`\",\n    \"   g. `self.manage_open_orders()` — check unfilled orders for timeouts or order replacement\",\n    \"   h. `self.exit_positions(trades)` — check open trades for stoploss/ROI/exit-signal conditions and execute exits\",\n    \"   i. `self.process_open_trade_positions()` — if position_adjustment_enable, check DCA add/reduce signals\",\n    \"   j. `self.enter_positions()` — iterate whitelist, call `create_trade(pair)` for each, which calls `strategy.get_entry_signal()` then `self.execute_entry()` to place an order\",\n    \"   k. `self._schedule.run_pending()` — run daily scheduled tasks (funding fee updates, wallet recording)\",\n    \"   l. `Trade.commit()` and `self.rpc.process_msg_queue()` send pending RPC messages\",\n    \"10. Worker._process_running catches TemporaryError (retry) and OperationalException (stop) (worker.py:152-165)\",\n    \"11. State transitions via RPC (telegram/API): user sends /stop → RPC sets `self.freqtrade.state = State.STOPPED`; /stopbuy → PAUSED; /reload_config → RELOAD_CONFIG (triggers _reconfigure())\",\n    \"12. On shutdown: worker.exit() → freqtrade.cleanup() cancels open orders, checks open trades, cleans up RPC/exchange/DB\"\n  ],\n  \"state_transitions\": [\n    \"STOPPED → RUNNING: Initial config 'initial_state' set to 'running', or user sends /start via RPC (freqtrade/enums/state.py:4-11)\",\n    \"RUNNING → PAUSED: User sends /stopbuy via RPC; stops new entries, open trades continue being managed (freqtrade/worker.py:105-122 checks state in _worker)\",\n    \"RUNNING → RELOAD_CONFIG: User triggers /reload_config; worker._reconfigure() cleans up old FreqtradeBot and creates new one (worker.py:175-190)\",\n    \"RUNNING/PAUSED → STOPPED: User sends /stop or OperationalException caught in _process_running (worker.py:152-165); sets state=STOPPED, stops all trading\",\n    \"Any state can transition to RELOAD_CONFIG: triggers _reconfigure() which calls freqtrade.cleanup() then _init(reconfig=True) creating a fresh bot instance (worker.py:175-190)\"\n  ],\n  \"external_boundaries\": [\n    \"Exchange API (freqtrade/exchange/*.py): `self.exchange.create_order()`, `self.exchange.fetch_order()`, `self.exchange.cancel_order_with_result()`, `self.exchange.get_rate()`, `self.exchange.fetch_l2_order_book()` — all real network I/O to the cryptocurrency exchange via ccxt library\",\n    \"Database (freqtrade/persistence/*.py via `init_db()`): SQLite/PostgreSQL accessed through `Trade.get_open_trades()`, `Order.get_open_orders()`, `Trade.commit()` for persistent state across restarts\",\n    \"RPC Notification Channels (freqtrade/rpc/rpc_manager.py:102 & rpc/telegram.py, rpc/discord.py, rpc/webhook.py): Outbound messages to Telegram/Discord/Webhook via `self.rpc.send_msg()`; inbound control commands via Telegram callback handlers or REST API (freqtrade/rpc/api_server/)\",\n    \"DataProvider / OHLCV data source (freqtrade/data/dataprovider.py): Downloads candle data from exchange; also reads from local cache/disk\",\n    \"Systemd (worker.py `sdnotify`): Optional watchdog notifications for process health monitoring\",\n    \"External Message Consumer (freqtrade/rpc/external_message_consumer.py:104): Optional incoming messages from external systems to influence trading decisions (e.g., partner bots)\"\n  ],\n  \"failure_points\": [\n    \"Exchange API failures: TemporaryError (rate limits, network blips) → caught in _process_running, retry after RETRY_TIMEOUT (worker.py:152-155). InvalidOrderException (bad order params) → logged and skipped in manage_open_orders (freqtradebot.py:848-855). InsufficientFundsError → handled in execute_trade_exit by handle_insufficient_funds (freqtradebot.py:1000-1004)\",\n    \"OperationalException during process: Caught by _process_running, sends RPC exception notification, sets state=STOPPED (worker.py:156-165)\",\n    \"ConfigurationError at startup: Caught in main(), logs error with docs link, exits (main.py:53-55)\",\n    \"Database errors: Failures in Trade.commit() or init_db() propagate up to Initialization (caught by FreqtradeBot.__init__ cleanup) or during process()\",\n    \"Unfilled order timeout: Managed in manage_open_orders() via `strategy.ft_check_timed_out()`; cancelled and optionally replaced (freqtradebot.py:826-855, strategy/interface.py check_entry_timeout/check_exit_timeout)\",\n    \"Stoploss order creation failure: Falls back to emergency_exit() which calls execute_trade_exit with EMERGENCY_EXIT type (freqtradebot.py:780-793, 827-830)\",\n    \"Max exit-timeout count exceeded: If exit orders keep timing out and `unfilledtimeout.exit_timeout_count` is exceeded, triggers emergency_exit (freqtradebot.py:867-875)\",\n    \"Insufficient wallet balance on exit: Falls back to handle_insufficient_funds which tries to refind orders on exchange, or handle_onexchange_order (freqtradebot.py:366-440)\",\n    \"Post-startup FreqAI failure: If freqAI enabled but model loading fails, bot_start propagates error up to __init__ which calls cleanup() (strategy/interface.py:199-200 + freqtradebot.py:165-169)\"\n  ],\n  \"evidence\": [\n    \"freqtrade/main.py:31 — main() entry point, dispatches to args['func']\",\n    \"freqtrade/commands/trade_commands.py:9-31 — start_trading() creates Worker\",\n    \"freqtrade/commands/arguments.py:307 — Arguments class, _build_subcommands() registers 'trade' subparser with func=start_trading at line 384\",\n    \"freqtrade/worker.py:31-196 — Worker class: __init__ (line 34), run() loop (line 84), _worker() state machine (line 89), _process_running (line 152)\",\n    \"freqtrade/freqtradebot.py:60-76 — FreqtradeBot.__init__() initializes all subsystems\",\n    \"freqtrade/freqtradebot.py:237-256 — startup() post-init tasks\",\n    \"freqtrade/freqtradebot.py:260-308 — process() main iteration loop\",\n    \"freqtrade/freqtradebot.py:433-519 — enter_positions() and create_trade()\",\n    \"freqtrade/freqtradebot.py:558-635 — execute_entry() places entry order on exchange\",\n    \"freqtrade/freqtradebot.py:665-785 — exit_positions(), handle_trade(), execute_trade_exit()\",\n    \"freqtrade/freqtradebot.py:826-855 — manage_open_orders() order timeout handling\",\n    \"freqtrade/strategy/interface.py:1266-1277 — analyze() per-pair strategy analysis\",\n    \"freqtrade/strategy/interface.py:1347-1398 — get_entry_signal() reads signal columns from analyzed dataframe\",\n    \"freqtrade/strategy/interface.py:1400-1492 — should_exit() evaluates stoploss, ROI, exit-signal\",\n    \"freqtrade/rpc/rpc_manager.py:27-103 — RPCManager initialization and send_msg()\",\n    \"freqtrade/enums/state.py:4-11 — State enum (RUNNING, PAUSED, STOPPED, RELOAD_CONFIG)\"\n  ],\n  \"summary\": \"The live trading workflow begins when a user runs `freqtrade trade` from the CLI. main() (freqtrade/main.py) parses the arguments and calls start_trading() (freqtrade/commands/trade_commands.py), which creates a Worker object. The Worker loads configuration, instantiates FreqtradeBot (freqtrade/freqtradebot.py), and enters a throttled infinite loop in Worker.run() (freqtrade/worker.py). Each iteration of the loop checks the bot's State enum (STOPPED/RUNNING/PAUSED/RELOAD_CONFIG), and when RUNNING, calls FreqtradeBot.process() which: (1) refreshes exchange market data, (2) refreshes OHLCV candles via DataProvider, (3) runs the strategy's indicator/signal analysis per pair (IStrategy.analyze_pair → populate_indicators → populate_entry_trend → populate_exit_trend), (4) manages open orders (timeouts, replacements), (5) checks open trades for exit conditions (stoploss, ROI, exit signals), (6) evaluates DCA position adjustments, and (7) looks for new entry signals. Trade executions call exchange.create_order(), and fill updates flow through update_trade_state(). External boundaries are the exchange API (via ccxt), the database (SQLite/PostgreSQL), and RPC notification channels (Telegram/Discord/Webhook/REST API). Failure modes include exchange API errors (retried or caught with state→STOPPED), insufficient funds (recovery via handle_insufficient_funds/handle_onexchange_order), order timeouts (configurable and replaced or emergency-exited), and configuration/initialization errors (graceful cleanup).\"\n}\n```",
+      "responseHash": "c48f9feeb9acea1b",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 439021,
+        "output_tokens": 4728,
+        "cached_tokens": 381568,
+        "reasoning_tokens": 24,
+        "tool_call_count": 24,
+        "files_read": 11,
+        "bytes_read": 237778,
+        "wall_time_ms": 61039,
+        "api_latency_ms": 61038,
+        "cost_usd": 0.01470921,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "workflow_name": "Live Trading (Dry-Run or Real Exchange)",
+        "flow": [
+          "1. User runs `freqtrade trade ...` CLI command",
+          "2. freqtrade/main.py::main() parses args via Arguments (freqtrade/commands/arguments.py), dispatches to `args[\\\"func\\\"](args)` → start_trading (freqtrade/commands/trade_commands.py:9)",
+          "3. start_trading() creates `Worker(args)` and calls `worker.run()` (freqtrade/worker.py:31,84)",
+          "4. Worker.__init__() loads config via Configuration, creates `FreqtradeBot(self._config)` (freqtrade/worker.py:43-49)",
+          "5. FreqtradeBot.__init__() (freqtrade/freqtradebot.py:76-165) initializes: exchange (ExchangeResolver), strategy (StrategyResolver), database (init_db), wallets (Wallets), pairlists (PairListManager), dataprovider (DataProvider), RPC (RPCManager), protections (ProtectionManager), sets initial State.STOPPED",
+          "6. worker.run() calls `self._worker()` in a loop. First call gets state=STOPPED, transitions to state from config (e.g. RUNNING), triggers `self.freqtrade.startup()` (worker.py:89-101)",
+          "7. FreqtradeBot.startup() (freqtradebot.py:237-256): runs DB migration, backpopulates precision, reinitializes stoploss, updates open orders, publication fees, liquidation prices",
+          "8. Worker._worker() enters RUNNING state and calls `self._throttle(func=self._process_running, ...)` → `self.freqtrade.process()` (worker.py:117-122)",
+          "9. FreqtradeBot.process() (freqtradebot.py:260-308): THE MAIN ITERATION LOOP",
+          "   a. `self.exchange.reload_markets()` — refresh exchange metadata",
+          "   b. `self.update_trades_without_assigned_fees()` — catch up on fee assignments",
+          "   c. Get open trades from DB: `Trade.get_open_trades()`",
+          "   d. `self._refresh_active_whitelist(trades)` — refresh pairlist, extend with open-trade pairs",
+          "   e. `self.dataprovider.refresh(...)` — download/refresh OHLCV candles for all whitelist + informative pairs",
+          "   f. `self.strategy.analyze(self.active_pair_whitelist)` — run strategy indicator + signal logic per pair (freqtrade/strategy/interface.py:1266-1277)",
+          "      - For each pair: `analyze_pair()` calls `dp.ohlcv()`, then `_analyze_ticker_internal()` → `analyze_ticker()` → `advise_indicators()`, `advise_entry()`, `advise_exit()`",
+          "   g. `self.manage_open_orders()` — check unfilled orders for timeouts or order replacement",
+          "   h. `self.exit_positions(trades)` — check open trades for stoploss/ROI/exit-signal conditions and execute exits",
+          "   i. `self.process_open_trade_positions()` — if position_adjustment_enable, check DCA add/reduce signals",
+          "   j. `self.enter_positions()` — iterate whitelist, call `create_trade(pair)` for each, which calls `strategy.get_entry_signal()` then `self.execute_entry()` to place an order",
+          "   k. `self._schedule.run_pending()` — run daily scheduled tasks (funding fee updates, wallet recording)",
+          "   l. `Trade.commit()` and `self.rpc.process_msg_queue()` send pending RPC messages",
+          "10. Worker._process_running catches TemporaryError (retry) and OperationalException (stop) (worker.py:152-165)",
+          "11. State transitions via RPC (telegram/API): user sends /stop → RPC sets `self.freqtrade.state = State.STOPPED`; /stopbuy → PAUSED; /reload_config → RELOAD_CONFIG (triggers _reconfigure())",
+          "12. On shutdown: worker.exit() → freqtrade.cleanup() cancels open orders, checks open trades, cleans up RPC/exchange/DB"
+        ],
+        "state_transitions": [
+          "STOPPED → RUNNING: Initial config 'initial_state' set to 'running', or user sends /start via RPC (freqtrade/enums/state.py:4-11)",
+          "RUNNING → PAUSED: User sends /stopbuy via RPC; stops new entries, open trades continue being managed (freqtrade/worker.py:105-122 checks state in _worker)",
+          "RUNNING → RELOAD_CONFIG: User triggers /reload_config; worker._reconfigure() cleans up old FreqtradeBot and creates new one (worker.py:175-190)",
+          "RUNNING/PAUSED → STOPPED: User sends /stop or OperationalException caught in _process_running (worker.py:152-165); sets state=STOPPED, stops all trading",
+          "Any state can transition to RELOAD_CONFIG: triggers _reconfigure() which calls freqtrade.cleanup() then _init(reconfig=True) creating a fresh bot instance (worker.py:175-190)"
+        ],
+        "external_boundaries": [
+          "Exchange API (freqtrade/exchange/*.py): `self.exchange.create_order()`, `self.exchange.fetch_order()`, `self.exchange.cancel_order_with_result()`, `self.exchange.get_rate()`, `self.exchange.fetch_l2_order_book()` — all real network I/O to the cryptocurrency exchange via ccxt library",
+          "Database (freqtrade/persistence/*.py via `init_db()`): SQLite/PostgreSQL accessed through `Trade.get_open_trades()`, `Order.get_open_orders()`, `Trade.commit()` for persistent state across restarts",
+          "RPC Notification Channels (freqtrade/rpc/rpc_manager.py:102 & rpc/telegram.py, rpc/discord.py, rpc/webhook.py): Outbound messages to Telegram/Discord/Webhook via `self.rpc.send_msg()`; inbound control commands via Telegram callback handlers or REST API (freqtrade/rpc/api_server/)",
+          "DataProvider / OHLCV data source (freqtrade/data/dataprovider.py): Downloads candle data from exchange; also reads from local cache/disk",
+          "Systemd (worker.py `sdnotify`): Optional watchdog notifications for process health monitoring",
+          "External Message Consumer (freqtrade/rpc/external_message_consumer.py:104): Optional incoming messages from external systems to influence trading decisions (e.g., partner bots)"
+        ],
+        "failure_points": [
+          "Exchange API failures: TemporaryError (rate limits, network blips) → caught in _process_running, retry after RETRY_TIMEOUT (worker.py:152-155). InvalidOrderException (bad order params) → logged and skipped in manage_open_orders (freqtradebot.py:848-855). InsufficientFundsError → handled in execute_trade_exit by handle_insufficient_funds (freqtradebot.py:1000-1004)",
+          "OperationalException during process: Caught by _process_running, sends RPC exception notification, sets state=STOPPED (worker.py:156-165)",
+          "ConfigurationError at startup: Caught in main(), logs error with docs link, exits (main.py:53-55)",
+          "Database errors: Failures in Trade.commit() or init_db() propagate up to Initialization (caught by FreqtradeBot.__init__ cleanup) or during process()",
+          "Unfilled order timeout: Managed in manage_open_orders() via `strategy.ft_check_timed_out()`; cancelled and optionally replaced (freqtradebot.py:826-855, strategy/interface.py check_entry_timeout/check_exit_timeout)",
+          "Stoploss order creation failure: Falls back to emergency_exit() which calls execute_trade_exit with EMERGENCY_EXIT type (freqtradebot.py:780-793, 827-830)",
+          "Max exit-timeout count exceeded: If exit orders keep timing out and `unfilledtimeout.exit_timeout_count` is exceeded, triggers emergency_exit (freqtradebot.py:867-875)",
+          "Insufficient wallet balance on exit: Falls back to handle_insufficient_funds which tries to refind orders on exchange, or handle_onexchange_order (freqtradebot.py:366-440)",
+          "Post-startup FreqAI failure: If freqAI enabled but model loading fails, bot_start propagates error up to __init__ which calls cleanup() (strategy/interface.py:199-200 + freqtradebot.py:165-169)"
+        ],
+        "evidence": [
+          "freqtrade/main.py:31 — main() entry point, dispatches to args['func']",
+          "freqtrade/commands/trade_commands.py:9-31 — start_trading() creates Worker",
+          "freqtrade/commands/arguments.py:307 — Arguments class, _build_subcommands() registers 'trade' subparser with func=start_trading at line 384",
+          "freqtrade/worker.py:31-196 — Worker class: __init__ (line 34), run() loop (line 84), _worker() state machine (line 89), _process_running (line 152)",
+          "freqtrade/freqtradebot.py:60-76 — FreqtradeBot.__init__() initializes all subsystems",
+          "freqtrade/freqtradebot.py:237-256 — startup() post-init tasks",
+          "freqtrade/freqtradebot.py:260-308 — process() main iteration loop",
+          "freqtrade/freqtradebot.py:433-519 — enter_positions() and create_trade()",
+          "freqtrade/freqtradebot.py:558-635 — execute_entry() places entry order on exchange",
+          "freqtrade/freqtradebot.py:665-785 — exit_positions(), handle_trade(), execute_trade_exit()",
+          "freqtrade/freqtradebot.py:826-855 — manage_open_orders() order timeout handling",
+          "freqtrade/strategy/interface.py:1266-1277 — analyze() per-pair strategy analysis",
+          "freqtrade/strategy/interface.py:1347-1398 — get_entry_signal() reads signal columns from analyzed dataframe",
+          "freqtrade/strategy/interface.py:1400-1492 — should_exit() evaluates stoploss, ROI, exit-signal",
+          "freqtrade/rpc/rpc_manager.py:27-103 — RPCManager initialization and send_msg()",
+          "freqtrade/enums/state.py:4-11 — State enum (RUNNING, PAUSED, STOPPED, RELOAD_CONFIG)"
+        ],
+        "summary": "The live trading workflow begins when a user runs `freqtrade trade` from the CLI. main() (freqtrade/main.py) parses the arguments and calls start_trading() (freqtrade/commands/trade_commands.py), which creates a Worker object. The Worker loads configuration, instantiates FreqtradeBot (freqtrade/freqtradebot.py), and enters a throttled infinite loop in Worker.run() (freqtrade/worker.py). Each iteration of the loop checks the bot's State enum (STOPPED/RUNNING/PAUSED/RELOAD_CONFIG), and when RUNNING, calls FreqtradeBot.process() which: (1) refreshes exchange market data, (2) refreshes OHLCV candles via DataProvider, (3) runs the strategy's indicator/signal analysis per pair (IStrategy.analyze_pair → populate_indicators → populate_entry_trend → populate_exit_trend), (4) manages open orders (timeouts, replacements), (5) checks open trades for exit conditions (stoploss, ROI, exit signals), (6) evaluates DCA position adjustments, and (7) looks for new entry signals. Trade executions call exchange.create_order(), and fill updates flow through update_trade_state(). External boundaries are the exchange API (via ccxt), the database (SQLite/PostgreSQL), and RPC notification channels (Telegram/Discord/Webhook/REST API). Failure modes include exchange API errors (retried or caught with state→STOPPED), insufficient funds (recovery via handle_insufficient_funds/handle_onexchange_order), order timeouts (configurable and replaced or emergency-exited), and configuration/initialization errors (graceful cleanup)."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 90324,
+        "p95": 90324
+      },
+      "input_tokens": {
+        "median": 753485,
+        "total": 753485
+      },
+      "output_tokens": {
+        "median": 7527,
+        "total": 7527
+      },
+      "cached_tokens": {
+        "median": 698880,
+        "total": 698880
+      },
+      "reasoning_tokens": {
+        "median": 22,
+        "total": 22
+      },
+      "tool_calls": {
+        "median": 48,
+        "total": 48
+      },
+      "cost_usd": {
+        "median": 0.01953658,
+        "total": 0.01953658
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 61039,
+        "p95": 61039
+      },
+      "input_tokens": {
+        "median": 439021,
+        "total": 439021
+      },
+      "output_tokens": {
+        "median": 4728,
+        "total": 4728
+      },
+      "cached_tokens": {
+        "median": 381568,
+        "total": 381568
+      },
+      "reasoning_tokens": {
+        "median": 24,
+        "total": 24
+      },
+      "tool_calls": {
+        "median": 24,
+        "total": 24
+      },
+      "cost_usd": {
+        "median": 0.01470921,
+        "total": 0.01470921
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "90324ms",
+        "without_caesar": "61039ms",
+        "delta": "48.0%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "753485",
+        "without_caesar": "439021",
+        "delta": "71.6%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "7527",
+        "without_caesar": "4728",
+        "delta": "59.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "48",
+        "without_caesar": "24",
+        "delta": "100.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.019537",
+        "without_caesar": "$0.014709",
+        "delta": "32.8%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /tmp/caesar-bench-repos/freqtrade; CAESAR state remains temporary."
+  ]
+}

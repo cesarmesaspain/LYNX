@@ -1,0 +1,963 @@
+{
+  "config": {
+    "seed": 43,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_safety_change_impact"
+    ],
+    "projectDir": "/tmp/caesar-bench-repos/freqtrade",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_de22bf6fa0d0",
+      "task_id": "external_safety_change_impact",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 43,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "The freqtrade team wants to tighten a safety guard before automated trades are sent. Identify where the change should likely be made, what callers or dependencies may be affected, and what tests or checks should be added before release. Respond with JSON: {\"change_areas\":[\"...\"],\"affected_dependencies\":[\"...\"],\"test_plan\":[\"...\"],\"risks\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_ZbHM5Gvo7DLDzrYkfavz5078",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_r77hUkG5MXifcO6luC6u6276",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"send automated trade order\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_wdDS1vKTReSYvQAK4i2e4419",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"place order execute trade\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_9r7sA7Drdn4zrPPcHrZv2575",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.execute_entry\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_pIfXvRJjmdn1MawKI4NJ9390",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.execute_trade_exit\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_0tPoiM3ES2zJBYfy2FNP1509",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.enter_positions\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wNzuUkF5CZAQf9vD4RtE4135",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.create_trade\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_yCYXfMv23mBPyCLcAyOQ1180",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"def create_order\", \"file_pattern\": \"freqtrade/exchange/*.py\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_TBXjFtLVNYZwnpI4ibxF2784",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot._notify_enter\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_uK7pT9foQlQrGBNEC8Ae2054",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"create_order\", \"label\": \"Method\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_jfJU9sTgBKgDKVw8JuBw3474",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"def create_order\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2qdA2IxA0Iz0RkX0HtPV1236",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.exchange.exchange.Exchange.create_order\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_F4n3Re6ixNNLgBor5VpN1156",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.exchange.exchange.Exchange.create_dry_run_order\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_C9ZRcYrpNna8IWB30c235970",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"strategy_safe_wrapper\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Xs9lJUAN4ei5hb57oIHU2935",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"confirm_trade_entry\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_GAkFttqYVgrFqDjYdSgM2195",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"confirm_trade_exit\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_npWjci9DGooNWD2o8wMm6546",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"strategy_safe_wrapper\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_d6GjlDp9iLmvmnc4R5pF0242",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"confirm_trade_entry\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_cFsQXYDQUxgNRBBhSzDw7147",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"confirm_trade_exit\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2cttz4ynGJrAUGqKSTCy4022",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.strategy.interface.IStrategy.confirm_trade_entry\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_gQiLYUSvIfKwvV5EuQl80881",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.strategy.interface.IStrategy.confirm_trade_exit\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_3R4DDJ93VnVMLSGqlg6w8597",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.strategy.strategy_wrapper.strategy_safe_wrapper\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8ruzks0FgaFBN2FEqDuX5495",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.create_stoploss_order\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_P5rGLi9CVFrtf3uIz3sx2359",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"_notify_enter\", \"label\": \"Method\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_DEi2atCg1i1Z8P2Rm6wO9638",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"freqtrade.freqtradebot.FreqtradeBot.execute_entry\", \"direction\": \"both\", \"depth\": 1}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ftxVkU8l6BptXMqVSX957440",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"_process\", \"label\": \"Method\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_AhfwEMH3P0i1eKUJUV5M2809",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"process_trade_operations\", \"label\": \"Method\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_t1OX5CQg4mCDFPYRfVyo0560",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.process\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_QjgMD2m3QhbQ1gYbvUzh0772",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.process_open_trade_positions\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WkmIF6ucyTBYi9w8JZGp0934",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.check_and_call_adjust_trade_position\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_OjJYgXUrRHDktlMFGfGn5457",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"execute_entry\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_VUEdogoqXHv4VZgG3wJS2674",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"execute_trade_exit\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LrcHpL0iREbUgCCtan1c6964",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"create_stoploss\", \"label\": \"Method\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_4Y4GEnTmPU9leWe0wUoQ8554",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (f:Function {name: 'process'})-[:CALLS]->(callee) RETURN callee.name, callee.file\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_RubWHsgFEDCsEpNEAnTR3766",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.exchange.exchange.Exchange.create_stoploss\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_knKlCj2JTAjlDPb67Mwf6597",
+          "type": "function",
+          "function": {
+            "name": "smart_review",
+            "arguments": "{\"file\": \"freqtrade/freqtradebot.py\", \"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.execute_entry\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_hSF6tAAfhlnAyzWE10IS3917",
+          "type": "function",
+          "function": {
+            "name": "smart_review",
+            "arguments": "{\"file\": \"freqtrade/freqtradebot.py\", \"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.execute_trade_exit\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZJykHU9RkXU6mrnd48f03398",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"force_entry\", \"label\": \"Method\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_uCYl8SsyKxKy7QsgQYlI2969",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"notify_enter\", \"label\": \"Method\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_PGks8dLoAPzARCIsrRD88152",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot._notify_enter\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_pZ8Ee4wm5CThHrs8J2cx6377",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.rpc.api_server.api_trading.force_entry\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_vsELZOjkTkgNNfipDn3R0488",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"_rpc_force_entry\", \"label\": \"Method\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_7hQlmofGEESnNG5UXu3V8628",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"_rpc_force_entry\", \"label\": \"Function\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LA5j0QwNYpqqTiGFc1yS1706",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"def _rpc_force_entry\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JNZ1ongc8k06d67cAZQy2510",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"_rpc_force_entry rpc\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JpcjleRJz155wjBKdYHn1928",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"_rpc_force_entry\", \"file_pattern\": \"*.py\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_XTKiyhlev3fyvXJUq2fB0367",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"freqtrade.rpc.api_server.api_trading.force_entry\", \"direction\": \"outbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_HgsmqY4vqIpm1feJsZ992163",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.exit_positions\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_KYUTiqgkSpcRO5Z9pFx70276",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"freqtrade.freqtradebot.FreqtradeBot.get_valid_enter_price_and_stake\"}"
+          }
+        }
+      ],
+      "response": "I now have a thorough understanding of the entire trade execution pipeline. Here is my analysis:\n\n**Entry flow:** `process()` → `enter_positions()` → `create_trade()` → `execute_entry()` → `exchange.create_order()` (API call)  \n**Position-adjust flow:** `process()` → `process_open_trade_positions()` → `check_and_call_adjust_trade_position()` → `execute_entry(mode=\"pos_adjust\")`  \n**Exit flow:** `process()` → `exit_positions()` → `handle_trade()` → `execute_trade_exit()` → `exchange.create_order()`  \n**Stoploss flow:** `exit_positions()` → `handle_stoploss_on_exchange()` → `create_stoploss_order()` → `exchange.create_stoploss()`\n\nThe critical safety gap: `confirm_trade_entry` (the main user/strategy safety hook) is **only invoked when `mode == \"initial\"`**. DCA entries (`mode=\"pos_adjust\"`) and order replacements (`mode=\"replace\"`) bypass it entirely. Similarly, `confirm_trade_exit` is skipped for partial exits (`sub_trade_amt`). Additionally, `strategy_safe_wrapper` defaults to `default_retval=True`, meaning if the strategy's hook crashes, the trade still goes through — the opposite of fail-safe.\n\n```json\n{\n  \"change_areas\": [\n    \"freqtrade/freqtradebot.py::FreqtradeBot.execute_entry (line 873) — Extend confirm_trade_entry to also guard mode='pos_adjust' and mode='replace' entries, not just 'initial'\",\n    \"freqtrade/freqtradebot.py::FreqtradeBot.execute_trade_exit (line 2068) — Extend confirm_trade_exit to cover partial exits (sub_trade_amt) and reconsider skipping for emergency exits\",\n    \"freqtrade/freqtradebot.py::FreqtradeBot.create_stoploss_order (line 1416) — Add a new strategy confirmation hook (e.g. confirm_stoploss) for stoploss-on-exchange orders, which currently have no user veto\",\n    \"freqtrade/strategy/strategy_wrapper.py::strategy_safe_wrapper (line 31) — Change default_retval from True to False for confirm_trade_entry/confirm_trade_exit, so a crash in the strategy hook safely rejects (fail-closed) rather than letting the trade proceed\",\n    \"freqtrade/exchange/exchange.py::Exchange.create_order (line 1435) — Add last-resort pre-flight validation (e.g. sanity-check order notional value, rate vs current market) before the exchange API call\",\n    \"freqtrade/configuration/config_validation.py — Add mandatory config keys to require explicit opt-in for features that bypass safety (e.g., force_entry_enable must be true for force-entry API endpoints)\"\n  ],\n  \"affected_dependencies\": [\n    \"freqtrade.strategy.interface.IStrategy.confirm_trade_entry — Caller contract must support pos_adjust/replace modes\",\n    \"freqtrade.strategy.interface.IStrategy.confirm_trade_exit — Caller contract must support partial exits\",\n    \"freqtrade.strategy.strategy_wrapper.strategy_safe_wrapper — Default retval change is a behavioral change impacting all ~60 call sites\",\n    \"freqtrade.freqtradebot.FreqtradeBot.check_and_call_adjust_trade_position — Calls execute_entry with mode='pos_adjust'; would need to adjust if confirm_trade_entry signature changes\",\n    \"freqtrade.freqtradebot.FreqtradeBot.handle_replace_order — Calls execute_entry with mode='replace'; same consideration\",\n    \"freqtrade.rpc.api_server.api_trading.force_entry — Force-entry API flows through to execute_entry; may need additional safeguards\",\n    \"tests.freqtradebot.test_freqtradebot (13+ test functions) — All existing execute_entry and execute_trade_exit tests would need updates to match new guard behavior\",\n    \"freqtrade.persistence.trade_model — If stoploss confirmation is added, trade state transitions around stoploss orders could be affected\",\n    \"freqtrade.rpc.rpc — Notification messages for rejected trades would need updating\"\n  ],\n  \"test_plan\": [\n    \"Unit test: confirm_trade_entry is called AND respected for mode='pos_adjust' (DCA entries) — mock strategy returns False, verify no order placed\",\n    \"Unit test: confirm_trade_entry is called AND respected for mode='replace' — mock strategy returns False, verify no order placed\",\n    \"Unit test: confirm_trade_exit is called AND respected for partial exits (sub_trade_amt) — mock strategy returns False, verify no exit order\",\n    \"Unit test: strategy_safe_wrapper with default_retval=False on confirm_trade_entry — simulate exception in hook, verify trade is safely rejected (not placed)\",\n    \"Unit test: strategy_safe_wrapper with default_retval=False on confirm_trade_exit — simulate exception in hook, verify exit is safely rejected\",\n    \"Unit test: new confirm_stoploss hook (if added) — test both True and False returns, and exception handling\",\n    \"Unit test: pre-flight validation in Exchange.create_order — test rejection of orders with implausible rates or zero amounts\",\n    \"Integration test: force_entry API with confirm_trade_entry returning False — verify no order is placed and appropriate error response\",\n    \"Integration test: Full process() loop with confirm_trade_entry returning False — verify trade is logged as rejected and bot continues without error\",\n    \"Regression test: Existing execute_entry tests (test_execute_entry, test_execute_entry_confirm_error, etc.) continue to pass after changes\"\n  ],\n  \"risks\": [\n    \"BREAKING CHANGE: Extending confirm_trade_entry to cover DCA/replace will break custom strategies that don't handle those modes — mitigatable with kwargs forward-compat\",\n    \"BREAKING CHANGE: Changing strategy_safe_wrapper default_retval from True to False could cause trades to be silently rejected if a strategy's confirm method has a bug — must coordinate with a deprecation/transition period\",\n    \"PERFORMANCE: Adding extra exchange API pre-flight checks (fetching current rate, orderbook) in create_order could slow the hot path — use cached/last-known values where possible\",\n    \"LIQUIDATION RISK: Blocking stoploss order placement via a new hook could lead to missed stop-losses and larger-than-expected losses — must ensure the default is True (let the order through)\",\n    \"BACKWARD COMPAT: All existing user strategies that override confirm_trade_entry would see behavior change for DCA entries — document migration path clearly in changelog\",\n    \"TEST FLAKINESS: The execute_entry test suite (205-line method, complexity 36, 40 callers) is already high-risk; changes must be paired with thorough test updates to avoid regressions\"\n  ],\n  \"summary\": \"The most impactful tightening point is extending the existing `confirm_trade_entry` hook in `FreqtradeBot.execute_entry()` to cover DCA position adjustments (`mode='pos_adjust'`) and order replacements (`mode='replace'`), which currently bypass the user/strategy safety veto. A close second is flipping `strategy_safe_wrapper`'s default retval from `True` to `False` for confirmation hooks, so a crash fails closed rather than letting the trade proceed. For exits, `confirm_trade_exit` should similarly cover partial exits. Additionally, a new `confirm_stoploss` callback on `create_stoploss_order()` would close the final unprotected path. All changes should be coordinated with the existing 26+ test functions for execute_entry and execute_trade_exit, and a deprecation cycle may be needed for the default_retval change to avoid silently breaking user strategies.\"\n}\n```",
+      "responseHash": "d4f9b0c5525a2602",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 744380,
+        "output_tokens": 6981,
+        "cached_tokens": 697344,
+        "reasoning_tokens": 301,
+        "tool_call_count": 49,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 87148,
+        "api_latency_ms": 87148,
+        "cost_usd": 0.01830254,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "change_areas": [
+          "freqtrade/freqtradebot.py::FreqtradeBot.execute_entry (line 873) — Extend confirm_trade_entry to also guard mode='pos_adjust' and mode='replace' entries, not just 'initial'",
+          "freqtrade/freqtradebot.py::FreqtradeBot.execute_trade_exit (line 2068) — Extend confirm_trade_exit to cover partial exits (sub_trade_amt) and reconsider skipping for emergency exits",
+          "freqtrade/freqtradebot.py::FreqtradeBot.create_stoploss_order (line 1416) — Add a new strategy confirmation hook (e.g. confirm_stoploss) for stoploss-on-exchange orders, which currently have no user veto",
+          "freqtrade/strategy/strategy_wrapper.py::strategy_safe_wrapper (line 31) — Change default_retval from True to False for confirm_trade_entry/confirm_trade_exit, so a crash in the strategy hook safely rejects (fail-closed) rather than letting the trade proceed",
+          "freqtrade/exchange/exchange.py::Exchange.create_order (line 1435) — Add last-resort pre-flight validation (e.g. sanity-check order notional value, rate vs current market) before the exchange API call",
+          "freqtrade/configuration/config_validation.py — Add mandatory config keys to require explicit opt-in for features that bypass safety (e.g., force_entry_enable must be true for force-entry API endpoints)"
+        ],
+        "affected_dependencies": [
+          "freqtrade.strategy.interface.IStrategy.confirm_trade_entry — Caller contract must support pos_adjust/replace modes",
+          "freqtrade.strategy.interface.IStrategy.confirm_trade_exit — Caller contract must support partial exits",
+          "freqtrade.strategy.strategy_wrapper.strategy_safe_wrapper — Default retval change is a behavioral change impacting all ~60 call sites",
+          "freqtrade.freqtradebot.FreqtradeBot.check_and_call_adjust_trade_position — Calls execute_entry with mode='pos_adjust'; would need to adjust if confirm_trade_entry signature changes",
+          "freqtrade.freqtradebot.FreqtradeBot.handle_replace_order — Calls execute_entry with mode='replace'; same consideration",
+          "freqtrade.rpc.api_server.api_trading.force_entry — Force-entry API flows through to execute_entry; may need additional safeguards",
+          "tests.freqtradebot.test_freqtradebot (13+ test functions) — All existing execute_entry and execute_trade_exit tests would need updates to match new guard behavior",
+          "freqtrade.persistence.trade_model — If stoploss confirmation is added, trade state transitions around stoploss orders could be affected",
+          "freqtrade.rpc.rpc — Notification messages for rejected trades would need updating"
+        ],
+        "test_plan": [
+          "Unit test: confirm_trade_entry is called AND respected for mode='pos_adjust' (DCA entries) — mock strategy returns False, verify no order placed",
+          "Unit test: confirm_trade_entry is called AND respected for mode='replace' — mock strategy returns False, verify no order placed",
+          "Unit test: confirm_trade_exit is called AND respected for partial exits (sub_trade_amt) — mock strategy returns False, verify no exit order",
+          "Unit test: strategy_safe_wrapper with default_retval=False on confirm_trade_entry — simulate exception in hook, verify trade is safely rejected (not placed)",
+          "Unit test: strategy_safe_wrapper with default_retval=False on confirm_trade_exit — simulate exception in hook, verify exit is safely rejected",
+          "Unit test: new confirm_stoploss hook (if added) — test both True and False returns, and exception handling",
+          "Unit test: pre-flight validation in Exchange.create_order — test rejection of orders with implausible rates or zero amounts",
+          "Integration test: force_entry API with confirm_trade_entry returning False — verify no order is placed and appropriate error response",
+          "Integration test: Full process() loop with confirm_trade_entry returning False — verify trade is logged as rejected and bot continues without error",
+          "Regression test: Existing execute_entry tests (test_execute_entry, test_execute_entry_confirm_error, etc.) continue to pass after changes"
+        ],
+        "risks": [
+          "BREAKING CHANGE: Extending confirm_trade_entry to cover DCA/replace will break custom strategies that don't handle those modes — mitigatable with kwargs forward-compat",
+          "BREAKING CHANGE: Changing strategy_safe_wrapper default_retval from True to False could cause trades to be silently rejected if a strategy's confirm method has a bug — must coordinate with a deprecation/transition period",
+          "PERFORMANCE: Adding extra exchange API pre-flight checks (fetching current rate, orderbook) in create_order could slow the hot path — use cached/last-known values where possible",
+          "LIQUIDATION RISK: Blocking stoploss order placement via a new hook could lead to missed stop-losses and larger-than-expected losses — must ensure the default is True (let the order through)",
+          "BACKWARD COMPAT: All existing user strategies that override confirm_trade_entry would see behavior change for DCA entries — document migration path clearly in changelog",
+          "TEST FLAKINESS: The execute_entry test suite (205-line method, complexity 36, 40 callers) is already high-risk; changes must be paired with thorough test updates to avoid regressions"
+        ],
+        "summary": "The most impactful tightening point is extending the existing `confirm_trade_entry` hook in `FreqtradeBot.execute_entry()` to cover DCA position adjustments (`mode='pos_adjust'`) and order replacements (`mode='replace'`), which currently bypass the user/strategy safety veto. A close second is flipping `strategy_safe_wrapper`'s default retval from `True` to `False` for confirmation hooks, so a crash fails closed rather than letting the trade proceed. For exits, `confirm_trade_exit` should similarly cover partial exits. Additionally, a new `confirm_stoploss` callback on `create_stoploss_order()` would close the final unprotected path. All changes should be coordinated with the existing 26+ test functions for execute_entry and execute_trade_exit, and a deprecation cycle may be needed for the default_retval change to avoid silently breaking user strategies."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_d946cb9a3694",
+      "task_id": "external_safety_change_impact",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 43,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "The freqtrade team wants to tighten a safety guard before automated trades are sent. Identify where the change should likely be made, what callers or dependencies may be affected, and what tests or checks should be added before release. Respond with JSON: {\"change_areas\":[\"...\"],\"affected_dependencies\":[\"...\"],\"test_plan\":[\"...\"],\"risks\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_79MMbes3MTT6gnfjptg96031",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_weXAPMjDFLj0pusnErKO3742",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"trading_mode|exchange.*trade|place_order|create_trade|execute_trade\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dyXMAGWtkSTJ1Suj5BeG6447",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def place_order|def create_order|def buy|def sell|def trade\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_RzwA8KSqX6vHJkXV5MPC0647",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*\", \"pattern\": \"freqtrade|trading|order|trade\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ggAfMRjwGHYNQvjxVbFL4914",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \".\", \"include\": \"*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zXuS1KqgMmTAFt87OHKR8290",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"README.md\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wgPqtSjYR5GSOehwHcgM8901",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def create_trade|def execute_entry|def exit_enter|dry_run|place_order|def create_order|def handle_trade\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YEqOeBpZIuAtsn7C8MYT2539",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def create_trade|def execute_entry|def exit_enter|def place_order|def create_order|def handle_trade|def open_trade|def close_trade\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_HwPByOZnivV7wJlcbD6Y8193",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"import\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_DpzdMDyJTyWNZF9IIbA38111",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/freqtrade/freqtradebot.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_y9MoU11Czww8Vd9SXK312741",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"freqtradebot.py\", \"pattern\": \"def create|def execute|def handle|def place|def _order|def send\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LgyACm265E2I3aDGMABZ4194",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"freqtrade/freqtrade/freqtradebot.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_gehTfyM5VuhRwzJW4rFL2198",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"freqtradebot.py\", \"include\": \"*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_3zZKNqUX0aR1Ci0OOoOi7810",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"class FreqtradeBot\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ed21lvrJ8uBvubkAcSfY0669",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/freqtradebot.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_laxgUJt2de62hwW4a28w3282",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"exchange.py\", \"pattern\": \"def create_order\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ET_bvQav7fh0jypZ44rbS2J6527",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/exchange/exchange.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZkCA8cKLg0fsgwB9aiw81014",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/freqtrade/wallets.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8fXKT57muUwkLJC0Xukl2598",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def test_execute_entry|def test_create_trade|def test_create_order|def test_get_trade_stake|def test_validate_stake\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LoDkruuUV2qKk0W4RCWY3014",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def test_execute_entry|def test_create_trade|def test.*stake_amount|def test.*validate_stake\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UaEDIIDFWGFkiBUNpmCn8690",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"test_freqtradebot.py\", \"pattern\": \"def test_\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xTSswD38clrjl55wFcul2435",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-bench-repos/freqtrade/tests/freqtradebot/test_freqtradebot.py\", \"offset\": 812, \"limit\": 250}"
+          }
+        }
+      ],
+      "response": "Now I have comprehensive understanding of the codebase. Here is the analysis:\n\n```json\n{\n  \"change_areas\": [\n    \"freqtrade/freqtrade/freqtradebot.py — `execute_entry()` method (line ~568): The final safety gate before orders hit the exchange. Currently validates price/stake via `get_valid_enter_price_and_stake()` and calls `strategy.confirm_trade_entry()`, but has no hard-coded global max-position-size check, no max-drawdown gate that blocks entry if cumulative losses exceed a threshold, and no check that the bot is in RUNNING state just before `self.exchange.create_order()`.\",\n    \"freqtrade/freqtrade/freqtradebot.py — `execute_trade_exit()` method (line ~970): Similar gap — no final safety verification that the exit is still sensible moments before the exchange API call, no guard against placing an exit order that would result in a negative balance after fees.\",\n    \"freqtrade/freqtrade/exchange/exchange.py — `create_order()` method (line ~1435): The low-level order submission. While it catches `InsufficientFundsError` and `InvalidOrderException`, it lacks a final validation hook that could reject an order whose amount or notional value exceeds configured safety bounds (e.g., max_slippage, max_order_size, max_position_size).\",\n    \"freqtrade/freqtrade/wallets.py — `get_trade_stake_amount()` and `_check_available_stake_amount()`: The `UNLIMITED_STAKE_AMOUNT` path can expose the entire available balance per trade. A safety cap (e.g., max_stake_amount_per_trade as a fraction of total capital) is missing.\",\n    \"freqtrade/freqtrade/freqtradebot.py — `create_trade()` method (line ~334): Uses `get_free_open_trades()` and `strategy.is_pair_locked()` but has no pre-entry check of cumulative real-time P&L or recent failure rate before allowing a new trade.\"\n  ],\n  \"affected_dependencies\": [\n    \"freqtrade/freqtrade/freqtradebot.py (FreqtradeBot class) — `create_trade`, `execute_entry`, `execute_trade_exit`, `enter_positions`, `exit_positions` — the entire trade lifecycle.\",\n    \"freqtrade/freqtrade/exchange/exchange.py (Exchange class) — `create_order`, `create_stoploss`, `create_dry_run_order` — the actual order-sending layer.\",\n    \"freqtrade/freqtrade/wallets.py (Wallets class) — `get_trade_stake_amount`, `validate_stake_amount`, `_check_available_stake_amount` — stake calculation and validation.\",\n    \"freqtrade/freqtrade/rpc/rpc.py and rpc/telegram.py — RPC commands like `/forceentry`, `/forceexit` bypass the normal signal-based flow and call `execute_entry`/`execute_trade_exit` directly, so any new guard must apply to RPC-triggered paths as well.\",\n    \"freqtrade/freqtrade/plugins/protectionmanager.py and plugins/protections/* — existing protection framework (StoplossGuard, CooldownPeriod, MaxDrawdown) is evaluated before `create_trade` but not rechecked immediately before `exchange.create_order`.\",\n    \"freqtrade/freqtrade/strategy/interface.py (IStrategy) — `confirm_trade_entry`/`confirm_trade_exit` callbacks are consumed by `execute_entry`/`execute_trade_exit`; these are existing injection points for user-defined checks.\"\n  ],\n  \"test_plan\": [\n    \"Add a unit test `test_execute_entry_safety_gate()` that simulates extreme market conditions (e.g., stake_amount exceeding config-defined max_order_size) and asserts the order is rejected before `exchange.create_order` is called.\",\n    \"Add a unit test `test_execute_entry_max_drawdown_blocked()` that sets cumulative realized P&L below a config threshold and verifies that `execute_entry` returns False without placing an order.\",\n    \"Add a unit test `test_execute_trade_exit_negative_balance_guard()` that verifies an exit order is blocked if the resulting balance after fees would be negative.\",\n    \"Add an integration test `test_full_entry_pipeline_safety()` that mocks the entire flow (signal → create_trade → execute_entry → exchange.create_order) and verifies all safety gates fire in the correct order, including that the RUNNING state check happens immediately before the API call.\",\n    \"Add a test for RPC-triggered entry (`/forceentry`/API endpoint) ensuring the same safety gates (max-drawdown, max-order-size) apply as for signal-based entries.\",\n    \"Extend `test_get_trade_stake_amount` with a case where `UNLIMITED_STAKE_AMOUNT` is used together with `max_stake_amount_per_trade` to confirm the cap is applied.\",\n    \"Add a concurrency test that asserts `_exit_lock` is held when `exchange.create_order` is called, preventing race conditions between entry and exit flows.\"\n  ],\n  \"risks\": [\n    \"Introducing overly conservative gates could block legitimate trades, reducing strategy profitability. Any new guard must be configurable or have sensible defaults (e.g., max_order_size=inf by default, equivalent to no change).\",\n    \"Additional validation before `exchange.create_order` adds latency to the hot path. The check must be O(1) (e.g., simple comparisons) and not introduce I/O (no additional exchange calls) to avoid delaying order placement and missing market windows.\",\n    \"RPC-triggered entry/exit may bypass intended strategy-level checks. If a new safety gate is added only in `create_trade`, the RPC paths (`_rpc_force_entry` etc.) that call `execute_entry` directly must be updated too, or users can bypass the guard via the API/Telegram.\",\n    \"The `_exit_lock` is used inconsistently: `enter_positions` acquires it, but `execute_entry` does not recheck it. If a global safety check (e.g., max-drawdown) is added without proper locking, concurrent exit and entry could race and violate the constraint.\"\n  ],\n  \"summary\": \"Tighten the safety guard for automated trades by inserting a configurable validation layer in `FreqtradeBot.execute_entry()` and `execute_trade_exit()` immediately before the `exchange.create_order()` call. This layer should enforce (a) a hard max-order-size cap (as a fraction or absolute amount), (b) a cumulative max-drawdown threshold that blocks further entries when breached, and (c) a verification that the bot's state is still RUNNING. The guard must also apply to RPC-triggered entry/exit paths and be properly synchronized with `_exit_lock`. Document these new configuration options and update the existing test suite with dedicated unit and integration tests that verify each constraint is enforced and that no false positives block legitimate trades under normal conditions.\"\n}\n```",
+      "responseHash": "0eeb90c6858fd559",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 2517949,
+        "output_tokens": 4911,
+        "cached_tokens": 2241408,
+        "reasoning_tokens": 668,
+        "tool_call_count": 22,
+        "files_read": 6,
+        "bytes_read": 532010,
+        "wall_time_ms": 88760,
+        "api_latency_ms": 88760,
+        "cost_usd": 0.07147053,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "change_areas": [
+          "freqtrade/freqtrade/freqtradebot.py — `execute_entry()` method (line ~568): The final safety gate before orders hit the exchange. Currently validates price/stake via `get_valid_enter_price_and_stake()` and calls `strategy.confirm_trade_entry()`, but has no hard-coded global max-position-size check, no max-drawdown gate that blocks entry if cumulative losses exceed a threshold, and no check that the bot is in RUNNING state just before `self.exchange.create_order()`.",
+          "freqtrade/freqtrade/freqtradebot.py — `execute_trade_exit()` method (line ~970): Similar gap — no final safety verification that the exit is still sensible moments before the exchange API call, no guard against placing an exit order that would result in a negative balance after fees.",
+          "freqtrade/freqtrade/exchange/exchange.py — `create_order()` method (line ~1435): The low-level order submission. While it catches `InsufficientFundsError` and `InvalidOrderException`, it lacks a final validation hook that could reject an order whose amount or notional value exceeds configured safety bounds (e.g., max_slippage, max_order_size, max_position_size).",
+          "freqtrade/freqtrade/wallets.py — `get_trade_stake_amount()` and `_check_available_stake_amount()`: The `UNLIMITED_STAKE_AMOUNT` path can expose the entire available balance per trade. A safety cap (e.g., max_stake_amount_per_trade as a fraction of total capital) is missing.",
+          "freqtrade/freqtrade/freqtradebot.py — `create_trade()` method (line ~334): Uses `get_free_open_trades()` and `strategy.is_pair_locked()` but has no pre-entry check of cumulative real-time P&L or recent failure rate before allowing a new trade."
+        ],
+        "affected_dependencies": [
+          "freqtrade/freqtrade/freqtradebot.py (FreqtradeBot class) — `create_trade`, `execute_entry`, `execute_trade_exit`, `enter_positions`, `exit_positions` — the entire trade lifecycle.",
+          "freqtrade/freqtrade/exchange/exchange.py (Exchange class) — `create_order`, `create_stoploss`, `create_dry_run_order` — the actual order-sending layer.",
+          "freqtrade/freqtrade/wallets.py (Wallets class) — `get_trade_stake_amount`, `validate_stake_amount`, `_check_available_stake_amount` — stake calculation and validation.",
+          "freqtrade/freqtrade/rpc/rpc.py and rpc/telegram.py — RPC commands like `/forceentry`, `/forceexit` bypass the normal signal-based flow and call `execute_entry`/`execute_trade_exit` directly, so any new guard must apply to RPC-triggered paths as well.",
+          "freqtrade/freqtrade/plugins/protectionmanager.py and plugins/protections/* — existing protection framework (StoplossGuard, CooldownPeriod, MaxDrawdown) is evaluated before `create_trade` but not rechecked immediately before `exchange.create_order`.",
+          "freqtrade/freqtrade/strategy/interface.py (IStrategy) — `confirm_trade_entry`/`confirm_trade_exit` callbacks are consumed by `execute_entry`/`execute_trade_exit`; these are existing injection points for user-defined checks."
+        ],
+        "test_plan": [
+          "Add a unit test `test_execute_entry_safety_gate()` that simulates extreme market conditions (e.g., stake_amount exceeding config-defined max_order_size) and asserts the order is rejected before `exchange.create_order` is called.",
+          "Add a unit test `test_execute_entry_max_drawdown_blocked()` that sets cumulative realized P&L below a config threshold and verifies that `execute_entry` returns False without placing an order.",
+          "Add a unit test `test_execute_trade_exit_negative_balance_guard()` that verifies an exit order is blocked if the resulting balance after fees would be negative.",
+          "Add an integration test `test_full_entry_pipeline_safety()` that mocks the entire flow (signal → create_trade → execute_entry → exchange.create_order) and verifies all safety gates fire in the correct order, including that the RUNNING state check happens immediately before the API call.",
+          "Add a test for RPC-triggered entry (`/forceentry`/API endpoint) ensuring the same safety gates (max-drawdown, max-order-size) apply as for signal-based entries.",
+          "Extend `test_get_trade_stake_amount` with a case where `UNLIMITED_STAKE_AMOUNT` is used together with `max_stake_amount_per_trade` to confirm the cap is applied.",
+          "Add a concurrency test that asserts `_exit_lock` is held when `exchange.create_order` is called, preventing race conditions between entry and exit flows."
+        ],
+        "risks": [
+          "Introducing overly conservative gates could block legitimate trades, reducing strategy profitability. Any new guard must be configurable or have sensible defaults (e.g., max_order_size=inf by default, equivalent to no change).",
+          "Additional validation before `exchange.create_order` adds latency to the hot path. The check must be O(1) (e.g., simple comparisons) and not introduce I/O (no additional exchange calls) to avoid delaying order placement and missing market windows.",
+          "RPC-triggered entry/exit may bypass intended strategy-level checks. If a new safety gate is added only in `create_trade`, the RPC paths (`_rpc_force_entry` etc.) that call `execute_entry` directly must be updated too, or users can bypass the guard via the API/Telegram.",
+          "The `_exit_lock` is used inconsistently: `enter_positions` acquires it, but `execute_entry` does not recheck it. If a global safety check (e.g., max-drawdown) is added without proper locking, concurrent exit and entry could race and violate the constraint."
+        ],
+        "summary": "Tighten the safety guard for automated trades by inserting a configurable validation layer in `FreqtradeBot.execute_entry()` and `execute_trade_exit()` immediately before the `exchange.create_order()` call. This layer should enforce (a) a hard max-order-size cap (as a fraction or absolute amount), (b) a cumulative max-drawdown threshold that blocks further entries when breached, and (c) a verification that the bot's state is still RUNNING. The guard must also apply to RPC-triggered entry/exit paths and be properly synchronized with `_exit_lock`. Document these new configuration options and update the existing test suite with dedicated unit and integration tests that verify each constraint is enforced and that no false positives block legitimate trades under normal conditions."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 87148,
+        "p95": 87148
+      },
+      "input_tokens": {
+        "median": 744380,
+        "total": 744380
+      },
+      "output_tokens": {
+        "median": 6981,
+        "total": 6981
+      },
+      "cached_tokens": {
+        "median": 697344,
+        "total": 697344
+      },
+      "reasoning_tokens": {
+        "median": 301,
+        "total": 301
+      },
+      "tool_calls": {
+        "median": 49,
+        "total": 49
+      },
+      "cost_usd": {
+        "median": 0.01830254,
+        "total": 0.01830254
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 88760,
+        "p95": 88760
+      },
+      "input_tokens": {
+        "median": 2517949,
+        "total": 2517949
+      },
+      "output_tokens": {
+        "median": 4911,
+        "total": 4911
+      },
+      "cached_tokens": {
+        "median": 2241408,
+        "total": 2241408
+      },
+      "reasoning_tokens": {
+        "median": 668,
+        "total": 668
+      },
+      "tool_calls": {
+        "median": 22,
+        "total": 22
+      },
+      "cost_usd": {
+        "median": 0.07147053,
+        "total": 0.07147053
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "87148ms",
+        "without_caesar": "88760ms",
+        "delta": "-1.8%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "744380",
+        "without_caesar": "2517949",
+        "delta": "-70.4%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "6981",
+        "without_caesar": "4911",
+        "delta": "42.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "49",
+        "without_caesar": "22",
+        "delta": "122.7%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.018303",
+        "without_caesar": "$0.071471",
+        "delta": "-74.4%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /tmp/caesar-bench-repos/freqtrade; CAESAR state remains temporary."
+  ]
+}

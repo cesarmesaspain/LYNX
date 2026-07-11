@@ -1,0 +1,35 @@
+{
+  "generated": "2026-07-11T11:31:56.755Z",
+  "project": "fastify",
+  "seed": 17,
+  "model": "llama-3.3-70b-versatile",
+  "tier": "screening",
+  "tasks": [
+    {
+      "task_id": "external_dead_code",
+      "lynx": {
+        "response": "Error: Error: API 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kx8erw5eetbv0c27w93sepes` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 7801",
+        "wall_ms": 1124,
+        "tool_calls": 0,
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: Error: API 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kx8erw5eetbv0c27w93sepes` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 7801"
+        ],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "Error: Error: API 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kx8erw5eetbv0c27w93sepes` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 1123",
+        "wall_ms": 6263,
+        "tool_calls": 0,
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: Error: API 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kx8erw5eetbv0c27w93sepes` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 1123"
+        ]
+      }
+    }
+  ]
+}

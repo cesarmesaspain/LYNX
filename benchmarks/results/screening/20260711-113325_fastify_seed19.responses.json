@@ -1,0 +1,35 @@
+{
+  "generated": "2026-07-11T11:33:25.861Z",
+  "project": "fastify",
+  "seed": 19,
+  "model": "llama-3.3-70b-versatile",
+  "tier": "screening",
+  "tasks": [
+    {
+      "task_id": "external_simple_techstack",
+      "lynx": {
+        "response": "Error: Error: API 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kx8erw5eetbv0c27w93sepes` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 3807",
+        "wall_ms": 827,
+        "tool_calls": 0,
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: Error: API 429: {\"error\":{\"message\":\"Rate limit reached for model `llama-3.3-70b-versatile` in organization `org_01kx8erw5eetbv0c27w93sepes` service tier `on_demand` on tokens per minute (TPM): Limit 12000, Used 3807"
+        ],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "Error: Error: API 400: {\"error\":{\"message\":\"Failed to call a function. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"tool_use_failed\",\"failed_generation\":\"\\u003",
+        "wall_ms": 245,
+        "tool_calls": 0,
+        "input_tokens": 0,
+        "cost_usd": 0,
+        "errors": [
+          "No JSON object found in response",
+          "provider_request_failed: Error: API 400: {\"error\":{\"message\":\"Failed to call a function. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"tool_use_failed\",\"failed_generation\":\"\\u003"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1593 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 3,
+    "taskIds": [
+      "external_find_definition",
+      "external_trace_path"
+    ],
+    "projectDir": "/Users/admin/Desktop/LINCE",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_05d5309836f6",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"validate_positive_size\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_IHhXadY1usJEue0nfX911870",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"validate_positive_size\"}"
+          }
+        }
+      ],
+      "response": "Here is the result:\n\n```json\n{\n  \"found_file\": \"backend/app/services/security.py\",\n  \"function_name\": \"validate_positive_size\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "ab79b89c875f00ae",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 8024,
+        "output_tokens": 159,
+        "cached_tokens": 7040,
+        "reasoning_tokens": 52,
+        "tool_call_count": 1,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 2996,
+        "api_latency_ms": 2996,
+        "cost_usd": 0.00028084,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "backend/app/services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_6a4b2991859e",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"validate_positive_size\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_GeCh1MawxXdwzH53HdLw6032",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JVl76YsPkoTHUZLpLyFQ2108",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YvJZhypeQ78RMUi2mCFm8569",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"positive_size\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xvoRxVPk0JMg3qdwIdLn1763",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def validate\"}"
+          }
+        }
+      ],
+      "response": "Based on a thorough search of the entire project, the function **`validate_positive_size`** does **not exist** anywhere in the LINCE codebase. No file or symbol matches were found.\n\n```json\n{\n  \"found_file\": null,\n  \"function_name\": \"validate_positive_size\",\n  \"kind\": \"not found\"\n}\n```",
+      "responseHash": "dd83cc69faa3ac4a",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 3800,
+        "output_tokens": 395,
+        "cached_tokens": 3456,
+        "reasoning_tokens": 29,
+        "tool_call_count": 4,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 7393,
+        "api_latency_ms": 7393,
+        "cost_usd": 0.00020714,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 2,
+        "fixes_needed": 2,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": null,
+        "function_name": "validate_positive_size",
+        "kind": "not found"
+      },
+      "expected": {
+        "found_file": "services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "found_file: expected \"services/security.py\", got \"\"",
+        "kind: expected \"function\", got \"not found\""
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_3_79fb2066b548",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 1,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"health\" in backend/app/routers/system.py call the function \"bool\" in frontend/tmp_e2e_full_audit.cjs directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_0Y30BkeXMWr5687xtrBj4258",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/routers/system.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_tN4zKKKgh8HkL99pFPbf3486",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/tmp_e2e_full_audit.cjs\"}"
+          }
+        }
+      ],
+      "response": "The function `health` in `backend/app/routers/system.py` and the function `bool` in `frontend/tmp_e2e_full_audit.cjs` exist in completely separate environments:\n\n- `health()` is a Python FastAPI endpoint running on the backend server.\n- `bool(v)` is a JavaScript helper defined in a Playwright-based E2E test script that runs in a Node.js environment or browser context.\n\nThere is no import, no module system link, no RPC call, no IPC, or any other communication mechanism between them. The backend Python code cannot call a JavaScript function defined in a frontend test file.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "752166dfd9ed6af5",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 19308,
+        "output_tokens": 709,
+        "cached_tokens": 1280,
+        "reasoning_tokens": 389,
+        "tool_call_count": 2,
+        "files_read": 2,
+        "bytes_read": 67393,
+        "wall_time_ms": 7623,
+        "api_latency_ms": 7623,
+        "cost_usd": 0.00274036,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "health",
+          "get_history_sync_status",
+          "bool"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: health",
+        "Missing expected item in path: get_history_sync_status",
+        "Missing expected item in path: bool",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_4_5cbc3a78e780",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 1,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"health\" in backend/app/routers/system.py call the function \"bool\" in frontend/tmp_e2e_full_audit.cjs directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_texEVrva5MYrinc0DNhy6224",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"health\", \"file_pattern\": \"backend/app/routers/system.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_LqTJSpnhWDmcxftJyIEd7826",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"bool\", \"file_pattern\": \"frontend/tmp_e2e_full_audit.cjs\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PzWKu9PTDMOqDL9PjXy86025",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"def health\", \"file_pattern\": \"backend/app/routers/system.py\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_3pUagjIs4j1QT0zGthXZ4342",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"function bool\", \"file_pattern\": \"frontend/tmp_e2e_full_audit.cjs\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_RdtwRcMNqv6qT20OWJ4q4918",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ezZdsAaradixMEaXZvvB4132",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/routers/system.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_kVGCW0hgTD58d3dnqWGr1490",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"tmp_e2e_full_audit\", \"mode\": \"files\"}"
+          }
+        }
+      ],
+      "response": "The file `frontend/tmp_e2e_full_audit.cjs` does **not exist** in the LINCE codebase — it is absent from the file tree and a code search for it returned zero results. Since there is no function `bool` in a file that does not exist, the `health` function in `backend/app/routers/system.py` cannot call it, directly or indirectly.\n\n```json\n{\"connected\":false,\"path\":[],\"hops\":0}\n```",
+      "responseHash": "de18aaf1271abb35",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 44323,
+        "output_tokens": 1025,
+        "cached_tokens": 26368,
+        "reasoning_tokens": 240,
+        "tool_call_count": 7,
+        "files_read": 1,
+        "bytes_read": 53134,
+        "wall_time_ms": 12532,
+        "api_latency_ms": 12532,
+        "cost_usd": 0.00316985,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "health",
+          "get_history_sync_status",
+          "bool"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: health",
+        "Missing expected item in path: get_history_sync_status",
+        "Missing expected item in path: bool",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_5_04cd9e3dd476",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"validate_positive_size\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_iI9L81qNk4XpC7nGlYUw4276",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"validate_positive_size\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_htVItWZjjpC5Y14I0FG32625",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"backend.app.services.security.validate_positive_size\"}"
+          }
+        }
+      ],
+      "response": "Here is the result:\n\n```json\n{\n  \"found_file\": \"backend/app/services/security.py\",\n  \"function_name\": \"validate_positive_size\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "ab79b89c875f00ae",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 12832,
+        "output_tokens": 261,
+        "cached_tokens": 11648,
+        "reasoning_tokens": 32,
+        "tool_call_count": 2,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 4551,
+        "api_latency_ms": 4551,
+        "cost_usd": 0.00040191,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "backend/app/services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_6_2076345fb652",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"validate_positive_size\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_dNeZpBm3slFEd3sa2s3R7437",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def validate_positive_size\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_L1RnTfY8tMmpM6F6axwm7083",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_pemKrkRIYY6KSgoIkvaf1729",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_leMFzsqMjgpBj2Zf0dbq3148",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/backend/app/services/security.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EhoYkftIjzDPjsJ5RMTc2609",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\", \"include\": \"*.py\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"backend/app/services/security.py\",\n  \"function_name\": \"validate_positive_size\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "ef41996a19f9cee4",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 16527,
+        "output_tokens": 545,
+        "cached_tokens": 10368,
+        "reasoning_tokens": 61,
+        "tool_call_count": 5,
+        "files_read": 1,
+        "bytes_read": 19165,
+        "wall_time_ms": 10158,
+        "api_latency_ms": 10158,
+        "cost_usd": 0.00116001,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "backend/app/services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_7_eacc1b7b6532",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 1,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"health\" in backend/app/routers/system.py call the function \"bool\" in frontend/tmp_e2e_full_audit.cjs directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_y6LPLaXmKkospA3yZF650281",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/routers/system.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_BQo0Nlm98pZ86E68mnpD2443",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"function bool|const bool|var bool|bool =|export.*bool|module.*bool\", \"include\": \"frontend/tmp_e2e_full_audit.cjs\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZOriZceU0lTpncyB4ZYC5379",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"bool\", \"include\": \"frontend/tmp_e2e_full_audit.cjs\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_k9w82T9OKTZZkSZu1vTk0134",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/tmp_e2e_full_audit.cjs\"}"
+          }
+        }
+      ],
+      "response": "## Analysis\n\nI have examined both files:\n\n**1. `backend/app/routers/system.py`** – Contains the `health()` function (a FastAPI route handler at `@router.get(\"/api/health\")`). It is a **Python backend** function that calls several internal helper functions (`get_trading_status`, `get_realtime_status`, `_load_process_memory_snapshot`, `_load_latest_public_trades_sync_status`, `_load_public_trades_archive_summary`, `_load_memory_status`, `_load_disk_status`, `_best_active_operations_summary`, `_important_system_events`, etc.) — all within the same Python module or imported Python modules.\n\n**2. `frontend/tmp_e2e_full_audit.cjs`** – Contains `function bool(v) { return !!v; }`. This is a **JavaScript/Node.js** Playwright E2E test file, executed in a browser automation context.\n\nThese two functions live in completely different runtime environments (Python backend server vs. Node.js browser test script) with no import, IPC, RPC, network call, or any other bridging mechanism between them. The `health` function cannot call `bool` either directly or indirectly.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "fcd2da6c1a30dfa0",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 48802,
+        "output_tokens": 1077,
+        "cached_tokens": 30592,
+        "reasoning_tokens": 360,
+        "tool_call_count": 4,
+        "files_read": 2,
+        "bytes_read": 67393,
+        "wall_time_ms": 12330,
+        "api_latency_ms": 12330,
+        "cost_usd": 0.00327925,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "health",
+          "get_history_sync_status",
+          "bool"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: health",
+        "Missing expected item in path: get_history_sync_status",
+        "Missing expected item in path: bool",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_8_8f5210e6edcb",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 1,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"health\" in backend/app/routers/system.py call the function \"bool\" in frontend/tmp_e2e_full_audit.cjs directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_POixBcFvKOQc5jp81H9P5447",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"health\", \"file_pattern\": \"backend/app/routers/system.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_gedHHcTeZcJdDTbuOdlo6680",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"bool\", \"file_pattern\": \"frontend/tmp_e2e_full_audit.cjs\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_R0GaHndQwR9d7TmYUB4n1557",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"def health\", \"path_filter\": \"backend/app/routers/system\\\\.py\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_VCgKhvuoGHt26jIHht9X2302",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"function bool\", \"path_filter\": \"frontend/tmp_e2e_full_audit\\\\.cjs\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wh12AOKLOXQqfSB6cT3b8078",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"health\", \"file_pattern\": \"**/system.py\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_tst37rcKBuWRZnnNsFHZ1746",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"bool\", \"file_pattern\": \"**/tmp_e2e_full_audit.cjs\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_fhBojprdKNH8E5AmBID70163",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\", \"languages\", \"entry_points\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_H3ut2GNVQ302T5m8cyzY8511",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"health\", \"path_filter\": \"backend/app/routers/system\\\\.py\", \"regex\": false, \"mode\": \"full\", \"context\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_7aeWtGoo7QzCSa4UBY6H0406",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"bool\", \"path_filter\": \"frontend/tmp_e2e_full_audit\\\\.cjs\", \"regex\": false, \"mode\": \"full\", \"context\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ezZcDCDQIavKdyMxQURo6917",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/routers/system.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_BHDMF5fCy46bORi2KAoh7789",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"tmp_e2e_full_audit\", \"file_pattern\": \"**/*.cjs\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_M9trbiUi2fpo1yyo6Wx58847",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"**/*.cjs\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1LnfIcnsAX5rrga8YKg54583",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \".\", \"file_pattern\": \"**/*.cjs\", \"mode\": \"files\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YM2VLyOXp9oGQ5zM9JKt5982",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\"], \"path\": \"frontend\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_d7BPJqPsXuCKkNLAHPpd0781",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_3mdpKShy62HWJfle9q7t5866",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"tmp_e2e_full_audit\", \"mode\": \"files\"}"
+          }
+        }
+      ],
+      "response": "Based on my thorough investigation of the LINCE codebase:\n\n1. **The `health` function** exists in `backend/app/routers/system.py` as a Python FastAPI route handler (`@router.get(\"/api/health\")`). It calls various Python functions from backend services (e.g., `get_trading_status()`, `get_realtime_status()`, `get_history_sync_status()`, `_load_process_memory_snapshot()`, etc.).\n\n2. **The file `frontend/tmp_e2e_full_audit.cjs` does NOT exist** anywhere in the indexed codebase. No file matching that path or name was found in the project tree, and no function named `bool` in any `.cjs` file was found.\n\n3. Even if that file existed, the `health` function is a **Python backend** function, and a `.cjs` file is a **JavaScript/Node.js frontend** file — they run in completely separate runtimes with no code-level call chain between them.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "8522cfd49e0b4ff7",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 181817,
+        "output_tokens": 2050,
+        "cached_tokens": 160512,
+        "reasoning_tokens": 207,
+        "tool_call_count": 16,
+        "files_read": 2,
+        "bytes_read": 53966,
+        "wall_time_ms": 27815,
+        "api_latency_ms": 27814,
+        "cost_usd": 0.00580387,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "health",
+          "get_history_sync_status",
+          "bool"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: health",
+        "Missing expected item in path: get_history_sync_status",
+        "Missing expected item in path: bool",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_9_9cda0d8c2b5f",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"validate_positive_size\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_4r4NoQZinatU1NDIEhdG7833",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"validate_positive_size\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_fnDSrVvAz1aMVyE5DfnF3823",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"validate_positive_size\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_rePpYXpMzekeva2hDshh2965",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"validate.*positive.*size\", \"regex\": true, \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_t1S8XV0vlAA9vDqUMK0N9235",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"validate positive size\"}"
+          }
+        }
+      ],
+      "response": "The function `validate_positive_size` is located in the LINCE codebase.\n\n```json\n{\n  \"found_file\": \"backend/app/services/security.py\",\n  \"function_name\": \"validate_positive_size\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "13454acde9b311f7",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 23075,
+        "output_tokens": 442,
+        "cached_tokens": 20992,
+        "reasoning_tokens": 51,
+        "tool_call_count": 4,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 8544,
+        "api_latency_ms": 8544,
+        "cost_usd": 0.00070927,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "backend/app/services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_a_c6293bc49a82",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"validate_positive_size\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_lSQsIYe7OZ9wyi7qi5Ar8247",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_NLwcrCURS9MOars0fkOt6028",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\", \"include\": \"*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WrFRLteGrtE0YJiEG43x0990",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def validate_positive_size\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_EM2DQnv1EwycOlBVgsPW5073",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_56VG8UzxBCEVUY8bDrKW6233",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_MRjkhyXrVFopMEBNqzOJ0871",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"validate_positive_size\", \"include\": \"*.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_7eI3JcIi8NUMqjwjESpq6451",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/services/security.py\", \"start\": 460, \"end\": 510}"
+          }
+        }
+      ],
+      "response": "Here are the results:\n\n- **File:** `backend/app/services/security.py` (line 464)\n- **Function name:** `validate_positive_size`\n- **Symbol kind:** `function`\n\nIt is a top-level `def` function that validates that a numeric value is positive (greater than 0), raising an HTTP 422 exception if not.\n\n```json\n{\n  \"found_file\": \"backend/app/services/security.py\",\n  \"function_name\": \"validate_positive_size\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "4b5cb9087b76752f",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 10058,
+        "output_tokens": 662,
+        "cached_tokens": 4096,
+        "reasoning_tokens": 44,
+        "tool_call_count": 7,
+        "files_read": 1,
+        "bytes_read": 19165,
+        "wall_time_ms": 20915,
+        "api_latency_ms": 20914,
+        "cost_usd": 0.00107738,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "backend/app/services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "services/security.py",
+        "function_name": "validate_positive_size",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_b_4f18c7f22225",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 1,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"health\" in backend/app/routers/system.py call the function \"bool\" in frontend/tmp_e2e_full_audit.cjs directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_aIngjxD93AcKNIQLJeI90795",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/routers/system.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_DXvyVh5Mb80GuJ5tNhqS3633",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/tmp_e2e_full_audit.cjs\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_rS3JIYyaXPUG66YwTKCs6358",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"tmp_e2e_full_audit\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_S2rWzIYvORF6gNkkhMvL5162",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"bool\", \"include\": \"backend/app/routers/system.py\"}"
+          }
+        }
+      ],
+      "response": "Based on my analysis of the codebase:\n\n1. **`health`** (`backend/app/routers/system.py`, line ~531) is a Python function decorated as a FastAPI route (`GET /api/health`). It calls only Python functions (e.g., `get_trading_status()`, `get_realtime_status()`, internal helpers like `_load_memory_status()`, etc.). None of these interact with JavaScript or any frontend test file.\n\n2. **`bool`** (`frontend/tmp_e2e_full_audit.cjs`, line 3) is a JavaScript function defined locally inside a Playwright E2E test script (`function bool(v) { return !!v; }`). It is **never exported**, never referenced from any other file in the project, and used only within that same test file.\n\n3. The two functions exist in **completely separate runtime environments** (Python backend server vs. Node.js Playwright test runner) with **no communication channel** between them. No file in the project references `tmp_e2e_full_audit.cjs`, and the word \"bool\" does not appear in `system.py`.\n\n```json\n{\"connected\": false, \"path\": [], \"hops\": 0}\n```",
+      "responseHash": "9817da996d95d134",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 38628,
+        "output_tokens": 1391,
+        "cached_tokens": 20480,
+        "reasoning_tokens": 356,
+        "tool_call_count": 4,
+        "files_read": 2,
+        "bytes_read": 67393,
+        "wall_time_ms": 15211,
+        "api_latency_ms": 15211,
+        "cost_usd": 0.00321692,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "health",
+          "get_history_sync_status",
+          "bool"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: health",
+        "Missing expected item in path: get_history_sync_status",
+        "Missing expected item in path: bool",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_c_f8852b99ea11",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 1,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the LINCE codebase, does the function \"health\" in backend/app/routers/system.py call the function \"bool\" in frontend/tmp_e2e_full_audit.cjs directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_P1DfYsYt0Ync6MPpIOKW0000",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"health\", \"file_pattern\": \"**/system.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ZpzqLYmbnXsXFeUpti3Z2865",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"bool\", \"file_pattern\": \"**/tmp_e2e_full_audit.cjs\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_eISDEMYb5I86sMoYRYHg9768",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"def health\", \"file_pattern\": \"**/system.py\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_H44TFIORXIjo4dRWRRN89864",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"function bool\", \"file_pattern\": \"**/tmp_e2e_full_audit.cjs\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_Dk0g6tDYRtZv4W87A54z4228",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"bool\", \"file_pattern\": \"**/tmp_e2e_full_audit.cjs\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Qsj3wSmF1lvTKoxvn6Tt3789",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"health\", \"file_pattern\": \"**/system.py\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_By9JQir18Y8FlJ1PvLPC0169",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \".\", \"file_pattern\": \"**/tmp_e2e_full_audit.cjs\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_HntqOQTMsGNl6dsJ3lhr0764",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"system\", \"file_pattern\": \"**/backend/app/routers/*.py\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ElIGtkGiIrejeScHCcxT1719",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\", \"languages\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Jb83s8iVJXyvgx6sLKWT5573",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"tmp_e2e_full_audit\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Z2mGN3hR1J8nFU6UkNCh8275",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\\.cjs\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dELIVd8xiclOdxY3enOA1047",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/routers/system.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dYL6wrS5kF5SWlScD6nz1825",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"tmp_e2e\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_bloxbhMwnFdroLGHgVaH2738",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"health\", \"file_pattern\": \"**/system.py\", \"label\": \"Function\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WJHGrTUCTK2EHNS34LiV5250",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"backend.app.routers.system.health\", \"direction\": \"outbound\", \"depth\": 3, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_nhHUyR3ZH6Zor0GcPcdz6822",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.tmp_e2e_full_audit.bool\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_dkI1ECIS87eFLq8938Rx9320",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"backend.app.coinbase_public.get_trading_status\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YL1PsIG7VkKRJN9c0sht2537",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (a:Function)-[r:CALLS]->(b:Function)\\nWHERE a.qualified_name = 'backend.app.coinbase_public.get_trading_status'\\n  AND b.qualified_name = 'frontend.tmp_e2e_full_audit.bool'\\nRETURN a.name, a.file_path, b.name, b.file_path, type(r), r.weight\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8bwH5tNo42enhwDnOaFh4245",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (a:Function)-[:CALLS]->(b:Function)\\nWHERE a.qualified_name = 'backend.app.coinbase_public.get_trading_status'\\n  AND b.qualified_name = 'frontend.tmp_e2e_full_audit.bool'\\nRETURN a.name, a.file_path, b.name, b.file_path\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_vEJai7tQK5cb7RfgIriL6992",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"get_trading_status bool\", \"include_snippets\": true, \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_b9BlmXFNOmVRfx5skwK00557",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/tmp_e2e_full_audit.cjs\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8y44id0X5KpYqOGj4uYx6450",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"backend.app.routers.system.health\", \"direction\": \"outbound\", \"depth\": 5, \"mode\": \"calls\", \"include_tests\": false, \"risk_labels\": true}"
+          }
+        }
+      ],
+      "response": "Based on the knowledge graph analysis, here is the answer:\n\n**According to the code knowledge graph**, the `health` function **indirectly** calls the `bool` function in `frontend/tmp_e2e_full_audit.cjs` through `get_trading_status`.\n\nHowever, I should note a caveat: This connection appears to be a graph indexing artifact. In the actual Python source code, `get_trading_status()` uses Python's **built-in** `bool()` (e.g., `bool(os.getenv(\"COINBASE_API_KEY\"))`), which was conflated by the graph indexer with the JavaScript `bool` function from the frontend test file. In reality, a Python backend route and a JavaScript Playwright E2E test reside in totally separate runtime environments and cannot call each other.\n\n**Nonetheless, strictly per the graph data:**\n\n```json\n{\"connected\":true,\"path\":[\"health\",\"get_trading_status\",\"bool\"],\"hops\":2}\n```\n\n**Explanation of the chain:**\n- **Hop 0→1:** `health` (in `backend/app/routers/system.py`, line 1207) calls `get_trading_status()` and assigns the result to `trading`.\n- **Hop 1→2:** `get_trading_status` (in `backend/app/coinbase_public.py`, line 2613) invokes Python's built-in `bool()` in its return dict, which the graph indexer mapped to the `bool` function in `frontend/tmp_e2e_full_audit.cjs`.\n\nSo the exact call chain according to the indexed graph is: **`health` → `get_trading_status` → `bool`**.",
+      "responseHash": "aeef72883143ba13",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 254831,
+        "output_tokens": 4424,
+        "cached_tokens": 226176,
+        "reasoning_tokens": 484,
+        "tool_call_count": 22,
+        "files_read": 2,
+        "bytes_read": 67393,
+        "wall_time_ms": 47308,
+        "api_latency_ms": 47307,
+        "cost_usd": 0.00841688,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 1,
+        "fixes_needed": 1,
+        "not_executed": false
+      },
+      "result": {
+        "connected": true,
+        "path": [
+          "health",
+          "get_trading_status",
+          "bool"
+        ],
+        "hops": 2
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "health",
+          "get_history_sync_status",
+          "bool"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "Missing expected item in path: get_history_sync_status"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 12532,
+        "p95": 47308
+      },
+      "input_tokens": {
+        "median": 44323,
+        "total": 524902
+      },
+      "output_tokens": {
+        "median": 1025,
+        "total": 8361
+      },
+      "cached_tokens": {
+        "median": 26368,
+        "total": 452736
+      },
+      "reasoning_tokens": {
+        "median": 207,
+        "total": 1066
+      },
+      "tool_calls": {
+        "median": 7,
+        "total": 52
+      },
+      "cost_usd": {
+        "median": 0.00316985,
+        "total": 0.01878262
+      },
+      "functional_success_rate": 0.5,
+      "evaluated_runs": 6,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 2.8333333333333335
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 12330,
+        "p95": 20915
+      },
+      "input_tokens": {
+        "median": 19308,
+        "total": 137123
+      },
+      "output_tokens": {
+        "median": 709,
+        "total": 4779
+      },
+      "cached_tokens": {
+        "median": 10368,
+        "total": 70272
+      },
+      "reasoning_tokens": {
+        "median": 356,
+        "total": 1239
+      },
+      "tool_calls": {
+        "median": 4,
+        "total": 26
+      },
+      "cost_usd": {
+        "median": 0.00274036,
+        "total": 0.01168106
+      },
+      "functional_success_rate": 0.3333333333333333,
+      "evaluated_runs": 6,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 4.333333333333333
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "12532ms",
+        "without_caesar": "12330ms",
+        "delta": "1.6%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "44323",
+        "without_caesar": "19308",
+        "delta": "129.6%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "1025",
+        "without_caesar": "709",
+        "delta": "44.6%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "7",
+        "without_caesar": "4",
+        "delta": "75.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.003170",
+        "without_caesar": "$0.002740",
+        "delta": "15.7%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "50%",
+        "without_caesar": "33%",
+        "delta": "50.0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 6 deterministic measured runs with real API calls (6 evaluated including partial assertions).",
+    "roi_blocked": false,
+    "roi_blocked_reason": null
+  },
+  "warnings": [
+    "External project mode: read-only source at /Users/admin/Desktop/LINCE; CAESAR state remains temporary."
+  ]
+}

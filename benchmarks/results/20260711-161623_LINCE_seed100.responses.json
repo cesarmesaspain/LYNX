@@ -1,0 +1,37 @@
+{
+  "generated": "2026-07-11T16:16:23.002Z",
+  "project": "LINCE",
+  "seed": 100,
+  "model": "deepseek-v4-flash",
+  "tier": "official",
+  "tasks": [
+    {
+      "task_id": "external_find_definition",
+      "lynx": {
+        "response": "{\"found_file\":\"frontend/src/App.tsx\",\"function_name\":\"formatWalletAmount\",\"kind\":\"function\"}",
+        "wall_ms": 5919,
+        "tool_calls": 3,
+        "tool_call_summary": {
+          "get_code_snippet": 2,
+          "search_graph": 1
+        },
+        "input_tokens": 16253,
+        "cost_usd": 0.00044103,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "The function is defined in `App.tsx` at line 1430. It's a standalone **function** declared with the `function` keyword.\n\n```json\n{\n  \"found_file\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\",\n  \"function_name\": \"formatWalletAmount\",\n  \"kind\": \"function\"\n}\n```",
+        "wall_ms": 6599,
+        "tool_calls": 3,
+        "tool_call_summary": {
+          "grep": 2,
+          "read_file": 1
+        },
+        "input_tokens": 22446,
+        "cost_usd": 0.00286961,
+        "errors": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,644 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 3,
+    "taskIds": [
+      "external_find_definition"
+    ],
+    "projectDir": "/Users/admin/Desktop/WORKMAT",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_0994ca0cfbf3",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"finalizeDeploy\" is defined in the WORKMAT codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_QKcOjXMQsDwCfMhHtWBt5825",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"finalizeDeploy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_mQI4A0iz3xDn175DH7xC6311",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.deployState.finalizeDeploy\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"src/lib/deployState.ts\",\n  \"function_name\": \"finalizeDeploy\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "53c5ae3925e8be56",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 11645,
+        "output_tokens": 220,
+        "cached_tokens": 10880,
+        "reasoning_tokens": 42,
+        "tool_call_count": 2,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 4813,
+        "api_latency_ms": 4813,
+        "cost_usd": 0.00032102,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_e1e47b178343",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"finalizeDeploy\" is defined in the WORKMAT codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_G7bG2sQ359YnYPC0ssfj0767",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"finalizeDeploy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lnSJZQ4tePKDfE7EEcf82890",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/deployState.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on the search results, I found the definition.\n\n**File:** `src/lib/deployState.ts`  \n**Definition at line 119:**  \n\n```ts\nexport async function finalizeDeploy(success: boolean): Promise<void> {\n```\n\nIt is an **exported async function**.\n\n```json\n{\n  \"found_file\": \"src/lib/deployState.ts\",\n  \"function_name\": \"finalizeDeploy\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "971517521ae52389",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 3852,
+        "output_tokens": 308,
+        "cached_tokens": 2048,
+        "reasoning_tokens": 59,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 4892,
+        "wall_time_ms": 6467,
+        "api_latency_ms": 6467,
+        "cost_usd": 0.00036747,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 3,
+        "fixes_needed": 3,
+        "not_executed": false
+      },
+      "result": {},
+      "expected": {
+        "found_file": "lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "Could not parse JSON from response"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_3_2e5729765d74",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"finalizeDeploy\" is defined in the WORKMAT codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_d0kqUqUEI2o6NRuSJntf7746",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"finalizeDeploy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_XMPzKpLvnRw8NxKa5fEa0889",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.deployState.finalizeDeploy\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"src/lib/deployState.ts\",\n  \"function_name\": \"finalizeDeploy\",\n  \"kind\": \"Function\"\n}\n```",
+      "responseHash": "ace08011dd84d3be",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 11665,
+        "output_tokens": 236,
+        "cached_tokens": 11008,
+        "reasoning_tokens": 37,
+        "tool_call_count": 2,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 5220,
+        "api_latency_ms": 5220,
+        "cost_usd": 0.00031217,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 1,
+        "fixes_needed": 1,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "Function"
+      },
+      "expected": {
+        "found_file": "lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "kind: expected \"function\", got \"Function\""
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_4_1e1bba07d245",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"finalizeDeploy\" is defined in the WORKMAT codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_2O3obOZa1zhYqOAOEeum9352",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"finalizeDeploy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JORswrhKBFQuWnPDnio74877",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/WORKMAT/src/lib/deployState.ts\", \"start_line\": 115, \"end_line\": 125}"
+          }
+        }
+      ],
+      "response": "The function `finalizeDeploy` is defined in the file `src/lib/deployState.ts`. It is an exported async function.\n\n```json\n{\n  \"found_file\": \"src/lib/deployState.ts\",\n  \"function_name\": \"finalizeDeploy\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "79d5a396c9a72fd3",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 3899,
+        "output_tokens": 297,
+        "cached_tokens": 2432,
+        "reasoning_tokens": 33,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 4892,
+        "wall_time_ms": 6167,
+        "api_latency_ms": 6166,
+        "cost_usd": 0.00032259,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_5_69c5861b0c2c",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"finalizeDeploy\" is defined in the WORKMAT codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_HJQO7EFUxU3XxpVAzVN48060",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"finalizeDeploy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_j4iGeiOgqmsiBH6mwrPR3269",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"finalizeDeploy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GmOo6EXc67sjPf65Qfjo0410",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"finalize.deploy\", \"regex\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_RameOSTdDuCDlAW1RJtb2787",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"finalizeDeploy function\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_4gAnb9nubvuFO8ANTshi3261",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.deployState.finalizeDeploy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bnN85AwkOFBaGkGFU92j6006",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"lib.deployState.finalizeDeploy\", \"direction\": \"inbound\", \"depth\": 1}"
+          }
+        }
+      ],
+      "response": "Here are the findings:\n\n```json\n{\n  \"found_file\": \"src/lib/deployState.ts\",\n  \"function_name\": \"finalizeDeploy\",\n  \"kind\": \"function\"\n}\n```\n\n**Details:** The function `finalizeDeploy` is an **exported async function** defined at line 119 in `src/lib/deployState.ts`. It takes a `success: boolean` parameter, updates the deploy status (marks `running` as `false`, sets `finishedAt`, and optionally sets progress to 100), writes the status, and forwards it if a bridge is enabled. It is called by 3 callers: `POST` (in `app/api/deploy/ingest/route.ts`), `POST` (in `app/api/deploy/route.ts`), and `runDeploy` (in `lib/deploy.ts`).",
+      "responseHash": "536bdfd0d7f19da5",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 30888,
+        "output_tokens": 707,
+        "cached_tokens": 27904,
+        "reasoning_tokens": 69,
+        "tool_call_count": 6,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 11566,
+        "api_latency_ms": 11566,
+        "cost_usd": 0.00100638,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_6_3dfdaa3803aa",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"finalizeDeploy\" is defined in the WORKMAT codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_a8nUkDKQVcKymISnI52g4167",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"finalizeDeploy\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zuI2llpIP0yEF7hcNuwm7716",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/WORKMAT/src/lib/deployState.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wv7VW3kmEiQuUdKijZ558492",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/WORKMAT/src/lib/deployState.ts\", \"startLine\": 119, \"endLine\": 127}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"src/lib/deployState.ts\",\n  \"function_name\": \"finalizeDeploy\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "53c5ae3925e8be56",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 7655,
+        "output_tokens": 360,
+        "cached_tokens": 4736,
+        "reasoning_tokens": 57,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 9784,
+        "wall_time_ms": 7083,
+        "api_latency_ms": 7083,
+        "cost_usd": 0.00057576,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "lib/deployState.ts",
+        "function_name": "finalizeDeploy",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 5220,
+        "p95": 11566
+      },
+      "input_tokens": {
+        "median": 11665,
+        "total": 54198
+      },
+      "output_tokens": {
+        "median": 236,
+        "total": 1163
+      },
+      "cached_tokens": {
+        "median": 11008,
+        "total": 49792
+      },
+      "reasoning_tokens": {
+        "median": 42,
+        "total": 148
+      },
+      "tool_calls": {
+        "median": 2,
+        "total": 10
+      },
+      "cost_usd": {
+        "median": 0.00032102,
+        "total": 0.0016395700000000001
+      },
+      "functional_success_rate": 0.6666666666666666,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0.3333333333333333
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 6467,
+        "p95": 7083
+      },
+      "input_tokens": {
+        "median": 3899,
+        "total": 15406
+      },
+      "output_tokens": {
+        "median": 308,
+        "total": 965
+      },
+      "cached_tokens": {
+        "median": 2432,
+        "total": 9216
+      },
+      "reasoning_tokens": {
+        "median": 57,
+        "total": 149
+      },
+      "tool_calls": {
+        "median": 2,
+        "total": 7
+      },
+      "cost_usd": {
+        "median": 0.00036747,
+        "total": 0.00126582
+      },
+      "functional_success_rate": 0.6666666666666666,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 1
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "5220ms",
+        "without_caesar": "6467ms",
+        "delta": "-19.3%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "11665",
+        "without_caesar": "3899",
+        "delta": "199.2%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "236",
+        "without_caesar": "308",
+        "delta": "-23.4%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "2",
+        "without_caesar": "2",
+        "delta": "0.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.000321",
+        "without_caesar": "$0.000367",
+        "delta": "-12.6%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "67%",
+        "without_caesar": "67%",
+        "delta": "0.0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 3 deterministic measured runs with real API calls (3 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (3 runs). Need at least 6."
+  },
+  "warnings": [
+    "External project mode: read-only source at /Users/admin/Desktop/WORKMAT; CAESAR state remains temporary."
+  ]
+}

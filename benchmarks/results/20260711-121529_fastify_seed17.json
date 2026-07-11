@@ -1,0 +1,811 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 17,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When graph tools are available, locate symbols with graph search and inspect them with focused snippets. Do not use read_file to re-read a whole source file merely to inspect a symbol already located by the graph; reserve it for configuration, non-code content, or genuinely necessary file-wide context.\n- Stop investigating once the requested claims have direct evidence. Do not repeat a search, trace, or file read that has already established the same fact.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_generic_flow"
+    ],
+    "projectDir": "/tmp/caesar-corpus/fastify",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_6e4a5726c07d",
+      "task_id": "external_generic_flow",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 17,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When graph tools are available, locate symbols with graph search and inspect them with focused snippets. Do not use read_file to re-read a whole source file merely to inspect a symbol already located by the graph; reserve it for configuration, non-code content, or genuinely necessary file-wide context.\n- Stop investigating once the requested claims have direct evidence. Do not repeat a search, trace, or file read that has already established the same fact.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Identify one representative user-facing workflow in fastify and trace it end to end through the code. Do not assume which tools to use. Explain the initiating action, control flow, state transitions, external boundaries, and failure points, citing concrete files and symbols. Respond with JSON: {\"workflow_name\":\"...\",\"flow\":[\"...\"],\"state_transitions\":[\"...\"],\"external_boundaries\":[\"...\"],\"failure_points\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_MQORRWEJQuEJINavAKZj5906",
+          "type": "function",
+          "function": {
+            "name": "pack_context",
+            "arguments": "{\"task\": \"Identify a representative user-facing workflow in fastify and trace it end to end through the code. I need to understand the architecture, entry points, and key flows.\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2h3XGA09Ui1Z4HzC6CIz5223",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"hotspots\", \"clusters\", \"file_tree\", \"entry_points\", \"narrative\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OsrOCvG4gCRpM4eYWZ4i2006",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.route.route\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_kl5fR0tp2h2h2TzUF5rb1796",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.handle-request\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_WilBdvfj4SH1EnptkK8C8104",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.server.listen\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_CrVSfugRzCUdyHTDeca71566",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"httpHandler\", \"file_pattern\": \"lib/**\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_EehNogXdDag9Z34YI5eP2731",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.route.routeHandler\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YWRU62Tzx7ZVvZworlNZ1440",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"runPreParsing\", \"file_pattern\": \"lib/**\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_1aZYxOlhV08rCeDKsKHf5786",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"onRequestHookRunner\", \"file_pattern\": \"lib/**\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_ksiTaOydmeEGJCL4V3MW5037",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"preHandlerCallback\", \"file_pattern\": \"lib/**\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0zTQZqSqO3kSmMTDXmDk3289",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.route.runPreParsing\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_EaXelKyK9L5x7MvF7uaE4824",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.hooks.onRequestHookRunner\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_TTqBeaLAluhvJIBXrNsH0557",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"lib/handle-request.js\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_oSrijzR2NpXSYlwXmEBm1989",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"lib/hooks.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Dr3Hcr9grbBD6A46lQKL1700",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"send\", \"file_pattern\": \"lib/reply.js\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_EIAtJlDJovqyD7pGspyQ7737",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.reply.send\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_BqQkLESm39KxPANDfA6f6121",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"Reply.prototype.send\", \"file_pattern\": \"lib/reply.js\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_c685UBq2AwsDQSVpcTRa3829",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"setupResponseListeners\", \"file_pattern\": \"lib/**\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_068am0yy6RlwJmKJTbhc6462",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"lib/reply.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_fnhDPMliCZjZVYzb7h1I1411",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.error-handler.handleError\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_CSMCCZ9fvhBzhOkXWdvo0730",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"httpHandler\", \"file_pattern\": \"lib/server.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Mucadtn1pfjhOUfr9n7g9425",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"lib/server.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_468tthgrqeNnl7nPwtrN8798",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"routeHandler\", \"file_pattern\": \"fastify.js\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_if2NLXRETd6do1nDYRPJ9801",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"clientErrorHandler\", \"file_pattern\": \"fastify.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZsaPOwGHtGgrrTUubj2S4586",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"routeHandler\", \"file_pattern\": \"fastify.js\", \"context\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_O60OreKtRR8OiH2dvjop9795",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"createServer\", \"file_pattern\": \"fastify.js\", \"context\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_msOUTEHVbBI6t9sstgfH9212",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"fastify.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kAPyX2lIN2TOmk2mKgCr8896",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"routing\", \"file_pattern\": \"lib/route.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LLg3PTUBkyUuP1yxxfp13654",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.route.buildRouting\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_TZEkwRq4CsGRnvCB6K3H9447",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.four-oh-four\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xeGty2oRIjqKE5TOSHky3751",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"fastify.wrapRouting\", \"include_neighbors\": true}"
+          }
+        }
+      ],
+      "response": "I now have comprehensive evidence to trace the full lifecycle. Here is the complete answer:\n\n```json\n{\n  \"workflow_name\": \"HTTP Request Lifecycle (Route matched → handler → response)\",\n  \"flow\": [\n    \"1. Client sends HTTP request → Node.js http.Server emits 'request' event → calls preRouting(req, res)\",\n    \"2. preRouting (fastify.js:wrapRouting, line 795-812) runs optional rewriteUrl, then calls router.routing(req, res) which is find-my-way's router.lookup\",\n    \"3. router.lookup (find-my-way) matches method+URL against registered routes. On match: calls routeHandler(req, res, params, context, query); on no-match: calls defaultRoute (fastify.js line 537-546) → fourOhFour.router.lookup → 404\",\n    \"4. routeHandler (lib/route.js, line 457-583) creates Request object via new context.Request(), Reply object via new context.Reply(), generates request ID, creates child logger, logs incoming request, sets up response listeners (setupResponseListeners in lib/reply.js line 953-995), sets up handler timeout if configured, tracks keep-alive sockets for graceful shutdown\",\n    \"5. routeHandler begins lifecycle: calls onRequestHookRunner (lib/hooks.js) if context.onRequest !== null, else directly calls runPreParsing (lib/route.js line 644-659)\",\n    \"6. runPreParsing: runs preParsingHookRunner (lib/hooks.js) if context.preParsing !== null, allowing user hooks to modify the request payload stream, then calls handleRequest (lib/handle-request.js line 21-72)\",\n    \"7. handleRequest: determines if method is bodyless (GET/HEAD/TRACE) or has body. For bodyless: calls handler() immediately. For methods with body: checks Content-Type header, runs content-type parser (request[kRouteContext].contentTypeParser.run()), then calls handler()\",\n    \"8. handler (lib/handle-request.js line 26-33): runs preValidationHookRunner (lib/hooks.js) if context.preValidation !== null, then calls preValidationCallback\",\n    \"9. preValidationCallback (lib/handle-request.js line 35-54): calls validateSchema() for schema validation of headers/params/querystring/body, then calls validationCompleted\",\n    \"10. validationCompleted (lib/handle-request.js line 56-68): If validation error and attachValidation is false → reply.send(validationErr). Otherwise runs preHandlerHookRunner (lib/hooks.js) if context.preHandler !== null, else calls preHandlerCallback\",\n    \"11. preHandlerCallback (lib/handle-request.js line 134-154) → preHandlerCallbackInner (line 156-199): executes context.handler(request, reply). If handler returns a thenable → wrapThenable. If handler returns non-undefined value → reply.send(result). If handler throws → reply[kReplyIsError]=true, reply.send(err)\",\n    \"12. Reply.prototype.send (lib/reply.js line 150-233): determines payload type. If Error → onErrorHook. If undefined → onSendHook. If stream/Response/Buffer/string → onSendHook. If object → preSerializationHook → serialization → onSendHook\",\n    \"13. preSerializationHook (lib/reply.js line 544-549): runs preSerializationHookRunner. Serializes payload via reply serializer or JSON.stringify or schema serializer, then calls onSendHook\",\n    \"14. onSendHook (lib/reply.js line 551-563): runs onSendHookRunner. User onSend hooks can modify payload, then calls wrapOnSendEnd → onSendEnd\",\n    \"15. onSendEnd (lib/reply.js line 585-691): writes status code + headers via safeWriteHead, then sends payload: string/Buffer via res.end(), streams via payload.pipe(res), web streams via sendWebStream. Handles trailers via sendTrailer/sendStreamTrailer\",\n    \"16. Response finishes → setupResponseListeners callback fires (lib/reply.js line 953-995): records end time, cleans up timeout/signal resources, runs onResponseHookRunner if context.onResponse !== null, then logs request completion via requestCompleted\"\n  ],\n  \"state_transitions\": [\n    \"NOT_STARTED → STARTED: fastify() called, Avvio boot initializes plugins, routes registered via router.on()\",\n    \"STARTED → LISTENING: .listen() called, Node.js server starts accepting connections, onListen hooks run\",\n    \"LISTENING → REQUEST_RECEIVED: Incoming HTTP request, Node.js emits 'request' event, preRouting callback invoked\",\n    \"REQUEST_RECEIVED → ROUTING: wrapRouting (fastify.js:795) calls router.routing() (find-my-way lookup)\",\n    \"ROUTING → LOAD_SHEDDING (if closing): Server is closing → 503 Service Unavailable returned immediately (lib/route.js:476-487)\",\n    \"ROUTING → REQUEST_READY: Route matched, routeHandler creates Request object, Reply object, child logger (lib/route.js:457-583)\",\n    \"REQUEST_READY → ON_REQUEST_HOOKS: context.onRequest hooks run via onRequestHookRunner (lib/hooks.js:276)\",\n    \"ON_REQUEST_HOOKS → PRE_PARSING_HOOKS: runPreParsing (lib/route.js:644-659) runs preParsingHookRunner, allows payload stream modification\",\n    \"PRE_PARSING_HOOKS → BODY_PARSING: handleRequest (lib/handle-request.js:21-72) determines bodyless vs body-with methods, runs contentTypeParser.run() for body parsing\",\n    \"BODY_PARSING → PRE_VALIDATION_HOOKS: handler() (lib/handle-request.js:26-33) runs preValidationHookRunner\",\n    \"PRE_VALIDATION_HOOKS → VALIDATION: preValidationCallback (lib/handle-request.js:35-54) calls validateSchema() for schema validation of headers/params/querystring/body\",\n    \"VALIDATION → PRE_HANDLER_HOOKS: validationCompleted (lib/handle-request.js:56-68) runs preHandlerHookRunner if context.preHandler !== null\",\n    \"PRE_HANDLER_HOOKS → HANDLER_EXECUTION: preHandlerCallbackInner (lib/handle-request.js:156-199) executes context.handler(request, reply)\",\n    \"HANDLER_EXECUTION → PRE_SERIALIZATION_HOOKS: reply.send(payload) (lib/reply.js:150-233) routes to preSerializationHook for object payloads\",\n    \"PRE_SERIALIZATION_HOOKS → SERIALIZATION: preSerializationHookEnd (lib/reply.js:571-591) serializes payload via reply serializer or JSON.stringify or schema-compiled serializer\",\n    \"SERIALIZATION → ON_SEND_HOOKS: onSendHook (lib/reply.js:551-563) runs onSendHookRunner, allows user hooks to modify final payload\",\n    \"ON_SEND_HOOKS → WRITE_RESPONSE: onSendEnd (lib/reply.js:585-691) writes headers via safeWriteHead, then writes payload body (stream, Buffer, or string) to Node.js response\",\n    \"WRITE_RESPONSE → ON_RESPONSE_HOOKS: Response 'finish' event fires, setupResponseListeners callback runs onResponseHookRunner (lib/reply.js:953-995)\",\n    \"ON_RESPONSE_HOOKS → COMPLETED: onResponseCallback logs request completed via requestCompleted (lib/reply.js:997-999)\"\n  ],\n  \"external_boundaries\": [\n    \"Node.js http.Server / https.Server / http2.Server — receives raw TCP connections, emits 'request' event on each HTTP request (lib/server.js:getServerInstance)\",\n    \"find-my-way router — 3rd-party radix-tree router that matches HTTP method+URL to route handlers. Exposed via buildRouting (lib/route.js:77) as router.lookup.bind(router)\",\n    \"Content-Type parsers (lib/content-type-parser.js) — pluggable system for parsing request bodies based on Content-Type header, triggered in handleRequest (lib/handle-request.js)\",\n    \"Ajv schema validator — compiled via SchemaController (lib/schema-controller.js) for request validation (headers, params, querystring, body) and response serialization\",\n    \"Pino logger (lib/logger-factory.js, lib/logger-pino.js) — all internal and request logging goes through Pino. Child loggers created per-request in routeHandler (lib/route.js:457-583)\",\n    \"diagnostics_channel (Node.js built-in) — fastify.request.handler tracing channel used in preHandlerCallbackInner (lib/handle-request.js:156-199) for async request diagnostics\",\n    \"light-my-request (for inject, fastify.js) — fake HTTP injection library used in testing and the .inject() method\",\n    \"avvio — plugin boot system that orchestrates plugin registration, encapsulation, and the ready/close lifecycle (fastify.js imports Avvio)\",\n    \"node:stream / node:stream/web — used in sendStream/sendWebStream (lib/reply.js) for piping stream and web-stream payloads to the HTTP response\"\n  ],\n  \"failure_points\": [\n    \"Invalid URL → onBadUrl (fastify.js:549-580) returns 400 'FST_ERR_BAD_URL' or calls frameworkErrors callback\",\n    \"Max param length exceeded → onMaxParamLength (fastify.js:582-613) returns 414 or calls frameworkErrors callback\",\n    \"No matching route → defaultRoute (fastify.js:537-546) → fourOhFour.router.lookup → basic404 handler (lib/four-oh-four.js:52-60) returns 404 JSON\",\n    \"Unrecognized Content-Type → handleRequest (lib/handle-request.js:21-72) returns 415 (FST_ERR_CTP_INVALID_MEDIA_TYPE)\",\n    \"Schema validation failure → validationCompleted (lib/handle-request.js:56-68): if attachValidation=false, reply.send(validationErr) triggers error handler; if attachValidation=true, error stored in request.validationError and handler still runs\",\n    \"Handler throws synchronously → preHandlerCallbackInner (lib/handle-request.js:156-199) catches err, sets reply[kReplyIsError]=true, calls reply.send(err) → onErrorHook → error handler chain\",\n    \"Handler returns rejected promise → wrapThenable (lib/wrap-thenable.js) catches rejection, calls reply.send(err)\",\n    \"Handler timeout → routeHandler (lib/route.js:457-583) sets AbortController timeout; if handler exceeds configured handlerTimeout, AbortController aborts and reply.send(FST_ERR_HANDLER_TIMEOUT) is called\",\n    \"Schema compilation failure during route registration → route() function (lib/route.js:204-454) throws FST_ERR_SCH_VALIDATION_BUILD or FST_ERR_SCH_SERIALIZATION_BUILD before server starts\",\n    \"Stream error during response → sendStream/sendWebStream (lib/reply.js:821-874, 748-819) log error via logStreamError, call onErrorHook for non-sent responses, or destroy socket for already-sent responses\",\n    \"Server closing while request arrives → routeHandler (lib/route.js:476-487) returns 503 Service Unavailable immediately if return503OnClosing is true (default)\",\n    \"Client disconnection before response → if context.onRequestAbort is set, onRequestAbortHookRunner (lib/hooks.js) runs abort hooks; otherwise handled silently by Node.js\",\n    \"Client error on socket → server.on('clientError', defaultClientErrorHandler) (fastify.js:951-989) responds with 408 (timeout), 431 (header overflow), or 400 (general) then destroys socket\",\n    \"Error inside error handler → handleError (lib/error-handler.js:30-76) chains error handlers via prototype chain; if all fail, fallbackErrorHandler writes a raw response\",\n    \"onError hook throws → onSendHookRunner wraps it; handleError (lib/reply.js:onErrorHook) falls through to raw fallback response\"\n  ],\n  \"evidence\": [\n    \"fastify.js:wrapRouting (lines 795-812) — preRouting callback, entry point from Node.js http.Server 'request' event\",\n    \"lib/route.js:buildRouting (lines 77-584) — returns routing (router.lookup), route, routeHandler and lifecycle orchestration\",\n    \"lib/route.js:routeHandler (lines 457-583) — creates Request/Reply, runs lifecycle hooks (onRequest → runPreParsing → handleRequest)\",\n    \"lib/route.js:runPreParsing (lines 644-659) — runs preParsing hooks, transitions to handleRequest\",\n    \"lib/handle-request.js:handleRequest (lines 21-72) — determines body parsing strategy, calls handler()\",\n    \"lib/handle-request.js:handler (lines 26-33) — runs preValidation hooks then preValidationCallback\",\n    \"lib/handle-request.js:preValidationCallback (lines 35-54) — runs schema validation\",\n    \"lib/handle-request.js:validationCompleted (lines 56-68) — runs preHandler hooks\",\n    \"lib/handle-request.js:preHandlerCallbackInner (lines 156-199) — executes user route handler, wraps thenable, catches errors\",\n    \"lib/reply.js:Reply.prototype.send (lines 150-233) — dispatches payload to serialization/on-send/error paths\",\n    \"lib/reply.js:onSendEnd (lines 585-691) — writes headers + body to Node.js response, handles streams/Buffers/strings/Web Streams/Response objects\",\n    \"lib/reply.js:setupResponseListeners (lines 953-995) — listens for finish/error events, runs onResponse hooks, logs completion\",\n    \"lib/hooks.js:onRequestHookRunner, preParsingHookRunner, preValidationHookRunner, preHandlerHookRunner, preSerializationHookRunner, onSendHookRunner, onResponseHookRunner — all hook runners generated by hookRunnerGenerator or specialized variants\",\n    \"lib/error-handler.js:handleError (lines 30-76) — error handler chain execution\",\n    \"lib/four-oh-four.js:fourOhFour (lines 32-191) — 404 handler system with encapsulated contexts\",\n    \"lib/server.js:getServerInstance (lines 103-140) — creates http/https/http2 Server, wires httpHandler to 'request' event\",\n    \"lib/server.js:createServer (lines 14-86) — returns {server, listen} and manages dual-stack binding for localhost\",\n    \"lib/content-type-parser.js — pluggable body parsing per Content-Type\"\n  ],\n  \"summary\": \"The most representative user-facing workflow in Fastify is the HTTP request lifecycle: an incoming HTTP request is received by a Node.js server, routed by find-my-way (a radix-tree router) to a routeHandler, which creates Request and Reply objects and runs a well-defined lifecycle of 10 hook phases (onRequest → preParsing → body parsing → preValidation → schema validation → preHandler → handler execution → preSerialization → onSend → onResponse). The reply.send() method intelligently handles payloads of all types (JSON objects, strings, Buffers, streams, web streams, Response objects, null/undefined) into HTTP responses. Error handling flows through a prototype-chain-based error handler hierarchy with onError hooks, and there are robust safeguards at every stage: load shedding during shutdown (503), handler timeouts via AbortController, content-type validation (415), schema validation errors, stream error logging, client error handling (400/408/431), and a fallback 404 handler with encapsulation support.\"\n}\n```",
+      "responseHash": "7bde39adf448fcbe",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 601778,
+        "output_tokens": 7246,
+        "cached_tokens": 549888,
+        "reasoning_tokens": 19,
+        "tool_call_count": 31,
+        "files_read": 5,
+        "bytes_read": 93515,
+        "wall_time_ms": 81530,
+        "api_latency_ms": 81530,
+        "cost_usd": 0.01699191,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "workflow_name": "HTTP Request Lifecycle (Route matched → handler → response)",
+        "flow": [
+          "1. Client sends HTTP request → Node.js http.Server emits 'request' event → calls preRouting(req, res)",
+          "2. preRouting (fastify.js:wrapRouting, line 795-812) runs optional rewriteUrl, then calls router.routing(req, res) which is find-my-way's router.lookup",
+          "3. router.lookup (find-my-way) matches method+URL against registered routes. On match: calls routeHandler(req, res, params, context, query); on no-match: calls defaultRoute (fastify.js line 537-546) → fourOhFour.router.lookup → 404",
+          "4. routeHandler (lib/route.js, line 457-583) creates Request object via new context.Request(), Reply object via new context.Reply(), generates request ID, creates child logger, logs incoming request, sets up response listeners (setupResponseListeners in lib/reply.js line 953-995), sets up handler timeout if configured, tracks keep-alive sockets for graceful shutdown",
+          "5. routeHandler begins lifecycle: calls onRequestHookRunner (lib/hooks.js) if context.onRequest !== null, else directly calls runPreParsing (lib/route.js line 644-659)",
+          "6. runPreParsing: runs preParsingHookRunner (lib/hooks.js) if context.preParsing !== null, allowing user hooks to modify the request payload stream, then calls handleRequest (lib/handle-request.js line 21-72)",
+          "7. handleRequest: determines if method is bodyless (GET/HEAD/TRACE) or has body. For bodyless: calls handler() immediately. For methods with body: checks Content-Type header, runs content-type parser (request[kRouteContext].contentTypeParser.run()), then calls handler()",
+          "8. handler (lib/handle-request.js line 26-33): runs preValidationHookRunner (lib/hooks.js) if context.preValidation !== null, then calls preValidationCallback",
+          "9. preValidationCallback (lib/handle-request.js line 35-54): calls validateSchema() for schema validation of headers/params/querystring/body, then calls validationCompleted",
+          "10. validationCompleted (lib/handle-request.js line 56-68): If validation error and attachValidation is false → reply.send(validationErr). Otherwise runs preHandlerHookRunner (lib/hooks.js) if context.preHandler !== null, else calls preHandlerCallback",
+          "11. preHandlerCallback (lib/handle-request.js line 134-154) → preHandlerCallbackInner (line 156-199): executes context.handler(request, reply). If handler returns a thenable → wrapThenable. If handler returns non-undefined value → reply.send(result). If handler throws → reply[kReplyIsError]=true, reply.send(err)",
+          "12. Reply.prototype.send (lib/reply.js line 150-233): determines payload type. If Error → onErrorHook. If undefined → onSendHook. If stream/Response/Buffer/string → onSendHook. If object → preSerializationHook → serialization → onSendHook",
+          "13. preSerializationHook (lib/reply.js line 544-549): runs preSerializationHookRunner. Serializes payload via reply serializer or JSON.stringify or schema serializer, then calls onSendHook",
+          "14. onSendHook (lib/reply.js line 551-563): runs onSendHookRunner. User onSend hooks can modify payload, then calls wrapOnSendEnd → onSendEnd",
+          "15. onSendEnd (lib/reply.js line 585-691): writes status code + headers via safeWriteHead, then sends payload: string/Buffer via res.end(), streams via payload.pipe(res), web streams via sendWebStream. Handles trailers via sendTrailer/sendStreamTrailer",
+          "16. Response finishes → setupResponseListeners callback fires (lib/reply.js line 953-995): records end time, cleans up timeout/signal resources, runs onResponseHookRunner if context.onResponse !== null, then logs request completion via requestCompleted"
+        ],
+        "state_transitions": [
+          "NOT_STARTED → STARTED: fastify() called, Avvio boot initializes plugins, routes registered via router.on()",
+          "STARTED → LISTENING: .listen() called, Node.js server starts accepting connections, onListen hooks run",
+          "LISTENING → REQUEST_RECEIVED: Incoming HTTP request, Node.js emits 'request' event, preRouting callback invoked",
+          "REQUEST_RECEIVED → ROUTING: wrapRouting (fastify.js:795) calls router.routing() (find-my-way lookup)",
+          "ROUTING → LOAD_SHEDDING (if closing): Server is closing → 503 Service Unavailable returned immediately (lib/route.js:476-487)",
+          "ROUTING → REQUEST_READY: Route matched, routeHandler creates Request object, Reply object, child logger (lib/route.js:457-583)",
+          "REQUEST_READY → ON_REQUEST_HOOKS: context.onRequest hooks run via onRequestHookRunner (lib/hooks.js:276)",
+          "ON_REQUEST_HOOKS → PRE_PARSING_HOOKS: runPreParsing (lib/route.js:644-659) runs preParsingHookRunner, allows payload stream modification",
+          "PRE_PARSING_HOOKS → BODY_PARSING: handleRequest (lib/handle-request.js:21-72) determines bodyless vs body-with methods, runs contentTypeParser.run() for body parsing",
+          "BODY_PARSING → PRE_VALIDATION_HOOKS: handler() (lib/handle-request.js:26-33) runs preValidationHookRunner",
+          "PRE_VALIDATION_HOOKS → VALIDATION: preValidationCallback (lib/handle-request.js:35-54) calls validateSchema() for schema validation of headers/params/querystring/body",
+          "VALIDATION → PRE_HANDLER_HOOKS: validationCompleted (lib/handle-request.js:56-68) runs preHandlerHookRunner if context.preHandler !== null",
+          "PRE_HANDLER_HOOKS → HANDLER_EXECUTION: preHandlerCallbackInner (lib/handle-request.js:156-199) executes context.handler(request, reply)",
+          "HANDLER_EXECUTION → PRE_SERIALIZATION_HOOKS: reply.send(payload) (lib/reply.js:150-233) routes to preSerializationHook for object payloads",
+          "PRE_SERIALIZATION_HOOKS → SERIALIZATION: preSerializationHookEnd (lib/reply.js:571-591) serializes payload via reply serializer or JSON.stringify or schema-compiled serializer",
+          "SERIALIZATION → ON_SEND_HOOKS: onSendHook (lib/reply.js:551-563) runs onSendHookRunner, allows user hooks to modify final payload",
+          "ON_SEND_HOOKS → WRITE_RESPONSE: onSendEnd (lib/reply.js:585-691) writes headers via safeWriteHead, then writes payload body (stream, Buffer, or string) to Node.js response",
+          "WRITE_RESPONSE → ON_RESPONSE_HOOKS: Response 'finish' event fires, setupResponseListeners callback runs onResponseHookRunner (lib/reply.js:953-995)",
+          "ON_RESPONSE_HOOKS → COMPLETED: onResponseCallback logs request completed via requestCompleted (lib/reply.js:997-999)"
+        ],
+        "external_boundaries": [
+          "Node.js http.Server / https.Server / http2.Server — receives raw TCP connections, emits 'request' event on each HTTP request (lib/server.js:getServerInstance)",
+          "find-my-way router — 3rd-party radix-tree router that matches HTTP method+URL to route handlers. Exposed via buildRouting (lib/route.js:77) as router.lookup.bind(router)",
+          "Content-Type parsers (lib/content-type-parser.js) — pluggable system for parsing request bodies based on Content-Type header, triggered in handleRequest (lib/handle-request.js)",
+          "Ajv schema validator — compiled via SchemaController (lib/schema-controller.js) for request validation (headers, params, querystring, body) and response serialization",
+          "Pino logger (lib/logger-factory.js, lib/logger-pino.js) — all internal and request logging goes through Pino. Child loggers created per-request in routeHandler (lib/route.js:457-583)",
+          "diagnostics_channel (Node.js built-in) — fastify.request.handler tracing channel used in preHandlerCallbackInner (lib/handle-request.js:156-199) for async request diagnostics",
+          "light-my-request (for inject, fastify.js) — fake HTTP injection library used in testing and the .inject() method",
+          "avvio — plugin boot system that orchestrates plugin registration, encapsulation, and the ready/close lifecycle (fastify.js imports Avvio)",
+          "node:stream / node:stream/web — used in sendStream/sendWebStream (lib/reply.js) for piping stream and web-stream payloads to the HTTP response"
+        ],
+        "failure_points": [
+          "Invalid URL → onBadUrl (fastify.js:549-580) returns 400 'FST_ERR_BAD_URL' or calls frameworkErrors callback",
+          "Max param length exceeded → onMaxParamLength (fastify.js:582-613) returns 414 or calls frameworkErrors callback",
+          "No matching route → defaultRoute (fastify.js:537-546) → fourOhFour.router.lookup → basic404 handler (lib/four-oh-four.js:52-60) returns 404 JSON",
+          "Unrecognized Content-Type → handleRequest (lib/handle-request.js:21-72) returns 415 (FST_ERR_CTP_INVALID_MEDIA_TYPE)",
+          "Schema validation failure → validationCompleted (lib/handle-request.js:56-68): if attachValidation=false, reply.send(validationErr) triggers error handler; if attachValidation=true, error stored in request.validationError and handler still runs",
+          "Handler throws synchronously → preHandlerCallbackInner (lib/handle-request.js:156-199) catches err, sets reply[kReplyIsError]=true, calls reply.send(err) → onErrorHook → error handler chain",
+          "Handler returns rejected promise → wrapThenable (lib/wrap-thenable.js) catches rejection, calls reply.send(err)",
+          "Handler timeout → routeHandler (lib/route.js:457-583) sets AbortController timeout; if handler exceeds configured handlerTimeout, AbortController aborts and reply.send(FST_ERR_HANDLER_TIMEOUT) is called",
+          "Schema compilation failure during route registration → route() function (lib/route.js:204-454) throws FST_ERR_SCH_VALIDATION_BUILD or FST_ERR_SCH_SERIALIZATION_BUILD before server starts",
+          "Stream error during response → sendStream/sendWebStream (lib/reply.js:821-874, 748-819) log error via logStreamError, call onErrorHook for non-sent responses, or destroy socket for already-sent responses",
+          "Server closing while request arrives → routeHandler (lib/route.js:476-487) returns 503 Service Unavailable immediately if return503OnClosing is true (default)",
+          "Client disconnection before response → if context.onRequestAbort is set, onRequestAbortHookRunner (lib/hooks.js) runs abort hooks; otherwise handled silently by Node.js",
+          "Client error on socket → server.on('clientError', defaultClientErrorHandler) (fastify.js:951-989) responds with 408 (timeout), 431 (header overflow), or 400 (general) then destroys socket",
+          "Error inside error handler → handleError (lib/error-handler.js:30-76) chains error handlers via prototype chain; if all fail, fallbackErrorHandler writes a raw response",
+          "onError hook throws → onSendHookRunner wraps it; handleError (lib/reply.js:onErrorHook) falls through to raw fallback response"
+        ],
+        "evidence": [
+          "fastify.js:wrapRouting (lines 795-812) — preRouting callback, entry point from Node.js http.Server 'request' event",
+          "lib/route.js:buildRouting (lines 77-584) — returns routing (router.lookup), route, routeHandler and lifecycle orchestration",
+          "lib/route.js:routeHandler (lines 457-583) — creates Request/Reply, runs lifecycle hooks (onRequest → runPreParsing → handleRequest)",
+          "lib/route.js:runPreParsing (lines 644-659) — runs preParsing hooks, transitions to handleRequest",
+          "lib/handle-request.js:handleRequest (lines 21-72) — determines body parsing strategy, calls handler()",
+          "lib/handle-request.js:handler (lines 26-33) — runs preValidation hooks then preValidationCallback",
+          "lib/handle-request.js:preValidationCallback (lines 35-54) — runs schema validation",
+          "lib/handle-request.js:validationCompleted (lines 56-68) — runs preHandler hooks",
+          "lib/handle-request.js:preHandlerCallbackInner (lines 156-199) — executes user route handler, wraps thenable, catches errors",
+          "lib/reply.js:Reply.prototype.send (lines 150-233) — dispatches payload to serialization/on-send/error paths",
+          "lib/reply.js:onSendEnd (lines 585-691) — writes headers + body to Node.js response, handles streams/Buffers/strings/Web Streams/Response objects",
+          "lib/reply.js:setupResponseListeners (lines 953-995) — listens for finish/error events, runs onResponse hooks, logs completion",
+          "lib/hooks.js:onRequestHookRunner, preParsingHookRunner, preValidationHookRunner, preHandlerHookRunner, preSerializationHookRunner, onSendHookRunner, onResponseHookRunner — all hook runners generated by hookRunnerGenerator or specialized variants",
+          "lib/error-handler.js:handleError (lines 30-76) — error handler chain execution",
+          "lib/four-oh-four.js:fourOhFour (lines 32-191) — 404 handler system with encapsulated contexts",
+          "lib/server.js:getServerInstance (lines 103-140) — creates http/https/http2 Server, wires httpHandler to 'request' event",
+          "lib/server.js:createServer (lines 14-86) — returns {server, listen} and manages dual-stack binding for localhost",
+          "lib/content-type-parser.js — pluggable body parsing per Content-Type"
+        ],
+        "summary": "The most representative user-facing workflow in Fastify is the HTTP request lifecycle: an incoming HTTP request is received by a Node.js server, routed by find-my-way (a radix-tree router) to a routeHandler, which creates Request and Reply objects and runs a well-defined lifecycle of 10 hook phases (onRequest → preParsing → body parsing → preValidation → schema validation → preHandler → handler execution → preSerialization → onSend → onResponse). The reply.send() method intelligently handles payloads of all types (JSON objects, strings, Buffers, streams, web streams, Response objects, null/undefined) into HTTP responses. Error handling flows through a prototype-chain-based error handler hierarchy with onError hooks, and there are robust safeguards at every stage: load shedding during shutdown (503), handler timeouts via AbortController, content-type validation (415), schema validation errors, stream error logging, client error handling (400/408/431), and a fallback 404 handler with encapsulation support."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_950f0967f849",
+      "task_id": "external_generic_flow",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 17,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When graph tools are available, locate symbols with graph search and inspect them with focused snippets. Do not use read_file to re-read a whole source file merely to inspect a symbol already located by the graph; reserve it for configuration, non-code content, or genuinely necessary file-wide context.\n- Stop investigating once the requested claims have direct evidence. Do not repeat a search, trace, or file read that has already established the same fact.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Identify one representative user-facing workflow in fastify and trace it end to end through the code. Do not assume which tools to use. Explain the initiating action, control flow, state transitions, external boundaries, and failure points, citing concrete files and symbols. Respond with JSON: {\"workflow_name\":\"...\",\"flow\":[\"...\"],\"state_transitions\":[\"...\"],\"external_boundaries\":[\"...\"],\"failure_points\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_nzKKWE8IF2EZ3fRzbo7P9783",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_CL5mhX1Q6Qi5nbN7jpsN8065",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"package.json\", \"include\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UZkLKf18pkVpMFjhHHMq8122",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"\\\"name\\\"\", \"include\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_qHN3xQXp0jwiLztOFxCY8715",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"fastify\", \"include\": \"*.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dAfx2UX75s67EQlwjMRk6649",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/fastify.js\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_CAAybTJ8K7GyrFqdmnB04898",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/lib/handle-request.js\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_Kd2CWbRX25tmqsvyg8OS6428",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/lib/reply.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EAqLBtXT8lNh9mtzKqFF0371",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/lib/hooks.js\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_TmDChs1IILcEwj9aEPmd2417",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/lib/route.js\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_3DzJyHXNEb73BxbNcL508354",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/lib/server.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kiopYW3hCUAzreh5h1rA3132",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/lib/validation.js\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_t8tmg02N9LKsGLNfFoy43104",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/lib/error-handler.js\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_MrmZ9TCGRDghVQf2aJZi3656",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/tmp/caesar-corpus/fastify/lib/wrap-thenable.js\"}"
+          }
+        }
+      ],
+      "response": "Now I have traced the complete lifecycle. Here is the result:\n\n```json\n{\n  \"workflow_name\": \"Incoming HTTP Request Lifecycle\",\n  \"flow\": [\n    \"1. TCP connection accepted by Node.js http/https/http2 server → `lib/server.js:createServer` invokes `httpHandler` (the `preRouting` wrapper)\",\n    \"2. URL rewrite check → `fastify.js:wrapRouting` (line ~790) checks `rewriteUrl` option, rewrites `req.url` if configured\",\n    \"3. Router lookup → `lib/route.js:router.routing` (line ~65, bound `FindMyWay.lookup`) matches method+URL against the Radix tree, returns matched route context\",\n    \"4. Route handler entry → `lib/route.js:routeHandler` (line ~500): creates `Request` (via `context.Request` constructor from `lib/request.js`) and `Reply` (via `context.Reply` constructor from `lib/reply.js`), logs `incomingRequest`, sets up handler timeout via `AbortController` + `setTimeout`, registers `setupResponseListeners` (reply finish/error listeners)\",\n    \"5. onRequest hooks → `lib/route.js` line ~620: `onRequestHookRunner(context.onRequest, request, reply, runPreParsing)` runs user-registered onRequest hooks serially\",\n    \"6. preParsing hooks → `lib/route.js:runPreParsing` line ~650: `preParsingHookRunner(context.preParsing, request, reply, ...)` allows payload transformation, then calls `handleRequest.call(request.server, null, request, reply)`\",\n    \"7. Content-Type parsing & body dispatch → `lib/handle-request.js:handleRequest`: for bodyless methods (GET/HEAD/TRACE) calls `handler` directly; for body methods checks Content-Type header, runs the content-type parser via `request[kRouteContext].contentTypeParser.run(...)`, which streams the request body and calls back to `handler`\",\n    \"8. preValidation hooks → `lib/handle-request.js:handler` → `preValidationHookRunner(context.preValidation, request, reply, preValidationCallback)`\",\n    \"9. Schema validation → `lib/handle-request.js:preValidationCallback` → `validateSchema(reply[kRouteContext], request)` from `lib/validation.js:validate` — runs compiled AJV (or custom) validators for params, body, querystring, headers. Supports both sync and async validators\",\n    \"10. preHandler hooks → `lib/handle-request.js:validationCompleted` → `preHandlerHookRunner(context.preHandler, request, reply, preHandlerCallback)`\",\n    \"11. Route handler execution → `lib/handle-request.js:preHandlerCallbackInner` → `context.handler(request, reply)` — the user-provided handler function. Return values are sent via `reply.send(result)`. Thenable/promise return values are handled by `lib/wrap-thenable.js:wrapThenable`\",\n    \"12. Reply.send → `lib/reply.js:Reply.prototype.send`: inspects payload type (Error→onError, stream/Response→direct send, undefined→onSend, object→serialize), sets Content-Type header, calls preSerialization→onSend chain\",\n    \"13. preSerialization hooks → `lib/reply.js:preSerializationHook` → `preSerializationHookRunner(context.preSerialization, request, reply, payload, ...)` allows payload modification before serialization\",\n    \"14. Serialize payload → `lib/reply.js:serialize` → `getSchemaSerializer(context, statusCode, contentType)` uses pre-compiled fast-json-stringify serializer for schema'd responses, otherwise `JSON.stringify`\",\n    \"15. onSend hooks → `lib/reply.js:onSendHook` → `onSendHookRunner(context.onSend, request, reply, payload, wrapOnSendEnd)` allows final payload modification\",\n    \"16. Write response → `lib/reply.js:onSendEnd`: calls `safeWriteHead(statusCode, headers)`, then writes payload via `res.end()`, or pipes stream via `sendStream`/`sendWebStream`, or sends chunked data for HTTP/2 large payloads via `writeHttp2Payload`. Sets Content-Length for non-stream payloads\",\n    \"17. onResponse hooks → `lib/reply.js:setupResponseListeners` callback → `onResponseHookRunner(context.onResponse, request, reply, onResponseCallback)` runs after response 'finish' event\",\n    \"18. Response logging → `lib/reply.js:onResponseCallback` → `reply.server[kLogController].requestCompleted(err, request, reply)` finalizes request logging\"\n  ],\n  \"state_transitions\": [\n    \"`kState.started=false` → `avvio.on('start')` sets `kState.started=true` (fastify.js:373)\",\n    \"`kState.ready=false` → after all plugins boot and `onReady` hooks run, `kState.ready=true`, `kState.booting=false`, `readyResolver=null` (fastify.js:559-562)\",\n    \"`kState.listening=false` → server.listen() callback sets `kState.listening=true` (lib/server.js, listenCallback + listenPromise)\",\n    \"`kState.closing=false` → `avvio.once('preReady')` registers onClose handler that sets `kState.closing=true` (fastify.js:380-381)\",\n    \"Per-request: Request object created → `reply[kReplyIsError]=false` → hooks execute → if hook err: `reply[kReplyIsError]=true`, `reply.send(err)` → if validation fails: `reply.send(validationErr)` → handler runs → `reply.send(result)` → onSend → `res.writeHead`/`res.end` → 'finish' event → onResponse hooks → `requestCompleted` log\"\n  ],\n  \"external_boundaries\": [\n    \"Node.js HTTP/HTTPS/HTTP2 server (`lib/server.js:createServer`) — accepts TCP connections, emits `request` event calling the `httpHandler`\",\n    \"FindMyWay router (`lib/route.js:buildRouting` wraps `find-my-way`) — URL/method matching against registered routes\",\n    \"`diagnostics_channel` (`fastify.request.handler` tracing channel in `lib/handle-request.js` and `lib/wrap-thenable.js`) — publishes start/asyncStart/asyncEnd/end/error events for APM/tracing\",\n    \"`diagnostics_channel` `fastify.initialization` channel (`fastify.js:451`) — publishes on instance creation\",\n    \"Logging system (`lib/logger-factory.js`, `lib/log-controller.js`) — pluggable via Pino or custom logger, called at request inbound, outbound, errors, and stream errors\",\n    \"Content-type parser system (`lib/content-type-parser.js`) — delegates body parsing to registered parsers (default JSON, text, or custom via `addContentTypeParser`)\",\n    \"Validator/serializer compilers (`@fastify/ajv-compiler`, `@fastify/fast-json-stringify-compiler`) — AJV for input validation, fast-json-stringify for output serialization\",\n    \"`light-my-request` for `inject()` testing utility (`fastify.js:inject`) — simulates HTTP requests without a server\"\n  ],\n  \"failure_points\": [\n    \"Bad URL / max param length → `fastify.js:onBadUrl` (400) / `onMaxParamLength` (414), uses `frameworkErrors` callback if set\",\n    \"Route not found → `fastify.js:defaultRoute` delegates to `fourOhFour.router.lookup(req, res)` — 404 via `lib/four-oh-four.js` with customizable `setNotFoundHandler`\",\n    \"Invalid Content-Type → `lib/handle-request.js` line 70: `FST_ERR_CTP_INVALID_MEDIA_TYPE` → `reply.status(415).send(...)`\",\n    \"Schema validation failure → `lib/validation.js:wrapValidationError` → `schemaErrorFormatter(errors, dataVar)` returns error with 400 status\",\n    \"Handler timeout → `lib/route.js:routeHandler` (lines ~530-540) AbortController + setTimeout → `FST_ERR_HANDLER_TIMEOUT` → `reply.send(err)`\",\n    \"Handler throws → `lib/handle-request.js:preHandlerCallbackInner` catch → `reply[kReplyIsError]=true; reply.send(err)`\",\n    \"Error during error handling → `lib/error-handler.js:handleError` → chains to `fallbackErrorHandler` → `serializeError`\",\n    \"Serialization failure → `lib/reply.js:wrapSerializationError` → `onErrorHook(reply, e)`\",\n    \"Reply already sent → `lib/reply.js:Reply.prototype.send` → `FST_ERR_REP_ALREADY_SENT` logged as warning\",\n    \"Server closing during request → `lib/route.js:routeHandler` closing check (line ~510) returns 503 'Service Unavailable' when `return503OnClosing=true`\",\n    \"Socket/stream errors → `lib/reply.js:sendStream`/`sendWebStream` eos handlers → `logStreamError` + destroy, or `onErrorHook` if headers not yet sent\",\n    \"Client abort → `lib/route.js:routeHandler` onRequestAbort hook runner via `req.on('close', ...)` when `req.aborted`\"\n  ],\n  \"evidence\": [\n    \"`fastify.js` line 90-461 — Instance creation, Avvio bootstrapping, `wrapRouting` pre-routing function, `defaultRoute`, `ready` state machine\",\n    \"`fastify.js` line 788-802 — `wrapRouting` defines the `preRouting` function (URL rewrite + router dispatch) that wraps the HTTP handler\",\n    \"`lib/server.js:createServer` (line 25-122) — Creates http/https/http2 server, manages `listen`, multiple bindings, forceCloseConnections\",\n    \"`lib/route.js:routeHandler` (line ~500-640) — Central request handler: creates Request/Reply, sets up timeouts, runs onRequest/preParsing hooks, manages closing state\",\n    \"`lib/route.js:runPreParsing` (line ~650) — Transitions from route handler into handle-request dispatch\",\n    \"`lib/handle-request.js:handleRequest` (line 23-82) — Content-type detection, bodyless vs bodywith method dispatch, 415 handling\",\n    \"`lib/handle-request.js:handler` (line 84-95) — Runs preValidation hooks\",\n    \"`lib/handle-request.js:preValidationCallback` (line 97-114) — Runs `validateSchema`, then dispatches to preHandler\",\n    \"`lib/handle-request.js:preHandlerCallbackInner` (line 142-185) — Executes `context.handler`, handles sync return values and thenable/promise via `wrapThenable`\",\n    \"`lib/validation.js:validate` (line ~70-130) — Runs compiled AJV validators for params, body, querystring, headers; supports async validators\",\n    \"`lib/reply.js:Reply.prototype.send` (line 115-200) — Inspects payload type, sets Content-Type, dispatches to preSerialization→onSend→write\",\n    \"`lib/reply.js:onSendEnd` (line ~310-390) — Writes HTTP status code, headers, and body (string/buffer/stream/webstream)\",\n    \"`lib/reply.js:setupResponseListeners` (line ~490-530) — Hooks finish/error events on raw response, runs onResponse hooks\",\n    \"`lib/hooks.js:onSendHookRunner`, `preValidationHookRunner`, `preHandlerHookRunner`, `preSerializationHookRunner`, `onResponseHookRunner` (lines ~125-230) — Hook iteration engines with error propagation\",\n    \"`lib/error-handler.js:handleError` (line ~30-80) — Error handler chain traversal, fallback serialization\",\n    \"`lib/wrap-thenable.js:wrapThenable` (line 14-55) — Promise resolution for async handlers, publishes diagnostics channel events\",\n    \"`lib/route.js` line 530-540 — Handler timeout via AbortController + setTimeout\"\n  ],\n  \"summary\": \"The HTTP request lifecycle is a linear pipeline through Fastify's core: (1) a TCP connection hits Node's HTTP server (`lib/server.js`); (2) `wrapRouting` applies optional URL rewriting then dispatches to FindMyWay for route matching (`lib/route.js`); (3) `routeHandler` creates `Request`/`Reply` objects, sets up handler timeout and response-finish listeners, then runs lifecycle hooks in order — onRequest → preParsing → parse body via content-type parser → preValidation → schema validation (AJV) → preHandler → the user's handler function (`context.handler`); (4) the handler's return value flows through `reply.send`, which runs preSerialization hooks, serializes via fast-json-stringify (if schema'd) or JSON.stringify, then runs onSend hooks before writing the HTTP response; (5) after the response finishes, onResponse hooks run and request logging completes. Errors at any stage short-circuit through the error-handler chain (custom per-route or default), which falls back to a safe error serialization. The entire pipeline is observable via the `fastify.request.handler` diagnostics tracing channel and the pluggable logger.\"\n}\n```",
+      "responseHash": "a0b4b45f8aa9309b",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 1098292,
+        "output_tokens": 4560,
+        "cached_tokens": 810880,
+        "reasoning_tokens": 732,
+        "tool_call_count": 13,
+        "files_read": 9,
+        "bytes_read": 132300,
+        "wall_time_ms": 65800,
+        "api_latency_ms": 65800,
+        "cost_usd": 0.0528668,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "workflow_name": "Incoming HTTP Request Lifecycle",
+        "flow": [
+          "1. TCP connection accepted by Node.js http/https/http2 server → `lib/server.js:createServer` invokes `httpHandler` (the `preRouting` wrapper)",
+          "2. URL rewrite check → `fastify.js:wrapRouting` (line ~790) checks `rewriteUrl` option, rewrites `req.url` if configured",
+          "3. Router lookup → `lib/route.js:router.routing` (line ~65, bound `FindMyWay.lookup`) matches method+URL against the Radix tree, returns matched route context",
+          "4. Route handler entry → `lib/route.js:routeHandler` (line ~500): creates `Request` (via `context.Request` constructor from `lib/request.js`) and `Reply` (via `context.Reply` constructor from `lib/reply.js`), logs `incomingRequest`, sets up handler timeout via `AbortController` + `setTimeout`, registers `setupResponseListeners` (reply finish/error listeners)",
+          "5. onRequest hooks → `lib/route.js` line ~620: `onRequestHookRunner(context.onRequest, request, reply, runPreParsing)` runs user-registered onRequest hooks serially",
+          "6. preParsing hooks → `lib/route.js:runPreParsing` line ~650: `preParsingHookRunner(context.preParsing, request, reply, ...)` allows payload transformation, then calls `handleRequest.call(request.server, null, request, reply)`",
+          "7. Content-Type parsing & body dispatch → `lib/handle-request.js:handleRequest`: for bodyless methods (GET/HEAD/TRACE) calls `handler` directly; for body methods checks Content-Type header, runs the content-type parser via `request[kRouteContext].contentTypeParser.run(...)`, which streams the request body and calls back to `handler`",
+          "8. preValidation hooks → `lib/handle-request.js:handler` → `preValidationHookRunner(context.preValidation, request, reply, preValidationCallback)`",
+          "9. Schema validation → `lib/handle-request.js:preValidationCallback` → `validateSchema(reply[kRouteContext], request)` from `lib/validation.js:validate` — runs compiled AJV (or custom) validators for params, body, querystring, headers. Supports both sync and async validators",
+          "10. preHandler hooks → `lib/handle-request.js:validationCompleted` → `preHandlerHookRunner(context.preHandler, request, reply, preHandlerCallback)`",
+          "11. Route handler execution → `lib/handle-request.js:preHandlerCallbackInner` → `context.handler(request, reply)` — the user-provided handler function. Return values are sent via `reply.send(result)`. Thenable/promise return values are handled by `lib/wrap-thenable.js:wrapThenable`",
+          "12. Reply.send → `lib/reply.js:Reply.prototype.send`: inspects payload type (Error→onError, stream/Response→direct send, undefined→onSend, object→serialize), sets Content-Type header, calls preSerialization→onSend chain",
+          "13. preSerialization hooks → `lib/reply.js:preSerializationHook` → `preSerializationHookRunner(context.preSerialization, request, reply, payload, ...)` allows payload modification before serialization",
+          "14. Serialize payload → `lib/reply.js:serialize` → `getSchemaSerializer(context, statusCode, contentType)` uses pre-compiled fast-json-stringify serializer for schema'd responses, otherwise `JSON.stringify`",
+          "15. onSend hooks → `lib/reply.js:onSendHook` → `onSendHookRunner(context.onSend, request, reply, payload, wrapOnSendEnd)` allows final payload modification",
+          "16. Write response → `lib/reply.js:onSendEnd`: calls `safeWriteHead(statusCode, headers)`, then writes payload via `res.end()`, or pipes stream via `sendStream`/`sendWebStream`, or sends chunked data for HTTP/2 large payloads via `writeHttp2Payload`. Sets Content-Length for non-stream payloads",
+          "17. onResponse hooks → `lib/reply.js:setupResponseListeners` callback → `onResponseHookRunner(context.onResponse, request, reply, onResponseCallback)` runs after response 'finish' event",
+          "18. Response logging → `lib/reply.js:onResponseCallback` → `reply.server[kLogController].requestCompleted(err, request, reply)` finalizes request logging"
+        ],
+        "state_transitions": [
+          "`kState.started=false` → `avvio.on('start')` sets `kState.started=true` (fastify.js:373)",
+          "`kState.ready=false` → after all plugins boot and `onReady` hooks run, `kState.ready=true`, `kState.booting=false`, `readyResolver=null` (fastify.js:559-562)",
+          "`kState.listening=false` → server.listen() callback sets `kState.listening=true` (lib/server.js, listenCallback + listenPromise)",
+          "`kState.closing=false` → `avvio.once('preReady')` registers onClose handler that sets `kState.closing=true` (fastify.js:380-381)",
+          "Per-request: Request object created → `reply[kReplyIsError]=false` → hooks execute → if hook err: `reply[kReplyIsError]=true`, `reply.send(err)` → if validation fails: `reply.send(validationErr)` → handler runs → `reply.send(result)` → onSend → `res.writeHead`/`res.end` → 'finish' event → onResponse hooks → `requestCompleted` log"
+        ],
+        "external_boundaries": [
+          "Node.js HTTP/HTTPS/HTTP2 server (`lib/server.js:createServer`) — accepts TCP connections, emits `request` event calling the `httpHandler`",
+          "FindMyWay router (`lib/route.js:buildRouting` wraps `find-my-way`) — URL/method matching against registered routes",
+          "`diagnostics_channel` (`fastify.request.handler` tracing channel in `lib/handle-request.js` and `lib/wrap-thenable.js`) — publishes start/asyncStart/asyncEnd/end/error events for APM/tracing",
+          "`diagnostics_channel` `fastify.initialization` channel (`fastify.js:451`) — publishes on instance creation",
+          "Logging system (`lib/logger-factory.js`, `lib/log-controller.js`) — pluggable via Pino or custom logger, called at request inbound, outbound, errors, and stream errors",
+          "Content-type parser system (`lib/content-type-parser.js`) — delegates body parsing to registered parsers (default JSON, text, or custom via `addContentTypeParser`)",
+          "Validator/serializer compilers (`@fastify/ajv-compiler`, `@fastify/fast-json-stringify-compiler`) — AJV for input validation, fast-json-stringify for output serialization",
+          "`light-my-request` for `inject()` testing utility (`fastify.js:inject`) — simulates HTTP requests without a server"
+        ],
+        "failure_points": [
+          "Bad URL / max param length → `fastify.js:onBadUrl` (400) / `onMaxParamLength` (414), uses `frameworkErrors` callback if set",
+          "Route not found → `fastify.js:defaultRoute` delegates to `fourOhFour.router.lookup(req, res)` — 404 via `lib/four-oh-four.js` with customizable `setNotFoundHandler`",
+          "Invalid Content-Type → `lib/handle-request.js` line 70: `FST_ERR_CTP_INVALID_MEDIA_TYPE` → `reply.status(415).send(...)`",
+          "Schema validation failure → `lib/validation.js:wrapValidationError` → `schemaErrorFormatter(errors, dataVar)` returns error with 400 status",
+          "Handler timeout → `lib/route.js:routeHandler` (lines ~530-540) AbortController + setTimeout → `FST_ERR_HANDLER_TIMEOUT` → `reply.send(err)`",
+          "Handler throws → `lib/handle-request.js:preHandlerCallbackInner` catch → `reply[kReplyIsError]=true; reply.send(err)`",
+          "Error during error handling → `lib/error-handler.js:handleError` → chains to `fallbackErrorHandler` → `serializeError`",
+          "Serialization failure → `lib/reply.js:wrapSerializationError` → `onErrorHook(reply, e)`",
+          "Reply already sent → `lib/reply.js:Reply.prototype.send` → `FST_ERR_REP_ALREADY_SENT` logged as warning",
+          "Server closing during request → `lib/route.js:routeHandler` closing check (line ~510) returns 503 'Service Unavailable' when `return503OnClosing=true`",
+          "Socket/stream errors → `lib/reply.js:sendStream`/`sendWebStream` eos handlers → `logStreamError` + destroy, or `onErrorHook` if headers not yet sent",
+          "Client abort → `lib/route.js:routeHandler` onRequestAbort hook runner via `req.on('close', ...)` when `req.aborted`"
+        ],
+        "evidence": [
+          "`fastify.js` line 90-461 — Instance creation, Avvio bootstrapping, `wrapRouting` pre-routing function, `defaultRoute`, `ready` state machine",
+          "`fastify.js` line 788-802 — `wrapRouting` defines the `preRouting` function (URL rewrite + router dispatch) that wraps the HTTP handler",
+          "`lib/server.js:createServer` (line 25-122) — Creates http/https/http2 server, manages `listen`, multiple bindings, forceCloseConnections",
+          "`lib/route.js:routeHandler` (line ~500-640) — Central request handler: creates Request/Reply, sets up timeouts, runs onRequest/preParsing hooks, manages closing state",
+          "`lib/route.js:runPreParsing` (line ~650) — Transitions from route handler into handle-request dispatch",
+          "`lib/handle-request.js:handleRequest` (line 23-82) — Content-type detection, bodyless vs bodywith method dispatch, 415 handling",
+          "`lib/handle-request.js:handler` (line 84-95) — Runs preValidation hooks",
+          "`lib/handle-request.js:preValidationCallback` (line 97-114) — Runs `validateSchema`, then dispatches to preHandler",
+          "`lib/handle-request.js:preHandlerCallbackInner` (line 142-185) — Executes `context.handler`, handles sync return values and thenable/promise via `wrapThenable`",
+          "`lib/validation.js:validate` (line ~70-130) — Runs compiled AJV validators for params, body, querystring, headers; supports async validators",
+          "`lib/reply.js:Reply.prototype.send` (line 115-200) — Inspects payload type, sets Content-Type, dispatches to preSerialization→onSend→write",
+          "`lib/reply.js:onSendEnd` (line ~310-390) — Writes HTTP status code, headers, and body (string/buffer/stream/webstream)",
+          "`lib/reply.js:setupResponseListeners` (line ~490-530) — Hooks finish/error events on raw response, runs onResponse hooks",
+          "`lib/hooks.js:onSendHookRunner`, `preValidationHookRunner`, `preHandlerHookRunner`, `preSerializationHookRunner`, `onResponseHookRunner` (lines ~125-230) — Hook iteration engines with error propagation",
+          "`lib/error-handler.js:handleError` (line ~30-80) — Error handler chain traversal, fallback serialization",
+          "`lib/wrap-thenable.js:wrapThenable` (line 14-55) — Promise resolution for async handlers, publishes diagnostics channel events",
+          "`lib/route.js` line 530-540 — Handler timeout via AbortController + setTimeout"
+        ],
+        "summary": "The HTTP request lifecycle is a linear pipeline through Fastify's core: (1) a TCP connection hits Node's HTTP server (`lib/server.js`); (2) `wrapRouting` applies optional URL rewriting then dispatches to FindMyWay for route matching (`lib/route.js`); (3) `routeHandler` creates `Request`/`Reply` objects, sets up handler timeout and response-finish listeners, then runs lifecycle hooks in order — onRequest → preParsing → parse body via content-type parser → preValidation → schema validation (AJV) → preHandler → the user's handler function (`context.handler`); (4) the handler's return value flows through `reply.send`, which runs preSerialization hooks, serializes via fast-json-stringify (if schema'd) or JSON.stringify, then runs onSend hooks before writing the HTTP response; (5) after the response finishes, onResponse hooks run and request logging completes. Errors at any stage short-circuit through the error-handler chain (custom per-route or default), which falls back to a safe error serialization. The entire pipeline is observable via the `fastify.request.handler` diagnostics tracing channel and the pluggable logger."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 81530,
+        "p95": 81530
+      },
+      "input_tokens": {
+        "median": 601778,
+        "total": 601778
+      },
+      "output_tokens": {
+        "median": 7246,
+        "total": 7246
+      },
+      "cached_tokens": {
+        "median": 549888,
+        "total": 549888
+      },
+      "reasoning_tokens": {
+        "median": 19,
+        "total": 19
+      },
+      "tool_calls": {
+        "median": 31,
+        "total": 31
+      },
+      "cost_usd": {
+        "median": 0.01699191,
+        "total": 0.01699191
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 65800,
+        "p95": 65800
+      },
+      "input_tokens": {
+        "median": 1098292,
+        "total": 1098292
+      },
+      "output_tokens": {
+        "median": 4560,
+        "total": 4560
+      },
+      "cached_tokens": {
+        "median": 810880,
+        "total": 810880
+      },
+      "reasoning_tokens": {
+        "median": 732,
+        "total": 732
+      },
+      "tool_calls": {
+        "median": 13,
+        "total": 13
+      },
+      "cost_usd": {
+        "median": 0.0528668,
+        "total": 0.0528668
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "81530ms",
+        "without_caesar": "65800ms",
+        "delta": "23.9%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "601778",
+        "without_caesar": "1098292",
+        "delta": "-45.2%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "7246",
+        "without_caesar": "4560",
+        "delta": "58.9%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "31",
+        "without_caesar": "13",
+        "delta": "138.5%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.016992",
+        "without_caesar": "$0.052867",
+        "delta": "-67.9%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /tmp/caesar-corpus/fastify; CAESAR state remains temporary."
+  ]
+}

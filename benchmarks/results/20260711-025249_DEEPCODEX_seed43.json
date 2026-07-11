@@ -1,0 +1,1898 @@
+{
+  "config": {
+    "seed": 43,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_dead_code"
+    ],
+    "projectDir": "/Users/admin/Desktop/DEEPCODEX/source",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_a628ba3652ba",
+      "task_id": "external_dead_code",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 43,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a source cleanup sprint. Find symbols (functions, classes) in the codebase that appear to have zero callers and zero usages — these are candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Only report symbols you have verified are defined in the codebase. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_sQwD4DuDOnQgA3Z7Cryr7648",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"file_tree\", \"entry_points\", \"hotspots\", \"brief\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xuN4xBLuDoVpE5PHwTSR6703",
+          "type": "function",
+          "function": {
+            "name": "get_graph_schema",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ERgfwgJUx3PMIFLkBI9h6947",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (m:Method)-[:DEFINES_METHOD]->(cls:Class)\\nWHERE NOT (m)<-[:CALLS]-(:Method)\\nAND NOT (m)<-[:CALLS]-(:File)\\nWITH m, cls\\nOPTIONAL MATCH (m)<-[:READS]-(:Method)\\nWITH m, cls, count(m) as reads\\nWHERE reads = 0\\nRETURN m.signature, m.parentClass, m.file_path, labels(m) as kinds\\nLIMIT 30\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_vh4YbrAL7zvHFtQjoMAk7163",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind FROM nodes n WHERE n.kind IN ('Function', 'Class') AND NOT EXISTS (SELECT 1 FROM edges e WHERE (e.target_id = n.id OR e.source_id = n.id) AND e.type IN ('CALLS', 'USAGE')) LIMIT 50\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_CbKmdQ9BF1TknMALc6Ws9018",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind FROM nodes n WHERE n.kind = 'Method' AND NOT EXISTS (SELECT 1 FROM edges e WHERE e.target_id = n.id AND e.type = 'CALLS') LIMIT 50\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_pBiPd0NsdDG0n36xbEXJ0678",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/AppState.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_HlTvL2ClQqHtq2E3u3Gs4779",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/CompletionAlertManager.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_Z3pwlg4Uxj4vD6Nnlcv62744",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContextExporter.swift\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_gbFiNy2UhFiY0PGTRRd15236",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/MenuBarManager.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_7vekjVmPK9pMmSiSlyih9625",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractFirstRealUserMessage\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_lRdoUAeDEHoCe3eAcf9L8498",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"getProviderForMode\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_ZMj0AtSCKvnOWiqlNhFM2287",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"testAlert\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_mNzFKAG8Kr7VplTS3VWE9537",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"openAccessibilitySettings\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_XoelFWFm8zGr4FrjHegi4502",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"shouldAlert\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_p87H7XrmTmdXCG7BxZTd8631",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"requestAccessibilityPermission\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Uxon3gvQl1MZFbj37Dbh2045",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractFirstRealUserMessage\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_CZ5ZCSe6FTEXGGuHwU5s7163",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"getProviderForMode\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_7FG59fmYWm6vfc6vxNic6396",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\\.testAlert\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_Y3S9RKei8SnG3xxnP5U74531",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"openAccessibilitySettings\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WKNxsbuea1mb3LPkHp076751",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"extractFirstRealUserMessage\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_yDZ6rhCy8eAPO2ZwAu8b5580",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"getProviderForMode\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_rFn5e6kbdAM1d361XVNs2773",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"testAlert\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Mz9jgNd5LItCgvhRAahl2571",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"showWindow\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_5EzcNYWJOUgReXwYCV3Z4516",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"quitApp\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_oZS7zizzpmNMtAuMOSGA6643",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"glowColor\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_AlZchKpkjgVFP4RMTmlg4055",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"previewSound\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_xIQvtMtvaPBAJe16LLYV6147",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"previewAlertSound\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PlhxEUoIP5usMbiVQVcV1844",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/Theme.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_osLVEZWKFj4EMTuJwJib8402",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/AdvancedCapabilities.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1ctHpv2INF5XtyH8O6gi0762",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"glowColor\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_F8AiwdvkrBSxBD5IyGYk4071",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\\.empty\\\\(\\\\)\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_A6xkQxhpAydmjO3jJ8h37154",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractFunctionCalls\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_V99k0pblkr656VpoLLsp9989",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractAssistantMessages\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_fbQkX0QVQuanw5XANYE91333",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractAgentMessages\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_x4fgPUELb4zlFDZcwyQq8930",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"ContextExporter\\\\.\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_a0PbPdNGGAS65CmyJqzu8850",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractUserMessages\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_eR9VciQSTeq8xB1oNVYw5171",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractFilePaths\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_d8iXHH8binFERCgM2lhj9811",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractErrors\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_Zs98yCpzmOlubn4dDM7i4125",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"generateMarkdown\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_IXcN8U1K0CwdTnFeK0uo6757",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractSessionMeta\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_WyZSfdiD26Rcjprzo3Yu5209",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"extractModelName\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_60ezsVF1a5BsBZT8gru32539",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"*.swift\", \"pattern\": \"cardGradient\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_qHfs7VjTtOI54WQ3bwV30652",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"*.swift\", \"pattern\": \"DeepTheme\\\\.\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_TL4THT6jUICBDYu5quBL1146",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"*.swift\", \"pattern\": \"DeepTheme\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yxZUmcuaobLLRzQt0MLu2665",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/App.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_xKUI7j8Ydp375JkizJcu2897",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContentView.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_4oghblvAgzvYur5l7YN20036",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"glow\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_RuCCvR6NM17979HtbmFm8737",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"cardGradient\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_jYMjAC2nhzH7yZOTXiWB2740",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContinueWorkModal.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QT61H08SINh0SPKA0YKS9710",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\\.openAccessibilitySettings\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_xPPWkYISEmAz7XTpvLgv5415",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\\.getProviderForMode\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_HBRQI6nMbpdIMJZ8Youv9677",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\\.requestAccessibilityPermission\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_q4oYjnILcu2AHkBVNtSt0540",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"requestAccessibilityPermission\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_6x1ybUSln4gMdJUPe9CC5689",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"openAccessibilitySettings\", \"file_pattern\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PEbePWHQQW3jEsHRaPxj4361",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"*.swift\", \"pattern\": \"openAccessibility\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_TnFUwTWOKtymyPIluiEF4263",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"*.swift\", \"pattern\": \"getProviderForMode\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_YrP3JQJqdgy7D7eoKbbZ0567",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"*.swift\", \"pattern\": \"glowColor\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wHRdCUw3iRttWQ7j83jQ3841",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"*.swift\", \"pattern\": \"DeepTheme\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_tyuVXZwyt5mWxZYBomf45249",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"extractFirstRealUserMessage\", \"qualified_name\": \"Sources.DeepCodex.ContextExporter.ContextExporter.extractFirstRealUserMessage\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_rvXpsj2tOjKzn5dmTj3s7355",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"getProviderForMode\", \"qualified_name\": \"Sources.DeepCodex.AppState.AppState.getProviderForMode\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_HKi1tfSvzsg3D1kkqFE38622",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"glowColor\", \"qualified_name\": \"Sources.DeepCodex.Theme.DeepTheme.glowColor\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_y5tOkEqm0H10iKks7Wcb6702",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"openAccessibilitySettings\", \"qualified_name\": \"Sources.DeepCodex.AppState.AppState.openAccessibilitySettings\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_4ZNM48rmjP96TCPjfYty5880",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"openAccessibilitySettings\", \"qualified_name\": \"Sources.DeepCodex.CompletionAlertManager.CompletionAlertManager.openAccessibilitySettings\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_G8HUW5k2qQu62Oyyhry47105",
+          "type": "function",
+          "function": {
+            "name": "explain_symbol",
+            "arguments": "{\"name\": \"empty\", \"qualified_name\": \"Sources.DeepCodex.AdvancedCapabilities.AdvancedCapabilities.empty\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0cqeZjM6oC9F81sCkBw26796",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"openAccessibilitySettings\", \"qualified_name\": \"Sources.DeepCodex.AppState.AppState.openAccessibilitySettings\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_7O7u3TjPcCzMKX3K9jCv9046",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"openAccessibilitySettings\", \"qualified_name\": \"Sources.DeepCodex.CompletionAlertManager.CompletionAlertManager.openAccessibilitySettings\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lQkcn77r3GjhgA1Q0Pdx7023",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"openAccessibilitySettings\", \"qualified_name\": \"Sources.DeepCodex.CompletionAlertManager.CompletionAlertManager.openAccessibilitySettings\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZNf7WAFL2nDRyX8P2puS8029",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"testAlert\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_BnoFqogi7PNnpxYCixhs6812",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"shouldAlert\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_5LNEtuAsZaiBdds6Tu9w4284",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"restoreBackup\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lxKKFPemTudlPqPVeH2Q0851",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"WindowSizer\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ZjkuhEn6EuBRHFPG5Gy04249",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"Shell.run\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_m3ktohGLokPCczmW6s7I0375",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"copyToClipboardAndSave\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_acvO5nxpzyiy6Fxv62g06503",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"formatDateTime\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_koFnfX67n0dqTmbv2U0O1295",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"previewAlertSound\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EUCEFCtgQtFJYia8QYEv8571",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"requestAccessibilityPermission\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lRlXCbB8faA23Osm8zXt0876",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"extractFirstRealUserMessage\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_8ArzKvicblJA9sFhRGyC4861",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"getProviderForMode\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_jUejT5TDMNhQl71Y3TvA1407",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"glowColor\"}"
+          }
+        }
+      ],
+      "response": "Here is my final report on unused code symbols in this codebase.\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"ContextExporter.extractFirstRealUserMessage\",\n      \"file\": \"Sources/DeepCodex/ContextExporter.swift\",\n      \"kind\": \"Method\"\n    },\n    {\n      \"name\": \"AppState.getProviderForMode\",\n      \"file\": \"Sources/DeepCodex/AppState.swift\",\n      \"kind\": \"Method\"\n    },\n    {\n      \"name\": \"AppState.openAccessibilitySettings\",\n      \"file\": \"Sources/DeepCodex/AppState.swift\",\n      \"kind\": \"Method\"\n    },\n    {\n      \"name\": \"CompletionAlertManager.openAccessibilitySettings\",\n      \"file\": \"Sources/DeepCodex/CompletionAlertManager.swift\",\n      \"kind\": \"Method\"\n    },\n    {\n      \"name\": \"DeepTheme.glowColor\",\n      \"file\": \"Sources/DeepCodex/Theme.swift\",\n      \"kind\": \"Method\"\n    }\n  ],\n  \"evidence\": [\n    \"trace_path(extractFirstRealUserMessage, inbound) returned 0 callers — no CALLS edges from any other method or file. search_code('extractFirstRealUserMessage', *.swift) returned 0 results across the codebase. No tests cover this symbol.\",\n    \"trace_path(getProviderForMode, inbound) returned 0 callers — no CALLS edges. search_code('getProviderForMode', *.swift) returned 0 results. The functionally similar getCurrentProvider() (0 params, uses activeMode directly) is used instead in detectLatestThreads and elsewhere.\",\n    \"trace_path(AppState.openAccessibilitySettings, inbound) returned 0 callers — no CALLS edges. search_code('openAccessibilitySettings', *.swift) returned 0 results. The UI in ContentView calls requestAccessibilityPermission() instead.\",\n    \"trace_path(CompletionAlertManager.openAccessibilitySettings, inbound) returned 0 callers — only reachable via AppState.openAccessibilitySettings which is itself unused. No grep matches found. Dead method chain.\",\n    \"trace_path(glowColor, inbound) returned 0 callers — no CALLS edges. search_code('glowColor', *.swift) and search_code('glow', *.swift) both returned 0 results. This static function is defined in Theme.swift but never referenced anywhere in the UI or other code.\"\n  ],\n  \"summary\": \"Found 5 unused symbols across 4 source files. 1) ContextExporter.extractFirstRealUserMessage — a session-parsing helper that was likely intended for the generateMarkdown flow but never wired up; generateContext() calls extractUserMessages directly instead. 2) AppState.getProviderForMode — a mode→provider mapper that duplicates getCurrentProvider() with an unnecessary parameter; never called. 3) AppState.openAccessibilitySettings — a dead delegation method to the alert manager; the UI uses requestAccessibilityPermission() for the permission flow. 4) CompletionAlertManager.openAccessibilitySettings — the actual system-preferences opener, only reachable through the dead AppState method above. 5) DeepTheme.glowColor — a computed glow color for mode cards that was defined but never applied in any view. None of these have tests. All are safe to remove after verifying no external or implicit usage (e.g., #selector, KVO, or protocol conformance).\"\n}\n```",
+      "responseHash": "5ccd0f5f92361a83",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 1133161,
+        "output_tokens": 11761,
+        "cached_tokens": 1085568,
+        "reasoning_tokens": 25,
+        "tool_call_count": 79,
+        "files_read": 9,
+        "bytes_read": 134909,
+        "wall_time_ms": 117967,
+        "api_latency_ms": 117966,
+        "cost_usd": 0.02515405,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [
+          {
+            "name": "ContextExporter.extractFirstRealUserMessage",
+            "file": "Sources/DeepCodex/ContextExporter.swift",
+            "kind": "Method"
+          },
+          {
+            "name": "AppState.getProviderForMode",
+            "file": "Sources/DeepCodex/AppState.swift",
+            "kind": "Method"
+          },
+          {
+            "name": "AppState.openAccessibilitySettings",
+            "file": "Sources/DeepCodex/AppState.swift",
+            "kind": "Method"
+          },
+          {
+            "name": "CompletionAlertManager.openAccessibilitySettings",
+            "file": "Sources/DeepCodex/CompletionAlertManager.swift",
+            "kind": "Method"
+          },
+          {
+            "name": "DeepTheme.glowColor",
+            "file": "Sources/DeepCodex/Theme.swift",
+            "kind": "Method"
+          }
+        ],
+        "evidence": [
+          "trace_path(extractFirstRealUserMessage, inbound) returned 0 callers — no CALLS edges from any other method or file. search_code('extractFirstRealUserMessage', *.swift) returned 0 results across the codebase. No tests cover this symbol.",
+          "trace_path(getProviderForMode, inbound) returned 0 callers — no CALLS edges. search_code('getProviderForMode', *.swift) returned 0 results. The functionally similar getCurrentProvider() (0 params, uses activeMode directly) is used instead in detectLatestThreads and elsewhere.",
+          "trace_path(AppState.openAccessibilitySettings, inbound) returned 0 callers — no CALLS edges. search_code('openAccessibilitySettings', *.swift) returned 0 results. The UI in ContentView calls requestAccessibilityPermission() instead.",
+          "trace_path(CompletionAlertManager.openAccessibilitySettings, inbound) returned 0 callers — only reachable via AppState.openAccessibilitySettings which is itself unused. No grep matches found. Dead method chain.",
+          "trace_path(glowColor, inbound) returned 0 callers — no CALLS edges. search_code('glowColor', *.swift) and search_code('glow', *.swift) both returned 0 results. This static function is defined in Theme.swift but never referenced anywhere in the UI or other code."
+        ],
+        "summary": "Found 5 unused symbols across 4 source files. 1) ContextExporter.extractFirstRealUserMessage — a session-parsing helper that was likely intended for the generateMarkdown flow but never wired up; generateContext() calls extractUserMessages directly instead. 2) AppState.getProviderForMode — a mode→provider mapper that duplicates getCurrentProvider() with an unnecessary parameter; never called. 3) AppState.openAccessibilitySettings — a dead delegation method to the alert manager; the UI uses requestAccessibilityPermission() for the permission flow. 4) CompletionAlertManager.openAccessibilitySettings — the actual system-preferences opener, only reachable through the dead AppState method above. 5) DeepTheme.glowColor — a computed glow color for mode cards that was defined but never applied in any view. None of these have tests. All are safe to remove after verifying no external or implicit usage (e.g., #selector, KVO, or protocol conformance)."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_99d9dcf54867",
+      "task_id": "external_dead_code",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 43,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a source cleanup sprint. Find symbols (functions, classes) in the codebase that appear to have zero callers and zero usages — these are candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Only report symbols you have verified are defined in the codebase. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_txkIOQ9LSabiqztfXaut6361",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^(export\\\\s+)?(function|class)\\\\s+\\\\w+\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_1S6e73dbQuUE30odzwNy5606",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^(export\\\\s+)?(function|class)\\\\s+\\\\w+\", \"include\": \"*.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_tMYoFi09l43JyU0h959k0687",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"^(export )?(function|class) \"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_JsTrN5poo11cloizvE8n3292",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.js\", \"pattern\": \"^(export )?(function|class) \"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wfsBLKnihRc4jw2XxJwZ1611",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"function\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_DNuLdAdTdhoAEfKcUKgH3761",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"class\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0lSCx0LqgfnEokpDx4mG1832",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.*\", \"pattern\": \"function\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_7H4RxSin9ka3XZV7bqvT2263",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"^(public |private |internal |fileprivate )?(func |class |struct |enum )\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_mWZQBoxlOU6hHpKi7uoW6991",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"^\\\\s*(public|private|internal|fileprivate)?\\\\s*(func|class|struct|enum)\\\\s\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_R60KTJ1EccUcnSNDcT8N8940",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"^\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Lhi8PtZnNhvFjoKRR3hK1693",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bSecondaryButtonStyle\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_2g2FPXNjYLgKAtYsGBqM0245",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bContentHeightKey\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_kWRUQ26mLnc2Ct6nffpa5423",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bInfoRow\\\\b\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_N9SmCi0yIPP8xtWnOQ4X9100",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bWebSearchStatus\\\\b\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_vuNJfBpFJfLtzD25pxXs1889",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bV1ModelsInfo\\\\b\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_f32vKhOFAoCFhqxh8EZ57722",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bMoonBridgeWebSearchInfo\\\\b\"}"
+          }
+        },
+        {
+          "index": 6,
+          "id": "call_06_lmpIsLUKkQMT9HnV66773285",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bImageInputInfo\\\\b\"}"
+          }
+        },
+        {
+          "index": 7,
+          "id": "call_07_RqpvD2ynK1RRCZKc321K0437",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bRoutingInfo\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ih0fu3wKK8fynY3Z5y278545",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"getProviderForMode\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_TwLOeqHXeQX2zTsfyVWa5959",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bdeepseekV4Pro\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1V4AO09bJXFzNcl5AaUe8139",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bWindowConfigurator\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ajWsL1JWBzmrBa26rRrG2675",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bConfigView\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_FY7kLX4BEpqW8g4yHKEW0249",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bWindowSizer\\\\b\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_UdF7FcvZ92NI8Sz4WVAJ8080",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bModalPhase\\\\b\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_Lbokl02SYDs0tIIVZTUy8145",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"extractFirstRealUserMessage\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GBpnPtNxrgri5pD4zNHb9098",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"extractFirstRealUserMessage\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_kN75cM6kuPfENrQhkuIv4230",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bShell\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_c8m2SFdkSmvUhvoLFIil1261",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcolorHex\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_7hngXteZgh2Si1TMCB8Z1259",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcheckMoonBridgeDirect\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_0BlAmTdSYtPMRQ1SnS0P9641",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bquitCodexDesktopApp\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_GhMvUJQpKEKdEfMGFo2x2972",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bopenCodexDesktopApp\\\\b\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_E563bwR0UNo3DhDn9hg59717",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\brunAppleScript\\\\b\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_hjgiPZEKwQkziQ5LnJkb1937",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bparseMoonBridge\\\\b\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_cG42WL469sIZ4gpXJIGO4872",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bpreviewPlayer\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_VWRYbIkutZdn9ThDGwyR6517",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\blogoView\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_PhG0QcaXi2kKc1Tm9goG4125",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bstatusPanel\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_Bd4XKpxSNXtdzsE6FCeS2057",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\blogoGradient\\\\b\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_9XX2zpbN1tbFahAkS6Xr0257",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bbgGradient\\\\b\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_VkZvxGOhXy5qqEszDTVg1182",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcardGradient\\\\b\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_RaGksGwHC31jMLz1uf2Y2638",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bglowColor\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_I0lqsPX6bSMDZLQtWAT40443",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bglowColor\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_jMvqT94SPdudHwvyC3P50972",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bstatusPanel\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_GsHilDSdKxfVRuXmGxik1902",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcapabilityStatusDot\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GzlLoGMZRPmVgSwypu1p9967",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"statusPanel\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_otMsNMThrdRObzdmHs8z4136",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bloadOnAppear\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_gpLW8BXgJsPIXQsgcuP47192",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bselectThread\\\\b\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_ZsmB3YV6ccr8HtM5t9Ge6447",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bselectTarget\\\\b\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_ZAXVvckEXqrLaqPCj9i91633",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bgenerateContext\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_HTh84FnGUMgkaoNaP4282749",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcardBgSolid\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_XfWlBmZi0gX0l92MjY5o7208",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bborderMedium\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_qN8oBoLh5uN94BfJy7B73479",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bwindowWidth\\\\b\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_7m3ZyWoweUJ7fU0ya1JM9146",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bwindowHeight\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_nUy6mmjKMqOjqIoyd7LP4091",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"cardBgSolid\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_skE0eJCzPWq0g2E4vTC92799",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"borderMedium\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_xGUbPNGAZIO8RgDROIK21995",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"windowWidth\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_OUnjYzUFDix18FFuB9pT2841",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"windowHeight\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lBBQXwf8JsH9a66afSj57375",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"cornerRadiusLarge\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_1B24isBFeOtYfiEXuVfM0579",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"cornerRadiusMedium\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_MXEwWthGVTfjghc1VTGS4363",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"cornerRadiusSmall\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_hv17RGipSLy6xh0bCHRV0849",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"paddingScreen\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_x1Hw8I8JTONilevUPT4X0772",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"sectionSpacing\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_j8S9PUPdMHIkJdtCtWi45032",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"lastBackupInfo\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_4uxJfIMQCxRDJloGH5bX7150",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"profilesCount\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_VWo3PxF8U9UtoeGmks434801",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"generatedContext\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_soJLHiEYNJJK4HUBUKtQ6192",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"extractFirstRealUserMessage\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_5dtyHbJMpYuu5AYFMbrz2532",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"getProviderForMode\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_f6SYU0pEZ9kakhTOKoIU5115",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"glowColor\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_iEf6uJW6xeBZoFJZgBMB7795",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcardBgSolid\\\\b\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_lB1ezgjemeDJxUShELqr2678",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bborderMedium\\\\b\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_CYlSOELVzLS7nQoCNjlc5686",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bwindowWidth\\\\b\"}"
+          }
+        },
+        {
+          "index": 6,
+          "id": "call_06_dJxTR8yG0pomnP9PxWlU4058",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bwindowHeight\\\\b\"}"
+          }
+        },
+        {
+          "index": 7,
+          "id": "call_07_Yrmaz5PAGflH0WC7Hp8e1123",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcornerRadiusLarge\\\\b\"}"
+          }
+        },
+        {
+          "index": 8,
+          "id": "call_08_2KkxVkRSUoY6KbFn4w2J3943",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcornerRadiusMedium\\\\b\"}"
+          }
+        },
+        {
+          "index": 9,
+          "id": "call_09_qyGt1UuRAZOJSIIS67AC9797",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcornerRadiusSmall\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_9EhPkCi8oYUq2dsg1zZB3340",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bstatusPanel\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WF6dnb1qMg8RK2g0v4gx2401",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\blastBackupInfo\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_v0T9Wye6vfxX8jOp69oX1395",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bprofilesCount\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_4h5etgzSXGyQLar4ouMk7062",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcardGradient\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_TGa4zDnFDcm7GSLIPOSt8972",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bgenerateContext\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_LlHa3SPmI4B46O4qlLmE6604",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bwebSearchCapabilityCard\\\\b\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_X2hbrByi1gD6uKdZhuB69072",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bimageInputCapabilityCard\\\\b\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_tI5IsZ7O4tlMbC03lwIR6019",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\broutingCapabilityCard\\\\b\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_zoGctb4XhNieK43AM8jV2324",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bprivacyNote\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Q6DMQsclKu6lqOLRCaIg7186",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bsetupGlobalEventMonitor\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_kFB7tKWCWjbTebQKOOhu0661",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bseedProcessedFiles\\\\b\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_Mh7gKI1ADEow3WDpgccq5074",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcleanupOldEvents\\\\b\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_dlkC6PzqVax27QqN4Fsf9206",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcheckStopCondition\\\\b\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_JVMBCAPP6H6DjxjHzeYH7310",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bcheckForNewEvents\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_oArVuhSGx4OT2JXvTg5H7324",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bdelayLabel\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_gH4XhdJ67A0mcfXcBrYo0469",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bhasPrefix\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2rWC8FDFR4qref3D09rJ0539",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bthreadGroups\\\\b\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_N5t85mvq7cMDD2ZLqsh81780",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bdestCard\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_nsxYL1PEv9kKZVcTuDYR2968",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"displayMode\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_oVY317nSj57UjbvNP3SS4824",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"providerCount\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_gXPuqSms100GaAyIpgNr5039",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bformatDateTime\\\\b\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_XFqueYtWReGmGZc6GXYB6715",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.swift\", \"pattern\": \"\\\\bproviderCount\\\\b\"}"
+          }
+        }
+      ],
+      "response": "Now I have a complete picture. Here is my final analysis:\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"extractFirstRealUserMessage\",\n      \"file\": \"Sources/DeepCodex/ContextExporter.swift\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"getProviderForMode\",\n      \"file\": \"Sources/DeepCodex/AppState.swift\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"glowColor\",\n      \"file\": \"Sources/DeepCodex/Theme.swift\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"statusPanel\",\n      \"file\": \"Sources/DeepCodex/ContentView.swift\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"providerCount\",\n      \"file\": \"Sources/DeepCodex/AdvancedCapabilities.swift\",\n      \"kind\": \"function\"\n    }\n  ],\n  \"evidence\": [\n    \"extractFirstRealUserMessage (ContextExporter.swift:242): Defined as static func but never called anywhere in the codebase — its definition line is the only reference.\",\n    \"getProviderForMode (AppState.swift:300): Defined as an instance method on AppState returning provider string for a given Mode, but zero call sites exist across all Swift files.\",\n    \"glowColor (Theme.swift:70): Defined as static func returning a glow Color per mode, but no view or other code references DeepTheme.glowColor anywhere.\",\n    \"statusPanel (ContentView.swift:129): Defined as a computed var returning some View (a full Moon Bridge status panel), but never referenced in the ContentView body or anywhere else.\",\n    \"providerCount (AdvancedCapabilities.swift:161): Defined as a computed property on RoutingInfo extension returning configuredProviders.count, but never read by any caller.\"\n  ],\n  \"summary\": \"Found 5 symbols (functions/computed properties) with zero usages across the 9 Swift source files. All are safe removal candidates: extractFirstRealUserMessage was likely a planned helper for session parsing that was never integrated; getProviderForMode duplicates logic already in getCurrentProvider; glowColor and statusPanel appear to be leftover design assets that were never wired into the UI; providerCount was probably intended for a routing display that was never built.\"\n}\n```",
+      "responseHash": "8f69c35fd0ccd09c",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 2948121,
+        "output_tokens": 9867,
+        "cached_tokens": 2815616,
+        "reasoning_tokens": 196,
+        "tool_call_count": 96,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 113512,
+        "api_latency_ms": 113511,
+        "cost_usd": 0.06073208,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [
+          {
+            "name": "extractFirstRealUserMessage",
+            "file": "Sources/DeepCodex/ContextExporter.swift",
+            "kind": "function"
+          },
+          {
+            "name": "getProviderForMode",
+            "file": "Sources/DeepCodex/AppState.swift",
+            "kind": "function"
+          },
+          {
+            "name": "glowColor",
+            "file": "Sources/DeepCodex/Theme.swift",
+            "kind": "function"
+          },
+          {
+            "name": "statusPanel",
+            "file": "Sources/DeepCodex/ContentView.swift",
+            "kind": "function"
+          },
+          {
+            "name": "providerCount",
+            "file": "Sources/DeepCodex/AdvancedCapabilities.swift",
+            "kind": "function"
+          }
+        ],
+        "evidence": [
+          "extractFirstRealUserMessage (ContextExporter.swift:242): Defined as static func but never called anywhere in the codebase — its definition line is the only reference.",
+          "getProviderForMode (AppState.swift:300): Defined as an instance method on AppState returning provider string for a given Mode, but zero call sites exist across all Swift files.",
+          "glowColor (Theme.swift:70): Defined as static func returning a glow Color per mode, but no view or other code references DeepTheme.glowColor anywhere.",
+          "statusPanel (ContentView.swift:129): Defined as a computed var returning some View (a full Moon Bridge status panel), but never referenced in the ContentView body or anywhere else.",
+          "providerCount (AdvancedCapabilities.swift:161): Defined as a computed property on RoutingInfo extension returning configuredProviders.count, but never read by any caller."
+        ],
+        "summary": "Found 5 symbols (functions/computed properties) with zero usages across the 9 Swift source files. All are safe removal candidates: extractFirstRealUserMessage was likely a planned helper for session parsing that was never integrated; getProviderForMode duplicates logic already in getCurrentProvider; glowColor and statusPanel appear to be leftover design assets that were never wired into the UI; providerCount was probably intended for a routing display that was never built."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 117967,
+        "p95": 117967
+      },
+      "input_tokens": {
+        "median": 1133161,
+        "total": 1133161
+      },
+      "output_tokens": {
+        "median": 11761,
+        "total": 11761
+      },
+      "cached_tokens": {
+        "median": 1085568,
+        "total": 1085568
+      },
+      "reasoning_tokens": {
+        "median": 25,
+        "total": 25
+      },
+      "tool_calls": {
+        "median": 79,
+        "total": 79
+      },
+      "cost_usd": {
+        "median": 0.02515405,
+        "total": 0.02515405
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 113512,
+        "p95": 113512
+      },
+      "input_tokens": {
+        "median": 2948121,
+        "total": 2948121
+      },
+      "output_tokens": {
+        "median": 9867,
+        "total": 9867
+      },
+      "cached_tokens": {
+        "median": 2815616,
+        "total": 2815616
+      },
+      "reasoning_tokens": {
+        "median": 196,
+        "total": 196
+      },
+      "tool_calls": {
+        "median": 96,
+        "total": 96
+      },
+      "cost_usd": {
+        "median": 0.06073208,
+        "total": 0.06073208
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "117967ms",
+        "without_caesar": "113512ms",
+        "delta": "3.9%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "1133161",
+        "without_caesar": "2948121",
+        "delta": "-61.6%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "11761",
+        "without_caesar": "9867",
+        "delta": "19.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "79",
+        "without_caesar": "96",
+        "delta": "-17.7%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.025154",
+        "without_caesar": "$0.060732",
+        "delta": "-58.6%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/DEEPCODEX/source; CAESAR state remains temporary."
+  ]
+}

@@ -1,0 +1,845 @@
+{
+  "config": {
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_dead_code"
+    ],
+    "projectDir": "/Users/admin/Desktop/CAESAR-authoritative",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_5a1a243cb32f",
+      "task_id": "external_dead_code",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a CAESAR-authoritative cleanup sprint. Find symbols (functions, classes) in the codebase that appear to have zero callers and zero usages — these are candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Only report symbols you have verified are defined in the codebase. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_1L7QtBqgQXuTMbgFYYja4633",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"file_tree\", \"entry_points\", \"brief\"]}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_bvHJk8wwq3eWIE4HBlAG5599",
+          "type": "function",
+          "function": {
+            "name": "analyze_hotspots",
+            "arguments": "{\"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_J1noLPb4C2q7JUvYAw3A8589",
+          "type": "function",
+          "function": {
+            "name": "get_graph_schema",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Fku3sMzC3Csoh08CK0RQ2685",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (f:Function)\\nWHERE NOT EXISTS { (f)<-[:CALLS]-() }\\n  AND NOT EXISTS { (f)<-[:USAGE]-() }\\n  AND NOT EXISTS { (f)<-[:TESTS]-() }\\nRETURN f.name AS name, f.file AS file, labels(f) AS kind\\nLIMIT 30\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_mCJSej3q3PhKh5qXwrPu9501",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.label, n.qualified_name, n.file_path, n.kind FROM nodes n WHERE n.kind IN ('Function', 'Class') AND NOT EXISTS (SELECT 1 FROM edges e WHERE (e.target_id = n.id OR e.source_id = n.id) AND e.type IN ('CALLS', 'USAGE')) LIMIT 50\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_f8f6ZkrMSCG3XO1ZdhFz0238",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind FROM nodes n WHERE n.kind IN ('Function', 'Class') AND NOT EXISTS (SELECT 1 FROM edges e WHERE (e.target_id = n.id OR e.source_id = n.id) AND e.type IN ('CALLS', 'USAGE')) LIMIT 50\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_hP9TLiTbYbNrJhV35ZrQ9965",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"commercial.gate.TierGateError\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_LIaAPf4ZCWU6vOHGQI1B0317",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"commercial.license.resolve\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_QeR4aG72Fl3OFRKIbljw1870",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"commercial.license.chunk\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_NBu7bCrxJClP6dEpxcPN6641",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"commercial.roi-calculator.defaultInputs\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_oRMT9wG9N4QlpnB8Yjz46126",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"commercial.roi-calculator.formatRoiAsMarkdown\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_8zC4GsmgOpOBeaQDIuXD4083",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"cli.hook-augment.process\"}"
+          }
+        },
+        {
+          "index": 6,
+          "id": "call_06_oXU6uihS4hlH5t1daYdb0041",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"api.src.routes.telemetry.sum\"}"
+          }
+        },
+        {
+          "index": 7,
+          "id": "call_07_YiOTy9TyPvYlhITsQAYj1497",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"api.src.routes.telemetry.c\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_y3Qf6KR7vnvm35XgpYHY4815",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/commercial/license.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ld65wC5LR0UCYLrZMTGo7351",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/commercial/gate.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_e331wxRi8rOUiBVjzRK80938",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/commercial/roi-calculator.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_FKMDL9vrYMN1WQzZObey6785",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind FROM nodes n WHERE n.kind IN ('Function', 'Class') AND n.name LIKE '%[_A-Za-z][_A-Za-z0-9]%' AND n.name NOT IN ('c','s','a','n','f','e','m','r','t','l','k','w','x','q','qr','pt','ek','idx') AND NOT EXISTS (SELECT 1 FROM edges e WHERE (e.target_id = n.id) AND e.type IN ('CALLS', 'USAGE')) LIMIT 30\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_nZHwK50uABU3lFmZyxLf8765",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind FROM nodes n WHERE n.kind IN ('Function', 'Class') AND length(n.name) > 2 AND NOT EXISTS (SELECT 1 FROM edges e WHERE (e.target_id = n.id) AND e.type IN ('CALLS', 'USAGE')) LIMIT 30\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_FcgQ5psdAH8dwEgpe8s22453",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path, n.kind FROM nodes n WHERE n.kind IN ('Function', 'Class') AND length(n.name) > 2 AND NOT EXISTS (SELECT 1 FROM edges e WHERE (e.target_id = n.id) AND e.type IN ('CALLS', 'USAGE')) LIMIT 30 OFFSET 30\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0unAqrL7oAO42HfTZKxu7970",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"extraction.language-registry.isSupportedExtension\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_W81D4pOopcczkXsT0Kwm3003",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"extraction.language-registry.getAllLanguageNames\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_C1w9UbqnWcsGZKqPvGgj7581",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"extraction.languages.getSupportedExtensions\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_qjkleLFN62HbX66ge2OA3539",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"extraction.metrics.defaultMetrics\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_EENLgidZqF3K1eTnvuii8031",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"extraction.metrics.detectRecursion\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_0htj6CxIJD0huZm0RfgR8136",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"extraction.metrics.computeTransitiveLoopDepth\"}"
+          }
+        },
+        {
+          "index": 6,
+          "id": "call_06_ByGZQ1gGqkojOa7kbrsW3629",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"extraction.metrics.isDecisionNode\"}"
+          }
+        },
+        {
+          "index": 7,
+          "id": "call_07_wqekV3pwCA6kQJHa2LHm1576",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"extraction.metrics.isLoopNode\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_rGkyflnk7H9KwFVjm01f2437",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"isSupportedExtension|getAllLanguageNames|getSupportedExtensions|defaultMetrics|detectRecursion|computeTransitiveLoopDepth|isDecisionNode|isLoopNode\", \"file_pattern\": \"*.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_kpaN9we0KILyFAoHNLye3347",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"defaultInputs|formatRoiAsMarkdown|TierGateError\", \"file_pattern\": \"*.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GYULvNe2PURJ6vpWnJI66348",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"isSupportedExtension\", \"file_pattern\": \"*.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_6CxgsCs53Mv4t4elUCYe9026",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"defaultInputs\", \"file_pattern\": \"*.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_R7eyB2knXUaw8Z15DGCh4593",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"formatRoiAsMarkdown\", \"file_pattern\": \"*.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_u8vdHYqHOkpXqI337piz9343",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"TierGateError\", \"file_pattern\": \"*.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_HSRFEt0U7VeCfr6sh8t07080",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"getAllLanguageNames\", \"file_pattern\": \"*.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_HLf4DZmXNh8cxzH9Xh5V7904",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"getSupportedExtensions\", \"file_pattern\": \"*.ts\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_mt4oHRJxHyeTa7juVpKZ4746",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT e.type, e.source_id, e.target_id FROM edges e JOIN nodes n ON n.id = e.target_id WHERE n.name = 'isSupportedExtension' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Yg9EF1AKwHss9F0K5h6t8661",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT e.type, e.source_id, e.target_id FROM edges e JOIN nodes n ON n.id = e.target_id WHERE n.name = 'defaultInputs' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_9lybXx3aNuxHhzZcg1gS9427",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT e.type, e.source_id, e.target_id FROM edges e JOIN nodes n ON n.id = e.target_id WHERE n.name = 'formatRoiAsMarkdown' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_pZuPsdANhMi9zC9Zf3tz5883",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT e.type, e.source_id, e.target_id FROM edges e JOIN nodes n ON n.id = e.target_id WHERE n.name = 'TierGateError' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_hXxFb5dLrG19hsItIaXi9666",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT e.type, e.source_id, e.target_id FROM edges e JOIN nodes n ON n.id = e.target_id WHERE n.name = 'getAllLanguageNames' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_y8Itwcn3nvsfEupQrEn49486",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT e.type, e.source_id, e.target_id FROM edges e JOIN nodes n ON n.id = e.target_id WHERE n.name = 'getSupportedExtensions' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_J0M8p7BKxZKGifGEzVxg8281",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n1.name as importer_name, n1.file_path as importer_file FROM nodes n1 JOIN edges e ON e.source_id = n1.id JOIN nodes n2 ON n2.id = e.target_id WHERE n2.name = 'isSupportedExtension' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_iB6kA21L03qepVW7ukZS6163",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n1.name as importer_name, n1.file_path as importer_file FROM nodes n1 JOIN edges e ON e.source_id = n1.id JOIN nodes n2 ON n2.id = e.target_id WHERE n2.name = 'TierGateError' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zxneHTK6knbDQZ7Svg3t4056",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"tests.unit.commercial.gate.test.TierGateError\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_RMdoFtfmWHwqFYt0NBPu0500",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/unit/commercial/gate.test.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xsWOQHDcDaThlMkEzbi13565",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/extraction/languages.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LnonFmWKpp19sNG5X7yw4166",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n1.name, n1.file_path FROM nodes n1 JOIN edges e ON e.source_id = n1.id JOIN nodes n2 ON n2.id = e.target_id WHERE n2.name = 'getSupportedExtensions' AND n2.file_path LIKE '%languages.ts' AND e.type = 'IMPORTS'\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_O8snZUcPvzDoAa2E1YGn9530",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n1.name, n1.file_path FROM nodes n1 JOIN edges e ON e.source_id = n1.id JOIN nodes n2 ON n2.id = e.target_id WHERE n2.name = 'defaultInputs' AND e.type IN ('IMPORTS', 'CALLS', 'USAGE')\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_f8H15L1Ihs9jSpGX4fmG4759",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n1.name, n1.file_path FROM nodes n1 JOIN edges e ON e.source_id = n1.id JOIN nodes n2 ON n2.id = e.target_id WHERE n2.name = 'formatRoiAsMarkdown' AND e.type IN ('IMPORTS', 'CALLS', 'USAGE')\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_CObkThcO5TUV2NV9Gu042478",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n1.name, n1.file_path FROM nodes n1 JOIN edges e ON e.source_id = n1.id JOIN nodes n2 ON n2.id = e.target_id WHERE n2.name = 'getAllLanguageNames' AND e.type IN ('IMPORTS', 'CALLS', 'USAGE')\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_Yo8dESiDApj3e0CvRo2B2917",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n1.name, n1.file_path FROM nodes n1 JOIN edges e ON e.source_id = n1.id JOIN nodes n2 ON n2.id = e.target_id WHERE n2.name = 'detectRecursion' AND e.type IN ('IMPORTS', 'CALLS', 'USAGE')\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZZrbCLvQSZeKtBpQl5577182",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"defaultInputs\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_yJw4psX0hJXrJRUftsPB2072",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"formatRoiAsMarkdown\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_pbPoSMmyLWwfgMhiwi0n1503",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"detectRecursion\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_4Tb4VBz329sp9gpftA3c9342",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"isSupportedExtension\"}"
+          }
+        },
+        {
+          "index": 4,
+          "id": "call_04_6WEHk4hokVbaX6UxarRk5459",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"getAllLanguageNames\"}"
+          }
+        },
+        {
+          "index": 5,
+          "id": "call_05_U5Bt2KZ4dETG1dcqyG5y8229",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"getSupportedExtensions\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_fEmsLQ12oHpe5SsNVhbw4308",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/extraction/metrics.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_9sf2dWU3al4vk7GM3Pd13245",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"SELECT n.name, n.qualified_name, n.file_path FROM nodes n WHERE n.name IN ('isNestingNode', 'isLinearScan', 'isAllocation', 'defaultMetrics', 'computeTransitiveLoopDepth', 'isDecisionNode', 'isLoopNode') AND NOT EXISTS (SELECT 1 FROM edges e WHERE (e.target_id = n.id) AND e.type IN ('CALLS', 'USAGE'))\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zWAKBER7GVs712knVc755054",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/extraction/language-registry.ts\", \"start_line\": 735, \"end_line\": 765}"
+          }
+        }
+      ],
+      "response": "I now have comprehensive, verified data. Here is my final report:\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"defaultInputs\",\n      \"file\": \"src/commercial/roi-calculator.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"formatRoiAsMarkdown\",\n      \"file\": \"src/commercial/roi-calculator.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"detectRecursion\",\n      \"file\": \"src/extraction/metrics.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"isSupportedExtension\",\n      \"file\": \"src/extraction/language-registry.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"getAllLanguageNames\",\n      \"file\": \"src/extraction/language-registry.ts\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"getSupportedExtensions\",\n      \"file\": \"src/extraction/languages.ts\",\n      \"kind\": \"function\"\n    }\n  ],\n  \"evidence\": [\n    \"Graph query confirmed zero incoming CALLS or USAGE edges for all six symbols (verified via node-edge JOIN analysis).\",\n    \"`isSupportedExtension` is imported by `src/extraction/languages.ts` but that file never invokes it — it uses `isSupportedFilePath` instead.\",\n    \"`defaultInputs` and `formatRoiAsMarkdown` are exported from `src/commercial/roi-calculator.ts` but no file anywhere imports or calls them (zero IMPORT, CALLS, USAGE edges).\",\n    \"`detectRecursion` is exported from `src/extraction/metrics.ts` with zero incoming edges — it's a utility that was likely written for the extractor but never wired in.\",\n    \"`getAllLanguageNames` and `getSupportedExtensions` are exported convenience functions with zero callers across the entire codebase.\",\n    \"`find_tests` confirmed zero tests cover any of the six symbols.\",\n    \"Source code inspection confirmed each symbol is a real function definition (not a graph indexing artifact like a callback parameter).\"\n  ],\n  \"summary\": \"Found 6 verified unused symbols across 4 source files: 2 in src/commercial/roi-calculator.ts (defaultInputs, formatRoiAsMarkdown — ROI model helpers that were exported but never consumed), 2 in src/extraction/language-registry.ts (isSupportedExtension, getAllLanguageNames — extension lookup helpers with zero callers), 1 in src/extraction/languages.ts (getSupportedExtensions — backward-compat wrapper that nothing imports), and 1 in src/extraction/metrics.ts (detectRecursion — recursion-detection utility never wired into the extraction pipeline). All are genuine function definitions, exported but dead. An additional 6 functions in src/extraction/metrics.ts (defaultMetrics, computeTransitiveLoopDepth, isDecisionNode, isLoopNode, isNestingNode, isLinearScan, isAllocation) are also zero-caller — the entire metrics.ts module appears to be orphaned legacy code.\"\n}\n```",
+      "responseHash": "22efadf565618568",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 681966,
+        "output_tokens": 9865,
+        "cached_tokens": 637696,
+        "reasoning_tokens": 461,
+        "tool_call_count": 61,
+        "files_read": 7,
+        "bytes_read": 66878,
+        "wall_time_ms": 104583,
+        "api_latency_ms": 104582,
+        "cost_usd": 0.01788774,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [
+          {
+            "name": "defaultInputs",
+            "file": "src/commercial/roi-calculator.ts",
+            "kind": "function"
+          },
+          {
+            "name": "formatRoiAsMarkdown",
+            "file": "src/commercial/roi-calculator.ts",
+            "kind": "function"
+          },
+          {
+            "name": "detectRecursion",
+            "file": "src/extraction/metrics.ts",
+            "kind": "function"
+          },
+          {
+            "name": "isSupportedExtension",
+            "file": "src/extraction/language-registry.ts",
+            "kind": "function"
+          },
+          {
+            "name": "getAllLanguageNames",
+            "file": "src/extraction/language-registry.ts",
+            "kind": "function"
+          },
+          {
+            "name": "getSupportedExtensions",
+            "file": "src/extraction/languages.ts",
+            "kind": "function"
+          }
+        ],
+        "evidence": [
+          "Graph query confirmed zero incoming CALLS or USAGE edges for all six symbols (verified via node-edge JOIN analysis).",
+          "`isSupportedExtension` is imported by `src/extraction/languages.ts` but that file never invokes it — it uses `isSupportedFilePath` instead.",
+          "`defaultInputs` and `formatRoiAsMarkdown` are exported from `src/commercial/roi-calculator.ts` but no file anywhere imports or calls them (zero IMPORT, CALLS, USAGE edges).",
+          "`detectRecursion` is exported from `src/extraction/metrics.ts` with zero incoming edges — it's a utility that was likely written for the extractor but never wired in.",
+          "`getAllLanguageNames` and `getSupportedExtensions` are exported convenience functions with zero callers across the entire codebase.",
+          "`find_tests` confirmed zero tests cover any of the six symbols.",
+          "Source code inspection confirmed each symbol is a real function definition (not a graph indexing artifact like a callback parameter)."
+        ],
+        "summary": "Found 6 verified unused symbols across 4 source files: 2 in src/commercial/roi-calculator.ts (defaultInputs, formatRoiAsMarkdown — ROI model helpers that were exported but never consumed), 2 in src/extraction/language-registry.ts (isSupportedExtension, getAllLanguageNames — extension lookup helpers with zero callers), 1 in src/extraction/languages.ts (getSupportedExtensions — backward-compat wrapper that nothing imports), and 1 in src/extraction/metrics.ts (detectRecursion — recursion-detection utility never wired into the extraction pipeline). All are genuine function definitions, exported but dead. An additional 6 functions in src/extraction/metrics.ts (defaultMetrics, computeTransitiveLoopDepth, isDecisionNode, isLoopNode, isNestingNode, isLinearScan, isAllocation) are also zero-caller — the entire metrics.ts module appears to be orphaned legacy code."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_4f281708c41a",
+      "task_id": "external_dead_code",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a CAESAR-authoritative cleanup sprint. Find symbols (functions, classes) in the codebase that appear to have zero callers and zero usages — these are candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Only report symbols you have verified are defined in the codebase. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [],
+      "response": "Error: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1816012 tokens (1816012 in the messages, 0 in the completion). Please reduce the length of the messag",
+      "responseHash": "5d91bcb9e77db792",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "tool_call_count": 0,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 21187,
+        "api_latency_ms": 0,
+        "cost_usd": 0,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {},
+      "expected": {},
+      "correct": false,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [
+        "No JSON object found in response",
+        "provider_request_failed: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1816012 tokens (1816012 in the messages, 0 in the completion). Please reduce the length of the messag"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 104583,
+        "p95": 104583
+      },
+      "input_tokens": {
+        "median": 681966,
+        "total": 681966
+      },
+      "output_tokens": {
+        "median": 9865,
+        "total": 9865
+      },
+      "cached_tokens": {
+        "median": 637696,
+        "total": 637696
+      },
+      "reasoning_tokens": {
+        "median": 461,
+        "total": 461
+      },
+      "tool_calls": {
+        "median": 61,
+        "total": 61
+      },
+      "cost_usd": {
+        "median": 0.01788774,
+        "total": 0.01788774
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 21187,
+        "p95": 21187
+      },
+      "input_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "output_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 0,
+        "total": 0
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "104583ms",
+        "without_caesar": "21187ms",
+        "delta": "393.6%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "681966",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "9865",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "61",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.017888",
+        "without_caesar": "$0.000000",
+        "delta": "N/A",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/CAESAR-authoritative; CAESAR state remains temporary."
+  ]
+}

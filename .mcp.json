@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "lynx": {
+      "command": "/Users/admin/.local/nodejs/node-v20.19.5-darwin-arm64/bin/node",
+      "args": [
+        "/Users/admin/Desktop/LYNX/dist/cli.js",
+        "serve"
+      ],
+      "env": {
+        "LYNX_DEEPSEEK_KEY": "REDACTED",
+        "LYNX_API_URL": "http://100.82.135.97:8090",
+        "LYNX_API_KEY": "REDACTED"
+      }
+    }
+  }
+}

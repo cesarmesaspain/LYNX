@@ -1,0 +1,38 @@
+{
+  "generated": "2026-07-11T16:10:32.549Z",
+  "project": "DEEPCODEX",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tier": "official",
+  "tasks": [
+    {
+      "task_id": "external_find_definition",
+      "lynx": {
+        "response": "Here are the results:\n\n**`runAppleScript`** is a **Method** (specifically a private instance method on `AppState`), defined in:\n\n**File:** `source/Sources/DeepCodex/AppState.swift` (lines 555–557)\n\nIt executes a shell command via `/usr/bin/osascript` to run the provided AppleScript string. It has complexity 1 and is called by `restoreBackup`.\n\n```json\n{\"found_file\":\"source/Sources/DeepCodex/AppState.swift\",\"function_name\":\"runAppleScript\",\"kind\":\"method\"}\n```",
+        "wall_ms": 8229,
+        "tool_calls": 4,
+        "tool_call_summary": {
+          "get_code_snippet": 1,
+          "search_code": 1,
+          "search_graph": 2
+        },
+        "input_tokens": 17956,
+        "cost_usd": 0.00058834,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "Based on the codebase analysis:\n\n- The method `runAppleScript` is defined at line 555 of `source/Sources/DeepCodex/AppState.swift`.\n- It is declared as `private func runAppleScript(_ s: String)` inside the `final class AppState: ObservableObject` class, making it an instance **method** of that class.\n\n```json\n{\"found_file\":\"source/Sources/DeepCodex/AppState.swift\",\"function_name\":\"runAppleScript\",\"kind\":\"method\"}\n```",
+        "wall_ms": 13481,
+        "tool_calls": 4,
+        "tool_call_summary": {
+          "grep": 3,
+          "read_file": 1
+        },
+        "input_tokens": 10179,
+        "cost_usd": 0.00118073,
+        "errors": []
+      }
+    }
+  ]
+}

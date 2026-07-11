@@ -1,0 +1,39 @@
+{
+  "generated": "2026-07-11T16:14:20.232Z",
+  "project": "LINCE",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tier": "official",
+  "tasks": [
+    {
+      "task_id": "external_find_definition",
+      "lynx": {
+        "response": "```json\n{\n  \"found_file\": \"frontend/src/utils/chartStrategies.ts\",\n  \"function_name\": \"toLineData\",\n  \"kind\": \"function\"\n}\n```",
+        "wall_ms": 8315,
+        "tool_calls": 5,
+        "tool_call_summary": {
+          "get_code_snippet": 1,
+          "search_code": 2,
+          "search_graph": 1,
+          "semantic_search": 1
+        },
+        "input_tokens": 23278,
+        "cost_usd": 0.0006949,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "The function `toLineData` is defined in the file `frontend/src/utils/chartStrategies.ts` at line 723. It is a standalone module-level function declared with the `function` keyword (not exported).\n\n```json\n{\n  \"found_file\": \"frontend/src/utils/chartStrategies.ts\",\n  \"function_name\": \"toLineData\",\n  \"kind\": \"function\"\n}\n```",
+        "wall_ms": 10497,
+        "tool_calls": 3,
+        "tool_call_summary": {
+          "grep": 1,
+          "read_file": 2
+        },
+        "input_tokens": 58623,
+        "cost_usd": 0.00565743,
+        "errors": []
+      }
+    }
+  ]
+}

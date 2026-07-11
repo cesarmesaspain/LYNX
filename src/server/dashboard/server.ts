@@ -1,0 +1,424 @@
+/*
+ * dashboard/server.ts — HTTP server for the local LYNX dashboard.
+ */
+
+import * as http from 'node:http';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { URL } from 'node:url';
+import { WebSocketServer, type WebSocket } from 'ws';
+import { lynxHome, readLynxConfig, upsertLynxConfig } from '../../config/runtime.js';
+import { LynxDatabase } from '../../store/database.js';
+import { runPipeline } from '../../pipeline/orchestrator.js';
+import { collectProjectCards, collectActionGraph, getSavingsLabScenarios } from './data.js';
+import { renderDashboard } from './html.js';
+import { readRequestBody, pickFolderNative } from './utils.js';
+import { aggregateByWindow, aggregateTotal, getTimeWindows, type TimeWindow } from '../../usage/aggregation.js';
+import { getCachedMetrics } from '../../usage/cache.js';
+
+const PORT = parseInt(process.env.LYNX_DASHBOARD_PORT || '9191', 10);
+let _server: http.Server | null = null;
+let _wss: WebSocketServer | null = null;
+let _watchFs: fs.FSWatcher | null = null;
+let _watchHome: fs.FSWatcher | null = null;
+
+// ── Rate limiter: max 1 req/sec per IP for /api/projects ──────────
+const _rateMap = new Map<string, number>();
+function _rateLimit(ip: string): boolean {
+  const now = Date.now();
+  const last = _rateMap.get(ip) || 0;
+  if (now - last < 1000) return false;
+  _rateMap.set(ip, now);
+  // Cleanup stale entries every 60s
+  if (_rateMap.size > 200) {
+    for (const [k, v] of _rateMap) if (now - v > 60000) _rateMap.delete(k);
+  }
+  return true;
+}
+
+// ── CORS headers ───────────────────────────────────────────────────
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export function startDashboard(): http.Server {
+  if (_server) return _server;
+
+  function writeJson(res: http.ServerResponse, code: number, body: unknown): void {
+    const headers = { ...CORS_HEADERS, 'Content-Type': 'application/json; charset=utf-8' };
+    res.writeHead(code, headers);
+    res.end(JSON.stringify(body));
+  }
+
+  function writeHtml(res: http.ServerResponse, html: string): void {
+    const headers = { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' };
+    res.writeHead(200, headers);
+    res.end(html);
+  }
+
+  const server = http.createServer(async (req, res) => {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, CORS_HEADERS);
+      res.end();
+      return;
+    }
+
+    try {
+      const url = new URL(req.url || '/', `http://localhost:${PORT}`);
+      if (url.pathname === '/api/action-graph') {
+        const project = url.searchParams.get('project') || '';
+        const mode = url.searchParams.get('mode') || 'value';
+        try {
+          const graph = collectActionGraph(project, mode);
+          writeJson(res, 200, graph);
+        } catch (err) {
+          writeJson(res, 404, { error: `Project "${project}" not found or not indexed yet.`, details: String(err) });
+        }
+        return;
+      }
+
+      if (url.pathname === '/api/projects') {
+        const ip = req.socket.remoteAddress || 'unknown';
+        if (!_rateLimit(ip)) {
+          writeJson(res, 429, { error: 'Too many requests. Wait 1 second.' });
+          return;
+        }
+        const cards = collectProjectCards();
+        writeJson(res, 200, cards);
+        return;
+      }
+
+      if (url.pathname === '/api/projects/add' && req.method === 'POST') {
+        const body = await readRequestBody(req);
+        try {
+          const { project_name, project_path } = JSON.parse(body);
+          if (!project_name || !project_path) {
+            writeJson(res, 400, { error: 'project_name and project_path are required' });
+            return;
+          }
+          if (!isValidProjectName(project_name)) {
+            writeJson(res, 400, { error: 'Invalid project_name. Use alphanumeric characters, hyphens, and underscores only.' });
+            return;
+          }
+          if (!fs.existsSync(project_path)) {
+            writeJson(res, 400, { error: `Path does not exist: ${project_path}` });
+            return;
+          }
+
+          // Avoid colliding with LYNX's own project DB on case-insensitive filesystems
+          let dbName = project_name;
+          if (project_name.toLowerCase() === 'lynx') {
+            dbName = 'lynx-project';
+          }
+
+          const db = LynxDatabase.openProject(dbName);
+          runPipeline(db, project_path, dbName, { mode: 'fast' })
+            .then((result) => {
+              console.error(`[dashboard] Indexed new project "${dbName}": ${result.status.totalNodes} nodes, ${result.status.totalEdges} edges`);
+              db.close();
+            })
+            .catch((err) => {
+              console.error(`[dashboard] Index failed for "${dbName}":`, String(err));
+              try { db.close(); } catch { /* ignore */ }
+            });
+          writeJson(res, 202, { ok: true, project_name: dbName, message: 'Indexing started. Refresh to see updates.' });
+        } catch {
+          writeJson(res, 400, { error: 'Invalid JSON body' });
+        }
+        return;
+      }
+
+      if (url.pathname === '/api/projects/delete' && req.method === 'POST') {
+        const body = await readRequestBody(req);
+        try {
+          const { project_name } = JSON.parse(body);
+          if (!project_name) {
+            writeJson(res, 400, { error: 'project_name is required' });
+            return;
+          }
+          if (!isValidProjectName(project_name)) {
+            writeJson(res, 400, { error: 'Invalid project_name.' });
+            return;
+          }
+          const dbsDir = path.join(lynxHome(), 'dbs');
+          const dbPath = path.join(dbsDir, project_name + '.db');
+          if (!fs.existsSync(dbPath)) {
+            writeJson(res, 404, { error: `Project "${project_name}" not found` });
+            return;
+          }
+          const db = LynxDatabase.openProject(project_name);
+          try {
+            const nodeCount = (db.db.prepare('SELECT COUNT(*) as cnt FROM nodes WHERE project = ?').get(project_name) as { cnt: number }).cnt;
+            const edgeCount = (db.db.prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ?').get(project_name) as { cnt: number }).cnt;
+            db.deleteProject(project_name);
+            writeJson(res, 200, { ok: true, deleted: project_name, nodes_removed: nodeCount, edges_removed: edgeCount });
+          } finally {
+            db.close();
+          }
+        } catch {
+          writeJson(res, 400, { error: 'Invalid JSON body' });
+        }
+        return;
+      }
+
+      if (url.pathname === '/api/pick-folder') {
+        try {
+          const folderPath = pickFolderNative();
+          writeJson(res, 200, folderPath ? { path: folderPath } : { path: null, cancelled: true });
+        } catch (err) {
+          writeJson(res, 500, { error: String(err) });
+        }
+        return;
+      }
+
+      if (url.pathname === '/api/savings-lab') {
+        writeJson(res, 200, getSavingsLabScenarios(readLynxConfig().locale));
+        return;
+      }
+
+      if (url.pathname === '/api/metrics') {
+        const project = url.searchParams.get('project') || '';
+        const window = (url.searchParams.get('window') || 'total') as TimeWindow;
+        const format = url.searchParams.get('format') || 'json';
+        const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10) || 1);
+        const pageSize = Math.min(500, Math.max(1, parseInt(url.searchParams.get('page_size') || '100', 10) || 100));
+
+        try {
+          const data = getCachedMetrics(project, window);
+
+          if (format === 'csv') {
+            const csv = metricsToCsv(data);
+            res.writeHead(200, {
+              ...CORS_HEADERS,
+              'Content-Type': 'text/csv; charset=utf-8',
+              'Content-Disposition': `attachment; filename="lynx-metrics-${project || 'all'}-${window}.csv"`,
+            });
+            res.end(csv);
+            return;
+          }
+
+          // Paginate categories and metrics
+          const allCategories = data.categories;
+          const totalCategories = allCategories.length;
+          const start = (page - 1) * pageSize;
+          const pagedCategories = allCategories.slice(start, start + pageSize);
+
+          writeJson(res, 200, {
+            ...data,
+            categories: pagedCategories,
+            pagination: {
+              page,
+              page_size: pageSize,
+              total_categories: totalCategories,
+              total_pages: Math.ceil(totalCategories / pageSize),
+              has_more: start + pageSize < totalCategories,
+            },
+          });
+        } catch (err) {
+          writeJson(res, 500, { error: 'Metrics query failed: ' + String(err) });
+        }
+        return;
+      }
+
+      if (url.pathname === '/api/metrics/windows') {
+        const windows = getTimeWindows();
+        writeJson(res, 200, windows);
+        return;
+      }
+
+      if (url.pathname === '/api/health') {
+        writeJson(res, 200, { ok: true, uptime: process.uptime(), pid: process.pid, memory_mb: Math.round(process.memoryUsage().rss / (1024 * 1024)) });
+        return;
+      }
+
+      if (url.pathname === '/api/diagnostics') {
+        // Export diagnostic snapshot with secrets redacted
+        const cards = collectProjectCards();
+        const cfg = readLynxConfig();
+        const diag = {
+          generated_at: new Date().toISOString(),
+          projects: cards.map(c => ({
+            name: c.name,
+            freshness: c.freshness,
+            status: c.status,
+            statusError: c.statusError,
+            nodes: c.nodes,
+            edges: c.edges,
+            filesIndexed: c.filesIndexed,
+            dbSizeBytes: c.dbSizeBytes,
+            hoursSinceIndex: c.hoursSinceIndex,
+            llmCalls: c.llmCalls,
+            llmCostUsd: c.llmCostUsd,
+            errorCount: c.errorCount,
+            lastIndexed: c.lastIndexed,
+          })),
+          config: {
+            auto_index: cfg.auto_index,
+            auto_index_limit: cfg.auto_index_limit,
+            auto_watch: cfg.auto_watch,
+            stale_threshold_hours: cfg.stale_threshold_hours,
+            locale: cfg.locale,
+            // Redacted: no API keys, no paths
+          },
+          runtime: {
+            node: process.version,
+            pid: process.pid,
+            uptime_seconds: Math.round(process.uptime()),
+            memory_mb: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+          },
+        };
+        writeJson(res, 200, diag);
+        return;
+      }
+
+      // Path traversal guard — reject project names with directory separators
+      function isValidProjectName(name: string): boolean {
+        return name.length > 0 && name.length <= 128 && !/[\/\\]/.test(name);
+      }
+
+      if (url.pathname === '/api/locale' && req.method === 'POST') {
+        const locale = url.searchParams.get('locale');
+        if (locale !== 'es' && locale !== 'en') {
+          writeJson(res, 400, { error: 'locale must be es or en' });
+          return;
+        }
+        upsertLynxConfig({ locale });
+        writeJson(res, 200, { ok: true, locale });
+        return;
+      }
+
+      const cards = collectProjectCards();
+      writeHtml(res, renderDashboard(cards));
+    } catch (err) {
+      writeJson(res, 500, { error: 'Dashboard render error: ' + String(err) });
+    }
+  });
+
+  function setupRealtime() {
+    // WebSocket server sharing the same HTTP server.
+    const wss = new WebSocketServer({ server, path: '/ws' });
+    _wss = wss;
+    const clients = new Set<WebSocket>();
+
+    wss.on('connection', (ws) => {
+      clients.add(ws);
+      ws.on('close', () => clients.delete(ws));
+      ws.on('error', () => clients.delete(ws));
+    });
+
+    function broadcastUpdate() {
+      if (clients.size === 0) return;
+      const cards = collectProjectCards();
+      const briefPayload = Object.fromEntries(cards
+        .filter((c) => c.brief)
+        .map((c) => [c.name, {
+          brief: c.brief?.brief || '',
+          generated_at: c.brief?.generated_at || '',
+        }]));
+      const body = JSON.stringify({ type: 'cards_updated', cards, briefs: briefPayload });
+      for (const ws of clients) {
+        if (ws.readyState === 1 /* OPEN */) {
+          ws.send(body);
+        }
+      }
+    }
+
+    // File watcher on dbs directory — push updates on index/brief changes.
+    const dbsDir = path.join(lynxHome(), 'dbs');
+    if (!fs.existsSync(dbsDir)) {
+      fs.mkdirSync(dbsDir, { recursive: true });
+    }
+    let watchDebounce: ReturnType<typeof setTimeout> | null = null;
+    const scheduleBroadcast = () => {
+      if (watchDebounce) clearTimeout(watchDebounce);
+      watchDebounce = setTimeout(broadcastUpdate, 800);
+    };
+    _watchFs = fs.watch(dbsDir, (_eventType, filename) => {
+      if (!filename || (!filename.endsWith('.db') && !filename.endsWith('.db-wal'))) return;
+      scheduleBroadcast();
+    });
+
+    // Second watcher on lynxHome for metrics.db / usage.jsonl changes.
+    try {
+      _watchHome = fs.watch(lynxHome(), (_eventType, filename) => {
+        if (!filename || (filename !== 'metrics.db' && filename !== 'metrics.db-wal' && filename !== 'usage.jsonl')) return;
+        scheduleBroadcast();
+      });
+    } catch { /* home dir might not exist yet */ }
+  }
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[lynx] Dashboard port ${PORT} in use — skipping.`);
+      _server = null;
+      return;
+    }
+    console.error(`[lynx] Dashboard error:`, err.message);
+  });
+
+  server.listen(PORT, () => {
+    console.error(`[lynx] Dashboard: http://localhost:${PORT}  ws://localhost:${PORT}/ws`);
+    _server = server;
+    setupRealtime();
+  });
+
+  return server;
+}
+
+// ── CSV export ─────────────────────────────────────────────────
+
+import type { WindowedMetrics } from '../../usage/aggregation.js';
+
+function metricsToCsv(data: WindowedMetrics): string {
+  const lines: string[] = [];
+
+  // Header section with metadata
+  lines.push('# LYNX Metrics Export');
+  lines.push(`# Window: ${data.window}`);
+  lines.push(`# Period: ${data.since} — ${data.until}`);
+  lines.push(`# Computed: ${data.computed_at}`);
+  lines.push('');
+
+  // Totals — derive provenance from the metrics array
+  const provByKey = new Map(data.metrics.map(m => [m.key, m.provenance.kind]));
+  const p = (key: string) => provByKey.get(key) || 'measured';
+  lines.push('## Totals');
+  lines.push('metric,value,unit,provenance,category');
+  lines.push(`tokens_saved,${data.totals.tokens_saved},tokens,${p('tokens_saved')},total`);
+  lines.push(`files_avoided,${data.totals.files_avoided},files,${p('files_avoided')},total`);
+  lines.push(`unique_files_avoided,${data.totals.unique_files_avoided},files,${p('unique_files')},total`);
+  lines.push(`events,${data.totals.events},events,${p('events')},total`);
+  lines.push(`llm_events,${data.totals.llm_events},events,${p('llm_events')},total`);
+  lines.push(`llm_cost_usd,${data.totals.llm_cost_usd},USD,${p('llm_cost')},total`);
+  lines.push(`sessions,${data.totals.sessions},sessions,${p('sessions')},total`);
+  lines.push(`tasks,${data.totals.tasks},tasks,${p('tasks')},total`);
+  lines.push(`deterministic_events,${data.totals.deterministic_events},events,measured,total`);
+  lines.push('');
+
+  // Category breakdown
+  lines.push('## Categories (mutually exclusive)');
+  lines.push('category,label,tokens_saved,files_avoided,events,latency_ms');
+  for (const c of data.categories) {
+    lines.push(`${c.category},"${c.label}",${c.tokens_saved},${c.files_avoided},${c.events},${c.latency_ms}`);
+  }
+  lines.push('');
+
+  // Metrics with provenance
+  lines.push('## Metrics');
+  lines.push('key,label,value,unit,kind,formula,confidence,sample_size');
+  for (const m of data.metrics) {
+    const formula = m.provenance.formula ? `"${m.provenance.formula.replace(/"/g, '""')}"` : '';
+    lines.push(`${m.key},"${m.label}",${m.value},${m.unit},${m.provenance.kind},${formula},${m.provenance.confidence},${m.provenance.sample_size}`);
+  }
+  lines.push('');
+
+  // Coverage
+  lines.push('## Telemetry Coverage');
+  lines.push('event_coverage,sessions_tracked,tasks_tracked,llm_active,deterministic_mode,summary');
+  lines.push(`${data.coverage.event_coverage},${data.coverage.sessions_tracked},${data.coverage.tasks_tracked},${data.coverage.llm_tracking_active},${data.coverage.deterministic_mode},"${data.coverage.summary}"`);
+
+  return lines.join('\n') + '\n';
+}

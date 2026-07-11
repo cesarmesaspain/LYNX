@@ -1,0 +1,664 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 3,
+    "taskIds": [
+      "external_find_definition"
+    ],
+    "projectDir": "/Users/admin/Desktop/LINCE",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_7df0c7d749db",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"toLineData\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_qVLxOpBNZwIVDA9slsrY4186",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"toLineData\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_tt9vrNZsMk2eJMSd8hxg7687",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"function toLineData\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_KSdMkdKdf2QrdneIMAUC0515",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"toLineData\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_aRnQXYWmfQLtn5IWV7vr2227",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"toLineData\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QUYulnn25dHO7FcW4R7z7630",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.utils.chartStrategies.toLineData\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"frontend/src/utils/chartStrategies.ts\",\n  \"function_name\": \"toLineData\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "a33d66d4a4f2c78f",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 23278,
+        "output_tokens": 462,
+        "cached_tokens": 21376,
+        "reasoning_tokens": 9,
+        "tool_call_count": 5,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 8315,
+        "api_latency_ms": 8315,
+        "cost_usd": 0.0006949,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_a3f5efe0a7ee",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"toLineData\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_x5PrLkTzoLN2YrBLiwN85214",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"toLineData\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_t7rUy8nQTILY8k8nqOWs9095",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/utils/chartStrategies.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_VVg917QvOZHqZIXUybpz5517",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/utils/chartStrategies.ts\", \"offset\": 720, \"limit\": 10}"
+          }
+        }
+      ],
+      "response": "The function `toLineData` is defined in the file `frontend/src/utils/chartStrategies.ts` at line 723. It is a standalone module-level function declared with the `function` keyword (not exported).\n\n```json\n{\n  \"found_file\": \"frontend/src/utils/chartStrategies.ts\",\n  \"function_name\": \"toLineData\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "a3f761398977a50a",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 58623,
+        "output_tokens": 628,
+        "cached_tokens": 21632,
+        "reasoning_tokens": 221,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 148042,
+        "wall_time_ms": 10497,
+        "api_latency_ms": 10497,
+        "cost_usd": 0.00565743,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_3_f9aac9ff2c11",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"toLineData\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_ozV0If23xk6kdZDyLbwM5990",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"toLineData\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZSv2IrlKoeiO8wVwZBYI6891",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.utils.chartStrategies.toLineData\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"frontend/src/utils/chartStrategies.ts\",\n  \"function_name\": \"toLineData\",\n  \"kind\": \"Function\"\n}\n```",
+      "responseHash": "107d51903bc42017",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 11667,
+        "output_tokens": 187,
+        "cached_tokens": 11008,
+        "reasoning_tokens": 14,
+        "tool_call_count": 2,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 4233,
+        "api_latency_ms": 4233,
+        "cost_usd": 0.00029873,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 1,
+        "fixes_needed": 1,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "Function"
+      },
+      "expected": {
+        "found_file": "utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "kind: expected \"function\", got \"Function\""
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_4_69e37025869d",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"toLineData\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_10uo18HdJ5bjO4uQ82pe1447",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"toLineData\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YDFc8dhdiCJvQGtC4S0q1612",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/utils/chartStrategies.ts\", \"startLine\": 723, \"endLine\": 730}"
+          }
+        }
+      ],
+      "response": "Here is the answer:\n\n```json\n{\n  \"found_file\": \"frontend/src/utils/chartStrategies.ts\",\n  \"function_name\": \"toLineData\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "7cd4088547388a41",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 21043,
+        "output_tokens": 365,
+        "cached_tokens": 2304,
+        "reasoning_tokens": 61,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 74021,
+        "wall_time_ms": 5461,
+        "api_latency_ms": 5461,
+        "cost_usd": 0.00275792,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_5_e9a8424c7cf2",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"toLineData\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_koTO2LOZJ6Sf5KnXNke90618",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"toLineData\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_4RL9dgP193MJMkdlLhqd2255",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"toLineData\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MWzjambORx1NmOPzcZ568163",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"toLineData\", \"regex\": false, \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_IXMq6rwB6N9DWSVr2iq18856",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"toLineData function\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_pYQ0wtUAFsUX4Q7ktaGC9329",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.utils.chartStrategies.toLineData\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"frontend/src/utils/chartStrategies.ts\",\n  \"function_name\": \"toLineData\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "a33d66d4a4f2c78f",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 20312,
+        "output_tokens": 483,
+        "cached_tokens": 17792,
+        "reasoning_tokens": 55,
+        "tool_call_count": 5,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 7262,
+        "api_latency_ms": 7262,
+        "cost_usd": 0.00073713,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_6_423c92917ccf",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"toLineData\" is defined in the LINCE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_h40PMoAoycmROJOpWNiE3574",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"toLineData\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YPov7UPLPNQo5VdmzbCP5647",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/utils/chartStrategies.ts\"}"
+          }
+        }
+      ],
+      "response": "The function `toLineData` is defined at line 723 in `frontend/src/utils/chartStrategies.ts`. It is a standalone `function` declaration (not exported, not a method, not a class).\n\n```json\n{\n  \"found_file\": \"frontend/src/utils/chartStrategies.ts\",\n  \"function_name\": \"toLineData\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "317aa8d0d0cbc801",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 20946,
+        "output_tokens": 408,
+        "cached_tokens": 2560,
+        "reasoning_tokens": 161,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 74021,
+        "wall_time_ms": 5759,
+        "api_latency_ms": 5759,
+        "cost_usd": 0.00272412,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "frontend/src/utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "utils/chartStrategies.ts",
+        "function_name": "toLineData",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 7262,
+        "p95": 8315
+      },
+      "input_tokens": {
+        "median": 20312,
+        "total": 55257
+      },
+      "output_tokens": {
+        "median": 462,
+        "total": 1132
+      },
+      "cached_tokens": {
+        "median": 17792,
+        "total": 50176
+      },
+      "reasoning_tokens": {
+        "median": 14,
+        "total": 78
+      },
+      "tool_calls": {
+        "median": 5,
+        "total": 12
+      },
+      "cost_usd": {
+        "median": 0.0006949,
+        "total": 0.00173076
+      },
+      "functional_success_rate": 0.6666666666666666,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0.3333333333333333
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 5759,
+        "p95": 10497
+      },
+      "input_tokens": {
+        "median": 21043,
+        "total": 100612
+      },
+      "output_tokens": {
+        "median": 408,
+        "total": 1401
+      },
+      "cached_tokens": {
+        "median": 2560,
+        "total": 26496
+      },
+      "reasoning_tokens": {
+        "median": 161,
+        "total": 443
+      },
+      "tool_calls": {
+        "median": 2,
+        "total": 7
+      },
+      "cost_usd": {
+        "median": 0.00275792,
+        "total": 0.01113947
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 3,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "7262ms",
+        "without_caesar": "5759ms",
+        "delta": "26.1%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "20312",
+        "without_caesar": "21043",
+        "delta": "-3.5%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "462",
+        "without_caesar": "408",
+        "delta": "13.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "5",
+        "without_caesar": "2",
+        "delta": "150.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.000695",
+        "without_caesar": "$0.002758",
+        "delta": "-74.8%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "67%",
+        "without_caesar": "100%",
+        "delta": "-33.3%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 3 deterministic measured runs with real API calls (3 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (3 runs). Need at least 6."
+  },
+  "warnings": [
+    "External project mode: read-only source at /Users/admin/Desktop/LINCE; CAESAR state remains temporary."
+  ]
+}

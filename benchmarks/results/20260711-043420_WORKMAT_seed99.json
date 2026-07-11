@@ -1,0 +1,614 @@
+{
+  "config": {
+    "seed": 99,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_generic_architecture"
+    ],
+    "projectDir": "/Users/admin/Desktop/WORKMAT",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_a2353dc28901",
+      "task_id": "external_generic_architecture",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 99,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "You have just joined the WORKMAT team. Explore the project as you would in a real onboarding session. Explain its architecture, principal entry points, important modules, technical hotspots, and the most important missing or existing tests. Choose whatever tools you consider useful. Respond with JSON: {\"architecture\":[\"...\"],\"entry_points\":[\"...\"],\"important_modules\":[\"...\"],\"hotspots\":[\"...\"],\"test_observations\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_VmgmKXMxg9LMS6G7tMsI5065",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_FfyyA7zGxAyESzVDUozw1903",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"WORKMAT\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GPmVNVmBqM6Kyhrpz4519784",
+          "type": "function",
+          "function": {
+            "name": "analyze_hotspots",
+            "arguments": "{\"limit\": 15}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_6hcnL3gFTVF4dxgTnQuM8102",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\", \"entry_points\", \"clusters\", \"narrative\"]}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_wzzHolXYyWW3soMm3bi72317",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"test\", \"label\": \"Function\", \"file_pattern\": \"*.test.*\", \"limit\": 20, \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_YWNQdJ2aKITlGJWkRNgL5570",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"test\", \"label\": \"File\", \"file_pattern\": \"*.test.*\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_MhMmLtgOex5fxa2OQcrR3241",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\\.test\\\\.\", \"file_pattern\": \"*.ts*\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_mUaTyYorlUIRHyHOMr336629",
+          "type": "function",
+          "function": {
+            "name": "get_graph_schema",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_FDHjopOe1akfFjZPmKV58178",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"TESTS edge\", \"limit\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_PyiuPMsj7NsuuxPiY0kP5281",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (f:Function)-[:TESTS]->(target) RETURN f.name, f.file, target.name, target.file LIMIT 30\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_eIRBGAQqcdaCF9n2uV6m2435",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"chat route main entry point\", \"kind\": \"Route\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_OcNnF7xmYkGK3iatBITs4869",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"auth login authentication\", \"kind\": \"Route\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_qGTwFdMBDtVoIawIMTrN1463",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"it\\\\(|describe\\\\(|test\\\\(\", \"file_pattern\": \"*.test.*\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_d52BXD0u3UVLjV7enrIU5159",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\\.spec\\\\.\", \"file_pattern\": \"*.ts*\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_FWNMXSbvrKHDuUq6c7166673",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"app.api.chat.route.POST\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_C3UFZwadZNitvvIoYmOd1468",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.auth.service.loginWithPassword\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2w7jwXiQrg5mNGlknisK1725",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"__tests__\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_R2QsKJpWmm7tOPffsllD1149",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"jest|vitest|mocha|ava|tap\", \"file_pattern\": \"package.json\", \"context\": 5}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_WZ7Qle2QwaB9aXKZ317J3721",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"\\\"test\\\"|\\\"test:\\\"\", \"file_pattern\": \"package.json\", \"context\": 10}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_h93JTRmnoTKRh2F6FmAm6504",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.chat.route.POST\", \"direction\": \"outbound\", \"depth\": 3, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_f2EFCnQDk04CZozowHax5773",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Eg5KPIAesLT5vmibYUcq7415",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.chatActionAuth.Boolean\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_o80IWER5smFQicdzmjff0884",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"app.api.admin.analytics.overview.route.GET\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1wUKzti4a8bjlgAJbPbx1100",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"tests/\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_U5Kde3tevt4Y0vKOlKZI1587",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"prisma/schema.prisma\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_eUlnItkzuLLcf4129IJj3381",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"import.*from.*tests\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_mF3VDT6w9TjwfNmCGfZB8769",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/data/workmat.en.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_bUTReUqeBxwyvcUcbAOh9371",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"translations\", \"label\": \"File\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_uFyXojgwndlYDoC3CEMV2735",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/chatActionAuth.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OWz1YkeyRzKt9trz6TeX0539",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"tests/\", \"mode\": \"files\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_MrGNYa6ditHUgrPdvdBy7061",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/data/translations.ts\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_VgTAAZxQ2ujugC4qJ8NT0553",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"deploy route\", \"label\": \"Route\", \"include_snippets\": true}"
+          }
+        }
+      ],
+      "response": "Now I have a complete picture of the project. Here is my onboarding analysis:\n\n```json\n{\n  \"architecture\": [\n    \"WORKMAT is a Next.js 15 (React 19) multilingual SaaS platform with App Router, Prisma ORM over PostgreSQL, and Node.js built-in test runner via tsx.\",\n    \"Dual-purpose branding: Spanish-market renovation/maintenance services, and international AI consulting/security compliance business. The codebase shares one app shell with locale-specific content via a large i18n translation map (9 languages).\",\n    \"Architecture includes public-facing landing pages (hero, solutions, FAQ, contact forms), an admin SPA dashboard (mailing campaigns, analytics, users, security, integrations, env editor, deploy), and extensive REST API routes under /api/.\",\n    \"The chat subsystem has three providers: a local inference path, an OpenAI assistant path, and a transparent proxy forwarding to an external endpoint. Voice calls are powered by Vapi.ai with consent flows.\",\n    \"A full email marketing engine lives in lib/mailing/service.ts covering templates (HTML/visual), audiences, campaigns, A/B testing, delivery, tracking (opens/clicks/bounces), webhooks, and mirror pages.\",\n    \"Deploy subsystem (lib/deploy.ts + /api/deploy/*) handles SSH-based deployments, Prisma diff generation, prechecks, ingest, push, and status tracking.\",\n    \"Backups module (lib/backups.ts) is a high-coupling point responsible for structured backup/restore operations.\",\n    \"Security architecture: password + TOTP MFA + backup codes + trusted devices + session management + audit logging, administered via lib/auth/.\",\n    \"Dynamic locale-based routing exists for 9 languages (es, en, de, fr, it, pt, hi, ja, zh) each with localized slug pages.\"\n  ],\n  \"entry_points\": [\n    \"/api/chat — Main chat proxy (local, OpenAI, or external forward). POST handler (complexity 11) orchestrates the full chat flow and reaches 90+ callees.\",\n    \"/api/auth/login — Password + TOTP MFA login with account lockout, trusted device support, enrollment flows, and audit logging.\",\n    \"/api/admin/analytics/overview — Monster GET handler (complexity 64, 440 lines, 309 fan-in) that computes visit/lead/chat analytics from Prisma.\",\n    \"/api/admin/mailing — Campaign CRUD + send/preview for the email marketing engine.\",\n    \"/api/deploy/* — Multi-route deploy subsystem: /deploy, /deploy/config, /deploy/history, /deploy/ingest, /deploy/precheck, /deploy/prisma-diff, /deploy/push, /deploy/status.\",\n    \"/api/maintenance/* — Maintenance operations: /maintenance/status, /maintenance/run, /maintenance/policy, /maintenance/progress.\",\n    \"/api/auth/totp/*, /api/auth/password-reset/*, /api/auth/backup-codes — MFA and credential management entry points.\",\n    \"/[slug], /{locale}/[slug] — Public page routes for all 9 languages.\",\n    \"/admin — Monolithic admin dashboard page (4695 lines, GOD COMPONENT) with embedded sections for mailing, backups, analytics, users, security, integrations, and env editor.\",\n    \"src/lib/maintenance/index.ts — Programmatic maintenance entry point module.\"\n  ],\n  \"important_modules\": [\n    \"src/lib/auth/service.ts — loginWithPassword (complexity 28): full auth flow with lockout logic, TOTP enrollment, MFA verification, session creation, trusted devices, and audit logs.\",\n    \"src/lib/chatActionAuth.ts — HMAC-SHA256 token minting/verification for chat action scoping (conversationKey, chatId, visitorKey).\",\n    \"src/lib/mailing/service.ts — 4433-line email campaign engine: template versions, audiences, contacts, send queues, A/B testing, delivery, suppression, and audit.\",\n    \"src/lib/backups.ts — 134 fan-in hub for backup/restore operations (toRecord, toString, rawEntry).\",\n    \"src/lib/deploy.ts — runDeploy (complexity 265 lines) orchestrates the full deploy pipeline.\",\n    \"src/lib/adminAiSettings.ts — AI settings read operations used by the admin integrations section.\",\n    \"src/lib/adminCommunications.ts — Central hub for reading chat/call conversations and overviews.\",\n    \"src/lib/chatActionBus.ts — Event bus/filter for chat tool actions.\",\n    \"src/lib/companyProfile.ts — readString (110 fan-in) for company profile key-value storage.\",\n    \"src/lib/heroLayout.ts — Hero section layout math and content translation normalization.\",\n    \"src/app/api/chat/route.ts — 3877-line chat route with 90+ callees across local AI reply, OpenAI integration, forward proxy, lead tracking, action auth, and tool calls.\",\n    \"src/app/admin/mailing/page.tsx — 8016-line god component (AdminMailingPage + VisualTemplateEditor) managing the full email campaign UI.\",\n    \"src/components/chat/ChatWidget.tsx — 3278-line chat widget with consent, language switching, history, and streaming.\",\n    \"src/components/call/CallWidget.tsx — 2622-line Vapi.ai voice call widget with mic testing, consent, stage tracking.\",\n    \"src/components/hero/HeroAdmin.tsx — 3176-line drag-and-drop hero section admin editor with layout math.\",\n    \"src/data/translations.ts — 2588-line multi-language translation table for 9 languages.\"\n  ],\n  \"hotspots\": [\n    \"app.api.admin.analytics.overview.route.map — 309/311 fan-in CRITICAL. The analytics overview map function is the single most-coupled point in the system; any change here has massive blast radius.\",\n    \"components.ConsoleNoiseFilter.useEffect — 275/416 fan-in CRITICAL. React useEffect in the noise filter with highest coupling in the codebase. Tightly connected to many component lifecycle paths.\",\n    \"lib.chatActionAuth.Boolean — 166 fan-in, complexity 23 CRITICAL. Simple function but astronomically high coupling suggests a refactoring smell (likely a re-exported env check).\",\n    \"app.api.vapi_chat.route.Number — 194 fan-in CRITICAL. Vapi chat route with high dependency count.\",\n    \"lib.backups.toRecord — 134 fan-in CRITICAL. Backup record creation is a key coupling point.\",\n    \"lib.companyProfile.readString — 110 fan-in CRITICAL. Simple string reader used across many components.\",\n    \"lib.mailing.service.clamp — 97 fan-in HIGH. Email service utility with broad usage.\",\n    \"app.admin.sections.AnalyticsSection.clearTimeout — complexity 51, 69 fan-in MEDIUM. High-complexity timeout management in the analytics dashboard.\",\n    \"20 GOD COMPONENTS detected: AdminMailingPage (8016 lines), AdminBackupsPage (4695 lines), ChatWidget.useLanguage (2993 lines), HeroAdmin.useLanguage (2729 lines), CallWidget.useLanguage (2262 lines), AnalyticsSection (1735 lines), SolutionsLanding.useLanguage (1601 lines), and 13 more components exceeding 500 lines each.\",\n    \"Average cyclomatic complexity is 11.8 and cognitive complexity 29.15 — extremely high for a codebase of this size.\"\n  ],\n  \"test_observations\": [\n    \"ZERO automated tests exist. No .test.ts, .spec.ts, or __tests__ directories were found anywhere in the project. The npm test script (\\\"tsx --test tests/**/*.test.ts\\\") would match nothing.\",\n    \"The only TESTS edge in the knowledge graph points to testSendTemplate — a production function for test-sending emails to a single recipient (not an actual unit test).\",\n    \"Missing tests are a CRITICAL risk given the architecture: 20 god components, avg complexity of 11.8, and 20 hotspots with dangerous coupling levels.\",\n    \"Highest-priority areas needing tests: (1) Authentication (loginWithPassword has complexity 28 with account lockout, MFA, TOTP enrollment, trusted devices); (2) Chat API POST (complexity 11, 90+ callees, 3877-line file); (3) Analytics overview GET (complexity 64, 440 lines, 309 fan-in); (4) Mailing campaign lifecycle (4433-line service with send queues, A/B testing, suppression lists); (5) ChatActionAuth token minting/verification (HMAC, timing-safe comparison, scope matching); (6) Deploy orchestration (265-line pipeline).\",\n    \"Playwright (^1.58.2) is listed as a devDependency, suggesting an intent for E2E testing, but no actual tests were found. The tsx runner supports Node's built-in test runner for lightweight unit tests.\"\n  ],\n  \"evidence\": [\n    \"package.json: workmat-web@0.1.0, Next.js 15, React 19, Prisma 6, tsx@4, Playwright@1.58.2. Test script: tsx --test tests/**/*.test.ts.\",\n    \"5236 graph nodes, 27551 edges across TypeScript (200 files), TSX (77 files), Prisma schema (1 file).\",\n    \"20 god components detected; average cyclomatic complexity 11.8 (threshold 10).\",\n    \"15 critical/high hotspots identified with fan-in ranging from 64 to 416.\",\n    \"Prisma schema with 30+ models covering User, Session, TOTP, TrustedDevice, AuditLog, Visitor, VisitEvent, ChatSession, Call, Lead, Campaign, MailTemplate, MailCampaign, MailContact, MailSuppression, and more.\",\n    \"Languages supported: es, en, de, fr, it, pt, hi, ja, zh with translation files under src/data/.\",\n    \"Deploy infrastructure uses SSH2, Prisma diffs, and a custom deploy bus (lib/deployBus.ts).\",\n    \"Chat routes support three modes: local reply, OpenAI assistant, and external proxy forward.\",\n    \"Voice calls use Vapi.ai SDK with consent flows, mic testing, and call stage tracking.\"\n  ],\n  \"summary\": \"WORKMAT is a Next.js 15 SaaS platform with dual branding (renovation/maintenance + AI security consulting). The architecture is a monolith with 5236 code nodes, 20 god components, extremely high average complexity (cyclomatic 11.8), and zero automated tests. The most critical hotspots are the analytics overview function (309 fan-in), the ConsoleNoiseFilter useEffect (416 fan-in), and the chat action auth module (166 fan-in). Key subsystems include a full email marketing engine, a multi-provider chat/AI assistant, Vapi.ai voice calls, a deploy pipeline with SSH+Prisma, and a comprehensive auth system with TOTP/MFA. The complete absence of tests combined with massive component sizes (up to 8016 lines) and high coupling constitutes the most urgent technical debt. Playwright is available as a devDependency but unused.\"\n}\n```",
+      "responseHash": "270409e8e0c17975",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 355479,
+        "output_tokens": 5483,
+        "cached_tokens": 253952,
+        "reasoning_tokens": 891,
+        "tool_call_count": 32,
+        "files_read": 5,
+        "bytes_read": 252478,
+        "wall_time_ms": 63716,
+        "api_latency_ms": 63716,
+        "cost_usd": 0.01930435,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "architecture": [
+          "WORKMAT is a Next.js 15 (React 19) multilingual SaaS platform with App Router, Prisma ORM over PostgreSQL, and Node.js built-in test runner via tsx.",
+          "Dual-purpose branding: Spanish-market renovation/maintenance services, and international AI consulting/security compliance business. The codebase shares one app shell with locale-specific content via a large i18n translation map (9 languages).",
+          "Architecture includes public-facing landing pages (hero, solutions, FAQ, contact forms), an admin SPA dashboard (mailing campaigns, analytics, users, security, integrations, env editor, deploy), and extensive REST API routes under /api/.",
+          "The chat subsystem has three providers: a local inference path, an OpenAI assistant path, and a transparent proxy forwarding to an external endpoint. Voice calls are powered by Vapi.ai with consent flows.",
+          "A full email marketing engine lives in lib/mailing/service.ts covering templates (HTML/visual), audiences, campaigns, A/B testing, delivery, tracking (opens/clicks/bounces), webhooks, and mirror pages.",
+          "Deploy subsystem (lib/deploy.ts + /api/deploy/*) handles SSH-based deployments, Prisma diff generation, prechecks, ingest, push, and status tracking.",
+          "Backups module (lib/backups.ts) is a high-coupling point responsible for structured backup/restore operations.",
+          "Security architecture: password + TOTP MFA + backup codes + trusted devices + session management + audit logging, administered via lib/auth/.",
+          "Dynamic locale-based routing exists for 9 languages (es, en, de, fr, it, pt, hi, ja, zh) each with localized slug pages."
+        ],
+        "entry_points": [
+          "/api/chat — Main chat proxy (local, OpenAI, or external forward). POST handler (complexity 11) orchestrates the full chat flow and reaches 90+ callees.",
+          "/api/auth/login — Password + TOTP MFA login with account lockout, trusted device support, enrollment flows, and audit logging.",
+          "/api/admin/analytics/overview — Monster GET handler (complexity 64, 440 lines, 309 fan-in) that computes visit/lead/chat analytics from Prisma.",
+          "/api/admin/mailing — Campaign CRUD + send/preview for the email marketing engine.",
+          "/api/deploy/* — Multi-route deploy subsystem: /deploy, /deploy/config, /deploy/history, /deploy/ingest, /deploy/precheck, /deploy/prisma-diff, /deploy/push, /deploy/status.",
+          "/api/maintenance/* — Maintenance operations: /maintenance/status, /maintenance/run, /maintenance/policy, /maintenance/progress.",
+          "/api/auth/totp/*, /api/auth/password-reset/*, /api/auth/backup-codes — MFA and credential management entry points.",
+          "/[slug], /{locale}/[slug] — Public page routes for all 9 languages.",
+          "/admin — Monolithic admin dashboard page (4695 lines, GOD COMPONENT) with embedded sections for mailing, backups, analytics, users, security, integrations, and env editor.",
+          "src/lib/maintenance/index.ts — Programmatic maintenance entry point module."
+        ],
+        "important_modules": [
+          "src/lib/auth/service.ts — loginWithPassword (complexity 28): full auth flow with lockout logic, TOTP enrollment, MFA verification, session creation, trusted devices, and audit logs.",
+          "src/lib/chatActionAuth.ts — HMAC-SHA256 token minting/verification for chat action scoping (conversationKey, chatId, visitorKey).",
+          "src/lib/mailing/service.ts — 4433-line email campaign engine: template versions, audiences, contacts, send queues, A/B testing, delivery, suppression, and audit.",
+          "src/lib/backups.ts — 134 fan-in hub for backup/restore operations (toRecord, toString, rawEntry).",
+          "src/lib/deploy.ts — runDeploy (complexity 265 lines) orchestrates the full deploy pipeline.",
+          "src/lib/adminAiSettings.ts — AI settings read operations used by the admin integrations section.",
+          "src/lib/adminCommunications.ts — Central hub for reading chat/call conversations and overviews.",
+          "src/lib/chatActionBus.ts — Event bus/filter for chat tool actions.",
+          "src/lib/companyProfile.ts — readString (110 fan-in) for company profile key-value storage.",
+          "src/lib/heroLayout.ts — Hero section layout math and content translation normalization.",
+          "src/app/api/chat/route.ts — 3877-line chat route with 90+ callees across local AI reply, OpenAI integration, forward proxy, lead tracking, action auth, and tool calls.",
+          "src/app/admin/mailing/page.tsx — 8016-line god component (AdminMailingPage + VisualTemplateEditor) managing the full email campaign UI.",
+          "src/components/chat/ChatWidget.tsx — 3278-line chat widget with consent, language switching, history, and streaming.",
+          "src/components/call/CallWidget.tsx — 2622-line Vapi.ai voice call widget with mic testing, consent, stage tracking.",
+          "src/components/hero/HeroAdmin.tsx — 3176-line drag-and-drop hero section admin editor with layout math.",
+          "src/data/translations.ts — 2588-line multi-language translation table for 9 languages."
+        ],
+        "hotspots": [
+          "app.api.admin.analytics.overview.route.map — 309/311 fan-in CRITICAL. The analytics overview map function is the single most-coupled point in the system; any change here has massive blast radius.",
+          "components.ConsoleNoiseFilter.useEffect — 275/416 fan-in CRITICAL. React useEffect in the noise filter with highest coupling in the codebase. Tightly connected to many component lifecycle paths.",
+          "lib.chatActionAuth.Boolean — 166 fan-in, complexity 23 CRITICAL. Simple function but astronomically high coupling suggests a refactoring smell (likely a re-exported env check).",
+          "app.api.vapi_chat.route.Number — 194 fan-in CRITICAL. Vapi chat route with high dependency count.",
+          "lib.backups.toRecord — 134 fan-in CRITICAL. Backup record creation is a key coupling point.",
+          "lib.companyProfile.readString — 110 fan-in CRITICAL. Simple string reader used across many components.",
+          "lib.mailing.service.clamp — 97 fan-in HIGH. Email service utility with broad usage.",
+          "app.admin.sections.AnalyticsSection.clearTimeout — complexity 51, 69 fan-in MEDIUM. High-complexity timeout management in the analytics dashboard.",
+          "20 GOD COMPONENTS detected: AdminMailingPage (8016 lines), AdminBackupsPage (4695 lines), ChatWidget.useLanguage (2993 lines), HeroAdmin.useLanguage (2729 lines), CallWidget.useLanguage (2262 lines), AnalyticsSection (1735 lines), SolutionsLanding.useLanguage (1601 lines), and 13 more components exceeding 500 lines each.",
+          "Average cyclomatic complexity is 11.8 and cognitive complexity 29.15 — extremely high for a codebase of this size."
+        ],
+        "test_observations": [
+          "ZERO automated tests exist. No .test.ts, .spec.ts, or __tests__ directories were found anywhere in the project. The npm test script (\"tsx --test tests/**/*.test.ts\") would match nothing.",
+          "The only TESTS edge in the knowledge graph points to testSendTemplate — a production function for test-sending emails to a single recipient (not an actual unit test).",
+          "Missing tests are a CRITICAL risk given the architecture: 20 god components, avg complexity of 11.8, and 20 hotspots with dangerous coupling levels.",
+          "Highest-priority areas needing tests: (1) Authentication (loginWithPassword has complexity 28 with account lockout, MFA, TOTP enrollment, trusted devices); (2) Chat API POST (complexity 11, 90+ callees, 3877-line file); (3) Analytics overview GET (complexity 64, 440 lines, 309 fan-in); (4) Mailing campaign lifecycle (4433-line service with send queues, A/B testing, suppression lists); (5) ChatActionAuth token minting/verification (HMAC, timing-safe comparison, scope matching); (6) Deploy orchestration (265-line pipeline).",
+          "Playwright (^1.58.2) is listed as a devDependency, suggesting an intent for E2E testing, but no actual tests were found. The tsx runner supports Node's built-in test runner for lightweight unit tests."
+        ],
+        "evidence": [
+          "package.json: workmat-web@0.1.0, Next.js 15, React 19, Prisma 6, tsx@4, Playwright@1.58.2. Test script: tsx --test tests/**/*.test.ts.",
+          "5236 graph nodes, 27551 edges across TypeScript (200 files), TSX (77 files), Prisma schema (1 file).",
+          "20 god components detected; average cyclomatic complexity 11.8 (threshold 10).",
+          "15 critical/high hotspots identified with fan-in ranging from 64 to 416.",
+          "Prisma schema with 30+ models covering User, Session, TOTP, TrustedDevice, AuditLog, Visitor, VisitEvent, ChatSession, Call, Lead, Campaign, MailTemplate, MailCampaign, MailContact, MailSuppression, and more.",
+          "Languages supported: es, en, de, fr, it, pt, hi, ja, zh with translation files under src/data/.",
+          "Deploy infrastructure uses SSH2, Prisma diffs, and a custom deploy bus (lib/deployBus.ts).",
+          "Chat routes support three modes: local reply, OpenAI assistant, and external proxy forward.",
+          "Voice calls use Vapi.ai SDK with consent flows, mic testing, and call stage tracking."
+        ],
+        "summary": "WORKMAT is a Next.js 15 SaaS platform with dual branding (renovation/maintenance + AI security consulting). The architecture is a monolith with 5236 code nodes, 20 god components, extremely high average complexity (cyclomatic 11.8), and zero automated tests. The most critical hotspots are the analytics overview function (309 fan-in), the ConsoleNoiseFilter useEffect (416 fan-in), and the chat action auth module (166 fan-in). Key subsystems include a full email marketing engine, a multi-provider chat/AI assistant, Vapi.ai voice calls, a deploy pipeline with SSH+Prisma, and a comprehensive auth system with TOTP/MFA. The complete absence of tests combined with massive component sizes (up to 8016 lines) and high coupling constitutes the most urgent technical debt. Playwright is available as a devDependency but unused."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_c08abc486d71",
+      "task_id": "external_generic_architecture",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 99,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "You have just joined the WORKMAT team. Explore the project as you would in a real onboarding session. Explain its architecture, principal entry points, important modules, technical hotspots, and the most important missing or existing tests. Choose whatever tools you consider useful. Respond with JSON: {\"architecture\":[\"...\"],\"entry_points\":[\"...\"],\"important_modules\":[\"...\"],\"hotspots\":[\"...\"],\"test_observations\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [],
+      "response": "Error: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1532211 tokens (1532211 in the messages, 0 in the completion). Please reduce the length of the messag",
+      "responseHash": "c936389856f5104e",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": null,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "tool_call_count": 0,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 7301,
+        "api_latency_ms": 0,
+        "cost_usd": 0,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {},
+      "expected": {},
+      "correct": false,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [
+        "No JSON object found in response",
+        "provider_request_failed: Error: API 400: {\"error\":{\"message\":\"This model's maximum context length is 1048565 tokens. However, you requested 1532211 tokens (1532211 in the messages, 0 in the completion). Please reduce the length of the messag"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 63716,
+        "p95": 63716
+      },
+      "input_tokens": {
+        "median": 355479,
+        "total": 355479
+      },
+      "output_tokens": {
+        "median": 5483,
+        "total": 5483
+      },
+      "cached_tokens": {
+        "median": 253952,
+        "total": 253952
+      },
+      "reasoning_tokens": {
+        "median": 891,
+        "total": 891
+      },
+      "tool_calls": {
+        "median": 32,
+        "total": 32
+      },
+      "cost_usd": {
+        "median": 0.01930435,
+        "total": 0.01930435
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 7301,
+        "p95": 7301
+      },
+      "input_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "output_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 0,
+        "total": 0
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "63716ms",
+        "without_caesar": "7301ms",
+        "delta": "772.7%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "355479",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "5483",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "32",
+        "without_caesar": "0",
+        "delta": "N/A",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.019304",
+        "without_caesar": "$0.000000",
+        "delta": "N/A",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/WORKMAT; CAESAR state remains temporary."
+  ]
+}

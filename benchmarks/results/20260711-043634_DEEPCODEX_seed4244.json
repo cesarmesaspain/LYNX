@@ -1,0 +1,854 @@
+{
+  "config": {
+    "seed": 4244,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_generic_architecture"
+    ],
+    "projectDir": "/Users/admin/Desktop/DEEPCODEX/source",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_656be3b1f003",
+      "task_id": "external_generic_architecture",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 4244,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "You have just joined the source team. Explore the project as you would in a real onboarding session. Explain its architecture, principal entry points, important modules, technical hotspots, and the most important missing or existing tests. Choose whatever tools you consider useful. Respond with JSON: {\"architecture\":[\"...\"],\"entry_points\":[\"...\"],\"important_modules\":[\"...\"],\"hotspots\":[\"...\"],\"test_observations\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_xd8cGlexWGtEdKCuGAsi8959",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"hotspots\", \"clusters\", \"file_tree\", \"entry_points\", \"brief\", \"narrative\", \"node_labels\", \"edge_types\"]}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_tXuaICZFCpfFAaQpPp7G6729",
+          "type": "function",
+          "function": {
+            "name": "analyze_hotspots",
+            "arguments": "{\"limit\": 15}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_uwXEi0Tg5XOhU15y4yRy5481",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"include_connected\": true, \"label\": \"Method\", \"file_pattern\": \"**/App.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_5WUVKfRryNHpBVw0NYUc4249",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"label\": \"Method\", \"file_pattern\": \"**/ContentView.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_wFq1FjQWtgCbHN7NuIsH2588",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"label\": \"Method\", \"file_pattern\": \"**/AppState.swift\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_FWwafKIyF7JeUUL8EYEW2650",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"test\", \"file_pattern\": \"*.swift\", \"regex\": true, \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_D8u6eirS1ot3P4NiQX0K9679",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/App.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_IsNusahtyrr2DfshmT3K1814",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"file_pattern\": \"**/App.swift\", \"include_connected\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_AbGqtJ1bkAjAwMUFZgFY6422",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"file_pattern\": \"**/CompletionAlertManager.swift\", \"label\": \"Method\", \"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_FOB9YqPMwqAmA0f0ieYH5603",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/AdvancedCapabilities.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_EOCAT7TbpAmqgjLRpTdP4976",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/MenuBarManager.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_CvLCCJrm3IkJoHcfGlRu2758",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/Theme.swift\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_eAuyr1SCLT6iRda1OHKl9063",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Package.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_sjbneZMiDXeW97rfqb3J5715",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/AppState.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_2hmeyui6pvnKNLOdlas16163",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContextExporter.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_a5Nm0ouvcJnVODZug0KO5710",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/CompletionAlertManager.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_3vWIA1N4H7W727Xv3T0P1536",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContinueWorkModal.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_CBHDUcrjDGnC9vpkohT41469",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Sources/DeepCodex/ContentView.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OBa8nIk3UynvtgxNvZ4V8325",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"test|Test|XCTest\", \"file_pattern\": \"*.swift\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_qGRpR55jLdVmPKjZ56eN0786",
+          "type": "function",
+          "function": {
+            "name": "pack_context",
+            "arguments": "{\"task\": \"Onboarding analysis: Understand DeepCodex project architecture, entry points, important modules, hotspots, and test coverage.\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_9qEw3uK7em90rcgkVq6H3327",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (n:File) WHERE n.path CONTAINS \\\"Test\\\" OR n.path CONTAINS \\\"test\\\" RETURN n.path, n.name\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Pp0igcu3pkGKnOIrWFtm5973",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH ()-[r:TESTS]->() RETURN count(r) as test_edge_count\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_x07PrDno69C9ESsKnpZe5604",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"Sources.DeepCodex.AppState.AppState.refreshStatus\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_VJJghu9pSESjGeTqzb120579",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"XCTest|XCTestCase|import XCTest|@testable\", \"file_pattern\": \"*.swift\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_8iyEaP1TfwuE8RaPjMDQ0337",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"Tests|Specs|__tests__\", \"file_pattern\": \"*\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_epv0k47jAWVu2qwnJlWa2259",
+          "type": "function",
+          "function": {
+            "name": "get_graph_schema",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_KxvEWwEuydXrCbIjrlxw6150",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (n1)-[r:TESTS]->(n2) RETURN n1.name, n1.qualified_name, n2.name, n2.qualified_name LIMIT 5\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_tDbHlF1ber42AJCnlgEn5617",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (n)-[r]->(m) WHERE r.type = 'TESTS' RETURN n.qualified_name, r.type, m.qualified_name\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Uk7EsR9Vy41D4L6WYF442663",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (n:Method)-[r:TESTS]->(m:Method) RETURN n.name, r.type, m.name LIMIT 5\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_y5LFiUIBS2GI6dQ7WCH05934",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"AppState\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ARr82OvWdhoY2iUauhak6082",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"ContextExporter\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_lzxR3kSzrO9Rz54o6yp12422",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (n)-[r]->(m) WHERE r.type = 'TESTS' RETURN id(n), id(m), r.type LIMIT 5\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_gIMpaRgJUmsEx5iCTb8i4162",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"Package.swift\"}"
+          }
+        }
+      ],
+      "response": "Now I have a complete picture. Here is my final onboarding report:\n\n```json\n{\n  \"architecture\": [\n    \"SwiftUI + AppKit macOS desktop app (macOS 14+, Swift 6.0). Uses a classic single-window pattern with a `@main` entry (`DeepCodexApp`) that owns a single `AppState` ObservableObject, injected into `ContentView`.\",\n    \"Central state hub: `AppState` (~600 lines) drives all business logic — mode detection, shell execution, JSON parsing, Moon Bridge health checks, alert configuration, and thread detection. It is referenced by every other module.\",\n    \"UI is composed of `ContentView` (~874 lines) as the main window with action cards, a collapsible tools panel, system info panel, and a capabilities section. A modal sheet (`ContinueWorkModal`, ~675 lines) handles the 'continue work in another mode' workflow.\",\n    \"Menu bar integration via `MenuBarManager` — a singleton that creates an NSStatusItem with a mode indicator dot and dropdown menu for switching modes (Normal / V4 Pro / V4 Flash).\",\n    \"Completion alerting via `CompletionAlertManager` — polls a notifications/events directory for agent-turn-complete JSON files, plays looping sounds via AVAudioPlayer, uses Accessibility API to detect when the user returns to Codex/VS Code/Cursor.\",\n    \"Context export layer (`ContextExporter`, ~400 lines) is a pure read-only struct that invokes inline Python scripts via Process to parse Codex JSONL session files — extracting user/assistant/agent messages, function calls, file paths, and errors, then generating a Markdown context summary.\",\n    \"All external system interaction goes through shell scripts in `~/Developer/ai-tools/codex-mode/` (status.sh, codex-switch.sh, start-moonbridge.sh, restore-last-backup.sh, advanced-capabilities-status.sh, etc.) invoked via Process/bash. The app is essentially a GUI wrapper for these scripts.\",\n    \"No networking or persistence within the app itself — it reads from ~/.codex SQLite (state_5.sqlite) for thread detection and JSONL session files for context export, and writes debug logs to `~/Developer/ai-tools/codex-mode/deepcodex-debug.log`.\"\n  ],\n  \"entry_points\": [\n    \"Sources/DeepCodex/App.swift:86 — `@main struct DeepCodexApp: App` — SwiftUI lifecycle entry, creates AppState, presents ContentView in a WindowGroup with hidden title bar and dark color scheme.\",\n    \"Sources/DeepCodex/App.swift:98 — `WindowSizer.shared` (dynamic window resizer) — reacts to content height changes via PreferenceKey to animate window frame resizing.\",\n    \"Sources/DeepCodex/MenuBarManager.swift:37 — `MenuBarManager.shared.setup(with:)` — called from ContentView.onAppear, installs the NSStatusItem in the system menu bar and begins polling mode changes.\",\n    \"Sources/DeepCodex/AppState.swift:95 — `AppState.init()` — runs `checkMoonBridgeDirect()` and `checkAdvancedCapabilities()` on launch.\",\n    \"Sources/DeepCodex/AppState.swift:160 — `AppState.refreshStatus()` — triggered on ContentView.onAppear, kicks off shell execution of status.sh, JSON parsing, and alert manager startup.\"\n  ],\n  \"important_modules\": [\n    \"**AppState** (Sources/DeepCodex/AppState.swift, ~600 lines) — Central ObservableObject. Holds all @Published state. Manages mode switching (normal → V4 Pro → V4 Flash), Moon Bridge status, thread detection from SQLite with filesystem fallback, context clipboard/save, AppleScript backup restoration, and alert sound configuration. Contains the most critical business logic for the entire app.\",\n    \"**ContentView** (Sources/DeepCodex/ContentView.swift, ~874 lines) — The main UI view. Renders the full interface: logo header, three mode action cards (Normal/V4 Pro/V4 Flash), status panel, collapsible tools panel (6 buttons + alert config), collapsible system info panel, and the collapsible advanced capabilities section (web search / image input / routing cards). Drives window auto-resizing via PreferenceKey.\",\n    \"**ContextExporter** (Sources/DeepCodex/ContextExporter.swift, ~401 lines) — Pure read-only struct with static methods for parsing Codex session JSONL files. Uses inline Python3 one-liners (via Process) to extract session metadata, user messages, assistant messages, agent messages, function calls, file paths, and errors. Generates a structured Markdown context document for cross-mode continuation. This is the most algorithmically dense module.\",\n    \"**ContinueWorkModal** (Sources/DeepCodex/ContinueWorkModal.swift, ~675 lines) — Modal modal view with a multi-phase state machine (loading → empty → selecting → generating → ready → exporting → done → error). Handles thread selection from detected threads (grouped by project folder), destination mode selection (3 cards), context preview, and final copy-or-copy-and-switch actions.\",\n    \"**CompletionAlertManager** (Sources/DeepCodex/CompletionAlertManager.swift, ~348 lines) — File-polling-based alert system. Watches a directory for agent-turn-complete event files, plays looping audio alerts, detects user return via Accessibility API (mouse movement + keystroke monitoring in approved apps), and supports configurable minimum task duration filtering. Uses AVAudioPlayer with NSSound fallback.\",\n    \"**MenuBarManager** (Sources/DeepCodex/MenuBarManager.swift, ~193 lines) — NSStatusItem manager. Displays current mode as an emoji dot + label in the menu bar. Builds a dropdown menu for mode switching that runs shell scripts (codex-switch.sh, start-moonbridge.sh). Polls mode changes every 2 seconds.\",\n    \"**AdvancedCapabilities** (Sources/DeepCodex/AdvancedCapabilities.swift, ~163 lines) — Pure data models for JSON parsed from advanced-capabilities-status.sh output. Models V1 models info, codex web search, Moon Bridge web search, image input, and routing configuration. Includes display helpers (Spanish labels, status icons, availability checks).\",\n    \"**Theme** (Sources/DeepCodex/Theme.swift, ~112 lines) — Design system: color palette, gradients, border styles, dimensions, and mode-aware card gradient generators. Provides a Color(hex:) initializer.\"\n  ],\n  \"hotspots\": [\n    \"**ContentView.swift (874 lines)** — Largest file, GOD COMPONENT. Contains all UI rendering in a single view struct. The body has 6+ major subsections (header, action cards, tools panel, system info, advanced capabilities). No separation into child view models. Hard to test and modify safely.\",\n    \"**AppState.swift (602 lines)** — GOD COMPONENT. Mixes networking-like shell execution, JSON parsing, UI state, alert configuration, file I/O, and clipboard operations in a single ObservableObject. The `parseJson` method has complexity=8, `detectLatestThreads` is 104 lines with two fallback strategies and inline SQL queries.\",\n    \"**ContinueWorkModal.swift (675 lines)** — GOD COMPONENT. A single View that implements a full 8-phase modal workflow with thread grouping, card selection, live preview, and copy/switch actions. All logic inlined rather than extracted into a ViewModel.\",\n    \"**ContextExporter.swift (401 lines)** — Heavy reliance on inline Python scripts passed as string arguments to /usr/bin/python3 -c. These embedded scripts are untyped, un-lintable, and un-testable. The struct has 10+ extraction methods each with its own Python embedded code block.\",\n    \"**Highest fan-in coupling**: `Mode` enum (fan_in=20), `AppState` class (fan_in=17), `Shell.run` (fan_in=12), `debugLog` (fan_in=12), `runShell` (fan_in=11) — these form a tight hub-and-spoke dependency pattern where most of the code depends on AppState or shell execution utilities.\",\n    \"**Shell execution pattern is duplicated** — There are three separate shell execution implementations: `Shell.run()` in MenuBarManager, `runShell()` (static+private) in AppState, `runCommand()` (static+private) in AppState, and another `runCommand()` in ContextExporter. They differ slightly in error handling (some catch, some don't) and output parsing.\"\n  ],\n  \"test_observations\": [\n    \"**NO TESTS EXIST in the entire project.** There are zero test files, zero XCTestCase subclasses, zero test targets in Package.swift. The single `TESTS` edge in the graph schema (count=1) appears to be a graph indexing artifact, not real tests.\",\n    \"**ContextExporter is the most critical untested module** — its 10+ extraction methods each embed inline Python scripts as string literals passed to /usr/bin/python3 -c. There is no validation that these Python snippets actually work or produce correct output when the session JSONL format changes. Every method reads from the filesystem and returns parsed results that flow directly into generated Markdown.\",\n    \"**AppState.parseJson (complexity=8)** parses JSON manually using JSONSerialization with forced unwrapping. No tests cover the parsing of the various expected JSON schemas (current-mode.json, advanced-capabilities JSON). Silent failures on schema drift.\",\n    \"**detectLatestThreads (104 lines, fan_in=4)** has two fallback strategies (SQLite JSON parsing → filesystem find+grep) with complex logic for extracting thread metadata. No tests validate either strategy works correctly, especially the SQLite query which uses string interpolation for the provider name (SQL injection risk, though file-local).\",\n    \"**CompletionAlertManager** has no tests for its file-polling logic, sound playing, minimum-duration filtering, or accessibility API interaction. The `shouldAlert(for:)` method parses CompletionEvent JSON from disk to decide whether to alert based on duration — this is both untested and could crash on malformed event files.\",\n    \"**The absence of tests is a high-risk finding** for a tool that runs shell commands, parses files from disk, manages OS-level permissions (Accessibility API), and writes logs. A regression in shell output format, JSON schema change from Codex Desktop, or Python3 version change would go undetected.\",\n    \"**Recommended test targets**: (1) `ContextExporter` unit tests with fixture JSONL files, (2) `AppState` tests for parseJson with sample JSON fixtures, (3) `detectLatestThreads` integration test with a mock SQLite/JSONL fixture, (4) `CompletionAlertManager.shouldAlert` with sample event JSON, (5) `AdvancedCapabilities` JSON decoding tests from the shell script's actual output schema.\"\n  ],\n  \"evidence\": [\n    \"Sources/DeepCodex/App.swift — @main entry point, WindowSizer, NSColor hex extension\",\n    \"Sources/DeepCodex/AppState.swift — ~600 lines containing Mode enum, ThreadInfo, AppState with all shell execution, JSON parsing, mode switching, thread detection, advanced capabilities check\",\n    \"Sources/DeepCodex/ContentView.swift — ~874 lines, the entire main UI (action cards, tools panel, system info, advanced capabilities section)\",\n    \"Sources/DeepCodex/ContextExporter.swift — ~401 lines, 10+ extraction methods with inline Python scripts via /usr/bin/python3 -c\",\n    \"Sources/DeepCodex/ContinueWorkModal.swift — ~675 lines, 8-phase modal state machine for cross-mode context transfer\",\n    \"Sources/DeepCodex/CompletionAlertManager.swift — ~348 lines, file-polling + sound + Accessibility API alert system\",\n    \"Sources/DeepCodex/MenuBarManager.swift — ~193 lines, NSStatusItem + menu + polling mode switch\",\n    \"Sources/DeepCodex/AdvancedCapabilities.swift — ~163 lines, data models for advanced-capabilities-status.sh JSON\",\n    \"Sources/DeepCodex/Theme.swift — ~112 lines, design system constants and helpers\",\n    \"Package.swift — Swift 6.0, macOS .v14, single executable target, no test targets\",\n    \"Graph analysis: 155 nodes, 523 edges, 20 god components, 102 methods, avg cyclomatic=8.87, avg cognitive=21.19\",\n    \"analyze_hotspots: ContentView (862 lines), ContinueWorkModal (636 lines), AppState (577 lines) flagged as GOD_COMPONENTs\",\n    \"search_code + find_tests: Zero matches for XCTest, XCTestCase, @testable, or any test function names\",\n    \"Graph schema: only 1 TESTS edge (no real test files exist)\"\n  ],\n  \"summary\": \"Deep Codex is a macOS SwiftUI companion app (0 tests, 10 Swift files, ~3,800 LOC) that provides a GUI for switching between OpenAI/DeepSeek model providers in the Codex AI coding assistant. The architecture is a classic hub-and-spoke pattern with `AppState` as the central ObservableObject (~600 lines) orchestrating shell script execution, JSON parsing, and thread detection, while `ContentView` (~874 lines) and `ContinueWorkModal` (~675 lines) render the full UI as monolithic god components. The most complex module is `ContextExporter` (~400 lines), which embeds inline Python3 scripts to parse Codex JSONL session files — all completely untested. The app has a high structural risk: 5 god components (>300 lines each), 20 hotspots by fan-in, zero test coverage, and duplicated shell execution patterns across 4 different implementations. The absence of any test infrastructure is the most significant gap for a tool that reads files from disk, runs shell commands, manages Accessibility permissions, and depends on the evolving JSON schemas of external systems (Codex Desktop, Moon Bridge).\"\n}\n```",
+      "responseHash": "7232938d5c1777db",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 634882,
+        "output_tokens": 5932,
+        "cached_tokens": 587392,
+        "reasoning_tokens": 712,
+        "tool_call_count": 33,
+        "files_read": 10,
+        "bytes_read": 135451,
+        "wall_time_ms": 73239,
+        "api_latency_ms": 73239,
+        "cost_usd": 0.01653305,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "architecture": [
+          "SwiftUI + AppKit macOS desktop app (macOS 14+, Swift 6.0). Uses a classic single-window pattern with a `@main` entry (`DeepCodexApp`) that owns a single `AppState` ObservableObject, injected into `ContentView`.",
+          "Central state hub: `AppState` (~600 lines) drives all business logic — mode detection, shell execution, JSON parsing, Moon Bridge health checks, alert configuration, and thread detection. It is referenced by every other module.",
+          "UI is composed of `ContentView` (~874 lines) as the main window with action cards, a collapsible tools panel, system info panel, and a capabilities section. A modal sheet (`ContinueWorkModal`, ~675 lines) handles the 'continue work in another mode' workflow.",
+          "Menu bar integration via `MenuBarManager` — a singleton that creates an NSStatusItem with a mode indicator dot and dropdown menu for switching modes (Normal / V4 Pro / V4 Flash).",
+          "Completion alerting via `CompletionAlertManager` — polls a notifications/events directory for agent-turn-complete JSON files, plays looping sounds via AVAudioPlayer, uses Accessibility API to detect when the user returns to Codex/VS Code/Cursor.",
+          "Context export layer (`ContextExporter`, ~400 lines) is a pure read-only struct that invokes inline Python scripts via Process to parse Codex JSONL session files — extracting user/assistant/agent messages, function calls, file paths, and errors, then generating a Markdown context summary.",
+          "All external system interaction goes through shell scripts in `~/Developer/ai-tools/codex-mode/` (status.sh, codex-switch.sh, start-moonbridge.sh, restore-last-backup.sh, advanced-capabilities-status.sh, etc.) invoked via Process/bash. The app is essentially a GUI wrapper for these scripts.",
+          "No networking or persistence within the app itself — it reads from ~/.codex SQLite (state_5.sqlite) for thread detection and JSONL session files for context export, and writes debug logs to `~/Developer/ai-tools/codex-mode/deepcodex-debug.log`."
+        ],
+        "entry_points": [
+          "Sources/DeepCodex/App.swift:86 — `@main struct DeepCodexApp: App` — SwiftUI lifecycle entry, creates AppState, presents ContentView in a WindowGroup with hidden title bar and dark color scheme.",
+          "Sources/DeepCodex/App.swift:98 — `WindowSizer.shared` (dynamic window resizer) — reacts to content height changes via PreferenceKey to animate window frame resizing.",
+          "Sources/DeepCodex/MenuBarManager.swift:37 — `MenuBarManager.shared.setup(with:)` — called from ContentView.onAppear, installs the NSStatusItem in the system menu bar and begins polling mode changes.",
+          "Sources/DeepCodex/AppState.swift:95 — `AppState.init()` — runs `checkMoonBridgeDirect()` and `checkAdvancedCapabilities()` on launch.",
+          "Sources/DeepCodex/AppState.swift:160 — `AppState.refreshStatus()` — triggered on ContentView.onAppear, kicks off shell execution of status.sh, JSON parsing, and alert manager startup."
+        ],
+        "important_modules": [
+          "**AppState** (Sources/DeepCodex/AppState.swift, ~600 lines) — Central ObservableObject. Holds all @Published state. Manages mode switching (normal → V4 Pro → V4 Flash), Moon Bridge status, thread detection from SQLite with filesystem fallback, context clipboard/save, AppleScript backup restoration, and alert sound configuration. Contains the most critical business logic for the entire app.",
+          "**ContentView** (Sources/DeepCodex/ContentView.swift, ~874 lines) — The main UI view. Renders the full interface: logo header, three mode action cards (Normal/V4 Pro/V4 Flash), status panel, collapsible tools panel (6 buttons + alert config), collapsible system info panel, and the collapsible advanced capabilities section (web search / image input / routing cards). Drives window auto-resizing via PreferenceKey.",
+          "**ContextExporter** (Sources/DeepCodex/ContextExporter.swift, ~401 lines) — Pure read-only struct with static methods for parsing Codex session JSONL files. Uses inline Python3 one-liners (via Process) to extract session metadata, user messages, assistant messages, agent messages, function calls, file paths, and errors. Generates a structured Markdown context document for cross-mode continuation. This is the most algorithmically dense module.",
+          "**ContinueWorkModal** (Sources/DeepCodex/ContinueWorkModal.swift, ~675 lines) — Modal modal view with a multi-phase state machine (loading → empty → selecting → generating → ready → exporting → done → error). Handles thread selection from detected threads (grouped by project folder), destination mode selection (3 cards), context preview, and final copy-or-copy-and-switch actions.",
+          "**CompletionAlertManager** (Sources/DeepCodex/CompletionAlertManager.swift, ~348 lines) — File-polling-based alert system. Watches a directory for agent-turn-complete event files, plays looping audio alerts, detects user return via Accessibility API (mouse movement + keystroke monitoring in approved apps), and supports configurable minimum task duration filtering. Uses AVAudioPlayer with NSSound fallback.",
+          "**MenuBarManager** (Sources/DeepCodex/MenuBarManager.swift, ~193 lines) — NSStatusItem manager. Displays current mode as an emoji dot + label in the menu bar. Builds a dropdown menu for mode switching that runs shell scripts (codex-switch.sh, start-moonbridge.sh). Polls mode changes every 2 seconds.",
+          "**AdvancedCapabilities** (Sources/DeepCodex/AdvancedCapabilities.swift, ~163 lines) — Pure data models for JSON parsed from advanced-capabilities-status.sh output. Models V1 models info, codex web search, Moon Bridge web search, image input, and routing configuration. Includes display helpers (Spanish labels, status icons, availability checks).",
+          "**Theme** (Sources/DeepCodex/Theme.swift, ~112 lines) — Design system: color palette, gradients, border styles, dimensions, and mode-aware card gradient generators. Provides a Color(hex:) initializer."
+        ],
+        "hotspots": [
+          "**ContentView.swift (874 lines)** — Largest file, GOD COMPONENT. Contains all UI rendering in a single view struct. The body has 6+ major subsections (header, action cards, tools panel, system info, advanced capabilities). No separation into child view models. Hard to test and modify safely.",
+          "**AppState.swift (602 lines)** — GOD COMPONENT. Mixes networking-like shell execution, JSON parsing, UI state, alert configuration, file I/O, and clipboard operations in a single ObservableObject. The `parseJson` method has complexity=8, `detectLatestThreads` is 104 lines with two fallback strategies and inline SQL queries.",
+          "**ContinueWorkModal.swift (675 lines)** — GOD COMPONENT. A single View that implements a full 8-phase modal workflow with thread grouping, card selection, live preview, and copy/switch actions. All logic inlined rather than extracted into a ViewModel.",
+          "**ContextExporter.swift (401 lines)** — Heavy reliance on inline Python scripts passed as string arguments to /usr/bin/python3 -c. These embedded scripts are untyped, un-lintable, and un-testable. The struct has 10+ extraction methods each with its own Python embedded code block.",
+          "**Highest fan-in coupling**: `Mode` enum (fan_in=20), `AppState` class (fan_in=17), `Shell.run` (fan_in=12), `debugLog` (fan_in=12), `runShell` (fan_in=11) — these form a tight hub-and-spoke dependency pattern where most of the code depends on AppState or shell execution utilities.",
+          "**Shell execution pattern is duplicated** — There are three separate shell execution implementations: `Shell.run()` in MenuBarManager, `runShell()` (static+private) in AppState, `runCommand()` (static+private) in AppState, and another `runCommand()` in ContextExporter. They differ slightly in error handling (some catch, some don't) and output parsing."
+        ],
+        "test_observations": [
+          "**NO TESTS EXIST in the entire project.** There are zero test files, zero XCTestCase subclasses, zero test targets in Package.swift. The single `TESTS` edge in the graph schema (count=1) appears to be a graph indexing artifact, not real tests.",
+          "**ContextExporter is the most critical untested module** — its 10+ extraction methods each embed inline Python scripts as string literals passed to /usr/bin/python3 -c. There is no validation that these Python snippets actually work or produce correct output when the session JSONL format changes. Every method reads from the filesystem and returns parsed results that flow directly into generated Markdown.",
+          "**AppState.parseJson (complexity=8)** parses JSON manually using JSONSerialization with forced unwrapping. No tests cover the parsing of the various expected JSON schemas (current-mode.json, advanced-capabilities JSON). Silent failures on schema drift.",
+          "**detectLatestThreads (104 lines, fan_in=4)** has two fallback strategies (SQLite JSON parsing → filesystem find+grep) with complex logic for extracting thread metadata. No tests validate either strategy works correctly, especially the SQLite query which uses string interpolation for the provider name (SQL injection risk, though file-local).",
+          "**CompletionAlertManager** has no tests for its file-polling logic, sound playing, minimum-duration filtering, or accessibility API interaction. The `shouldAlert(for:)` method parses CompletionEvent JSON from disk to decide whether to alert based on duration — this is both untested and could crash on malformed event files.",
+          "**The absence of tests is a high-risk finding** for a tool that runs shell commands, parses files from disk, manages OS-level permissions (Accessibility API), and writes logs. A regression in shell output format, JSON schema change from Codex Desktop, or Python3 version change would go undetected.",
+          "**Recommended test targets**: (1) `ContextExporter` unit tests with fixture JSONL files, (2) `AppState` tests for parseJson with sample JSON fixtures, (3) `detectLatestThreads` integration test with a mock SQLite/JSONL fixture, (4) `CompletionAlertManager.shouldAlert` with sample event JSON, (5) `AdvancedCapabilities` JSON decoding tests from the shell script's actual output schema."
+        ],
+        "evidence": [
+          "Sources/DeepCodex/App.swift — @main entry point, WindowSizer, NSColor hex extension",
+          "Sources/DeepCodex/AppState.swift — ~600 lines containing Mode enum, ThreadInfo, AppState with all shell execution, JSON parsing, mode switching, thread detection, advanced capabilities check",
+          "Sources/DeepCodex/ContentView.swift — ~874 lines, the entire main UI (action cards, tools panel, system info, advanced capabilities section)",
+          "Sources/DeepCodex/ContextExporter.swift — ~401 lines, 10+ extraction methods with inline Python scripts via /usr/bin/python3 -c",
+          "Sources/DeepCodex/ContinueWorkModal.swift — ~675 lines, 8-phase modal state machine for cross-mode context transfer",
+          "Sources/DeepCodex/CompletionAlertManager.swift — ~348 lines, file-polling + sound + Accessibility API alert system",
+          "Sources/DeepCodex/MenuBarManager.swift — ~193 lines, NSStatusItem + menu + polling mode switch",
+          "Sources/DeepCodex/AdvancedCapabilities.swift — ~163 lines, data models for advanced-capabilities-status.sh JSON",
+          "Sources/DeepCodex/Theme.swift — ~112 lines, design system constants and helpers",
+          "Package.swift — Swift 6.0, macOS .v14, single executable target, no test targets",
+          "Graph analysis: 155 nodes, 523 edges, 20 god components, 102 methods, avg cyclomatic=8.87, avg cognitive=21.19",
+          "analyze_hotspots: ContentView (862 lines), ContinueWorkModal (636 lines), AppState (577 lines) flagged as GOD_COMPONENTs",
+          "search_code + find_tests: Zero matches for XCTest, XCTestCase, @testable, or any test function names",
+          "Graph schema: only 1 TESTS edge (no real test files exist)"
+        ],
+        "summary": "Deep Codex is a macOS SwiftUI companion app (0 tests, 10 Swift files, ~3,800 LOC) that provides a GUI for switching between OpenAI/DeepSeek model providers in the Codex AI coding assistant. The architecture is a classic hub-and-spoke pattern with `AppState` as the central ObservableObject (~600 lines) orchestrating shell script execution, JSON parsing, and thread detection, while `ContentView` (~874 lines) and `ContinueWorkModal` (~675 lines) render the full UI as monolithic god components. The most complex module is `ContextExporter` (~400 lines), which embeds inline Python3 scripts to parse Codex JSONL session files — all completely untested. The app has a high structural risk: 5 god components (>300 lines each), 20 hotspots by fan-in, zero test coverage, and duplicated shell execution patterns across 4 different implementations. The absence of any test infrastructure is the most significant gap for a tool that reads files from disk, runs shell commands, manages Accessibility permissions, and depends on the evolving JSON schemas of external systems (Codex Desktop, Moon Bridge)."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_a5217abf6934",
+      "task_id": "external_generic_architecture",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 4244,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "You have just joined the source team. Explore the project as you would in a real onboarding session. Explain its architecture, principal entry points, important modules, technical hotspots, and the most important missing or existing tests. Choose whatever tools you consider useful. Respond with JSON: {\"architecture\":[\"...\"],\"entry_points\":[\"...\"],\"important_modules\":[\"...\"],\"hotspots\":[\"...\"],\"test_observations\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_kHoDliKB2P4YE7r1d4Xv1366",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_uVpoHJCWUG6j3WbRRqDy7462",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"package.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Osq65rz8p7kHM03Aa8nc8280",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"main|entry|start|app\", \"include\": \"*.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PL4zJWbJr8zU6C2DkNx40922",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \".\", \"include\": \"*.md\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Um0L5HbzER32nFOG8HbG6510",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"import|require|export\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UXHDODMm1nFem8duuOGF6970",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_un3O5Y8AiveRoVEuKSIp8723",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"function\", \"include\": \"*.js\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_oKvQqvSyoZJ93BPYrxUI0244",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"\\\"name\\\"\", \"include\": \"*.json\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wpoIJGV6l4DCEdQ5GgYk9128",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/App.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_T22C7iIKwJ0UxnNt0ToX8464",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/AppState.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_ONIlQio2P4Eclv0jT80a8308",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/AdvancedCapabilities.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_8WRatV8c4VJRcAamV2z72239",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContentView.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_SXtmurQ5UtUr12tjXrjr1715",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/CompletionAlertManager.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_SqnQKW133NqN3AdwMMsT3359",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContextExporter.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZXkZKipgP896qgMh7VLv1054",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/MenuBarManager.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_qf9QuUr9jqwnl1H49CDS2804",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/Theme.swift\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_jnWtx4XXfBRb1CGiVjAD4576",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Sources/DeepCodex/ContinueWorkModal.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_A7KcFSNGnMCFsabL6EyO4092",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"test|Test|Tests\", \"include\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_fSNFnda5eR0lEyP7ETFj4347",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"Package\", \"include\": \"*.swift\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_a4JxV01rAT084iYB8omm5149",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/DEEPCODEX/source/Package.swift\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_kzMOAS24Nf7kQOa1PFfO6659",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"test|Tests\", \"include\": \"*.swift\"}"
+          }
+        }
+      ],
+      "response": "I now have a thorough understanding of the project. Here is the complete onboarding analysis:\n\n```json\n{\n  \"architecture\": [\n    \"Single-target macOS Swift Package Manager (SPM) app targeting macOS 14+ (Swift 6.0).\",\n    \"SwiftUI + AppKit hybrid: the main window is SwiftUI-based, while system-level features (menu bar, window configuration, event monitoring) use AppKit/NSViewRepresentable.\",\n    \"Entirely frontend/macos-client. No server, no database, no networking layer of its own.\",\n    \"MV-like pattern: `AppState` (ObservableObject) is the single source of truth for mode, status, capabilities, threads, alerts. `ContentView` and `ContinueWorkModal` are views that observe `AppState`.\",\n    \"Shell-out-heavy architecture: almost all real work (mode switching, Moon Bridge management, reading Codex sessions, checking capabilities) is done via launching child processes (`Process`) — bash scripts, sqlite3, python3, lsof, find.\",\n    \"No dependency injection; `AppState` is created as a `@StateObject` in `DeepCodexApp` and passed down explicitly to child views.\",\n    \"Global singletons: `MenuBarManager.shared`, `WindowSizer.shared`, plus `AppState` is effectively shared via reference.\"\n  ],\n  \"entry_points\": [\n    \"`DeepCodexApp` in `App.swift` — the `@main` SwiftUI `App` entry point. Launches a `WindowGroup` with `ContentView`.\",\n    \"`MenuBarManager.shared.setup(with:)` — called from `ContentView.onAppear`. Creates an `NSStatusItem` in the macOS menu bar with a dropdown to switch modes.\",\n    \"`AppState.init()` — called implicitly when the `@StateObject` is created. Immediately runs `checkMoonBridgeDirect()` and `checkAdvancedCapabilities()`.\",\n    \"`ContentView` — the main SwiftUI view. Lays out header, action cards (mode switches), tools panel, system info panel, and expandable advanced capabilities section.\",\n    \"`ContinueWorkModal` — a `.sheet` presented from `ContentView`. Orchestrates the 'continue work in another mode' workflow (thread selection → context generation → export).\"\n  ],\n  \"important_modules\": [\n    \"`App.swift` — Application entry point, window configuration (`WindowConfigurator`, `ConfigView`), dynamic window resizing (`WindowSizer`), and an `NSColor` hex extension.\",\n    \"`AppState.swift` — Central state manager (~600 lines). Owns all `@Published` properties (activeMode, moonBridgeStatus, alert state, detectedThreads, advancedCapabilities). Orchestrates all user actions: mode switching, Moon Bridge start/stop, backup restore, context detection, clipboard operations. Runs all shell commands.\",\n    \"`CompletionAlertManager.swift` — File-watch-based alert system. Polls an events directory for `agent-turn-complete-*.json` files. Plays looping sounds via AVAudioPlayer or NSSound. Stops on mouse/key interaction when a work app (Codex, VSCode, Cursor) is frontmost. Manages accessibility permissions via `AXIsProcessTrusted`.\",\n    \"`ContextExporter.swift` — Pure-logic (no state) module for reading Codex session `.jsonl` files. Extracts user messages, assistant messages, agent messages, function calls, file paths, and errors via inline Python scripts (`runCommand` to python3). Generates a structured Markdown context document for cross-mode continuation.\",\n    \"`ContentView.swift` — Main SwiftUI view (~700 lines). All UI layout: header with logo, three action cards (Normal, DeepSeek V4 Pro, V4 Flash), expandable tools panel, system info panel, and advanced capabilities section (web search, image input, routing status).\",\n    \"`AdvancedCapabilities.swift` — Codable models for the capability JSON output from `advanced-capabilities-status.sh`. Includes display helpers and status enums (WebSearchStatus, ImageInputInfo, RoutingInfo).\",\n    \"`ContinueWorkModal.swift` — Modal sheet view (~500 lines) implementing the full 'continue work' flow with 8 phases: loading, empty, selecting (thread picker grouped by project folder), generating, ready (markdown preview + warning + action buttons), exporting, done, error.\",\n    \"`MenuBarManager.swift` — `NSStatusItem` with dynamic menu. Shows current mode (colored dot + label), allows switching modes directly from menu bar, and provides 'Show Window' and 'Quit' actions.\",\n    \"`Theme.swift` — Design system constants: colors, gradients, dimensions. Used uniformly across all views.\"\n  ],\n  \"hotspots\": [\n    \"**Shell-out concurrency** (`AppState.swift`): All mode switching, status checks, and context detection use `Task.detached { AppState.runShell(...) }`. No structured error handling for shell failures; outputs are parsed loosely. `runCommand` reads pipe before `waitUntilExit()` to avoid deadlocks, but error output is discarded silently (redirected to `/dev/null` in ContextExporter).\",\n    \"**File-watch polling** (`CompletionAlertManager.swift`): Uses a 1-second `Timer` to poll the filesystem directory for new event files. Not using `FSEvents` or `DispatchSource` — this is a power/latency hotspot. The `seedProcessedFiles` + `processedFiles` set approach can miss events if files are created between the `contentsOfDirectory` call and the `filter`.\",\n    \"**SQLite fallback (`detectLatestThreads`)**: Tries sqlite3 first for thread detection (JSON output), falls back to `find` + `grep` on `.jsonl` files. The SQL query uses string interpolation for `provider` (no parameterized query) — a correctness/security hotspot. The fallback path reads many files serially.\",\n    \"**Python script embedding** (`ContextExporter.swift`): Extracts session data by running inline Python scripts passed via `-c` argument. These are not tested independently and shell escaping of paths is fragile. The `--MSGSEP---` separator approach for multi-line output is error-prone.\",\n    \"**Global event monitor** (`CompletionAlertManager.swift`): `NSEvent.addGlobalMonitorForEvents(matching:)` runs a closure that captures `self` strongly and calls `silenceAlert()` on the main actor — the `Task { @MainActor in }` wrapper adds a layer of indirection that could cause missed events.\",\n    \"**Menu bar timer-based mode polling** (`MenuBarManager.swift`): Instead of using SwiftUI's `onChange` or Combine publishers, a `Task` with a 2-second sleep loop checks `state.activeMode != lastMode`. This is wasteful and introduces UI update latency.\",\n    \"**No error propagation for shell commands**: `runShell` / `runCommand` return `\\\"No output\\\"` or empty strings on error, but callers rarely differentiate between empty output and success. This masks failures in mode switching, thread detection, and capability checks.\",\n    \"**`WindowSizer` singleton** (`App.swift`): The `contentHeight` didSet block uses `NSApp.keyWindow` and `NSApp.windows.first` access — fragile when multiple windows exist. The 15-pixel threshold animation can cause visual jumps.\"\n  ],\n  \"test_observations\": [\n    \"**ZERO tests exist** in the entire project. The `Package.swift` defines a single `.executableTarget` with no test target. There are no test files anywhere in the project tree.\",\n    \"**No unit tests** for any module: `AppState` (state machine logic), `ContextExporter` (markdown generation and JSONL parsing), `CompletionAlertManager` (alert lifecycle), `AdvancedCapabilities` (decoding + display logic), or `Theme` (color correctness).\",\n    \"**No snapshot/UI tests** exist despite the app having complex SwiftUI views (ContentView, ContinueWorkModal) with conditional rendering across 8 modal phases.\",\n    \"**High-priority missing tests**: `ContextExporter` (all extraction methods depend on inline Python scripts — no mocking, no golden file tests), `AppState.detectLatestThreads` (SQL query + filesystem fallback logic is untested), `CompletionAlertManager` (file polling + sound lifecycle + stop conditions are entirely untested).\",\n    \"**The `AdvancedCapabilities` model struct** is `Codable` and `Equatable` — well-suited for unit tests with fixture JSON files, but none exist.\",\n    \"**No CI configuration** (no `.github/workflows`, no `.gitlab-ci.yml`, no `Makefile` for testing) was found. Given zero tests, the project has no automated test execution at all.\",\n    \"**Testability concerns**: `AppState` uses `@MainActor` and `ObservableObject` with heavy reliance on shell commands (`Process`), making traditional unit testing difficult without mocking. `ContextExporter` uses static methods calling `runCommand` — not mockable without protocol abstractions. `CompletionAlertManager` interacts with `AVAudioPlayer`, `AXIsProcessTrusted`, `NSEvent`, and `NSWorkspace` — all hard to unit test.\"\n  ],\n  \"evidence\": [\n    \"Package.swift: single `.executableTarget` named 'DeepCodex', no test targets defined.\",\n    \"grep for 'test|Test|Tests' across all .swift files returned zero matches.\",\n    \"grep for 'test|Tests' across all file patterns returned zero matches.\",\n    \"Source files found: Sources/DeepCodex/App.swift, AppState.swift, ContentView.swift, CompletionAlertManager.swift, ContextExporter.swift, AdvancedCapabilities.swift, ContinueWorkModal.swift, MenuBarManager.swift, Theme.swift.\",\n    \"Build directory: `.build/arm64-apple-macosx/release/` — confirms an Apple Silicon macOS release artifact.\"\n  ],\n  \"summary\": \"DeepCodex is a macOS-native Swift/SwiftUI utility app that manages multiple AI coding assistant profiles (Codex Normal, DeepSeek V4 Pro, DeepSeek V4 Flash) by switching configurations, starting/stopping a local proxy service (Moon Bridge), and providing alerts when long-running assistant tasks complete. The architecture is a single SPM package with a centralized AppState ObservableObject driving all UI via SwiftUI. All real work happens through shell-outs to bash, python3, sqlite3, lsof, and find. The app has zero tests — no unit, integration, snapshot, or UI tests exist anywhere in the project. The risk areas are the shell-out-heavy operations, file-watch polling, SQL query construction, embedded Python scripts, and global event monitoring — all of which are untested and rely on fragile macOS-specific mechanisms.\"\n}\n```",
+      "responseHash": "aab4fa14fb2c5e34",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 187593,
+        "output_tokens": 3970,
+        "cached_tokens": 147584,
+        "reasoning_tokens": 152,
+        "tool_call_count": 21,
+        "files_read": 10,
+        "bytes_read": 135180,
+        "wall_time_ms": 49308,
+        "api_latency_ms": 49308,
+        "cost_usd": 0.00877904,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "architecture": [
+          "Single-target macOS Swift Package Manager (SPM) app targeting macOS 14+ (Swift 6.0).",
+          "SwiftUI + AppKit hybrid: the main window is SwiftUI-based, while system-level features (menu bar, window configuration, event monitoring) use AppKit/NSViewRepresentable.",
+          "Entirely frontend/macos-client. No server, no database, no networking layer of its own.",
+          "MV-like pattern: `AppState` (ObservableObject) is the single source of truth for mode, status, capabilities, threads, alerts. `ContentView` and `ContinueWorkModal` are views that observe `AppState`.",
+          "Shell-out-heavy architecture: almost all real work (mode switching, Moon Bridge management, reading Codex sessions, checking capabilities) is done via launching child processes (`Process`) — bash scripts, sqlite3, python3, lsof, find.",
+          "No dependency injection; `AppState` is created as a `@StateObject` in `DeepCodexApp` and passed down explicitly to child views.",
+          "Global singletons: `MenuBarManager.shared`, `WindowSizer.shared`, plus `AppState` is effectively shared via reference."
+        ],
+        "entry_points": [
+          "`DeepCodexApp` in `App.swift` — the `@main` SwiftUI `App` entry point. Launches a `WindowGroup` with `ContentView`.",
+          "`MenuBarManager.shared.setup(with:)` — called from `ContentView.onAppear`. Creates an `NSStatusItem` in the macOS menu bar with a dropdown to switch modes.",
+          "`AppState.init()` — called implicitly when the `@StateObject` is created. Immediately runs `checkMoonBridgeDirect()` and `checkAdvancedCapabilities()`.",
+          "`ContentView` — the main SwiftUI view. Lays out header, action cards (mode switches), tools panel, system info panel, and expandable advanced capabilities section.",
+          "`ContinueWorkModal` — a `.sheet` presented from `ContentView`. Orchestrates the 'continue work in another mode' workflow (thread selection → context generation → export)."
+        ],
+        "important_modules": [
+          "`App.swift` — Application entry point, window configuration (`WindowConfigurator`, `ConfigView`), dynamic window resizing (`WindowSizer`), and an `NSColor` hex extension.",
+          "`AppState.swift` — Central state manager (~600 lines). Owns all `@Published` properties (activeMode, moonBridgeStatus, alert state, detectedThreads, advancedCapabilities). Orchestrates all user actions: mode switching, Moon Bridge start/stop, backup restore, context detection, clipboard operations. Runs all shell commands.",
+          "`CompletionAlertManager.swift` — File-watch-based alert system. Polls an events directory for `agent-turn-complete-*.json` files. Plays looping sounds via AVAudioPlayer or NSSound. Stops on mouse/key interaction when a work app (Codex, VSCode, Cursor) is frontmost. Manages accessibility permissions via `AXIsProcessTrusted`.",
+          "`ContextExporter.swift` — Pure-logic (no state) module for reading Codex session `.jsonl` files. Extracts user messages, assistant messages, agent messages, function calls, file paths, and errors via inline Python scripts (`runCommand` to python3). Generates a structured Markdown context document for cross-mode continuation.",
+          "`ContentView.swift` — Main SwiftUI view (~700 lines). All UI layout: header with logo, three action cards (Normal, DeepSeek V4 Pro, V4 Flash), expandable tools panel, system info panel, and advanced capabilities section (web search, image input, routing status).",
+          "`AdvancedCapabilities.swift` — Codable models for the capability JSON output from `advanced-capabilities-status.sh`. Includes display helpers and status enums (WebSearchStatus, ImageInputInfo, RoutingInfo).",
+          "`ContinueWorkModal.swift` — Modal sheet view (~500 lines) implementing the full 'continue work' flow with 8 phases: loading, empty, selecting (thread picker grouped by project folder), generating, ready (markdown preview + warning + action buttons), exporting, done, error.",
+          "`MenuBarManager.swift` — `NSStatusItem` with dynamic menu. Shows current mode (colored dot + label), allows switching modes directly from menu bar, and provides 'Show Window' and 'Quit' actions.",
+          "`Theme.swift` — Design system constants: colors, gradients, dimensions. Used uniformly across all views."
+        ],
+        "hotspots": [
+          "**Shell-out concurrency** (`AppState.swift`): All mode switching, status checks, and context detection use `Task.detached { AppState.runShell(...) }`. No structured error handling for shell failures; outputs are parsed loosely. `runCommand` reads pipe before `waitUntilExit()` to avoid deadlocks, but error output is discarded silently (redirected to `/dev/null` in ContextExporter).",
+          "**File-watch polling** (`CompletionAlertManager.swift`): Uses a 1-second `Timer` to poll the filesystem directory for new event files. Not using `FSEvents` or `DispatchSource` — this is a power/latency hotspot. The `seedProcessedFiles` + `processedFiles` set approach can miss events if files are created between the `contentsOfDirectory` call and the `filter`.",
+          "**SQLite fallback (`detectLatestThreads`)**: Tries sqlite3 first for thread detection (JSON output), falls back to `find` + `grep` on `.jsonl` files. The SQL query uses string interpolation for `provider` (no parameterized query) — a correctness/security hotspot. The fallback path reads many files serially.",
+          "**Python script embedding** (`ContextExporter.swift`): Extracts session data by running inline Python scripts passed via `-c` argument. These are not tested independently and shell escaping of paths is fragile. The `--MSGSEP---` separator approach for multi-line output is error-prone.",
+          "**Global event monitor** (`CompletionAlertManager.swift`): `NSEvent.addGlobalMonitorForEvents(matching:)` runs a closure that captures `self` strongly and calls `silenceAlert()` on the main actor — the `Task { @MainActor in }` wrapper adds a layer of indirection that could cause missed events.",
+          "**Menu bar timer-based mode polling** (`MenuBarManager.swift`): Instead of using SwiftUI's `onChange` or Combine publishers, a `Task` with a 2-second sleep loop checks `state.activeMode != lastMode`. This is wasteful and introduces UI update latency.",
+          "**No error propagation for shell commands**: `runShell` / `runCommand` return `\"No output\"` or empty strings on error, but callers rarely differentiate between empty output and success. This masks failures in mode switching, thread detection, and capability checks.",
+          "**`WindowSizer` singleton** (`App.swift`): The `contentHeight` didSet block uses `NSApp.keyWindow` and `NSApp.windows.first` access — fragile when multiple windows exist. The 15-pixel threshold animation can cause visual jumps."
+        ],
+        "test_observations": [
+          "**ZERO tests exist** in the entire project. The `Package.swift` defines a single `.executableTarget` with no test target. There are no test files anywhere in the project tree.",
+          "**No unit tests** for any module: `AppState` (state machine logic), `ContextExporter` (markdown generation and JSONL parsing), `CompletionAlertManager` (alert lifecycle), `AdvancedCapabilities` (decoding + display logic), or `Theme` (color correctness).",
+          "**No snapshot/UI tests** exist despite the app having complex SwiftUI views (ContentView, ContinueWorkModal) with conditional rendering across 8 modal phases.",
+          "**High-priority missing tests**: `ContextExporter` (all extraction methods depend on inline Python scripts — no mocking, no golden file tests), `AppState.detectLatestThreads` (SQL query + filesystem fallback logic is untested), `CompletionAlertManager` (file polling + sound lifecycle + stop conditions are entirely untested).",
+          "**The `AdvancedCapabilities` model struct** is `Codable` and `Equatable` — well-suited for unit tests with fixture JSON files, but none exist.",
+          "**No CI configuration** (no `.github/workflows`, no `.gitlab-ci.yml`, no `Makefile` for testing) was found. Given zero tests, the project has no automated test execution at all.",
+          "**Testability concerns**: `AppState` uses `@MainActor` and `ObservableObject` with heavy reliance on shell commands (`Process`), making traditional unit testing difficult without mocking. `ContextExporter` uses static methods calling `runCommand` — not mockable without protocol abstractions. `CompletionAlertManager` interacts with `AVAudioPlayer`, `AXIsProcessTrusted`, `NSEvent`, and `NSWorkspace` — all hard to unit test."
+        ],
+        "evidence": [
+          "Package.swift: single `.executableTarget` named 'DeepCodex', no test targets defined.",
+          "grep for 'test|Test|Tests' across all .swift files returned zero matches.",
+          "grep for 'test|Tests' across all file patterns returned zero matches.",
+          "Source files found: Sources/DeepCodex/App.swift, AppState.swift, ContentView.swift, CompletionAlertManager.swift, ContextExporter.swift, AdvancedCapabilities.swift, ContinueWorkModal.swift, MenuBarManager.swift, Theme.swift.",
+          "Build directory: `.build/arm64-apple-macosx/release/` — confirms an Apple Silicon macOS release artifact."
+        ],
+        "summary": "DeepCodex is a macOS-native Swift/SwiftUI utility app that manages multiple AI coding assistant profiles (Codex Normal, DeepSeek V4 Pro, DeepSeek V4 Flash) by switching configurations, starting/stopping a local proxy service (Moon Bridge), and providing alerts when long-running assistant tasks complete. The architecture is a single SPM package with a centralized AppState ObservableObject driving all UI via SwiftUI. All real work happens through shell-outs to bash, python3, sqlite3, lsof, and find. The app has zero tests — no unit, integration, snapshot, or UI tests exist anywhere in the project. The risk areas are the shell-out-heavy operations, file-watch polling, SQL query construction, embedded Python scripts, and global event monitoring — all of which are untested and rely on fragile macOS-specific mechanisms."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 73239,
+        "p95": 73239
+      },
+      "input_tokens": {
+        "median": 634882,
+        "total": 634882
+      },
+      "output_tokens": {
+        "median": 5932,
+        "total": 5932
+      },
+      "cached_tokens": {
+        "median": 587392,
+        "total": 587392
+      },
+      "reasoning_tokens": {
+        "median": 712,
+        "total": 712
+      },
+      "tool_calls": {
+        "median": 33,
+        "total": 33
+      },
+      "cost_usd": {
+        "median": 0.01653305,
+        "total": 0.01653305
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 49308,
+        "p95": 49308
+      },
+      "input_tokens": {
+        "median": 187593,
+        "total": 187593
+      },
+      "output_tokens": {
+        "median": 3970,
+        "total": 3970
+      },
+      "cached_tokens": {
+        "median": 147584,
+        "total": 147584
+      },
+      "reasoning_tokens": {
+        "median": 152,
+        "total": 152
+      },
+      "tool_calls": {
+        "median": 21,
+        "total": 21
+      },
+      "cost_usd": {
+        "median": 0.00877904,
+        "total": 0.00877904
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "73239ms",
+        "without_caesar": "49308ms",
+        "delta": "48.5%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "634882",
+        "without_caesar": "187593",
+        "delta": "238.4%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "5932",
+        "without_caesar": "3970",
+        "delta": "49.4%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "33",
+        "without_caesar": "21",
+        "delta": "57.1%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.016533",
+        "without_caesar": "$0.008779",
+        "delta": "88.3%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/DEEPCODEX/source; CAESAR state remains temporary."
+  ]
+}

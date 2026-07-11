@@ -1,0 +1,309 @@
+{
+  "config": {
+    "tier": "screening",
+    "seed": 300,
+    "model": "mlx-community/Qwen3.6-27B-4bit",
+    "baseUrl": "http://127.0.0.1:8011/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "maxTokens": 1024,
+    "maxToolCalls": 12,
+    "maxRetries": 2,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "find_definition"
+    ],
+    "dryRun": false
+  },
+  "methodology": [
+    "5 deterministic tasks executed through a screening LLM agent.",
+    "with_caesar: LLM has access to CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests) + read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Screening tier: provider/model results are exploratory only and are excluded from the official DeepSeek history and acceptance decisions.",
+    "Mode: live API calls. Suite: default.",
+    "Screening cost is not comparable to the official pricing series. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_d5c24fe33b8b",
+      "task_id": "find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 300,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"caesarHome\" is defined. What file is it in? What does it return? Respond with JSON: {\"found_file\": \"<relative path>\", \"function_name\": \"caesarHome\", \"returns_path\": true/false}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"caesarHome\", \"label\": \"Function\"}"
+          },
+          "type": "function",
+          "id": "4d11492b-7823-4390-a67c-f509385a5507"
+        },
+        {
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          },
+          "type": "function",
+          "id": "8244ced1-2729-4c93-87ad-b0d8ba51c456"
+        }
+      ],
+      "response": "{\n  \"found_file\": \"src/config/runtime.ts\",\n  \"function_name\": \"caesarHome\",\n  \"returns_path\": true\n}",
+      "responseHash": "ae578c01f476b820",
+      "metrics": {
+        "model": "mlx-community/Qwen3.6-27B-4bit",
+        "model_version": "mlx-community/Qwen3.6-27B-4bit",
+        "input_tokens": 3826,
+        "output_tokens": 100,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 463,
+        "wall_time_ms": 85128,
+        "api_latency_ms": 85128,
+        "cost_usd": 0,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/config/runtime.ts",
+        "function_name": "caesarHome",
+        "returns_path": true
+      },
+      "expected": {
+        "found_file": "runtime.ts",
+        "function_name": "caesarHome",
+        "returns_path": true
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_962ab25c7f91",
+      "task_id": "find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 300,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"caesarHome\" is defined. What file is it in? What does it return? Respond with JSON: {\"found_file\": \"<relative path>\", \"function_name\": \"caesarHome\", \"returns_path\": true/false}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"caesarHome\"}"
+          },
+          "type": "function",
+          "id": "3d869293-81e1-47b4-af4c-82c9771c1212"
+        },
+        {
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"ab-fixture/src/config/runtime.ts\"}"
+          },
+          "type": "function",
+          "id": "ba1490a6-f136-488d-89a7-e0ba86f1da78"
+        },
+        {
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          },
+          "type": "function",
+          "id": "f899e75d-a8ac-4f1e-8e8c-e0c34b696e0a"
+        }
+      ],
+      "response": "```json\n{\n  \"found_file\": \"src/config/runtime.ts\",\n  \"function_name\": \"caesarHome\",\n  \"returns_path\": true\n}\n```",
+      "responseHash": "e5f4de217d271704",
+      "metrics": {
+        "model": "mlx-community/Qwen3.6-27B-4bit",
+        "model_version": "mlx-community/Qwen3.6-27B-4bit",
+        "input_tokens": 4142,
+        "output_tokens": 126,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "tool_call_count": 3,
+        "files_read": 2,
+        "bytes_read": 463,
+        "wall_time_ms": 99455,
+        "api_latency_ms": 99455,
+        "cost_usd": 0,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/config/runtime.ts",
+        "function_name": "caesarHome",
+        "returns_path": true
+      },
+      "expected": {
+        "found_file": "runtime.ts",
+        "function_name": "caesarHome",
+        "returns_path": true
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 85128,
+        "p95": 85128
+      },
+      "input_tokens": {
+        "median": 3826,
+        "total": 3826
+      },
+      "output_tokens": {
+        "median": 100,
+        "total": 100
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 2,
+        "total": 2
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 1,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 99455,
+        "p95": 99455
+      },
+      "input_tokens": {
+        "median": 4142,
+        "total": 4142
+      },
+      "output_tokens": {
+        "median": 126,
+        "total": 126
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 3,
+        "total": 3
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 1,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "85128ms",
+        "without_caesar": "99455ms",
+        "delta": "-14.4%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "3826",
+        "without_caesar": "4142",
+        "delta": "-7.6%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "100",
+        "without_caesar": "126",
+        "delta": "-20.6%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "2",
+        "without_caesar": "3",
+        "delta": "-33.3%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.000000",
+        "without_caesar": "$0.000000",
+        "delta": "0%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "100%",
+        "without_caesar": "100%",
+        "delta": "0.0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 1 deterministic measured runs with real API calls (1 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (1 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended."
+  ]
+}

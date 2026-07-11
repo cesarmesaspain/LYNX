@@ -1,0 +1,312 @@
+{
+  "config": {
+    "tier": "screening",
+    "seed": 900,
+    "model": "mlx-community/Qwen3.6-27B-4bit",
+    "baseUrl": "http://127.0.0.1:8011/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "maxTokens": 1024,
+    "maxToolCalls": 3,
+    "maxRetries": 2,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_simple_techstack"
+    ],
+    "projectDir": "/Users/admin/Desktop/DEEPCODEX",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a screening LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to a task-specific compact CAESAR profile (search_graph, get_architecture, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Screening tier: provider/model results are exploratory only and are excluded from the official DeepSeek history and acceptance decisions.",
+    "Mode: live API calls. Suite: external-project.",
+    "Screening cost is not comparable to the official pricing series. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_557b87ec4bcc",
+      "task_id": "external_simple_techstack",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 900,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "What programming language, framework, and database does DEEPCODEX use? Respond with JSON: {\"language\":\"...\",\"framework\":\"...\",\"database\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"brief\"]}"
+          },
+          "type": "function",
+          "id": "5b55dba4-b68c-45da-a571-b813f2fbc73d"
+        },
+        {
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"framework database configuration\", \"limit\": 10}"
+          },
+          "type": "function",
+          "id": "86c4787f-25b2-4c6f-8023-b872f58d42b0"
+        },
+        {
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"source/Sources/DeepCodex/App.swift\"}"
+          },
+          "type": "function",
+          "id": "1d0f9f74-d3a4-4e1a-991f-45a9ef772b7b"
+        }
+      ],
+      "response": "Based on the evidence collected:\n\n1. **Language**: The project uses Swift (`.swift` files, 10 files found)\n2. **Framework**: The code imports `SwiftUI` and `AppKit`, and uses `@main struct DeepCodexApp: App` which is the SwiftUI App lifecycle pattern\n3. **Database**: No database was found in the architecture or code - this is a macOS desktop application that doesn't appear to use a database\n\n```json\n{\"language\":\"Swift\",\"framework\":\"SwiftUI\",\"database\":\"None\"}\n```",
+      "responseHash": "b3eb69e069d770fb",
+      "metrics": {
+        "model": "mlx-community/Qwen3.6-27B-4bit",
+        "model_version": "mlx-community/Qwen3.6-27B-4bit",
+        "input_tokens": 6101,
+        "output_tokens": 240,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 2687,
+        "wall_time_ms": 206657,
+        "api_latency_ms": 206657,
+        "cost_usd": 0,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "language": "Swift",
+        "framework": "SwiftUI",
+        "database": "None"
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": true
+    },
+    {
+      "run_id": "run_2_3baf4b61c835",
+      "task_id": "external_simple_techstack",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 900,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "What programming language, framework, and database does DEEPCODEX use? Respond with JSON: {\"language\":\"...\",\"framework\":\"...\",\"database\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"package\\\\.json\"}"
+          },
+          "type": "function",
+          "id": "816b375e-36c8-4333-8b62-96fb5b35aeca"
+        },
+        {
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"DEEPCODEX\"}"
+          },
+          "type": "function",
+          "id": "644ab083-bf17-41d2-b1b3-858e9489be50"
+        },
+        {
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"deeptcode\"}"
+          },
+          "type": "function",
+          "id": "1ad6ea03-ceb3-4242-9725-63b580ccaf12"
+        }
+      ],
+      "response": "{\"language\":\"Unknown\",\"framework\":\"Unknown\",\"database\":\"Unknown\"}",
+      "responseHash": "cdcc44f20d5acefb",
+      "metrics": {
+        "model": "mlx-community/Qwen3.6-27B-4bit",
+        "model_version": "mlx-community/Qwen3.6-27B-4bit",
+        "input_tokens": 2267,
+        "output_tokens": 99,
+        "cached_tokens": 0,
+        "reasoning_tokens": 0,
+        "tool_call_count": 3,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 62460,
+        "api_latency_ms": 62460,
+        "cost_usd": 0,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "language": "Unknown",
+        "framework": "Unknown",
+        "database": "Unknown"
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": true
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 206657,
+        "p95": 206657
+      },
+      "input_tokens": {
+        "median": 6101,
+        "total": 6101
+      },
+      "output_tokens": {
+        "median": 240,
+        "total": 240
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 3,
+        "total": 3
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 62460,
+        "p95": 62460
+      },
+      "input_tokens": {
+        "median": 2267,
+        "total": 2267
+      },
+      "output_tokens": {
+        "median": 99,
+        "total": 99
+      },
+      "cached_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "reasoning_tokens": {
+        "median": 0,
+        "total": 0
+      },
+      "tool_calls": {
+        "median": 3,
+        "total": 3
+      },
+      "cost_usd": {
+        "median": 0,
+        "total": 0
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "206657ms",
+        "without_caesar": "62460ms",
+        "delta": "230.9%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "6101",
+        "without_caesar": "2267",
+        "delta": "169.1%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "240",
+        "without_caesar": "99",
+        "delta": "142.4%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "3",
+        "without_caesar": "3",
+        "delta": "0.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.000000",
+        "without_caesar": "$0.000000",
+        "delta": "0%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "Screening uses a task-specific compact tool profile (read_file, get_architecture, search_graph); official runs expose the full catalogue.",
+    "External project mode: read-only source at /Users/admin/Desktop/DEEPCODEX; CAESAR state remains temporary."
+  ]
+}

@@ -1,0 +1,884 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 4242,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_trade_flow"
+    ],
+    "projectDir": "/Users/admin/Desktop/LINCE",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_fe7c0c1f8169",
+      "task_id": "external_trade_flow",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 4242,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "A user says they clicked to place a live trade in LINCE. Trace the most likely path from the user-facing action through validation and execution. Identify the main components, trust boundaries, and the highest-risk failure points. Respond with JSON: {\"flow\":[\"...\"],\"validation_points\":[\"...\"],\"risk_points\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_mQvXvfm8NkwhCqjEKjUR3972",
+          "type": "function",
+          "function": {
+            "name": "pack_context",
+            "arguments": "{\"task\": \"Trace the live trade placement flow in LINCE from user action through validation and execution\", \"mode\": \"full\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UvnHW3kxHN0LvJ0emHCR7850",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"clusters\", \"entry_points\", \"file_tree\", \"brief\", \"narrative\", \"node_labels\", \"edge_types\"]}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_SeDmu8Z7eEl0MRtLG6Zm8361",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"submit trading order\", \"label\": \"Function\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_cM2rYTQj1HW5LVFHitGs2757",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"trade ticket\", \"label\": \"Function\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_2lbB2AdBCnzgrOX8erDz3273",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"submitOrder\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_rK0E2dO1erDz31UwrRTQ3873",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.hooks.useTradeTicket.useTradeTicket\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_4bTDcqjjjblO0YAdY1Ui6382",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.hooks.useTradeTicketSubmit.useTradeTicketSubmit\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_nLCH5utjfGZRpdQ1wbDN2764",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.submitTradingOrder\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_3tnrjYtZEttT3qjNjxQX9967",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.submitTradingMarketOrder\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yPFLlufPP9TQAWfjx6pe2124",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"backend.app.routers.trading.trading_order\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_q8oXMGId03ILHijPkYoX3447",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"backend.app.coinbase_public.submit_order\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_c9dNOaMsHXUlOjaeaPOa3688",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"backend.app.services.security.require_trading_auth\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_XsReng1kkmINTpOesm3H2492",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"trading_order route\", \"label\": \"Route\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_GdbPgrILEsTMrIAn1NMM2773",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"enforce_real_order_rate_limit\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_PiJiITHEnN7dUpDbhig30046",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"enforce_robot_execution_authorization\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_fzz67JIXYSgInXpKLVei4808",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"fetchTradingPreflight\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zJZ4S4LdSIUdKkDasE3P3602",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"backend.app.services.security.enforce_real_order_rate_limit\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_6KgHe7PvJieqha4CsONd3783",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"backend.app.services.security.enforce_robot_execution_authorization\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_MfKXFEdI5yDcwgTnwqCB4681",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.api.fetchTradingPreflight\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_B6ruWizsfrPWV8xEvyYs4331",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"trading_order\", \"path_filter\": \"backend/app/main\\\\.py|backend/app/routers/__init__\\\\.py\", \"context\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QFU4e9JsyCLzQDZJZb1N6448",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/main.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_MN0H2FxBL9A6POiCU56g9081",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"trading\\\\.router|trading_router|from.*trading import\", \"path_filter\": \"backend/app/main\\\\.py\", \"context\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Zvo3kUmavyxvJi3aaqYK8714",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"backend/app/routers/trading.py\", \"limit\": 60}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_iAKQ6DLRiUqXmqiEfFOJ7897",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"requestTicketSubmit|submitTicketOrder|handleTicketSubmit\", \"path_filter\": \"frontend/src/App\\\\.tsx\", \"context\": 5}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_7cPYWbvDd57zbuvfYbCh0955",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"requestTicketSubmit|confirmRealOrderSubmit\", \"path_filter\": \"frontend/src/App\\\\.tsx\", \"context\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_9zdIDremyXJ1IYUwOQ4Z6739",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.hooks.usePendingLimitExecution.usePendingLimitExecution\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_Ci6y8HkpnSdF5ULDYWWH6470",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.hooks.useRobotOrderExecution.useRobotOrderExecution\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_GguFRLbNyoWAehluIrGM8210",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"onClick.*submit|submitTicket|requestTicket|confirm.*Order\", \"path_filter\": \"frontend/src/App\\\\.tsx\", \"context\": 3}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_d00HUfGNZUTretZYtZUU3897",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"lince compute trigger\", \"include_snippets\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_m55Sp6FjQ187W62GYoS28846",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"requestTicketSubmit|confirmRealOrderSubmit|realOrderConfirm.*onClick|submitTicketOrder\", \"path_filter\": \"frontend/src/App\\\\.tsx\", \"context\": 5}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_oqGzCdbNjA9QwSl2BAlH8659",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.App.getLatestLinceTriggerPrice\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UAPGOd8GTF7avKFL5YUU8142",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"requestTicketSubmit|confirmRealOrderSubmit|realOrderConfirm\", \"path_filter\": \"frontend/src/App\\\\.tsx|frontend/src/hooks\", \"context\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1mCWfiwcQXL5U8vdYTtD3564",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"onClick.*Ticket|ticketSubmit|handleTrade\", \"context\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dNNu4Z6lKpn15qetFyKT7413",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/components/layout/TradeTicketToast.tsx\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_e5xWwvaGQz9wqUxQAXYd5094",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"submit.*Ticket|onSubmit|submitOrderButton|TradeTicket.*click\", \"context\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2AQN2kubMg3WBxq60hQe1502",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"submitTicketOrder|confirmRealOrderSubmit|\\\\\\\"submit\\\\\\\"\", \"context\": 1, \"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QUmOCOeQUSGVCnmmQy7q0104",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"submitTicket\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yTT93gL9cBuJDH0uKIje7061",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"frontend/src/App.tsx\", \"limit\": 100}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_SyTLUdbpjwQHqrXdDqUd8350",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"backend.app.lince.compute_lince\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_xhWWvFHY8DN4F7mjbeM22737",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"frontend.src.hooks.useRobotRuntimeLoops.useRobotRuntimeLoops\", \"include_neighbors\": true}"
+          }
+        }
+      ],
+      "response": "Now I have enough evidence. Here is the complete analysis:\n\n```json\n{\n  \"flow\": [\n    \"1. User clicks submit button in Trade Ticket panel (App.tsx \u2192 walletMarketTab === 'trading')\",\n    \"2. useTradeTicketSubmit.requestTicketSubmit() is called; client-side validateTicketBeforeConfirm() checks side, amount, balance, Coinbase minimums, trendline/LINCE readiness\",\n    \"3. If sandbox: skips preflight \u2192 calls submitTicketOrder() directly\",\n    \"4. If REAL: fetchTradingPreflight() GET /api/trading/preflight verifies Coinbase connectivity + scopes; then shows realOrderConfirm modal\",\n    \"5. User clicks confirm on modal \u2192 confirmRealOrderSubmit() \u2192 submitTicketOrder()\",\n    \"6. submitTicketOrder() builds payload (pair, side, order_type, quote_size/base_size, client_order_id) \u2192 calls submitTradingOrder() in api.ts\",\n    \"7. submitTradingOrder() POSTs JSON to /api/trading/order with Content-Type: application/json\",\n    \"8. Backend trading_order() parses payload, validates pair/side/order_type/expiration, checks expected_mode against current trading mode\",\n    \"9. If mode=real: require_trading_auth(request, require_real_trade=True) validates session token from header or cookie; enforce_robot_execution_authorization() parses client_order_id for robot auth; enforce_real_order_rate_limit() checks 10-req/60s window\",\n    \"10. submit_order() handles sandbox (simulated fill with balance update) OR real (calls Coinbase REST SDK via _new_rest_client \u2192 market_order_buy/sell or limit_order_gtc/gtc/fok/ioc)\",\n    \"11. Response propagates back: Coinbase response \u2192 FastAPI route \u2192 fetch \u2192 setTicketFeedback({kind:'ok', text:'Orden enviada...'})\",\n    \"12. For ROBOT/LINCE orders: prependRobotOrder() creates local RobotOrder with status='armed'. Runtime loop (useRobotRuntimeLoops) monitors liveMarketPrice vs trendLinePriceAtTime or linceTriggerPrice. On cross/LINCE signal, status\u2192'triggered', then executeRobotOrder() handles packet execution (IOC/MARKET/maker_post_only) with full guard/slippage/spread checks\"\n  ],\n  \"validation_points\": [\n    \"Client-side: validateTicketBeforeConfirm() in useTradeTicket \u2014 side, amount, total, balance vs available, Coinbase order minimums, trendline operativity, LINCE runtime readiness\",\n    \"Client-side: buildRealOrderConfirmState() packed into confirmation modal for REAL orders\",\n    \"Preflight check: fetchTradingPreflight() GET /api/trading/preflight \u2014 checks Coinbase connectivity, trading scopes, can_trade flag\",\n    \"Backend payload parsing: validate_positive_size(), parse_bool_flag(), parse_expected_trading_mode() in trading_order()\",\n    \"Backend pair/side/order_type whitelist: pair \u2208 PAIR_OPTIONS, side \u2208 {BUY,SELL}, order_type \u2208 {MARKET,LIMIT}, expiration \u2208 {GTC,GTD,IOC,FOK}\",\n    \"Mode sync: expected_mode vs get_trading_mode() \u2014 409 conflict if mismatched\",\n    \"Backend auth: require_trading_auth() with token/cookie + PIN session, expires_at expiry, client_key binding, real_trade_enabled flag for REAL orders\",\n    \"Robot auth: enforce_robot_execution_authorization() validates client_order_id prefix, mode, pair, side against pre-registered authorization\",\n    \"Rate limiting: enforce_real_order_rate_limit() \u2014 max 10 real order submissions per 60s sliding window\",\n    \"Coinbase order minimums re-validated in submit_order() \u2014 BUY requires quote_size or base_size, SELL requires base_size, LIMIT requires limit_price>0\",\n    \"Sandbox balance check: _SANDBOX_BALANCES with lock against available funds, fee-inclusive debit\"\n  ],\n  \"risk_points\": [\n    \"HIGH \u2014 Client-side validation is entirely bypassable: validateTicketBeforeConfirm() runs in the browser. All balance, minimum, and operativity checks are repeated server-side but the confirmation modal is client-side only\",\n    \"CRITICAL \u2014 submit_order() complexity (73) handles both sandbox (simulated fills with balance mutation) and real (live Coinbase API). The sandbox branch mutates _SANDBOX_BALANCES under lock but the code path is extremely long \u2014 a bug here could produce incorrect simulated fills or expose real credentials\",\n    \"CRITICAL \u2014 useRobotOrderExecution() complexity (591): a single monolithic function handling IOC/market_guarded/hybrid/maker_post_only execution with book snapshotting, slippage/spread guards, micro-order subdivision, fill reconciliation, and funds-based retry. Any error in the guard logic could overpay on slippage in real mode\",\n    \"HIGH \u2014 enforce_robot_execution_authorization() trusts client_order_id parsing: it extracts the mode and robot_order_id from the order ID. An attacker or bug could forge IDs to bypass authorization for robot real-money orders\",\n    \"HIGH \u2014 Real-money release point: require_trading_auth() checks session expiry at call time, but a long-running robot execution (e.g., maker_post_only ladder with 4-hour maxWait) could operate after the session has expired, since the auth check happens only at submission, not at each packet\",\n    \"MEDIUM \u2014 enforce_real_order_rate_limit() applies per client_key (IP-based). With a 10-order / 60s window, a burst of market orders could cause significant cumulative slippage before the rate limit kicks in. Each individual order is guard-checked, but they could fire within milliseconds of each other via the robot packet loop\",\n    \"HIGH \u2014 Line/LINCE trigger crossover: useRobotRuntimeLoops() monitors both trendline cross and LINCE confirmed_signal. If both are active simultaneously, race conditions could cause dual triggering of the same robot order\"\n  ],\n  \"evidence\": [\n    \"frontend/src/hooks/useTradeTicketSubmit.ts:submitTicketOrder() \u2014 builds payload, calls submitTradingOrder() API\",\n    \"frontend/src/hooks/useTradeTicketSubmit.ts:requestTicketSubmit() \u2014 validateTicketBeforeConfirm() + preflight + real order confirm flow\",\n    \"frontend/src/hooks/useTradeTicket.ts:validateTicketBeforeConfirm() \u2014 client-side validation (balance, minimums, trendline/LINCE readiness)\",\n    \"frontend/src/api.ts:submitTradingOrder() \u2014 POST /api/trading/order\",\n    \"backend/app/routers/trading.py:trading_order() \u2014 @router.post('/api/trading/order') with payload parsing, mode sync, auth, robot auth, rate limiting, submit_order() call\",\n    \"backend/app/services/security.py:require_trading_auth() \u2014 session token/cookie validation with expiry, client_key binding, real_trade_enabled flag\",\n    \"backend/app/services/security.py:enforce_robot_execution_authorization() \u2014 parses client_order_id prefix to validate robot order authorization\",\n    \"backend/app/services/security.py:enforce_real_order_rate_limit() \u2014 10-req/60s sliding window per client_key\",\n    \"backend/app/coinbase_public.py:submit_order() \u2014 sandbox simulation (balance mutation) vs real Coinbase REST SDK calls (market_order_buy/sell, limit_order_gtc/ioc/fok)\",\n    \"frontend/src/hooks/useRobotRuntimeLoops.ts:useRobotRuntimeLoops() \u2014 monitors live price vs trendline/LINCE target, transitions armed\u2192triggered, dispatches executeRobotOrder()\",\n    \"frontend/src/hooks/useRobotOrderExecution.ts:executeRobotOrder() \u2014 591-complexity function handling all execution styles, book guards, micro-order division, slippage checks, retry logic, and fill reconciliation\"\n  ],\n  \"summary\": \"The live trade placement in LINCE flows from a React Trade Ticket UI click through client-side validation, a preflight check (real mode only), a confirmation modal, an HTTP POST to the FastAPI backend, server-side payload validation + auth + rate limiting, and finally to Coinbase via the SDK (real) or a simulated balance-mutating sandbox. For ROBOT/LINCE orders, after the initial arm the order enters a client-side runtime loop that monitors market price vs. target and executes via a highly complex packet engine supporting IOC, market_guarded, hybrid, and maker_post_only styles. The risk architecture has three critical zones: (1) the client-side-only validation before the confirm modal creates a trust gap, (2) the monolithic submit_order() (complexity 73) and executeRobotOrder() (complexity 591) concentrate enormous execution risk, and (3) the robot authorization mechanism trusts a client-generated order ID for security decisions. Real-money orders are additionally protected by an IP-based 10-order/60s rate limiter and a PIN-authenticated session.\"\n}\n```",
+      "responseHash": "735fb029404b35df",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 1339815,
+        "output_tokens": 6019,
+        "cached_tokens": 1154944,
+        "reasoning_tokens": 642,
+        "tool_call_count": 40,
+        "files_read": 4,
+        "bytes_read": 493036,
+        "wall_time_ms": 84553,
+        "api_latency_ms": 84515,
+        "cost_usd": 0.04373648,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "flow": [
+          "1. User clicks submit button in Trade Ticket panel (App.tsx \u2192 walletMarketTab === 'trading')",
+          "2. useTradeTicketSubmit.requestTicketSubmit() is called; client-side validateTicketBeforeConfirm() checks side, amount, balance, Coinbase minimums, trendline/LINCE readiness",
+          "3. If sandbox: skips preflight \u2192 calls submitTicketOrder() directly",
+          "4. If REAL: fetchTradingPreflight() GET /api/trading/preflight verifies Coinbase connectivity + scopes; then shows realOrderConfirm modal",
+          "5. User clicks confirm on modal \u2192 confirmRealOrderSubmit() \u2192 submitTicketOrder()",
+          "6. submitTicketOrder() builds payload (pair, side, order_type, quote_size/base_size, client_order_id) \u2192 calls submitTradingOrder() in api.ts",
+          "7. submitTradingOrder() POSTs JSON to /api/trading/order with Content-Type: application/json",
+          "8. Backend trading_order() parses payload, validates pair/side/order_type/expiration, checks expected_mode against current trading mode",
+          "9. If mode=real: require_trading_auth(request, require_real_trade=True) validates session token from header or cookie; enforce_robot_execution_authorization() parses client_order_id for robot auth; enforce_real_order_rate_limit() checks 10-req/60s window",
+          "10. submit_order() handles sandbox (simulated fill with balance update) OR real (calls Coinbase REST SDK via _new_rest_client \u2192 market_order_buy/sell or limit_order_gtc/gtc/fok/ioc)",
+          "11. Response propagates back: Coinbase response \u2192 FastAPI route \u2192 fetch \u2192 setTicketFeedback({kind:'ok', text:'Orden enviada...'})",
+          "12. For ROBOT/LINCE orders: prependRobotOrder() creates local RobotOrder with status='armed'. Runtime loop (useRobotRuntimeLoops) monitors liveMarketPrice vs trendLinePriceAtTime or linceTriggerPrice. On cross/LINCE signal, status\u2192'triggered', then executeRobotOrder() handles packet execution (IOC/MARKET/maker_post_only) with full guard/slippage/spread checks"
+        ],
+        "validation_points": [
+          "Client-side: validateTicketBeforeConfirm() in useTradeTicket \u2014 side, amount, total, balance vs available, Coinbase order minimums, trendline operativity, LINCE runtime readiness",
+          "Client-side: buildRealOrderConfirmState() packed into confirmation modal for REAL orders",
+          "Preflight check: fetchTradingPreflight() GET /api/trading/preflight \u2014 checks Coinbase connectivity, trading scopes, can_trade flag",
+          "Backend payload parsing: validate_positive_size(), parse_bool_flag(), parse_expected_trading_mode() in trading_order()",
+          "Backend pair/side/order_type whitelist: pair \u2208 PAIR_OPTIONS, side \u2208 {BUY,SELL}, order_type \u2208 {MARKET,LIMIT}, expiration \u2208 {GTC,GTD,IOC,FOK}",
+          "Mode sync: expected_mode vs get_trading_mode() \u2014 409 conflict if mismatched",
+          "Backend auth: require_trading_auth() with token/cookie + PIN session, expires_at expiry, client_key binding, real_trade_enabled flag for REAL orders",
+          "Robot auth: enforce_robot_execution_authorization() validates client_order_id prefix, mode, pair, side against pre-registered authorization",
+          "Rate limiting: enforce_real_order_rate_limit() \u2014 max 10 real order submissions per 60s sliding window",
+          "Coinbase order minimums re-validated in submit_order() \u2014 BUY requires quote_size or base_size, SELL requires base_size, LIMIT requires limit_price>0",
+          "Sandbox balance check: _SANDBOX_BALANCES with lock against available funds, fee-inclusive debit"
+        ],
+        "risk_points": [
+          "HIGH \u2014 Client-side validation is entirely bypassable: validateTicketBeforeConfirm() runs in the browser. All balance, minimum, and operativity checks are repeated server-side but the confirmation modal is client-side only",
+          "CRITICAL \u2014 submit_order() complexity (73) handles both sandbox (simulated fills with balance mutation) and real (live Coinbase API). The sandbox branch mutates _SANDBOX_BALANCES under lock but the code path is extremely long \u2014 a bug here could produce incorrect simulated fills or expose real credentials",
+          "CRITICAL \u2014 useRobotOrderExecution() complexity (591): a single monolithic function handling IOC/market_guarded/hybrid/maker_post_only execution with book snapshotting, slippage/spread guards, micro-order subdivision, fill reconciliation, and funds-based retry. Any error in the guard logic could overpay on slippage in real mode",
+          "HIGH \u2014 enforce_robot_execution_authorization() trusts client_order_id parsing: it extracts the mode and robot_order_id from the order ID. An attacker or bug could forge IDs to bypass authorization for robot real-money orders",
+          "HIGH \u2014 Real-money release point: require_trading_auth() checks session expiry at call time, but a long-running robot execution (e.g., maker_post_only ladder with 4-hour maxWait) could operate after the session has expired, since the auth check happens only at submission, not at each packet",
+          "MEDIUM \u2014 enforce_real_order_rate_limit() applies per client_key (IP-based). With a 10-order / 60s window, a burst of market orders could cause significant cumulative slippage before the rate limit kicks in. Each individual order is guard-checked, but they could fire within milliseconds of each other via the robot packet loop",
+          "HIGH \u2014 Line/LINCE trigger crossover: useRobotRuntimeLoops() monitors both trendline cross and LINCE confirmed_signal. If both are active simultaneously, race conditions could cause dual triggering of the same robot order"
+        ],
+        "evidence": [
+          "frontend/src/hooks/useTradeTicketSubmit.ts:submitTicketOrder() \u2014 builds payload, calls submitTradingOrder() API",
+          "frontend/src/hooks/useTradeTicketSubmit.ts:requestTicketSubmit() \u2014 validateTicketBeforeConfirm() + preflight + real order confirm flow",
+          "frontend/src/hooks/useTradeTicket.ts:validateTicketBeforeConfirm() \u2014 client-side validation (balance, minimums, trendline/LINCE readiness)",
+          "frontend/src/api.ts:submitTradingOrder() \u2014 POST /api/trading/order",
+          "backend/app/routers/trading.py:trading_order() \u2014 @router.post('/api/trading/order') with payload parsing, mode sync, auth, robot auth, rate limiting, submit_order() call",
+          "backend/app/services/security.py:require_trading_auth() \u2014 session token/cookie validation with expiry, client_key binding, real_trade_enabled flag",
+          "backend/app/services/security.py:enforce_robot_execution_authorization() \u2014 parses client_order_id prefix to validate robot order authorization",
+          "backend/app/services/security.py:enforce_real_order_rate_limit() \u2014 10-req/60s sliding window per client_key",
+          "backend/app/coinbase_public.py:submit_order() \u2014 sandbox simulation (balance mutation) vs real Coinbase REST SDK calls (market_order_buy/sell, limit_order_gtc/ioc/fok)",
+          "frontend/src/hooks/useRobotRuntimeLoops.ts:useRobotRuntimeLoops() \u2014 monitors live price vs trendline/LINCE target, transitions armed\u2192triggered, dispatches executeRobotOrder()",
+          "frontend/src/hooks/useRobotOrderExecution.ts:executeRobotOrder() \u2014 591-complexity function handling all execution styles, book guards, micro-order division, slippage checks, retry logic, and fill reconciliation"
+        ],
+        "summary": "The live trade placement in LINCE flows from a React Trade Ticket UI click through client-side validation, a preflight check (real mode only), a confirmation modal, an HTTP POST to the FastAPI backend, server-side payload validation + auth + rate limiting, and finally to Coinbase via the SDK (real) or a simulated balance-mutating sandbox. For ROBOT/LINCE orders, after the initial arm the order enters a client-side runtime loop that monitors market price vs. target and executes via a highly complex packet engine supporting IOC, market_guarded, hybrid, and maker_post_only styles. The risk architecture has three critical zones: (1) the client-side-only validation before the confirm modal creates a trust gap, (2) the monolithic submit_order() (complexity 73) and executeRobotOrder() (complexity 591) concentrate enormous execution risk, and (3) the robot authorization mechanism trusts a client-generated order ID for security decisions. Real-money orders are additionally protected by an IP-based 10-order/60s rate limiter and a PIN-authenticated session."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_89bc38a43d65",
+      "task_id": "external_trade_flow",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 4242,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "A user says they clicked to place a live trade in LINCE. Trace the most likely path from the user-facing action through validation and execution. Identify the main components, trust boundaries, and the highest-risk failure points. Respond with JSON: {\"flow\":[\"...\"],\"validation_points\":[\"...\"],\"risk_points\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_RC47hbSdV0lKRXTXOfzT9703",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"live trade\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Q8YlglBpxGcfdd1dlFVo8349",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"placeTrade\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_7wzGTzRgiFpmS5Xgnm4u1347",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"executeTrade\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_R1miMxjfOSNFHj0IVhSE7122",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"trade\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_jJmkvhxC9fdVWevXZEXd9646",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.tsx\", \"pattern\": \"trade\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_lxR6CvikSYCA7BKDwiWC3712",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"trade\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_AhoFVpqHkTZvSb0gLWaz0254",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/backend/app/routers/trading.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_fUTLDrdAvqdTDewqGVuk5208",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/hooks/useTradeTicketSubmit.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_qHYmwpAuuC8MQPozkI4c7991",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/backend/app/services/trading.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_cx6y6ZoNuQco3pOFzmqB0832",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/backend/app/services/security.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_E1ZQm5GXdUDvpcROhMeg9909",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def submit_order\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_rC7SUNcdK2zBa17wrDZi7825",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def trading_preflight\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_PHV6IFnpqVCxIC9AujuA3815",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"onClick.*requestTicketSubmit|onClick.*submitTicket\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_qYGvQIQ5P4bVoVzcCd2k4271",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/backend/app/coinbase_public.py\", \"start_line\": 3128, \"end_line\": 3340}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Ztj7kYsquGZXBmXqTtgt9932",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.tsx\", \"pattern\": \"onClick=\\\\{.*requestTicket\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_FpEHUXDcOxiYXLZoTvZc1284",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.tsx\", \"pattern\": \"onClick.*submit.*ticket|onClick.*submitTicket|requestTicketSubmit\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zkXkfgu8f6RHNaNxWlTX8663",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.tsx\", \"pattern\": \"ticket-submit|trade-ticket-submit\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_HXrd0WYdj2ZKrmqBedUB5335",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"onClick.*submitTicket|requestTicket|confirmRealOrder\", \"include\": \"*.tsx\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WsxLz3Vc194azeLmKN8i5015",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/LINCE/frontend/src/App.tsx\", \"start_line\": 9315, \"end_line\": 9345}"
+          }
+        }
+      ],
+      "response": "Now I have a thorough understanding of the entire flow. Here is the analysis:\n\n```json\n{\n  \"flow\": [\n    \"1. User clicks 'trade-ticket-submit' button (frontend App.tsx ~line 9329) invoking requestTicketSubmit()\",\n    \"2. requestTicketSubmit() in useTradeTicketSubmit.ts: validates client-side (canSubmitOrders, ticketOverAvailable, mode transition lock)\",\n    \"3. If sandbox: calls submitTicketOrder() directly; if REAL: calls fetchTradingPreflight() (GET /api/trading/preflight) then fetchTradingAccounts(), then shows realOrderConfirm dialog\",\n    \"4. On confirmRealOrderSubmit() \u2192 submitTicketOrder()\",\n    \"5. submitTicketOrder() dispatches by order type: ROBOT \u2192 local robot order (prependRobotOrder), LIMIT/STOP_LIMIT \u2192 local pending order, MARKET \u2192 HTTP POST\",\n    \"6. For MARKET: calls submitTradingOrder() from api.ts \u2192 POST /api/trading/order or POST /api/trading/order/market\",\n    \"7. Backend router (trading.py) validates payload fields (pair, side, order_type, sizes, expiration, expected_mode)\",\n    \"8. In REAL mode: require_trading_auth() checks PIN-issued session cookie or header; enforce_robot_execution_authorization() if client_order_id matches a robot pattern; enforce_real_order_rate_limit()\",\n    \"9. Calls submit_order() in coinbase_public.py via services/trading\",\n    \"10. submit_order() in coinbase_public.py: if REAL \u2192 creates authenticated RESTClient using COINBASE_API_KEY/SECRET, calls Coinbase SDK (client.market_order_buy / market_order_sell); if SANDBOX \u2192 simulates fill with synthetic balances and order book\",\n    \"11. Response returns order_id, fill details; frontend shows feedback toast and schedules wallet refresh\"\n  ],\n  \"validation_points\": [\n    \"Frontend: canSubmitOrders (tradingEnabled flag), ticketOverAvailable (balance check), ticketSubmitDisabled (composite guard), validateTicketBeforeConfirm(), validateCoinbaseOrderMinimums() for pair-specific min sizes\",\n    \"Frontend: trendline/Lince signal validation for ROBOT orders (trendlineImpliedSide, linceRuntimeReady, fallbackTrigger)\",\n    \"Frontend: preflight check GET /api/trading/preflight (checks ok, connected, can_trade, scopes_ok)\",\n    \"Backend: payload field validation (pair in PAIR_OPTIONS, side in BUY/SELL, order_type MARKET/LIMIT, positive sizes, expiration in GTC/GTD/IOC/FOK)\",\n    \"Backend: mode synchronization (expected_mode vs get_trading_mode(), 409 if mismatch)\",\n    \"Backend: require_trading_auth (PIN session cookie or mobile viewer auth token, with TTL 43200s and real_trade_enabled flag check)\",\n    \"Backend: enforce_robot_execution_authorization (parses client_order_id pattern, checks in-memory auth map with pair/side match)\",\n    \"Backend: enforce_real_order_rate_limit (max 8 requests per 60s sliding window per client IP)\",\n    \"Backend: PIN rate limiting in verify_trading_pin_with_rate_limit (max 5 attempts per 900s window, 300s block)\",\n    \"Backend: submit_order() in coinbase_public: allow_real_orders flag check, _require_private_trading, Coinbase SDK call with retries\",\n    \"Backend: trading_preflight() in REAL mode calls Coinbase preview API to validate scopes before actual order\"\n  ],\n  \"risk_points\": [\n    \"PIN brute-force or session hijacking: PIN validation is session-level (cookie-based httponly, not encrypted at transport for local). If TRADING_TAB_PIN is weak or leaked, an attacker on localhost could place real trades\",\n    \"In-memory trading session store: _TRADING_SESSIONS and _ROBOT_EXECUTION_AUTHS are plain dicts with no persistence or replication \u2014 a server restart loses all auth and all active robot authorizations\",\n    \"Rate limit gap: enforce_real_order_rate_limit is per client IP but runs on the backend; a multi-threaded or distributed attacker could race past the 8/60s limit before counters sync\",\n    \"Robot authorization via client_order_id regex: enforce_robot_execution_authorization parses 'nlw-rb-{mode}-{id}-s...' from client-supplied client_order_id. A forged or malformed client_order_id could bypass or collide with auth\",\n    \"Sandbox escape: if SANDBOX_STRICT_ONLY is 0 and ALLOW_REAL_ORDERS is 1, a misconfigured .env could let sandbox-mode users reach REAL order execution through submit_order() if trading_mode reads REAL\",\n    \"Frontend balance trust: balance checks (ticketOverAvailable, baseAvailableNet) run client-side. A malicious/faked frontend could submit orders exceeding balance (though backend Coinbase SDK enforces balances at exchange level)\",\n    \"No idempotency key: client_order_id is optional and not enforced as unique. Duplicate order submissions in case of network retries could result in multiple fills\",\n    \"Zero-day in Coinbase SDK/REST client: _with_retries retries 4 times with exponential backoff. If the Coinbase API has a latent bug causing partial fills, the retry logic could compound exposure\"\n  ],\n  \"evidence\": [\n    \"Frontend submit button: App.tsx line ~9329: className=\\\"trade-ticket-submit\\\" onClick={() => void requestTicketSubmit()}\",\n    \"requestTicketSubmit() in frontend/src/hooks/useTradeTicketSubmit.ts lines 123-158: preflight fetch, account fetch, confirm dialog for REAL mode\",\n    \"submitTicketOrder() in useTradeTicketSubmit.ts lines 62-121: three branches for ROBOT, LIMIT/STOP_LIMIT, and MARKET\",\n    \"Backend endpoint POST /api/trading/order in backend/app/routers/trading.py: validates pair/side/type/sizes, calls require_trading_auth (real), calls submit_order()\",\n    \"require_trading_auth() in backend/app/services/security.py: checks cookie _TRADING_AUTH_COOKIE or header x-trading-auth, validates in-memory session map\",\n    \"enforce_real_order_rate_limit() in security.py: sliding window 60s, max 8 requests per client IP\",\n    \"submit_order() in backend/app/coinbase_public.py line 3290: REAL branch creates RESTClient with CDP key/secret, calls Coinbase SDK (market_order_buy/market_order_sell)\",\n    \"trading_preflight() in coinbase_public.py line 3128: in REAL mode calls client.preview_market_order_buy/sell to validate scopes before allowing orders\",\n    \"ROBOT authorization regex in security.py: _ROBOT_CLIENT_ORDER_RE = r\\\"^(real|sandbox)-(.+)-s\\\\d+(?:-(?:ioc|funds))?$\\\"\",\n    \"PIN rate limiting in security.py: _PIN_MAX_ATTEMPTS=5, _PIN_WINDOW_SEC=900, _PIN_BLOCK_SEC=300\"\n  ],\n  \"summary\": \"The live trade path starts when a user clicks the 'trade-ticket-submit' button, which triggers requestTicketSubmit() in the frontend. For REAL-mode trades, it first runs a preflight check against Coinbase (validating API scopes via preview calls), fetches wallet accounts, then shows a confirmation dialog. On confirmation, submitTicketOrder() builds the payload (MARKET, LIMIT, STOP_LIMIT, or ROBOT type) and sends it to the backend. The backend router validates every field (pair, side, size, type, expiration), enforces authentication via PIN-based session cookies (httponly, 12h TTL), checks robot execution authorization for automated orders, and rate-limits real orders to 8 per 60 seconds per client. The actual trade is executed in coinbase_public.py through the Coinbase SDK (authenticated REST client with CDP credentials). The highest-risk failure points are the in-memory-only auth store (lost on restart), PIN brute force, client-order-id regex-based robot authorization, and lack of idempotency keys for network-retry scenarios.\"\n}\n```",
+      "responseHash": "f69b6812115b4a9b",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 1172910,
+        "output_tokens": 3753,
+        "cached_tokens": 934784,
+        "reasoning_tokens": 494,
+        "tool_call_count": 19,
+        "files_read": 6,
+        "bytes_read": 673988,
+        "wall_time_ms": 58275,
+        "api_latency_ms": 58272,
+        "cost_usd": 0.04747546,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "flow": [
+          "1. User clicks 'trade-ticket-submit' button (frontend App.tsx ~line 9329) invoking requestTicketSubmit()",
+          "2. requestTicketSubmit() in useTradeTicketSubmit.ts: validates client-side (canSubmitOrders, ticketOverAvailable, mode transition lock)",
+          "3. If sandbox: calls submitTicketOrder() directly; if REAL: calls fetchTradingPreflight() (GET /api/trading/preflight) then fetchTradingAccounts(), then shows realOrderConfirm dialog",
+          "4. On confirmRealOrderSubmit() \u2192 submitTicketOrder()",
+          "5. submitTicketOrder() dispatches by order type: ROBOT \u2192 local robot order (prependRobotOrder), LIMIT/STOP_LIMIT \u2192 local pending order, MARKET \u2192 HTTP POST",
+          "6. For MARKET: calls submitTradingOrder() from api.ts \u2192 POST /api/trading/order or POST /api/trading/order/market",
+          "7. Backend router (trading.py) validates payload fields (pair, side, order_type, sizes, expiration, expected_mode)",
+          "8. In REAL mode: require_trading_auth() checks PIN-issued session cookie or header; enforce_robot_execution_authorization() if client_order_id matches a robot pattern; enforce_real_order_rate_limit()",
+          "9. Calls submit_order() in coinbase_public.py via services/trading",
+          "10. submit_order() in coinbase_public.py: if REAL \u2192 creates authenticated RESTClient using COINBASE_API_KEY/SECRET, calls Coinbase SDK (client.market_order_buy / market_order_sell); if SANDBOX \u2192 simulates fill with synthetic balances and order book",
+          "11. Response returns order_id, fill details; frontend shows feedback toast and schedules wallet refresh"
+        ],
+        "validation_points": [
+          "Frontend: canSubmitOrders (tradingEnabled flag), ticketOverAvailable (balance check), ticketSubmitDisabled (composite guard), validateTicketBeforeConfirm(), validateCoinbaseOrderMinimums() for pair-specific min sizes",
+          "Frontend: trendline/Lince signal validation for ROBOT orders (trendlineImpliedSide, linceRuntimeReady, fallbackTrigger)",
+          "Frontend: preflight check GET /api/trading/preflight (checks ok, connected, can_trade, scopes_ok)",
+          "Backend: payload field validation (pair in PAIR_OPTIONS, side in BUY/SELL, order_type MARKET/LIMIT, positive sizes, expiration in GTC/GTD/IOC/FOK)",
+          "Backend: mode synchronization (expected_mode vs get_trading_mode(), 409 if mismatch)",
+          "Backend: require_trading_auth (PIN session cookie or mobile viewer auth token, with TTL 43200s and real_trade_enabled flag check)",
+          "Backend: enforce_robot_execution_authorization (parses client_order_id pattern, checks in-memory auth map with pair/side match)",
+          "Backend: enforce_real_order_rate_limit (max 8 requests per 60s sliding window per client IP)",
+          "Backend: PIN rate limiting in verify_trading_pin_with_rate_limit (max 5 attempts per 900s window, 300s block)",
+          "Backend: submit_order() in coinbase_public: allow_real_orders flag check, _require_private_trading, Coinbase SDK call with retries",
+          "Backend: trading_preflight() in REAL mode calls Coinbase preview API to validate scopes before actual order"
+        ],
+        "risk_points": [
+          "PIN brute-force or session hijacking: PIN validation is session-level (cookie-based httponly, not encrypted at transport for local). If TRADING_TAB_PIN is weak or leaked, an attacker on localhost could place real trades",
+          "In-memory trading session store: _TRADING_SESSIONS and _ROBOT_EXECUTION_AUTHS are plain dicts with no persistence or replication \u2014 a server restart loses all auth and all active robot authorizations",
+          "Rate limit gap: enforce_real_order_rate_limit is per client IP but runs on the backend; a multi-threaded or distributed attacker could race past the 8/60s limit before counters sync",
+          "Robot authorization via client_order_id regex: enforce_robot_execution_authorization parses 'nlw-rb-{mode}-{id}-s...' from client-supplied client_order_id. A forged or malformed client_order_id could bypass or collide with auth",
+          "Sandbox escape: if SANDBOX_STRICT_ONLY is 0 and ALLOW_REAL_ORDERS is 1, a misconfigured .env could let sandbox-mode users reach REAL order execution through submit_order() if trading_mode reads REAL",
+          "Frontend balance trust: balance checks (ticketOverAvailable, baseAvailableNet) run client-side. A malicious/faked frontend could submit orders exceeding balance (though backend Coinbase SDK enforces balances at exchange level)",
+          "No idempotency key: client_order_id is optional and not enforced as unique. Duplicate order submissions in case of network retries could result in multiple fills",
+          "Zero-day in Coinbase SDK/REST client: _with_retries retries 4 times with exponential backoff. If the Coinbase API has a latent bug causing partial fills, the retry logic could compound exposure"
+        ],
+        "evidence": [
+          "Frontend submit button: App.tsx line ~9329: className=\"trade-ticket-submit\" onClick={() => void requestTicketSubmit()}",
+          "requestTicketSubmit() in frontend/src/hooks/useTradeTicketSubmit.ts lines 123-158: preflight fetch, account fetch, confirm dialog for REAL mode",
+          "submitTicketOrder() in useTradeTicketSubmit.ts lines 62-121: three branches for ROBOT, LIMIT/STOP_LIMIT, and MARKET",
+          "Backend endpoint POST /api/trading/order in backend/app/routers/trading.py: validates pair/side/type/sizes, calls require_trading_auth (real), calls submit_order()",
+          "require_trading_auth() in backend/app/services/security.py: checks cookie _TRADING_AUTH_COOKIE or header x-trading-auth, validates in-memory session map",
+          "enforce_real_order_rate_limit() in security.py: sliding window 60s, max 8 requests per client IP",
+          "submit_order() in backend/app/coinbase_public.py line 3290: REAL branch creates RESTClient with CDP key/secret, calls Coinbase SDK (market_order_buy/market_order_sell)",
+          "trading_preflight() in coinbase_public.py line 3128: in REAL mode calls client.preview_market_order_buy/sell to validate scopes before allowing orders",
+          "ROBOT authorization regex in security.py: _ROBOT_CLIENT_ORDER_RE = r\"^(real|sandbox)-(.+)-s\\d+(?:-(?:ioc|funds))?$\"",
+          "PIN rate limiting in security.py: _PIN_MAX_ATTEMPTS=5, _PIN_WINDOW_SEC=900, _PIN_BLOCK_SEC=300"
+        ],
+        "summary": "The live trade path starts when a user clicks the 'trade-ticket-submit' button, which triggers requestTicketSubmit() in the frontend. For REAL-mode trades, it first runs a preflight check against Coinbase (validating API scopes via preview calls), fetches wallet accounts, then shows a confirmation dialog. On confirmation, submitTicketOrder() builds the payload (MARKET, LIMIT, STOP_LIMIT, or ROBOT type) and sends it to the backend. The backend router validates every field (pair, side, size, type, expiration), enforces authentication via PIN-based session cookies (httponly, 12h TTL), checks robot execution authorization for automated orders, and rate-limits real orders to 8 per 60 seconds per client. The actual trade is executed in coinbase_public.py through the Coinbase SDK (authenticated REST client with CDP credentials). The highest-risk failure points are the in-memory-only auth store (lost on restart), PIN brute force, client-order-id regex-based robot authorization, and lack of idempotency keys for network-retry scenarios."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 84553,
+        "p95": 84553
+      },
+      "input_tokens": {
+        "median": 1339815,
+        "total": 1339815
+      },
+      "output_tokens": {
+        "median": 6019,
+        "total": 6019
+      },
+      "cached_tokens": {
+        "median": 1154944,
+        "total": 1154944
+      },
+      "reasoning_tokens": {
+        "median": 642,
+        "total": 642
+      },
+      "tool_calls": {
+        "median": 40,
+        "total": 40
+      },
+      "cost_usd": {
+        "median": 0.04373648,
+        "total": 0.04373648
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 58275,
+        "p95": 58275
+      },
+      "input_tokens": {
+        "median": 1172910,
+        "total": 1172910
+      },
+      "output_tokens": {
+        "median": 3753,
+        "total": 3753
+      },
+      "cached_tokens": {
+        "median": 934784,
+        "total": 934784
+      },
+      "reasoning_tokens": {
+        "median": 494,
+        "total": 494
+      },
+      "tool_calls": {
+        "median": 19,
+        "total": 19
+      },
+      "cost_usd": {
+        "median": 0.04747546,
+        "total": 0.04747546
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "84553ms",
+        "without_caesar": "58275ms",
+        "delta": "45.1%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "1339815",
+        "without_caesar": "1172910",
+        "delta": "14.2%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "6019",
+        "without_caesar": "3753",
+        "delta": "60.4%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "40",
+        "without_caesar": "19",
+        "delta": "110.5%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.043736",
+        "without_caesar": "$0.047475",
+        "delta": "-7.9%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/LINCE; CAESAR state remains temporary."
+  ]
+}

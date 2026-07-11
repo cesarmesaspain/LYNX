@@ -1,0 +1,39 @@
+{
+  "generated": "2026-07-11T16:53:37.861Z",
+  "project": "NEW_WEBSITE",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tier": "official",
+  "tasks": [
+    {
+      "task_id": "external_find_definition",
+      "lynx": {
+        "response": "Here is the answer:\n\n```json\n{\n  \"found_file\": \"src/lib/gpt-actions/keys.ts\",\n  \"function_name\": \"hasGptActionScope\",\n  \"kind\": \"function\"\n}\n```",
+        "wall_ms": 8162,
+        "tool_calls": 5,
+        "tool_call_summary": {
+          "get_code_snippet": 1,
+          "search_code": 2,
+          "search_graph": 1,
+          "semantic_search": 1
+        },
+        "input_tokens": 20374,
+        "cost_usd": 0.00065212,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "```json\n{\"found_file\":\"src/lib/gpt-actions/keys.ts\",\"function_name\":\"hasGptActionScope\",\"kind\":\"function\"}\n```",
+        "wall_ms": 10526,
+        "tool_calls": 2,
+        "tool_call_summary": {
+          "grep": 1,
+          "read_file": 1
+        },
+        "input_tokens": 47911,
+        "cost_usd": 0.00083079,
+        "errors": []
+      }
+    }
+  ]
+}

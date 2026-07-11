@@ -1,0 +1,28 @@
+{
+  "generated": "2026-07-11T01:23:05.555Z",
+  "project": "WORKMAT",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tasks": [
+    {
+      "task_id": "external_config_lookup",
+      "lynx": {
+        "response": "Here are the values from WORKMAT's `package.json`:\n\n```json\n{\"name\":\"workmat-web\",\"private\":true}\n```",
+        "wall_ms": 6504,
+        "tool_calls": 4,
+        "input_tokens": 17837,
+        "cost_usd": 0.00074522,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "```json\n{\"name\":\"workmat-web\",\"private\":true}\n```",
+        "wall_ms": 5806,
+        "tool_calls": 2,
+        "input_tokens": 105225,
+        "cost_usd": 0.00811135,
+        "errors": []
+      }
+    }
+  ]
+}

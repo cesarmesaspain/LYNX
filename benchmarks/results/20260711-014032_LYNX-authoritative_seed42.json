@@ -1,0 +1,1881 @@
+{
+  "config": {
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_generic_change_impact"
+    ],
+    "projectDir": "/Users/admin/Desktop/CAESAR-authoritative",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (search_graph, trace_path, explain_symbol, find_tests, get_architecture, analyze_hotspots, get_graph_schema, semantic_search, batch_get_code, search_code, smart_review, detect_changes, pack_memory, query_graph, compare_runs, pack_context, get_code_snippet, read_file).",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_4e7b31318cef",
+      "task_id": "external_generic_change_impact",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "The CAESAR-authoritative team wants to add a user-visible setting that must persist across launches and affect runtime behavior. Determine where this change should be implemented, which callers and dependencies would be affected, what migration or compatibility risks exist, and what tests should be added. Explore freely and cite concrete evidence. Respond with JSON: {\"change_areas\":[\"...\"],\"affected_dependencies\":[\"...\"],\"persistence_path\":[\"...\"],\"risks\":[\"...\"],\"test_plan\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_sdnQh47lhtjjvUbnAlWX3783",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_INSUXqMlDRAfGDitZZLR4633",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"CAESAR\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_4uKdWL9zFxXRAsoP5Ic68083",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_0a7Qftv12ojSRqn40b1i8322",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"persist\", \"label\": \"Function\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_LikC8iqaWvHQKQA0JouG2756",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"config\", \"label\": \"ConfigKey\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_gUTYyaed7HMKPsdRvWhT1995",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"readCaesarConfig\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_hQaYejNaqbag2ae9ZYmX6993",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"upsertCaesarConfig\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_gOpvBXqunVciAtpr0AYH2096",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"writeCaesarConfig\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WKBIiDcxZPiPa9dp5eaL9611",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/commands/config-cmd.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_hMlp23HQzQxJUjFhAs0u0400",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/install/index.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_KN8P2wz4pWIOzxBKljMH8688",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/install/doctor.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_7ZsURYxpGknKTviM6xn84123",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/mcp/handlers/index_status.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_rmVw6pLOzNxl3lf968zp3828",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/commands/serve-cmd.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_86I0GMo61w3Sg5PSZZkt4617",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"readCaesarConfig\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_hweNjX6ptxj72gx04jb79918",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"CaesarRuntimeConfig\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_PFXkSO1EMTseRQUwaxNR0402",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"upsertCaesarConfig\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PAI3PWsIRGiYiioGortS2464",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"runtime\\\\.ts\", \"file_pattern\": \"*.test.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_yT0yhxPKc0xoPnIDD7OQ3752",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"runtime config\", \"file_pattern\": \"*.test.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QXujBMEBOSz43oXTJUob7162",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"runtime\", \"file_pattern\": \"tests/**/*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_29TKcjH77mOsMvXF0Kdu3314",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"readCaesarConfig\", \"file_pattern\": \"tests/**/*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_rtdg8LAVKGE5V2jT2Lns6459",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/server/dashboard/server.ts\", \"start_line\": 1, \"end_line\": 50}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_YXxTFMbPHQ1Def32bRXU0658",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"handleIndexStatus\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_DLC52PGxOqZbnqvoUg4n3921",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/commands/upgrade-cmd.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_QVomy5sgIUbCawAhEoby1627",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/intelligence/project-brief.ts\", \"start_line\": 1, \"end_line\": 50}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_pttF7fOIsp3tVHdwswHc7488",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"tests/**/*.ts\", \"pattern\": \"config\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_0Tt7JAwbUbCPHAFCT6QK7893",
+          "type": "function",
+          "function": {
+            "name": "get_graph_schema",
+            "arguments": "{}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_BhJUTpVYCneY52OR5MNu7666",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (c:ConfigKey) RETURN c.keyName LIMIT 50\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Zkv0MA3nW78AnLNvTPYq7212",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"user setting persisted across launches runtime configuration\", \"kind\": \"Function\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_cNDms5HjGar05RJE16nl0159",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"file_pattern\": \"src/watcher/**/*.ts\", \"pattern\": \"auto_watch\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_v3tTQZQytBIkEYDjuhBU6829",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"auto_dashboard\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_BCxeiozPLh4HL9xeJsos8754",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"auto_index\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_gygnRgP6Qmld6KORimf01059",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"auto_watch\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_0KbleK2LzO6cjPerVQxo4814",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"auto_index\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1zjl3XH6yqtHqTys6fHM1663",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/mcp/server.ts\", \"start_line\": 245, \"end_line\": 340}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_DbfyZHBd9f4Ij153dv6V2383",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"config.runtime.CaesarRuntimeConfig\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ZiAdnyrAurntYOl2VWbD6681",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"config.runtime.readCaesarConfig\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_BIXnE459jJbWFfW97TgB8709",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"config.runtime.upsertCaesarConfig\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"change_areas\": [\n    \"src/config/runtime.ts — extend CaesarRuntimeConfig interface, DEFAULT_CONFIG, and readCaesarConfig() coercion logic with the new field\",\n    \"src/cli/commands/config-cmd.ts — add the new key to the hardcoded if-else chain in cmdConfig() so `caesar config set` works\",\n    \"src/mcp/server.ts — add a read/action branch in runServer() or maybeAutoIndexCurrentProject() where the new setting affects runtime behavior\",\n    \"src/install/index.ts — if the new setting should have an install-time default, pass it in the upsertCaesarConfig() call in runInstall() (Phase 5)\",\n    \"src/install/doctor.ts — add/update checkRuntimeConfig() or checkIndexFreshness() to surface the new setting in diagnostics\",\n    \"src/server/dashboard/server.ts — if the setting should be toggleable from the dashboard UI, add a POST endpoint analogous to /api/locale\"\n  ],\n  \"affected_dependencies\": [\n    \"config.runtime.readCaesarConfig (30 callers total) — all consumers are indirectly affected; key consumers:\",\n    \"  cli.commands.serve-cmd.cmdServe — reads auto_index for startup message\",\n    \"  mcp.server.runServer — reads auto_dashboard to decide whether to launch dashboard\",\n    \"  mcp.server.maybeAutoIndexCurrentProject — reads auto_index, auto_watch, auto_index_limit for background indexing/watching\",\n    \"  mcp.handlers.index_status.handleIndexStatus — reads stale_threshold_hours for freshness TTL\",\n    \"  cli.commands.upgrade-cmd.cmdUpgrade — reads stale_threshold_hours during upgrade\",\n    \"  install.doctor.checkIndexFreshness — reads stale_threshold_hours for diagnostics\",\n    \"  install.doctor.checkRuntimeConfig — reads full config for doctor output\",\n    \"  intelligence.project-brief.ensureProjectBrief — reads locale for brief language\",\n    \"  intelligence.project-brief.generateProjectBrief — reads locale for prompt language\",\n    \"  server.dashboard.server.* — reads locale for Savings Lab and config diagnostics, writes locale via POST\",\n    \"  cli.commands.config-cmd.cmdConfig — reads/writes the config object (must be updated) OR\",\n    \"  install.runInstall — calls upsertCaesarConfig with install defaults\"\n  ],\n  \"persistence_path\": [\n    \"~/.caesar/config.json (returned by config.runtime.caesarConfigPath())\",\n    \"Path is: path.join(caesarHome(), 'config.json') where caesarHome() = process.env.CAESAR_HOME || path.join(os.homedir(), '.caesar')\",\n    \"Write strategy: writeCaesarConfig() uses atomic write via temp file + fs.renameSync (tmp → target)\",\n    \"Read strategy: readCaesarConfig() reads JSON, coerces each field with type checks, falls back to DEFAULT_CONFIG per field\",\n    \"Merge strategy: upsertCaesarConfig() does { ...readCaesarConfig(), ...values } then writes full object\"\n  ],\n  \"risks\": [\n    \"READ COERCE DROPS UNKNOWN FIELDS: readCaesarConfig() only returns fields it explicitly coerces. Any field added to the JSON on disk but not in the coercion switch will be silently dropped on the next read. Since upsertCaesarConfig() calls readCaesarConfig() first, then spreads the new values, an unknown field set by a newer version is LOST on the next upsertCaesarConfig() call from an older version.\",\n    \"NO SCHEMA VERSIONING: The config has no `version` field. There is no migration mechanism. If the semantics of an existing field change, there is no way to detect or migrate an old config.\",\n    \"CLI KEY VALIDATION IS HARDCODED: config-cmd.ts's cmdConfig() uses a chain of `if (key === '...')` checks that list each allowed key explicitly. A new key must be added to this chain or `caesar config set <newkey>` will fail with 'Unknown config key'.\",\n    \"NO UNIT TEST COVERAGE: readCaesarConfig, writeCaesarConfig, and upsertCaesarConfig have zero test coverage (find_tests returned empty). Adding a field with no regression tests risks silent breakage.\",\n    \"SPREAD-READ PATTERN: Of the 30 callers of readCaesarConfig, many spread-access the result (e.g., `const cfg = readCaesarConfig(); cfg.stale_threshold_hours`). Each new field creates coupling with all callers, but since it's a flat config interface, the coupling is manageable.\"\n  ],\n  \"test_plan\": [\n    \"Unit: config round-trip — create config via writeCaesarConfig with new field, read back via readCaesarConfig, assert values match exactly\",\n    \"Unit: default fallback — test readCaesarConfig when config.json is missing → DEFAULT_CONFIG values used, including new field's default\",\n    \"Unit: no config file → DEFAULT_CONFIG returned (already no test for this)\",\n    \"Unit: corrupt config.json → graceful fallback to DEFAULT_CONFIG\",\n    \"Unit: upsertCaesarConfig partial update — set only the new field, assert other fields retain defaults\",\n    \"Unit: unknown field preservation — write a config with an extra unknown field via writeCaesarConfig, readCaesarConfig should NOT drop it (or document that it does)\",\n    \"CLI integration: `caesar config set <newkey> <value>` followed by `caesar config get` shows the new value\",\n    \"CLI integration: `caesar config set <newkey>` with invalid value type (e.g., string for boolean field) returns proper error\",\n    \"Behavior integration: if the new field is e.g. `auto_index`, set it to `false` and verify MCP server does NOT auto-index on startup\",\n    \"Dashboard integration: if a POST endpoint is added, test that the setting persists across server restarts\"\n  ],\n  \"evidence\": [\n    \"runtime.ts lines 12-32: CaesarRuntimeConfig interface definition\",\n    \"runtime.ts lines 58-82: readCaesarConfig() — explicit field-by-field coercion, drops unknown fields\",\n    \"runtime.ts lines 115-128: writeCaesarConfig() (atomic tmp+rename) and upsertCaesarConfig() (spread-read pattern)\",\n    \"runtime.ts lines 49-56: caesarHome() (env var override CAESAR_HOME) and caesarConfigPath()\",\n    \"config-cmd.ts lines 20-46: hardcoded key-whitelist chain for `caesar config set`\",\n    \"server.ts lines 254-318: MCP server reads auto_index and auto_watch for runtime behavior\",\n    \"server.ts lines 368-372: runServer() reads auto_dashboard to decide whether to start the dashboard\",\n    \"index_status.ts lines 42-58: reads stale_threshold_hours for freshness computation\",\n    \"doctor.ts lines 426-435: checkRuntimeConfig() avoids duplicating display of each field\",\n    \"dashboard/server.ts lines 241-254: POST /api/locale writes locale via upsertCaesarConfig — pattern to replicate\",\n    \"find_tests: zero tests found for readCaesarConfig, writeCaesarConfig, or upsertCaesarConfig\"\n  ],\n  \"summary\": \"To add a user-visible, persistent, runtime-affecting setting for the CAESAR-authoritative team, the primary change areas are (1) the CaesarRuntimeConfig interface and readCaesarConfig() coercion in src/config/runtime.ts, (2) the CLI set/get handler in src/cli/commands/config-cmd.ts, and (3) the consumer code in src/mcp/server.ts where the setting must affect behavior. The config persists at ~/.caesar/config.json (overridable via CAESAR_HOME env var) using atomic tmp+rename writes. The top risk is that readCaesarConfig() drops unknown/unsupported fields — meaning if a newer version writes a field that an older readCaesarConfig() doesn't explicitly coerce, the field is silently lost. There is no schema versioning or migration mechanism, and the CLI key validation is a hardcoded if-else chain requiring explicit updates. Zero tests exist for the config persistence layer, so a comprehensive test plan covering round-trip, defaults, corruption, partial updates, CLI integration, and behavioral impact is recommended.\"\n}\n```",
+      "responseHash": "3e58a25cef641203",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 610384,
+        "output_tokens": 6217,
+        "cached_tokens": 560768,
+        "reasoning_tokens": 18,
+        "tool_call_count": 37,
+        "files_read": 10,
+        "bytes_read": 128421,
+        "wall_time_ms": 71344,
+        "api_latency_ms": 71343,
+        "cost_usd": 0.01653775,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "change_areas": [
+          "src/config/runtime.ts — extend CaesarRuntimeConfig interface, DEFAULT_CONFIG, and readCaesarConfig() coercion logic with the new field",
+          "src/cli/commands/config-cmd.ts — add the new key to the hardcoded if-else chain in cmdConfig() so `caesar config set` works",
+          "src/mcp/server.ts — add a read/action branch in runServer() or maybeAutoIndexCurrentProject() where the new setting affects runtime behavior",
+          "src/install/index.ts — if the new setting should have an install-time default, pass it in the upsertCaesarConfig() call in runInstall() (Phase 5)",
+          "src/install/doctor.ts — add/update checkRuntimeConfig() or checkIndexFreshness() to surface the new setting in diagnostics",
+          "src/server/dashboard/server.ts — if the setting should be toggleable from the dashboard UI, add a POST endpoint analogous to /api/locale"
+        ],
+        "affected_dependencies": [
+          "config.runtime.readCaesarConfig (30 callers total) — all consumers are indirectly affected; key consumers:",
+          "  cli.commands.serve-cmd.cmdServe — reads auto_index for startup message",
+          "  mcp.server.runServer — reads auto_dashboard to decide whether to launch dashboard",
+          "  mcp.server.maybeAutoIndexCurrentProject — reads auto_index, auto_watch, auto_index_limit for background indexing/watching",
+          "  mcp.handlers.index_status.handleIndexStatus — reads stale_threshold_hours for freshness TTL",
+          "  cli.commands.upgrade-cmd.cmdUpgrade — reads stale_threshold_hours during upgrade",
+          "  install.doctor.checkIndexFreshness — reads stale_threshold_hours for diagnostics",
+          "  install.doctor.checkRuntimeConfig — reads full config for doctor output",
+          "  intelligence.project-brief.ensureProjectBrief — reads locale for brief language",
+          "  intelligence.project-brief.generateProjectBrief — reads locale for prompt language",
+          "  server.dashboard.server.* — reads locale for Savings Lab and config diagnostics, writes locale via POST",
+          "  cli.commands.config-cmd.cmdConfig — reads/writes the config object (must be updated) OR",
+          "  install.runInstall — calls upsertCaesarConfig with install defaults"
+        ],
+        "persistence_path": [
+          "~/.caesar/config.json (returned by config.runtime.caesarConfigPath())",
+          "Path is: path.join(caesarHome(), 'config.json') where caesarHome() = process.env.CAESAR_HOME || path.join(os.homedir(), '.caesar')",
+          "Write strategy: writeCaesarConfig() uses atomic write via temp file + fs.renameSync (tmp → target)",
+          "Read strategy: readCaesarConfig() reads JSON, coerces each field with type checks, falls back to DEFAULT_CONFIG per field",
+          "Merge strategy: upsertCaesarConfig() does { ...readCaesarConfig(), ...values } then writes full object"
+        ],
+        "risks": [
+          "READ COERCE DROPS UNKNOWN FIELDS: readCaesarConfig() only returns fields it explicitly coerces. Any field added to the JSON on disk but not in the coercion switch will be silently dropped on the next read. Since upsertCaesarConfig() calls readCaesarConfig() first, then spreads the new values, an unknown field set by a newer version is LOST on the next upsertCaesarConfig() call from an older version.",
+          "NO SCHEMA VERSIONING: The config has no `version` field. There is no migration mechanism. If the semantics of an existing field change, there is no way to detect or migrate an old config.",
+          "CLI KEY VALIDATION IS HARDCODED: config-cmd.ts's cmdConfig() uses a chain of `if (key === '...')` checks that list each allowed key explicitly. A new key must be added to this chain or `caesar config set <newkey>` will fail with 'Unknown config key'.",
+          "NO UNIT TEST COVERAGE: readCaesarConfig, writeCaesarConfig, and upsertCaesarConfig have zero test coverage (find_tests returned empty). Adding a field with no regression tests risks silent breakage.",
+          "SPREAD-READ PATTERN: Of the 30 callers of readCaesarConfig, many spread-access the result (e.g., `const cfg = readCaesarConfig(); cfg.stale_threshold_hours`). Each new field creates coupling with all callers, but since it's a flat config interface, the coupling is manageable."
+        ],
+        "test_plan": [
+          "Unit: config round-trip — create config via writeCaesarConfig with new field, read back via readCaesarConfig, assert values match exactly",
+          "Unit: default fallback — test readCaesarConfig when config.json is missing → DEFAULT_CONFIG values used, including new field's default",
+          "Unit: no config file → DEFAULT_CONFIG returned (already no test for this)",
+          "Unit: corrupt config.json → graceful fallback to DEFAULT_CONFIG",
+          "Unit: upsertCaesarConfig partial update — set only the new field, assert other fields retain defaults",
+          "Unit: unknown field preservation — write a config with an extra unknown field via writeCaesarConfig, readCaesarConfig should NOT drop it (or document that it does)",
+          "CLI integration: `caesar config set <newkey> <value>` followed by `caesar config get` shows the new value",
+          "CLI integration: `caesar config set <newkey>` with invalid value type (e.g., string for boolean field) returns proper error",
+          "Behavior integration: if the new field is e.g. `auto_index`, set it to `false` and verify MCP server does NOT auto-index on startup",
+          "Dashboard integration: if a POST endpoint is added, test that the setting persists across server restarts"
+        ],
+        "evidence": [
+          "runtime.ts lines 12-32: CaesarRuntimeConfig interface definition",
+          "runtime.ts lines 58-82: readCaesarConfig() — explicit field-by-field coercion, drops unknown fields",
+          "runtime.ts lines 115-128: writeCaesarConfig() (atomic tmp+rename) and upsertCaesarConfig() (spread-read pattern)",
+          "runtime.ts lines 49-56: caesarHome() (env var override CAESAR_HOME) and caesarConfigPath()",
+          "config-cmd.ts lines 20-46: hardcoded key-whitelist chain for `caesar config set`",
+          "server.ts lines 254-318: MCP server reads auto_index and auto_watch for runtime behavior",
+          "server.ts lines 368-372: runServer() reads auto_dashboard to decide whether to start the dashboard",
+          "index_status.ts lines 42-58: reads stale_threshold_hours for freshness computation",
+          "doctor.ts lines 426-435: checkRuntimeConfig() avoids duplicating display of each field",
+          "dashboard/server.ts lines 241-254: POST /api/locale writes locale via upsertCaesarConfig — pattern to replicate",
+          "find_tests: zero tests found for readCaesarConfig, writeCaesarConfig, or upsertCaesarConfig"
+        ],
+        "summary": "To add a user-visible, persistent, runtime-affecting setting for the CAESAR-authoritative team, the primary change areas are (1) the CaesarRuntimeConfig interface and readCaesarConfig() coercion in src/config/runtime.ts, (2) the CLI set/get handler in src/cli/commands/config-cmd.ts, and (3) the consumer code in src/mcp/server.ts where the setting must affect behavior. The config persists at ~/.caesar/config.json (overridable via CAESAR_HOME env var) using atomic tmp+rename writes. The top risk is that readCaesarConfig() drops unknown/unsupported fields — meaning if a newer version writes a field that an older readCaesarConfig() doesn't explicitly coerce, the field is silently lost. There is no schema versioning or migration mechanism, and the CLI key validation is a hardcoded if-else chain requiring explicit updates. Zero tests exist for the config persistence layer, so a comprehensive test plan covering round-trip, defaults, corruption, partial updates, CLI integration, and behavioral impact is recommended."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1745
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "get_architecture",
+          "args_redacted": {},
+          "duration_ms": 77,
+          "result_bytes": 16804,
+          "content_hash": "4f5593b5658738ac"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "CAESAR"
+          },
+          "duration_ms": 5,
+          "result_bytes": 2562,
+          "content_hash": "6e1aa78744d9a638"
+        },
+        {
+          "seq": 4,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2124
+        },
+        {
+          "seq": 5,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/config/runtime.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 4829,
+          "content_hash": "2c80c75bb52dafa6"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "persist",
+            "label": "Function"
+          },
+          "duration_ms": 4,
+          "result_bytes": 436,
+          "content_hash": "48b81bae6c3f886a"
+        },
+        {
+          "seq": 7,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "config",
+            "label": "ConfigKey"
+          },
+          "duration_ms": 11,
+          "result_bytes": 2444,
+          "content_hash": "b84043ba098acba3"
+        },
+        {
+          "seq": 8,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2753
+        },
+        {
+          "seq": 9,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "readCaesarConfig",
+            "direction": "inbound",
+            "depth": 2
+          },
+          "duration_ms": 8,
+          "result_bytes": 2361,
+          "content_hash": "c6ff4794b3401248"
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "upsertCaesarConfig",
+            "direction": "inbound",
+            "depth": 2
+          },
+          "duration_ms": 4,
+          "result_bytes": 1373,
+          "content_hash": "d0b08d9b380bb30d"
+        },
+        {
+          "seq": 11,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "writeCaesarConfig",
+            "direction": "inbound",
+            "depth": 2
+          },
+          "duration_ms": 3,
+          "result_bytes": 1240,
+          "content_hash": "0210fbba5048f25f"
+        },
+        {
+          "seq": 12,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2259
+        },
+        {
+          "seq": 13,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/commands/config-cmd.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 1544,
+          "content_hash": "07d37984400caea6"
+        },
+        {
+          "seq": 14,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/install/index.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 46217,
+          "content_hash": "0c4cd8887e07d28c"
+        },
+        {
+          "seq": 15,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/install/doctor.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 17613,
+          "content_hash": "892379da94de1085"
+        },
+        {
+          "seq": 16,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2752
+        },
+        {
+          "seq": 17,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/mcp/handlers/index_status.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 3791,
+          "content_hash": "cc0c2c466b687f80"
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/commands/serve-cmd.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 726,
+          "content_hash": "e396993b821e6d34"
+        },
+        {
+          "seq": 19,
+          "role": "tool_exec",
+          "tool_name": "find_tests",
+          "args_redacted": {
+            "name": "readCaesarConfig"
+          },
+          "duration_ms": 1,
+          "result_bytes": 227,
+          "content_hash": "3edea6aa0cc1e220"
+        },
+        {
+          "seq": 20,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1789
+        },
+        {
+          "seq": 21,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "CaesarRuntimeConfig"
+          },
+          "duration_ms": 34,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 22,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "upsertCaesarConfig"
+          },
+          "duration_ms": 28,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 23,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1973
+        },
+        {
+          "seq": 24,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "runtime\\.ts",
+            "file_pattern": "*.test.ts"
+          },
+          "duration_ms": 22,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 25,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "runtime config",
+            "file_pattern": "*.test.ts"
+          },
+          "duration_ms": 16,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 26,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1818
+        },
+        {
+          "seq": 27,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "runtime",
+            "file_pattern": "tests/**/*.ts"
+          },
+          "duration_ms": 20,
+          "result_bytes": 1161,
+          "content_hash": "c2b6cd54d77cb48d"
+        },
+        {
+          "seq": 28,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "readCaesarConfig",
+            "file_pattern": "tests/**/*.ts"
+          },
+          "duration_ms": 11,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 29,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2934
+        },
+        {
+          "seq": 30,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/server/dashboard/server.ts",
+            "start_line": 1,
+            "end_line": 50
+          },
+          "duration_ms": 1,
+          "result_bytes": 16779,
+          "content_hash": "b3e05a5d4b6c435b"
+        },
+        {
+          "seq": 31,
+          "role": "tool_exec",
+          "tool_name": "trace_path",
+          "args_redacted": {
+            "function_name": "handleIndexStatus",
+            "direction": "inbound",
+            "depth": 2
+          },
+          "duration_ms": 5,
+          "result_bytes": 751,
+          "content_hash": "fdfbacb8d0ce6280"
+        },
+        {
+          "seq": 32,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 10361
+        },
+        {
+          "seq": 33,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/commands/upgrade-cmd.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4507,
+          "content_hash": "be8d63a33050fbc9"
+        },
+        {
+          "seq": 34,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/intelligence/project-brief.ts",
+            "start_line": 1,
+            "end_line": 50
+          },
+          "duration_ms": 4,
+          "result_bytes": 17957,
+          "content_hash": "f43171ba2ca7975a"
+        },
+        {
+          "seq": 35,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2228
+        },
+        {
+          "seq": 36,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "file_pattern": "tests/**/*.ts",
+            "pattern": "config"
+          },
+          "duration_ms": 25,
+          "result_bytes": 2689,
+          "content_hash": "63b8d390eb38106e"
+        },
+        {
+          "seq": 37,
+          "role": "tool_exec",
+          "tool_name": "get_graph_schema",
+          "args_redacted": {},
+          "duration_ms": 16,
+          "result_bytes": 3465,
+          "content_hash": "0de712b8016084c6"
+        },
+        {
+          "seq": 38,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1636
+        },
+        {
+          "seq": 39,
+          "role": "tool_exec",
+          "tool_name": "query_graph",
+          "args_redacted": {
+            "query": "MATCH (c:ConfigKey) RETURN c.keyName LIMIT 50"
+          },
+          "duration_ms": 2,
+          "result_bytes": 255,
+          "content_hash": "afd7eb982d1990f2"
+        },
+        {
+          "seq": 40,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1802
+        },
+        {
+          "seq": 41,
+          "role": "tool_exec",
+          "tool_name": "semantic_search",
+          "args_redacted": {
+            "query": "user setting persisted across launches runtime configuration",
+            "kind": "Function"
+          },
+          "duration_ms": 36,
+          "result_bytes": 2970,
+          "content_hash": "2ee49870803f684e"
+        },
+        {
+          "seq": 42,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2832,
+          "content_hash": "aaf86ea92f8f9a4e"
+        },
+        {
+          "seq": 43,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "file_pattern": "src/watcher/**/*.ts",
+            "pattern": "auto_watch"
+          },
+          "duration_ms": 3,
+          "result_bytes": 94,
+          "content_hash": "ecd926afe0027a7f"
+        },
+        {
+          "seq": 44,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "auto_dashboard"
+          },
+          "duration_ms": 38,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 45,
+          "role": "tool_exec",
+          "tool_name": "search_code",
+          "args_redacted": {
+            "pattern": "auto_index"
+          },
+          "duration_ms": 31,
+          "result_bytes": 66,
+          "content_hash": "6617ccad4d434a9c"
+        },
+        {
+          "seq": 46,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1726
+        },
+        {
+          "seq": 47,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "auto_watch"
+          },
+          "duration_ms": 8,
+          "result_bytes": 2515,
+          "content_hash": "a3be1d1048c4304b"
+        },
+        {
+          "seq": 48,
+          "role": "tool_exec",
+          "tool_name": "search_graph",
+          "args_redacted": {
+            "query": "auto_index"
+          },
+          "duration_ms": 6,
+          "result_bytes": 2634,
+          "content_hash": "ac375ad126cab655"
+        },
+        {
+          "seq": 49,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1661
+        },
+        {
+          "seq": 50,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/mcp/server.ts",
+            "start_line": 245,
+            "end_line": 340
+          },
+          "duration_ms": 1,
+          "result_bytes": 14458,
+          "content_hash": "ced136896fd6fd22"
+        },
+        {
+          "seq": 51,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 9221,
+          "content_hash": "2d3cd9a9415c5783"
+        },
+        {
+          "seq": 52,
+          "role": "tool_exec",
+          "tool_name": "get_code_snippet",
+          "args_redacted": {
+            "qualified_name": "config.runtime.CaesarRuntimeConfig"
+          },
+          "duration_ms": 3,
+          "result_bytes": 1411,
+          "content_hash": "9c3a2e672ca38f8a"
+        },
+        {
+          "seq": 53,
+          "role": "tool_exec",
+          "tool_name": "get_code_snippet",
+          "args_redacted": {
+            "qualified_name": "config.runtime.readCaesarConfig"
+          },
+          "duration_ms": 1,
+          "result_bytes": 1784,
+          "content_hash": "ff085cd6495402fd"
+        },
+        {
+          "seq": 54,
+          "role": "tool_exec",
+          "tool_name": "get_code_snippet",
+          "args_redacted": {
+            "qualified_name": "config.runtime.upsertCaesarConfig"
+          },
+          "duration_ms": 0,
+          "result_bytes": 695,
+          "content_hash": "106e06aa42b6c842"
+        },
+        {
+          "seq": 55,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 19301,
+          "content_hash": "3e58a25cef641203"
+        }
+      ]
+    },
+    {
+      "run_id": "run_2_07d2b7905561",
+      "task_id": "external_generic_change_impact",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "The CAESAR-authoritative team wants to add a user-visible setting that must persist across launches and affect runtime behavior. Determine where this change should be implemented, which callers and dependencies would be affected, what migration or compatibility risks exist, and what tests should be added. Explore freely and cite concrete evidence. Respond with JSON: {\"change_areas\":[\"...\"],\"affected_dependencies\":[\"...\"],\"persistence_path\":[\"...\"],\"risks\":[\"...\"],\"test_plan\":[\"...\"],\"evidence\":[\"...\"],\"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_XewDFnzNm6t9OfEh7gwA1499",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"CAESAR\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_gKAuPxdpALF1s3WyE6HK5471",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"persist\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_t1vXcnvpY0g51hzuhP5Y7825",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"setting\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Hdof1ikNC70v0YyZ1pah0148",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_TqetikUI1U96yJQ1YCJr9655",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/install/index.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_375S8x2Rh1ULqBx9Lrkh6628",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"readCaesarConfig|upsertCaesarConfig|CaesarRuntimeConfig\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_mSBQVsDhXYtBRzfREsqU2261",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"process\\\\.env\\\\.CAESAR_\", \"path\": \"/Users/admin/Desktop/CAESAR-authoritative/src\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zQ4Voxfv8a99hjihUZdy1879",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"from.*config/runtime|require.*config/runtime\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_4lrqYvaZdxaXPSBLzatV2110",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/hook-augment.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PJRwRhnPq7A52J0nOM6E9706",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"writeCaesarConfig|upsertCaesarConfig\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_d9VRv5KIDRS39sfaNFnI7833",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/mcp/server.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_6NnIEbp9uocqK0UpzmsH1107",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"import.*config/runtime\", \"path\": \"/Users/admin/Desktop/CAESAR-authoritative/src\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_VCRAAH3uDOMwjlxi20FB4497",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"import.*runtime\", \"path\": \"/Users/admin/Desktop/CAESAR-authoritative/src\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_T9VYecEmFh4gZOleHDRC2703",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/commands/config-cmd.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_9rIPth2y3WELo3jmHiaA6893",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Hx2WkfxnkrXqZiPoimXU2380",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/commands/index.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_bwKyutbN2LxvaiYY3r3g1745",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/store/lock.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kggIZZEEAyZx9Bk6dlav2274",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"config-cmd|config\\\\.test|runtime\\\\.test\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_GrFjvv2DhLCDR5HyY6vF5305",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/commands/serve-cmd.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bqeMdV4aUJxqgKZLyEkm6098",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/install/doctor.ts\", \"limit\": 50}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_xa0XhexpW02uC8HkoIxn5241",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/pipeline/orchestrator.ts\", \"limit\": 100}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_tQqMUti5nH3eKpx2dxTp3411",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"config\\\\.test|runtime\\\\.test\", \"path\": \"/Users/admin/Desktop/CAESAR-authoritative/tests\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_1ZLHNwXdiAK1PzFP7q7n4174",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/setup.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_mcrvTLnfmL4BdQDVMkYw5426",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/commands/serve-cmd.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_OpLOob2KCFXA8x8jGbjU0057",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/cli/commands/upgrade-cmd.ts\"}"
+          }
+        }
+      ],
+      "response": "Here is my complete analysis:\n\n```json\n{\n  \"change_areas\": [\n    \"src/config/runtime.ts — Add the new field to the `CaesarRuntimeConfig` interface (e.g. `some_setting: boolean`), a default in `DEFAULT_CONFIG`, parsing in `readCaesarConfig()`, and passthrough in `writeCaesarConfig()`/`upsertCaesarConfig()`\",\n    \"src/cli/commands/config-cmd.ts — Add a `set` branch for the new key so users can change it via `caesar config set some_setting true`; add a `get` display path so the value appears in `caesar config get` output\",\n    \"src/install/index.ts — (if applicable) emit the default value when generating the initial config during `caesar install`; Phase 5 (Runtime config) calls `upsertCaesarConfig()` which will include the default\",\n    \"src/install/doctor.ts — `checkRuntimeConfig()` calls `readCaesarConfig()` and already prints the config; the new setting will appear automatically\",\n    \"Runtime consumer file(s) — e.g. `src/mcp/server.ts` (reads config via `readCaesarConfig()` in `runServer()` and `maybeAutoIndexCurrentProject()`), or `src/cli/hook-augment.ts` (reads `caesarHome()`), or the pipeline orchestrator — wherever the new toggle must be checked at startup\"\n  ],\n  \"affected_dependencies\": [\n    \"src/config/runtime.ts (interface + readers/writers)\",\n    \"src/cli/commands/config-cmd.ts (CLI get/set entry point)\",\n    \"src/mcp/server.ts (reads config at `runServer()` startup for auto-dashboard, auto-index, etc.)\",\n    \"src/cli/commands/serve-cmd.ts (reads config to decide whether to show auto-index message)\",\n    \"src/store/lock.ts (reads config for `lock_ttl_minutes`)\",\n    \"src/server/dashboard/data.ts, utils.ts, html.ts, server.ts (all read or pass through config)\",\n    \"src/intelligence/project-brief.ts (reads config)\",\n    \"src/mcp/handlers/list_projects.ts, index_status.ts (reads config)\",\n    \"src/usage/session.ts, src/usage/metrics.ts (consume `caesarHome()`)\",\n    \"src/store/metrics-db.ts, src/store/database.ts (consume `caesarHome()`)\",\n    \"src/cli/hook-augment.ts (consumes `caesarHome()`)\",\n    \"src/cli/report.ts, src/cli/commands/upgrade-cmd.ts (consume `caesarHome()` / `readCaesarConfig()`)\",\n    \"tests/setup.ts (creates a synthetic `config.json` with defaults)\"\n  ],\n  \"persistence_path\": [\n    \"~/.caesar/config.json (resolved via `caesarConfigPath()` ⇒ `path.join(caesarHome(), 'config.json')`, where `caesarHome()` = `$CAESAR_HOME` || `~/.caesar`)\",\n    \"Write path: `writeCaesarConfig()` writes atomically via temp-file + rename (`filePath + '.tmp'` ⇒ `fs.writeFileSync(tmp, ...)` ⇒ `fs.renameSync(tmp, filePath)`)\",\n    \"Read path: `readCaesarConfig()` reads the JSON file directly; if the file is absent or corrupt it returns a copy of `DEFAULT_CONFIG` with no error\"\n  ],\n  \"risks\": [\n    \"**No schema versioning or migration** — the config has no `version` field. If the setting is removed or renamed later, old configs silently lose the key (the reader picks up the default). No graceful migration path exists.\",\n    \"**No concurrency protection** — multiple processes writing `config.json` simultaneously can clobber each other's changes (last-writer-wins via temp+rename).\",\n    \"**No hot-reload** — every caller calls `readCaesarConfig()` independently; settings only take effect on process restart unless every consuming site is also updated to re-read the config on a signal.\",\n    \"**Downstream callers are brittle** — 20+ distinct import sites call `readCaesarConfig()` or `caesarHome()`. A new setting must be wired into each consumer that needs it; missed callers silently use the default.\",\n    \"**Env-var split-brain** — many existing knobs (`CAESAR_INCREMENTAL_INDEX`, `CAESAR_STRICT`, `CAESAR_STRICT_THRESHOLD`, etc.) are read via `process.env.*` directly rather than through the config module. A new user-visible setting risks being implemented as yet another env var instead of a config-file field, creating two parallel configuration systems.\",\n    \"**Zero existing test coverage** — there are no unit tests for `readCaesarConfig()`, `writeCaesarConfig()`, or `upsertCaesarConfig()`. Changes risk regressions in parsing edge cases (corrupt JSON, missing file, partial file, type mismatches).\"\n  ],\n  \"test_plan\": [\n    \"**Unit tests for `src/config/runtime.ts`**: (a) `readCaesarConfig()` returns `DEFAULT_CONFIG` when config.json does not exist; (b) returns parsed values when config.json is valid; (c) falls back to defaults for missing keys in partial config; (d) falls back to defaults when config.json contains corrupt JSON; (e) `writeCaesarConfig()` writes the expected JSON atomically; (f) `upsertCaesarConfig()` merges partial values correctly.\",\n    \"**Integration tests for `caesar config set/get` CLI**: (a) `caesar config set some_setting true` writes to `config.json`; (b) `caesar config get` displays the new setting; (c) `caesar config set some_setting invalid` errors properly.\",\n    \"**Startup-read test**: Create a config.json with the new setting, launch the MCP server (or the relevant consumer), and assert the runtime behavior reflects the setting (e.g. if `auto_dashboard=false`, the dashboard is not started).\",\n    \"**Env-var override test** (if applicable): Assert that `process.env.CAESAR_SOME_SETTING` takes precedence over the config file value, matching the existing pattern used by `CAESAR_INCREMENTAL_INDEX`, `CAESAR_STRICT`, etc.\",\n    \"**Isolation test**: Verify that tests/setup.ts already seeds a working config.json with the new field at its default, so no test hits a missing-file fallback unexpectedly.\"\n  ],\n  \"evidence\": [\n    \"`src/config/runtime.ts` (lines 12-33): `CaesarRuntimeConfig` interface — the single source of truth for user-visible settings. Functions `readCaesarConfig()`, `writeCaesarConfig()`, `upsertCaesarConfig()` provide atomic read/write.\",\n    \"`src/config/runtime.ts` (line 40): `caesarConfigPath()` returns `path.join(caesarHome(), 'config.json')`.\",\n    \"`src/config/runtime.ts` (line 43-70): `readCaesarConfig()` handles missing file (returns defaults), corrupt file (returns defaults), partial file (field-by-field fallback).\",\n    \"`src/cli/commands/config-cmd.ts`: Existing CLI get/set pattern for `auto_index`, `auto_watch`, `auto_dashboard`, `auto_index_limit`, `locale` — this is the user-facing surface for new settings.\",\n    \"`src/mcp/server.ts` (line 177-182): `runServer()` calls `readCaesarConfig()` at startup and uses `config.auto_dashboard` to decide whether to start the dashboard process.\",\n    \"`src/mcp/server.ts` (line 192): `maybeAutoIndexCurrentProject()` calls `readCaesarConfig()` and uses `config.auto_index` and `config.auto_index_limit`.\",\n    \"`src/store/lock.ts` (line 33): `acquireProjectLock()` calls `readCaesarConfig()` for `lock_ttl_minutes`.\",\n    \"`src/install/index.ts` (line 466-472): Phase 5 of install calls `upsertCaesarConfig()` to write runtime config.\",\n    \"`src/install/doctor.ts` (line 362-368): `checkRuntimeConfig()` reads and prints the full config.\",\n    \"`tests/setup.ts` (lines 27-37): Every test worker gets an isolated `config.json` with defaults — any new setting needs a default entry here.\",\n    \"`src/pipeline/orchestrator.ts` (line 85-86): Existing env-var pattern (`process.env.CAESAR_INCREMENTAL_INDEX`, `process.env.CAESAR_INDEX_LLM`) parallel to the config-file system.\",\n    \"`src/cli/hook-augment.ts` (lines 36-38): Another env-var pattern (`CAESAR_STRICT_THRESHOLD`, `CAESAR_COUNTER_RESET_MS`, `CAESAR_STRICT_DECAY`) showing the risk of split-brain configuration.\"\n  ],\n  \"summary\": \"The canonical change location is `src/config/runtime.ts`: add the field to `CaesarRuntimeConfig`, set a default in `DEFAULT_CONFIG`, parse it in `readCaesarConfig()`, and wire it through `writeCaesarConfig()`/`upsertCaesarConfig()`. Extend `src/cli/commands/config-cmd.ts` to support the new key in `caesar config set/get`. The config persists at `~/.caesar/config.json` (atomically via temp-file+rename). Twenty-plus callers import from `runtime.ts` and will see the value when they call `readCaesarConfig()` — but each consumer that needs to *act* on the setting must be individually updated. Key risks include: zero config-module test coverage, no schema versioning, no concurrency protection, no hot-reload, and a parallel env-var system (`process.env.CAESAR_*`) that could fragment the configuration surface. The test plan should cover unit tests for all three config functions, CLI integration tests for get/set, and a startup-read assertion that the setting actually changes runtime behavior.\"\n}\n```",
+      "responseHash": "af836f8ede8d13ad",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 854496,
+        "output_tokens": 5484,
+        "cached_tokens": 768896,
+        "reasoning_tokens": 477,
+        "tool_call_count": 25,
+        "files_read": 13,
+        "bytes_read": 134655,
+        "wall_time_ms": 62794,
+        "api_latency_ms": 62794,
+        "cost_usd": 0.02428406,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "change_areas": [
+          "src/config/runtime.ts — Add the new field to the `CaesarRuntimeConfig` interface (e.g. `some_setting: boolean`), a default in `DEFAULT_CONFIG`, parsing in `readCaesarConfig()`, and passthrough in `writeCaesarConfig()`/`upsertCaesarConfig()`",
+          "src/cli/commands/config-cmd.ts — Add a `set` branch for the new key so users can change it via `caesar config set some_setting true`; add a `get` display path so the value appears in `caesar config get` output",
+          "src/install/index.ts — (if applicable) emit the default value when generating the initial config during `caesar install`; Phase 5 (Runtime config) calls `upsertCaesarConfig()` which will include the default",
+          "src/install/doctor.ts — `checkRuntimeConfig()` calls `readCaesarConfig()` and already prints the config; the new setting will appear automatically",
+          "Runtime consumer file(s) — e.g. `src/mcp/server.ts` (reads config via `readCaesarConfig()` in `runServer()` and `maybeAutoIndexCurrentProject()`), or `src/cli/hook-augment.ts` (reads `caesarHome()`), or the pipeline orchestrator — wherever the new toggle must be checked at startup"
+        ],
+        "affected_dependencies": [
+          "src/config/runtime.ts (interface + readers/writers)",
+          "src/cli/commands/config-cmd.ts (CLI get/set entry point)",
+          "src/mcp/server.ts (reads config at `runServer()` startup for auto-dashboard, auto-index, etc.)",
+          "src/cli/commands/serve-cmd.ts (reads config to decide whether to show auto-index message)",
+          "src/store/lock.ts (reads config for `lock_ttl_minutes`)",
+          "src/server/dashboard/data.ts, utils.ts, html.ts, server.ts (all read or pass through config)",
+          "src/intelligence/project-brief.ts (reads config)",
+          "src/mcp/handlers/list_projects.ts, index_status.ts (reads config)",
+          "src/usage/session.ts, src/usage/metrics.ts (consume `caesarHome()`)",
+          "src/store/metrics-db.ts, src/store/database.ts (consume `caesarHome()`)",
+          "src/cli/hook-augment.ts (consumes `caesarHome()`)",
+          "src/cli/report.ts, src/cli/commands/upgrade-cmd.ts (consume `caesarHome()` / `readCaesarConfig()`)",
+          "tests/setup.ts (creates a synthetic `config.json` with defaults)"
+        ],
+        "persistence_path": [
+          "~/.caesar/config.json (resolved via `caesarConfigPath()` ⇒ `path.join(caesarHome(), 'config.json')`, where `caesarHome()` = `$CAESAR_HOME` || `~/.caesar`)",
+          "Write path: `writeCaesarConfig()` writes atomically via temp-file + rename (`filePath + '.tmp'` ⇒ `fs.writeFileSync(tmp, ...)` ⇒ `fs.renameSync(tmp, filePath)`)",
+          "Read path: `readCaesarConfig()` reads the JSON file directly; if the file is absent or corrupt it returns a copy of `DEFAULT_CONFIG` with no error"
+        ],
+        "risks": [
+          "**No schema versioning or migration** — the config has no `version` field. If the setting is removed or renamed later, old configs silently lose the key (the reader picks up the default). No graceful migration path exists.",
+          "**No concurrency protection** — multiple processes writing `config.json` simultaneously can clobber each other's changes (last-writer-wins via temp+rename).",
+          "**No hot-reload** — every caller calls `readCaesarConfig()` independently; settings only take effect on process restart unless every consuming site is also updated to re-read the config on a signal.",
+          "**Downstream callers are brittle** — 20+ distinct import sites call `readCaesarConfig()` or `caesarHome()`. A new setting must be wired into each consumer that needs it; missed callers silently use the default.",
+          "**Env-var split-brain** — many existing knobs (`CAESAR_INCREMENTAL_INDEX`, `CAESAR_STRICT`, `CAESAR_STRICT_THRESHOLD`, etc.) are read via `process.env.*` directly rather than through the config module. A new user-visible setting risks being implemented as yet another env var instead of a config-file field, creating two parallel configuration systems.",
+          "**Zero existing test coverage** — there are no unit tests for `readCaesarConfig()`, `writeCaesarConfig()`, or `upsertCaesarConfig()`. Changes risk regressions in parsing edge cases (corrupt JSON, missing file, partial file, type mismatches)."
+        ],
+        "test_plan": [
+          "**Unit tests for `src/config/runtime.ts`**: (a) `readCaesarConfig()` returns `DEFAULT_CONFIG` when config.json does not exist; (b) returns parsed values when config.json is valid; (c) falls back to defaults for missing keys in partial config; (d) falls back to defaults when config.json contains corrupt JSON; (e) `writeCaesarConfig()` writes the expected JSON atomically; (f) `upsertCaesarConfig()` merges partial values correctly.",
+          "**Integration tests for `caesar config set/get` CLI**: (a) `caesar config set some_setting true` writes to `config.json`; (b) `caesar config get` displays the new setting; (c) `caesar config set some_setting invalid` errors properly.",
+          "**Startup-read test**: Create a config.json with the new setting, launch the MCP server (or the relevant consumer), and assert the runtime behavior reflects the setting (e.g. if `auto_dashboard=false`, the dashboard is not started).",
+          "**Env-var override test** (if applicable): Assert that `process.env.CAESAR_SOME_SETTING` takes precedence over the config file value, matching the existing pattern used by `CAESAR_INCREMENTAL_INDEX`, `CAESAR_STRICT`, etc.",
+          "**Isolation test**: Verify that tests/setup.ts already seeds a working config.json with the new field at its default, so no test hits a missing-file fallback unexpectedly."
+        ],
+        "evidence": [
+          "`src/config/runtime.ts` (lines 12-33): `CaesarRuntimeConfig` interface — the single source of truth for user-visible settings. Functions `readCaesarConfig()`, `writeCaesarConfig()`, `upsertCaesarConfig()` provide atomic read/write.",
+          "`src/config/runtime.ts` (line 40): `caesarConfigPath()` returns `path.join(caesarHome(), 'config.json')`.",
+          "`src/config/runtime.ts` (line 43-70): `readCaesarConfig()` handles missing file (returns defaults), corrupt file (returns defaults), partial file (field-by-field fallback).",
+          "`src/cli/commands/config-cmd.ts`: Existing CLI get/set pattern for `auto_index`, `auto_watch`, `auto_dashboard`, `auto_index_limit`, `locale` — this is the user-facing surface for new settings.",
+          "`src/mcp/server.ts` (line 177-182): `runServer()` calls `readCaesarConfig()` at startup and uses `config.auto_dashboard` to decide whether to start the dashboard process.",
+          "`src/mcp/server.ts` (line 192): `maybeAutoIndexCurrentProject()` calls `readCaesarConfig()` and uses `config.auto_index` and `config.auto_index_limit`.",
+          "`src/store/lock.ts` (line 33): `acquireProjectLock()` calls `readCaesarConfig()` for `lock_ttl_minutes`.",
+          "`src/install/index.ts` (line 466-472): Phase 5 of install calls `upsertCaesarConfig()` to write runtime config.",
+          "`src/install/doctor.ts` (line 362-368): `checkRuntimeConfig()` reads and prints the full config.",
+          "`tests/setup.ts` (lines 27-37): Every test worker gets an isolated `config.json` with defaults — any new setting needs a default entry here.",
+          "`src/pipeline/orchestrator.ts` (line 85-86): Existing env-var pattern (`process.env.CAESAR_INCREMENTAL_INDEX`, `process.env.CAESAR_INDEX_LLM`) parallel to the config-file system.",
+          "`src/cli/hook-augment.ts` (lines 36-38): Another env-var pattern (`CAESAR_STRICT_THRESHOLD`, `CAESAR_COUNTER_RESET_MS`, `CAESAR_STRICT_DECAY`) showing the risk of split-brain configuration."
+        ],
+        "summary": "The canonical change location is `src/config/runtime.ts`: add the field to `CaesarRuntimeConfig`, set a default in `DEFAULT_CONFIG`, parse it in `readCaesarConfig()`, and wire it through `writeCaesarConfig()`/`upsertCaesarConfig()`. Extend `src/cli/commands/config-cmd.ts` to support the new key in `caesar config set/get`. The config persists at `~/.caesar/config.json` (atomically via temp-file+rename). Twenty-plus callers import from `runtime.ts` and will see the value when they call `readCaesarConfig()` — but each consumer that needs to *act* on the setting must be individually updated. Key risks include: zero config-module test coverage, no schema versioning, no concurrency protection, no hot-reload, and a parallel env-var system (`process.env.CAESAR_*`) that could fragment the configuration surface. The test plan should cover unit tests for all three config functions, CLI integration tests for get/set, and a startup-read assertion that the setting actually changes runtime behavior."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": false,
+      "evaluation_kind": "designed-only",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false,
+      "trace": [
+        {
+          "seq": 1,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1649
+        },
+        {
+          "seq": 2,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "CAESAR",
+            "include": "*.ts"
+          },
+          "duration_ms": 236,
+          "result_bytes": 75780,
+          "content_hash": "da3cb2bf4ef4d31a"
+        },
+        {
+          "seq": 3,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "persist",
+            "include": "*.ts"
+          },
+          "duration_ms": 171,
+          "result_bytes": 16996,
+          "content_hash": "d3c9c3e9bc1e596d"
+        },
+        {
+          "seq": 4,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "pattern": "setting",
+            "include": "*.ts"
+          },
+          "duration_ms": 177,
+          "result_bytes": 52211,
+          "content_hash": "f5ca816265fcf845"
+        },
+        {
+          "seq": 5,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3217,
+          "content_hash": "012326e2c00f12c2"
+        },
+        {
+          "seq": 6,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/config/runtime.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4829,
+          "content_hash": "2c80c75bb52dafa6"
+        },
+        {
+          "seq": 7,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/install/index.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 46217,
+          "content_hash": "0c4cd8887e07d28c"
+        },
+        {
+          "seq": 8,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2943,
+          "content_hash": "6271991a3838bbd2"
+        },
+        {
+          "seq": 9,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "readCaesarConfig|upsertCaesarConfig|CaesarRuntimeConfig"
+          },
+          "duration_ms": 251,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 10,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "process\\.env\\.CAESAR_",
+            "path": "/Users/admin/Desktop/CAESAR-authoritative/src"
+          },
+          "duration_ms": 193,
+          "result_bytes": 20572,
+          "content_hash": "fcde09e244f2c428"
+        },
+        {
+          "seq": 11,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2287
+        },
+        {
+          "seq": 12,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "from.*config/runtime|require.*config/runtime"
+          },
+          "duration_ms": 227,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 13,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/hook-augment.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 20776,
+          "content_hash": "3e9c015214cceed7"
+        },
+        {
+          "seq": 14,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2546,
+          "content_hash": "2d7e8865ad56da6b"
+        },
+        {
+          "seq": 15,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "writeCaesarConfig|upsertCaesarConfig"
+          },
+          "duration_ms": 174,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 16,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/mcp/server.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 14458,
+          "content_hash": "ced136896fd6fd22"
+        },
+        {
+          "seq": 17,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 3036
+        },
+        {
+          "seq": 18,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "import.*config/runtime",
+            "path": "/Users/admin/Desktop/CAESAR-authoritative/src"
+          },
+          "duration_ms": 236,
+          "result_bytes": 3264,
+          "content_hash": "66e795cee00480ff"
+        },
+        {
+          "seq": 19,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "import.*runtime",
+            "path": "/Users/admin/Desktop/CAESAR-authoritative/src"
+          },
+          "duration_ms": 207,
+          "result_bytes": 6412,
+          "content_hash": "4e1dc3c40317620f"
+        },
+        {
+          "seq": 20,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2214,
+          "content_hash": "432a201ac9748957"
+        },
+        {
+          "seq": 21,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/commands/config-cmd.ts"
+          },
+          "duration_ms": 1,
+          "result_bytes": 1544,
+          "content_hash": "07d37984400caea6"
+        },
+        {
+          "seq": 22,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 596,
+          "content_hash": "e6c34b93395f39e5"
+        },
+        {
+          "seq": 23,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 1811
+        },
+        {
+          "seq": 24,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/commands/index.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2476,
+          "content_hash": "fe2e4c07eeaf69cd"
+        },
+        {
+          "seq": 25,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/store/lock.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 2956,
+          "content_hash": "28661182d0d9b171"
+        },
+        {
+          "seq": 26,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2257,
+          "content_hash": "6f45ba616758de1d"
+        },
+        {
+          "seq": 27,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "config-cmd|config\\.test|runtime\\.test"
+          },
+          "duration_ms": 229,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 28,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/commands/serve-cmd.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 726,
+          "content_hash": "e396993b821e6d34"
+        },
+        {
+          "seq": 29,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2095
+        },
+        {
+          "seq": 30,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/install/doctor.ts",
+            "limit": 50
+          },
+          "duration_ms": 1,
+          "result_bytes": 17613,
+          "content_hash": "892379da94de1085"
+        },
+        {
+          "seq": 31,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/pipeline/orchestrator.ts",
+            "limit": 100
+          },
+          "duration_ms": 0,
+          "result_bytes": 13008,
+          "content_hash": "58b78490351e776c"
+        },
+        {
+          "seq": 32,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 2791,
+          "content_hash": "1ba340e9d728fcdc"
+        },
+        {
+          "seq": 33,
+          "role": "tool_exec",
+          "tool_name": "grep",
+          "args_redacted": {
+            "include": "*.ts",
+            "pattern": "config\\.test|runtime\\.test",
+            "path": "/Users/admin/Desktop/CAESAR-authoritative/tests"
+          },
+          "duration_ms": 210,
+          "result_bytes": 12,
+          "content_hash": "14edf3e24b896fa8"
+        },
+        {
+          "seq": 34,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "tests/setup.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4223,
+          "content_hash": "4224ec3563afd7d0"
+        },
+        {
+          "seq": 35,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "tool_calls",
+          "duration_ms": 8185,
+          "content_hash": "f7ef9f990ed60692"
+        },
+        {
+          "seq": 36,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/commands/serve-cmd.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 726,
+          "content_hash": "e396993b821e6d34"
+        },
+        {
+          "seq": 37,
+          "role": "tool_exec",
+          "tool_name": "read_file",
+          "args_redacted": {
+            "path": "src/cli/commands/upgrade-cmd.ts"
+          },
+          "duration_ms": 0,
+          "result_bytes": 4507,
+          "content_hash": "be8d63a33050fbc9"
+        },
+        {
+          "seq": 38,
+          "role": "llm_call",
+          "model": "deepseek-v4-flash",
+          "finish_reason": "stop",
+          "duration_ms": 25446,
+          "content_hash": "af836f8ede8d13ad"
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 71344,
+        "p95": 71344
+      },
+      "input_tokens": {
+        "median": 610384,
+        "total": 610384
+      },
+      "output_tokens": {
+        "median": 6217,
+        "total": 6217
+      },
+      "cached_tokens": {
+        "median": 560768,
+        "total": 560768
+      },
+      "reasoning_tokens": {
+        "median": 18,
+        "total": 18
+      },
+      "tool_calls": {
+        "median": 37,
+        "total": 37
+      },
+      "cost_usd": {
+        "median": 0.01653775,
+        "total": 0.01653775
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 62794,
+        "p95": 62794
+      },
+      "input_tokens": {
+        "median": 854496,
+        "total": 854496
+      },
+      "output_tokens": {
+        "median": 5484,
+        "total": 5484
+      },
+      "cached_tokens": {
+        "median": 768896,
+        "total": 768896
+      },
+      "reasoning_tokens": {
+        "median": 477,
+        "total": 477
+      },
+      "tool_calls": {
+        "median": 25,
+        "total": 25
+      },
+      "cost_usd": {
+        "median": 0.02428406,
+        "total": 0.02428406
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 0,
+      "excluded_from_evaluation": 1,
+      "defects_per_task": 0
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "71344ms",
+        "without_caesar": "62794ms",
+        "delta": "13.6%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "610384",
+        "without_caesar": "854496",
+        "delta": "-28.6%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "6217",
+        "without_caesar": "5484",
+        "delta": "13.4%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "37",
+        "without_caesar": "25",
+        "delta": "48.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.016538",
+        "without_caesar": "$0.024284",
+        "delta": "-31.9%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "0%",
+        "without_caesar": "0%",
+        "delta": "0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (0 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External project mode: read-only source at /Users/admin/Desktop/CAESAR-authoritative; CAESAR state remains temporary."
+  ]
+}

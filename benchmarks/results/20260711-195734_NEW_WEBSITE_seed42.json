@@ -1,0 +1,1599 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 3,
+    "taskIds": [
+      "external_find_definition",
+      "external_trace_path"
+    ],
+    "projectDir": "/Users/admin/Desktop/MENTESIA/NEW_WEBSITE",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_caesar: LLM has access to 18 CAESAR graph tools (including find_dead_code) plus read_file.",
+    "without_caesar: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_e14ce6f7257b",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"queueToolSignal\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_WgvZRqkKSiQAkJaM6Gx19399",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"queueToolSignal\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_OvAdZ4MQ4vXWnARZxb7r6604",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"queueToolSignal\", \"regex\": false, \"limit\": 20, \"context\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_hn9KmacUB0KgPC2dsZ4r1506",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"queueToolSignal function\", \"limit\": 10}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_XmfphoFv2a5EoeCiXyrj3829",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.ops.scenarioRuntime.scenarioSignalQueue.queueToolSignal\", \"include_neighbors\": true}"
+          }
+        }
+      ],
+      "response": "Here are the results:\n\n```json\n{\n  \"found_file\": \"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\",\n  \"function_name\": \"queueToolSignal\",\n  \"kind\": \"function\"\n}\n```\n\n**Details:**\n- **File:** `src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts`\n- **Qualified name:** `lib.ops.scenarioRuntime.scenarioSignalQueue.queueToolSignal`\n- **Kind:** `Function`\n- **Line:** 48\n- **Exported:** Yes (`export async function queueToolSignal(`)\n- **Complexity:** 40 (moderate)",
+      "responseHash": "5264f2b26e55ed64",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 24539,
+        "output_tokens": 549,
+        "cached_tokens": 22016,
+        "reasoning_tokens": 11,
+        "tool_call_count": 4,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 8903,
+        "api_latency_ms": 8902,
+        "cost_usd": 0.00081516,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_b84266edfe0e",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"queueToolSignal\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_mVFUMCpxp8y8yjkqUZ199317",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"queueToolSignal\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_h56xXpQx0d6ca1wFBF2s4805",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\"}"
+          }
+        }
+      ],
+      "response": "The function `queueToolSignal` is defined in the source file `src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts`. It is declared as an exported async function (`export async function queueToolSignal(`) on line 40.\n\n```json\n{\"found_file\":\"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\",\"function_name\":\"queueToolSignal\",\"kind\":\"function\"}\n```",
+      "responseHash": "8b3b27e76774ec30",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 47281,
+        "output_tokens": 297,
+        "cached_tokens": 22784,
+        "reasoning_tokens": 49,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 13674,
+        "wall_time_ms": 12181,
+        "api_latency_ms": 12181,
+        "cost_usd": 0.00383172,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_3_e5f5140a7923",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 1,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the NEW_WEBSITE codebase, does the function \"updateWorkTemplatePrompt\" in src/app/api/admin/ops/prompts/edit/route.ts call the function \"enforceOpsRequest\" in ops/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_pBDRCzUCmZNo71OXXbPJ5597",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_lSSzFKt0NNO9cncFnK4M8367",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"enforceOpsRequest\", \"include\": \"ops/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_HT1ewZyl7x84GZh4eqQo3646",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"enforceOpsRequest\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_zSJq36X2LaPocpd3Dpui1529",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/ops/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_D0kHVFplWbrG71xpAsYO5395",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on my thorough analysis of the source code, here is the answer:\n\n**`updateWorkTemplatePrompt` does NOT call `enforceOpsRequest` directly or indirectly.** \n\nLooking at the function body of `updateWorkTemplatePrompt` (lines 46–73 of `route.ts`), it only calls:\n- `prisma.opsSystemConfig.findUnique()` (Prisma ORM)\n- `asRecord()` (local helper)\n- `Array.isArray()` (native)\n- `promptKeyMatchesTemplate()` (local helper)\n- `normalizePromptKey()` (local helper)\n- `prisma.opsSystemConfig.update()` (Prisma ORM)\n- `new Date().toISOString()` (native)\n\nNone of these local helpers (`asRecord`, `normalizePromptKey`, `canonicalPromptKey`, `promptKeyMatchesTemplate`) call `enforceOpsRequest` either — they are pure utility functions.\n\nThe only call to `enforceOpsRequest` in this file is in the `POST` handler (line 119), which is the caller of `updateWorkTemplatePrompt`, not the other way around. `updateWorkTemplatePrompt` itself never invokes `POST` or `enforceOpsRequest`.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "308997287ac3b321",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 77176,
+        "output_tokens": 1499,
+        "cached_tokens": 52352,
+        "reasoning_tokens": 276,
+        "tool_call_count": 5,
+        "files_read": 2,
+        "bytes_read": 10705,
+        "wall_time_ms": 22145,
+        "api_latency_ms": 22145,
+        "cost_usd": 0.00462801,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "updateWorkTemplatePrompt",
+          "updateDirectorPrompt",
+          "enforceOpsRequest"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: updateworktemplateprompt",
+        "Missing expected item in path: updatedirectorprompt",
+        "Missing expected item in path: enforceopsrequest",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_4_517aa6d95577",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 1,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the NEW_WEBSITE codebase, does the function \"updateWorkTemplatePrompt\" in src/app/api/admin/ops/prompts/edit/route.ts call the function \"enforceOpsRequest\" in ops/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_oJxFsAotBWBLKkH4SMlU5680",
+          "type": "function",
+          "function": {
+            "name": "pack_context",
+            "arguments": "{\"task\": \"Trace call chain from updateWorkTemplatePrompt in src/app/api/admin/ops/prompts/edit/route.ts to enforceOpsRequest in ops/api.ts in NEW_WEBSITE codebase\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wjU0XorpxH402dA5aQfD8250",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"updateWorkTemplatePrompt\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_qQkb3miordiiEnjepVb89796",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"enforceOpsRequest\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_4LmKrHkXuIWzGc12hYLc6153",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_FF9PUiEZdZQm4W0K8wbV6227",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_DhudZUMYOKuF81rgi5xJ6593",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.ops.api.enforceOpsRequest\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_LXcVMb5msm6Bic3iz4PW4773",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt\", \"direction\": \"outbound\", \"depth\": 3, \"mode\": \"calls\"}"
+          }
+        }
+      ],
+      "response": "The evidence is clear. Let me summarize the findings:\n\n**From the source code of `src/app/api/admin/ops/prompts/edit/route.ts`:**\n\n- `updateWorkTemplatePrompt` (lines 44-74) is a local async function that queries/updates Prisma and uses local helpers (`asRecord`, `promptKeyMatchesTemplate`, `normalizePromptKey`, `canonicalPromptKey`).\n- `enforceOpsRequest` is imported from `@/lib/ops/api` and called **only** inside the `POST` handler (line 78), **before** `updateWorkTemplatePrompt` is ever invoked.\n- `updateWorkTemplatePrompt` itself contains **zero** calls to `enforceOpsRequest`.\n\n**From the outbound trace:** The deepest reachable chain from `updateWorkTemplatePrompt` is `updateWorkTemplatePrompt → asRecord`. `enforceOpsRequest` is **not** reachable from `updateWorkTemplatePrompt` via any call path.\n\n`enforceOpsRequest` and `updateWorkTemplatePrompt` are sibling functions both called by `POST`, but there is no direct or indirect call from `updateWorkTemplatePrompt` to `enforceOpsRequest`.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "5976aef01d10fcae",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 41936,
+        "output_tokens": 2080,
+        "cached_tokens": 37760,
+        "reasoning_tokens": 505,
+        "tool_call_count": 7,
+        "files_read": 1,
+        "bytes_read": 4807,
+        "wall_time_ms": 22468,
+        "api_latency_ms": 22468,
+        "cost_usd": 0.00169568,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "updateWorkTemplatePrompt",
+          "updateDirectorPrompt",
+          "enforceOpsRequest"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: updateworktemplateprompt",
+        "Missing expected item in path: updatedirectorprompt",
+        "Missing expected item in path: enforceopsrequest",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_5_d75d45644bcb",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"queueToolSignal\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_Me8DULwDwszrFT0Z1sJz8004",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"queueToolSignal\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_5yXEtGWI7B8RGPrykF0Q7009",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.ops.scenarioRuntime.scenarioSignalQueue.queueToolSignal\"}"
+          }
+        }
+      ],
+      "response": "Here is the result:\n\n```json\n{\n  \"found_file\": \"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\",\n  \"function_name\": \"queueToolSignal\",\n  \"kind\": \"function\"\n}\n```\n\n**Details:** `queueToolSignal` is an exported async function defined at line 48 in the file `src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts`.",
+      "responseHash": "843ecdb28020cfb8",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 11916,
+        "output_tokens": 244,
+        "cached_tokens": 11264,
+        "reasoning_tokens": 6,
+        "tool_call_count": 2,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 4542,
+        "api_latency_ms": 4542,
+        "cost_usd": 0.0003173,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_6_5f4e6c2e5e23",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"queueToolSignal\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_JNRayMtLlBXbpPN14Exo5725",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def queueToolSignal|const queueToolSignal|function queueToolSignal|queueToolSignal\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_YgBcwVvAZ1i711HiLr3s6430",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"queueToolSignal\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_qKw2r2vh7QV3YSOz2nL49841",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\"}"
+          }
+        }
+      ],
+      "response": "The function `queueToolSignal` is defined in the file `src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts`. It is declared as `export async function queueToolSignal(...)`, making it a **function**.\n\n```json\n{\n  \"found_file\": \"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\",\n  \"function_name\": \"queueToolSignal\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "b25fa10b9c97fcfa",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 47511,
+        "output_tokens": 413,
+        "cached_tokens": 23040,
+        "reasoning_tokens": 29,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 13674,
+        "wall_time_ms": 16874,
+        "api_latency_ms": 16874,
+        "cost_usd": 0.00386414,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_7_58b37c983b6e",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 1,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the NEW_WEBSITE codebase, does the function \"updateWorkTemplatePrompt\" in src/app/api/admin/ops/prompts/edit/route.ts call the function \"enforceOpsRequest\" in ops/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_36jt7SftL9AezcBxFCPe7850",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_rkPReY5SI7XPYtV5vZKa6877",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"enforceOpsRequest\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_x8aXW2hlWzYugXhUT0Be0928",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/ops/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_um85XJWPHWlcz8rzzzgR5944",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"enforceOpsRequest\", \"include\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on the full source code analysis:\n\n**`updateWorkTemplatePrompt`** (defined at lines 65–96) is a local async function in `route.ts`. Its body does the following:\n- Calls `prisma.opsSystemConfig.findUnique` and `prisma.opsSystemConfig.update`\n- Uses helper functions `asRecord`, `normalizePromptKey`, `canonicalPromptKey`, and `promptKeyMatchesTemplate`\n\nIt does **not** call `enforceOpsRequest` — neither directly nor indirectly. The `enforceOpsRequest` call (line 119) is in the `POST` handler, **outside** of `updateWorkTemplatePrompt`, and is invoked before `updateWorkTemplatePrompt` is called (line 134), but is never referenced within the function itself.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "00f8772b41581997",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 73806,
+        "output_tokens": 1390,
+        "cached_tokens": 50176,
+        "reasoning_tokens": 244,
+        "tool_call_count": 4,
+        "files_read": 2,
+        "bytes_read": 5898,
+        "wall_time_ms": 18908,
+        "api_latency_ms": 18908,
+        "cost_usd": 0.00439986,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "updateWorkTemplatePrompt",
+          "updateDirectorPrompt",
+          "enforceOpsRequest"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: updateworktemplateprompt",
+        "Missing expected item in path: updatedirectorprompt",
+        "Missing expected item in path: enforceopsrequest",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_8_ec60890d1795",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 1,
+      "seed": 1042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the NEW_WEBSITE codebase, does the function \"updateWorkTemplatePrompt\" in src/app/api/admin/ops/prompts/edit/route.ts call the function \"enforceOpsRequest\" in ops/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_8IlKW2smtptliZlfqqzG3661",
+          "type": "function",
+          "function": {
+            "name": "pack_context",
+            "arguments": "{\"task\": \"Find if updateWorkTemplatePrompt calls enforceOpsRequest directly or indirectly in the NEW_WEBSITE codebase, and trace the exact call chain.\", \"mode\": \"compact\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_uFFY0Oyd68hwfQTi0U5I9686",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"updateWorkTemplatePrompt\", \"file_pattern\": \"**/ops/prompts/edit/route.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_38JBBDgqB3ep3KCNp4vB1284",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"enforceOpsRequest\", \"file_pattern\": \"**/ops/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_U2TnhbNEGbkG9QtUvQLV9435",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_01qF5wAzDDvH9MGQsY0F1081",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MIXCpn7ZFPuuceia8zkt6460",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt\", \"direction\": \"outbound\", \"depth\": 4, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_tbnhdeDn3eiOmgceBMJj5708",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.ops.api.enforceOpsRequest\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_tzw49x3O4NPQtOwVgytj5322",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/ops/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UJI8j5ERGEme4gqtSmkK0996",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.admin.ops.prompts.edit.route.promptKeyMatchesTemplate\", \"direction\": \"outbound\", \"depth\": 3, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_vbdZpAAAce8xSz6wlty15433",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.admin.ops.prompts.edit.route.asRecord\", \"direction\": \"outbound\", \"depth\": 3, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_86hxbByCZKaaM0jsucBc8956",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.admin.ops.prompts.edit.route.normalizePromptKey\", \"direction\": \"outbound\", \"depth\": 3, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_1ARc7Kz603SHHsDaafNR6335",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.admin.ops.prompts.edit.route.canonicalPromptKey\", \"direction\": \"outbound\", \"depth\": 3, \"mode\": \"calls\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_jIERk32hpDrEIW9LI3xF1667",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on a thorough analysis of the source code, here are the findings:\n\n**`updateWorkTemplatePrompt`** (lines 44-79 in `src/app/api/admin/ops/prompts/edit/route.ts`) calls only:\n- `prisma.opsSystemConfig.findUnique` (Prisma ORM)\n- `asRecord` (local type-guard helper — no sub-calls)\n- `normalizePromptKey` (local string helper — no sub-calls)\n- `promptKeyMatchesTemplate` (local helper — only calls `canonicalPromptKey` and `normalizePromptKey`)\n- `prisma.opsSystemConfig.update` (Prisma ORM)\n\n**`enforceOpsRequest`** is imported from `@/lib/ops/api` (line 2) and is **only called by the `POST` handler** (line 93). It is never called by `updateWorkTemplatePrompt` or any function that `updateWorkTemplatePrompt` calls.\n\nThe call graph does show them both called by `POST` (the parent handler), but the direction of the question is from `updateWorkTemplatePrompt` → `enforceOpsRequest`, and that direction does not exist — all the local helpers (`asRecord`, `normalizePromptKey`, `canonicalPromptKey`, `promptKeyMatchesTemplate`) are pure string/type utilities with no reach to `enforceOpsRequest`.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "a7c9d7718a47cba0",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 81147,
+        "output_tokens": 4651,
+        "cached_tokens": 73600,
+        "reasoning_tokens": 410,
+        "tool_call_count": 13,
+        "files_read": 2,
+        "bytes_read": 10705,
+        "wall_time_ms": 41980,
+        "api_latency_ms": 41980,
+        "cost_usd": 0.00338926,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "updateWorkTemplatePrompt",
+          "updateDirectorPrompt",
+          "enforceOpsRequest"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: updateworktemplateprompt",
+        "Missing expected item in path: updatedirectorprompt",
+        "Missing expected item in path: enforceopsrequest",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_9_777bb90bd0d3",
+      "task_id": "external_find_definition",
+      "condition": "with_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"queueToolSignal\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_TzaHuUlyc7MS7ZswyDvX6936",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"queueToolSignal\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_0EBTDGjPL4FimBDVkwf69404",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"queueToolSignal\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_i7QNDuvnS49IigyklNJh5799",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"lib.ops.scenarioRuntime.scenarioSignalQueue.queueToolSignal\", \"include_neighbors\": false}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kUMtibvsle5MNYnKPzbp3777",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on my search of the NEW_WEBSITE codebase, here is the answer:\n\n```json\n{\n  \"found_file\": \"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\",\n  \"function_name\": \"queueToolSignal\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "eaaa155f6d2d2752",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 19772,
+        "output_tokens": 389,
+        "cached_tokens": 15616,
+        "reasoning_tokens": 50,
+        "tool_call_count": 4,
+        "files_read": 1,
+        "bytes_read": 13674,
+        "wall_time_ms": 5491,
+        "api_latency_ms": 5491,
+        "cost_usd": 0.00090938,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_a_e0fa365564e7",
+      "task_id": "external_find_definition",
+      "condition": "without_caesar",
+      "order_position": 0,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"queueToolSignal\" is defined in the NEW_WEBSITE codebase. What file is it in? What kind of symbol is it? Respond with JSON: {\"found_file\":\"...\",\"function_name\":\"...\",\"kind\":\"function|class|method\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_DC7RJg5S1y81JTJJzVy31465",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"queueToolSignal\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_mbgYub5fxOS8JTfLVK2W4363",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/Users/admin/Desktop/MENTESIA/NEW_WEBSITE/.claude/worktrees/agent-ad7e38a205d28e2eb/src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on the source code, here are the findings:\n\n- **`queueToolSignal`** is defined in **`src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts`** at line 40.\n- It is declared as an **`export async function`**, so it is a named **function** (not a class method).\n\n```json\n{\n  \"found_file\": \"src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts\",\n  \"function_name\": \"queueToolSignal\",\n  \"kind\": \"function\"\n}\n```",
+      "responseHash": "1458cc8cf4d13200",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 51376,
+        "output_tokens": 423,
+        "cached_tokens": 22912,
+        "reasoning_tokens": 66,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 32264,
+        "wall_time_ms": 11680,
+        "api_latency_ms": 11680,
+        "cost_usd": 0.00442417,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "found_file": "src/lib/ops/scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "expected": {
+        "found_file": "scenarioRuntime/scenarioSignalQueue.ts",
+        "function_name": "queueToolSignal",
+        "kind": "function"
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_b_d342593ac6eb",
+      "task_id": "external_trace_path",
+      "condition": "without_caesar",
+      "order_position": 1,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the NEW_WEBSITE codebase, does the function \"updateWorkTemplatePrompt\" in src/app/api/admin/ops/prompts/edit/route.ts call the function \"enforceOpsRequest\" in ops/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_B65NYatplBA2vdlU5gGK3386",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_c8xbQbD1US9SgiMA24q73860",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"enforceOpsRequest\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_NHkWxmJfK3s0gvP5scAN0610",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/lib/ops/api.ts\"}"
+          }
+        }
+      ],
+      "response": "Now I have complete information to answer.\n\nThe function `updateWorkTemplatePrompt` in `src/app/api/admin/ops/prompts/edit/route.ts` does **not** call `enforceOpsRequest` in `ops/api.ts`. \n\nLooking at the code:\n- `updateWorkTemplatePrompt` (defined at line 38) only calls `prisma.opsSystemConfig.findUnique()` and `prisma.opsSystemConfig.update()` — it has no internal calls to `enforceOpsRequest` or any other function that could lead there.\n- The `POST` handler **does** call `enforceOpsRequest` directly (line 119), and separately calls `updateWorkTemplatePrompt` (line 137), but these are sibling calls from `POST`, not a chain from `updateWorkTemplatePrompt`.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "adcd05dc45e4aa66",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 48769,
+        "output_tokens": 883,
+        "cached_tokens": 25216,
+        "reasoning_tokens": 216,
+        "tool_call_count": 3,
+        "files_read": 2,
+        "bytes_read": 5898,
+        "wall_time_ms": 16299,
+        "api_latency_ms": 16299,
+        "cost_usd": 0.00389768,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "updateWorkTemplatePrompt",
+          "updateDirectorPrompt",
+          "enforceOpsRequest"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: updateworktemplateprompt",
+        "Missing expected item in path: updatedirectorprompt",
+        "Missing expected item in path: enforceopsrequest",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_c_ef62e239af87",
+      "task_id": "external_trace_path",
+      "condition": "with_caesar",
+      "order_position": 1,
+      "seed": 2042,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose and use them freely when they provide relevant evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Be thorough: verify your answer before responding.\n- When you have enough information, provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "In the NEW_WEBSITE codebase, does the function \"updateWorkTemplatePrompt\" in src/app/api/admin/ops/prompts/edit/route.ts call the function \"enforceOpsRequest\" in ops/api.ts directly or indirectly? What is the EXACT call chain? Respond with JSON: {\"connected\":true/false,\"path\":[\"fn1\",\"fn2\",\"fn3\"],\"hops\":N}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_XIbzqyEtiz5ZriG5X2RW9580",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"updateWorkTemplatePrompt\", \"file_pattern\": \"**/route.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_rTGMxS6zZcL9x9FyKyyJ0114",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"name_pattern\": \"enforceOpsRequest\", \"file_pattern\": \"**/ops/api.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_HZ2oXz6B6Q3TPRcuYlGV6868",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"updateWorkTemplatePrompt\", \"file_pattern\": \"*route*\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_MlQfVTv96S9hYNpsmxKM9774",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"enforceOpsRequest\", \"file_pattern\": \"*api*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Z2hj0YIDh75xSAvrq9A87385",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"updateWorkTemplatePrompt\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_8WfVLOzx3h8N134X8PVj0122",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"enforceOpsRequest\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JBvgj5P9LuNyuE1WGYrg5898",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"languages\", \"file_tree\", \"brief\"]}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_vFohMteS0ppQgZiI2se50346",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"WorkTemplatePrompt\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_kceGV0unwYCvhuaO15rP4375",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"OpsRequest\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ALOxXgMMBOjhWwrfYExZ5189",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"updateWork\", \"path_filter\": \".*route.*\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_814s52vcDP31ZkikFeoa2604",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"enforceOps\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MFqlJzHE5WDOauHO7BbL8555",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"WorkTemplate\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_l4Kv9gWRbb7WBP7yixg21496",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"workTemplate\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_KumIPpecH6XI2JqL66Gs6453",
+          "type": "function",
+          "function": {
+            "name": "get_architecture",
+            "arguments": "{\"aspects\": [\"file_tree\"], \"path\": \"src/app/api\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bpXCPYYxahh0rtIMRAhw2811",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"prompts/edit\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_DWbfUI1WthEL6sLe90Yv7286",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"src/app/api/admin/ops\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_WredNZdl59zIfIW59yMl4749",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"route.ts\", \"path_filter\": \".*api/admin.*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_D9E8HlwGqRIAvMnZ4KAi7080",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"route.ts\", \"path_filter\": \".*ops.*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_xAAYTVfPFzJEC8aPlheh2579",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"route\", \"file_pattern\": \"**/api/**/route.ts\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_3IqWN2cobsr0sox4w4VC7428",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"enforce\", \"file_pattern\": \"**/*\", \"mode\": \"files\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_KeSldx2l6mZpi2WQA7U12572",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"updateWorkTemplatePrompt\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Huu8RMbGe7LthazZx4za0626",
+          "type": "function",
+          "function": {
+            "name": "semantic_search",
+            "arguments": "{\"query\": \"enforceOpsRequest\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_d3AGN8dQaV2FoY3y8pDZ1793",
+          "type": "function",
+          "function": {
+            "name": "search_code",
+            "arguments": "{\"pattern\": \"enforceOpsRequest\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JKsyAtFVytQY4eeqr6Pi7109",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt\", \"include_neighbors\": \"true\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_vO7yyJBwdC1xtuZm2LKY6557",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Lho54XKxyeEFt1TnUaFU3541",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt\", \"direction\": \"inbound\", \"depth\": 1}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_UQQCV64WRil3VjmRsIQF6684",
+          "type": "function",
+          "function": {
+            "name": "get_code_snippet",
+            "arguments": "{\"qualified_name\": \"app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt\", \"include_neighbors\": true}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_niL4D49MhNrxs9SFVGqA9114",
+          "type": "function",
+          "function": {
+            "name": "query_graph",
+            "arguments": "{\"query\": \"MATCH (n:Function {qualified_name: 'app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt'})-[r:CALLS]->(callee) RETURN callee.qualified_name, callee.name, callee.file_path\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_AEUPLkTCTJHEaggI6GSo5731",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"app.api.admin.ops.prompts.edit.route.updateWorkTemplatePrompt\", \"direction\": \"outbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0yz8ahta8ElUD8WqGZY75685",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/app/api/admin/ops/prompts/edit/route.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on my thorough analysis of the source code, here are the findings:\n\n**`updateWorkTemplatePrompt`** (lines 44-70 of `src/app/api/admin/ops/prompts/edit/route.ts`) calls only:\n- `prisma.opsSystemConfig.findUnique` / `prisma.opsSystemConfig.update`\n- `asRecord` (local helper)\n- `promptKeyMatchesTemplate` (local helper)\n- `normalizePromptKey` (local helper)\n\nIt does **not** call `enforceOpsRequest` — not directly and not through any intermediate function.\n\nThe `enforceOpsRequest` call in this file is inside the **`POST`** route handler (line 117), which is a sibling to `updateWorkTemplatePrompt`. `POST` calls `enforceOpsRequest` first for auth, then later calls `updateWorkTemplatePrompt`. But there is no call path *from* `updateWorkTemplatePrompt` *to* `enforceOpsRequest`.\n\n```json\n{\n  \"connected\": false,\n  \"path\": [],\n  \"hops\": 0\n}\n```",
+      "responseHash": "af2de57c77cfc22a",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 240848,
+        "output_tokens": 4278,
+        "cached_tokens": 227328,
+        "reasoning_tokens": 306,
+        "tool_call_count": 30,
+        "files_read": 1,
+        "bytes_read": 9614,
+        "wall_time_ms": 52770,
+        "api_latency_ms": 52769,
+        "cost_usd": 0.00627323,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 8,
+        "fixes_needed": 8,
+        "not_executed": false
+      },
+      "result": {
+        "connected": false,
+        "path": [],
+        "hops": 0
+      },
+      "expected": {
+        "connected": true,
+        "path": [
+          "updateWorkTemplatePrompt",
+          "updateDirectorPrompt",
+          "enforceOpsRequest"
+        ],
+        "hops": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "connected: expected true, got false",
+        "Missing expected item in path: updateworktemplateprompt",
+        "Missing expected item in path: updatedirectorprompt",
+        "Missing expected item in path: enforceopsrequest",
+        "hops: expected 2, got 0"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_caesar": {
+      "wall_time_ms": {
+        "median": 22468,
+        "p95": 52770
+      },
+      "input_tokens": {
+        "median": 41936,
+        "total": 420158
+      },
+      "output_tokens": {
+        "median": 2080,
+        "total": 12191
+      },
+      "cached_tokens": {
+        "median": 37760,
+        "total": 387584
+      },
+      "reasoning_tokens": {
+        "median": 306,
+        "total": 1288
+      },
+      "tool_calls": {
+        "median": 7,
+        "total": 60
+      },
+      "cost_usd": {
+        "median": 0.00169568,
+        "total": 0.01340001
+      },
+      "functional_success_rate": 0.5,
+      "evaluated_runs": 6,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 4
+    },
+    "without_caesar": {
+      "wall_time_ms": {
+        "median": 16874,
+        "p95": 22145
+      },
+      "input_tokens": {
+        "median": 51376,
+        "total": 345919
+      },
+      "output_tokens": {
+        "median": 883,
+        "total": 4905
+      },
+      "cached_tokens": {
+        "median": 25216,
+        "total": 196480
+      },
+      "reasoning_tokens": {
+        "median": 216,
+        "total": 880
+      },
+      "tool_calls": {
+        "median": 3,
+        "total": 19
+      },
+      "cost_usd": {
+        "median": 0.00439986,
+        "total": 0.025045579999999998
+      },
+      "functional_success_rate": 0.5,
+      "evaluated_runs": 6,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 4
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_caesar": "22468ms",
+        "without_caesar": "16874ms",
+        "delta": "33.2%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_caesar": "41936",
+        "without_caesar": "51376",
+        "delta": "-18.4%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_caesar": "2080",
+        "without_caesar": "883",
+        "delta": "135.6%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_caesar": "7",
+        "without_caesar": "3",
+        "delta": "133.3%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_caesar": "$0.001696",
+        "without_caesar": "$0.004400",
+        "delta": "-61.5%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_caesar": "50%",
+        "without_caesar": "50%",
+        "delta": "0.0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 6 deterministic measured runs with real API calls (6 evaluated including partial assertions).",
+    "roi_blocked": false,
+    "roi_blocked_reason": null
+  },
+  "warnings": [
+    "External project mode: read-only source at /Users/admin/Desktop/MENTESIA/NEW_WEBSITE; CAESAR state remains temporary."
+  ]
+}

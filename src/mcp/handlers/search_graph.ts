@@ -1,0 +1,325 @@
+/*
+ * search_graph.ts — Graph search with full-text, regex, and structured filtering.
+ *
+ * Capabilities:
+ *   - name_pattern, qn_pattern, file_pattern for regex matching
+ *   - min_degree / max_degree for fan-in/out filtering
+ *   - exclude_entry_points for filtering entry points
+ *   - has_more pagination flag
+ *   - semantic_query placeholder (vector search requires embeddings index)
+ */
+
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { getDb } from '../server.js';
+import { narrateSearchResults } from '../../intelligence/narrative.js';
+import { getRerankProviderMode, rerankSearchWithMeta, type LlmUsage } from '../../llm/client.js';
+import { estimateRerankCostUsd, estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
+import { computeRealSavings } from '../../usage/session.js';
+import { projectNotIndexed } from '../diagnostics.js';
+import { executeLocalSearchGraph } from '../../federation/search-core.js';
+import { federatedSearchGraph } from '../../federation/gateway.js';
+import { getFederatedConfig } from '../../federation/handler-bridge.js';
+import type { SearchNode } from '../../federation/types.js';
+
+export async function handleSearchGraph(args: Record<string, unknown>): Promise<unknown> {
+  const started = Date.now();
+  const project = String(args.project || '');
+  const query = args.query ? String(args.query) : undefined;
+  const label = args.label ? String(args.label) : undefined;
+  const namePattern = args.name_pattern ? String(args.name_pattern) : undefined;
+  const qnPattern = args.qn_pattern ? String(args.qn_pattern) : undefined;
+  const filePattern = args.file_pattern ? String(args.file_pattern) : undefined;
+  const limit = args.limit ? Number(args.limit) : 10;
+  const offset = args.offset ? Number(args.offset) : 0;
+  const minDegree = args.min_degree !== undefined ? Number(args.min_degree) : undefined;
+  const maxDegree = args.max_degree !== undefined ? Number(args.max_degree) : undefined;
+  const excludeEntryPoints = args.exclude_entry_points === true;
+  const includeNarrative = args.narrative !== false;
+  const semanticQuery = args.semantic_query as string[] | undefined;
+  const enableLlm = args.enable_llm !== false;
+  // Auto-enable snippets when ≤5 results, unless explicitly disabled. Eliminates follow-up get_code_snippet calls.
+  const includeSnippets = args.include_snippets === true || (args.include_snippets !== false && limit <= 5);
+
+  const db = getDb(project);
+
+  // Diagnostic: project not indexed → still return results but hint
+  const projectCheck = db.getProject(project) ? null : projectNotIndexed(project);
+
+  // Data retrieval: federated gateway if Team config present, else direct local core
+  const fedConfig = getFederatedConfig();
+  let deduped: SearchNode[];
+  let total: number;
+  let provenanceSummary: Record<string, unknown> | undefined;
+
+  if (fedConfig) {
+    const fedResult = await federatedSearchGraph(db, {
+      project, query, label, namePattern, qnPattern, filePattern,
+      limit, offset, minDegree, maxDegree, excludeEntryPoints,
+      hasSemanticQuery: !!(semanticQuery && semanticQuery.length > 0),
+    }, fedConfig);
+    deduped = fedResult.results;
+    total = fedResult.total;
+    provenanceSummary = fedResult.provenance_summary as unknown as Record<string, unknown>;
+  } else {
+    const localResult = executeLocalSearchGraph(db, {
+      project, query, label, namePattern, qnPattern, filePattern,
+      limit, offset, minDegree, maxDegree, excludeEntryPoints,
+      hasSemanticQuery: !!(semanticQuery && semanticQuery.length > 0),
+    });
+    deduped = localResult.results;
+    total = localResult.total;
+  }
+
+  // LLM re-rank: semantic reordering for natural-language queries.
+  // Enriches snippets with per-file LLM summaries (stored during index) so
+  // the re-rank model can disambiguate generic names (GET, POST, etc.)
+  let llmReranked = false;
+  let llmMetrics: Record<string, unknown> | undefined;
+  let llmUsage: LlmUsage = {
+    enabled: enableLlm,
+    used: false,
+    provider: null,
+    model: null,
+    calls: 0,
+    latency_ms: 0,
+    fallback_used: false,
+    fallback_reason: null,
+  };
+  if (enableLlm && query && deduped.length >= 3) {
+    try {
+      const requestedProvider = getRerankProviderMode();
+      const llmStart = Date.now();
+      const originalOrder = deduped.map((r) => r.qualified_name);
+      // Fetch properties (contains llmSummary) for richer re-rank snippets
+      const propsMap = new Map<string, string | null>();
+      {
+        const qnames = deduped.map(r => r.qualified_name);
+        const placeholders = qnames.map(() => '?').join(',');
+        const propRows = db.db
+          .prepare(
+            `SELECT qualified_name, properties FROM nodes WHERE project = ? AND qualified_name IN (${placeholders})`
+          )
+          .all(project, ...qnames) as Array<{ qualified_name: string; properties: string | null }>;
+        for (const pr of propRows) propsMap.set(pr.qualified_name, pr.properties);
+      }
+
+      const candidates = deduped.map((r, i) => {
+        let summary = '';
+        try {
+          const props = JSON.parse(propsMap.get(r.qualified_name) || '{}');
+          summary = props.llmSummary || '';
+        } catch { /* empty */ }
+        const context = summary
+          ? `${r.kind} \`${r.name}\` in ${r.file_path}:${r.start_line} — ${summary}`
+          : `${r.kind} \`${r.name}\` in ${r.file_path}:${r.start_line}`;
+        return { index: i, name: r.name, kind: r.kind, snippet: context };
+      });
+      const { items: ranked, provider, model, fallback } = await rerankSearchWithMeta(query, candidates);
+      const llmLatency = Date.now() - llmStart;
+      llmUsage.used = true;
+      llmUsage.calls = 1;
+      llmUsage.latency_ms = llmLatency;
+      llmUsage.provider = provider;
+      llmUsage.model = model || null;
+      llmUsage.fallback_used = fallback;
+      llmUsage.fallback_reason = fallback
+        ? (provider === 'heuristic' && requestedProvider !== 'heuristic'
+            ? `${requestedProvider} rerank failed after ${llmLatency}ms, used heuristic — kept BM25 order`
+            : `${provider} rerank used — kept deterministic order`)
+        : null;
+      if (ranked.length === deduped.length) {
+        const reordered = ranked
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          .map(r => deduped[r.index])
+          .filter(Boolean);
+        if (reordered.length === deduped.length) {
+          const nextOrder = reordered.map((r) => r.qualified_name);
+          const rankChanged = nextOrder.some((qn, i) => qn !== originalOrder[i]);
+          const topChanged = nextOrder[0] !== originalOrder[0];
+          deduped.splice(0, deduped.length, ...reordered);
+          llmReranked = provider !== 'heuristic';
+          llmMetrics = {
+            provider,
+            model: model || undefined,
+            candidates: candidates.length,
+            latency_ms: llmLatency,
+            rank_changed: rankChanged,
+            top_changed: topChanged,
+            estimated_cost_usd: provider === 'heuristic' ? 0 : estimateRerankCostUsd(candidates.length),
+            fallback,
+          };
+          recordUsageEvent({
+            type: 'llm_rerank',
+            project,
+            query,
+            result_count: candidates.length,
+            latency_ms: llmLatency,
+            llm_provider: provider,
+            llm_latency_ms: llmLatency,
+            estimated_llm_cost_usd: provider === 'heuristic' ? 0 : estimateRerankCostUsd(candidates.length),
+            rank_changed: rankChanged,
+            top_changed: topChanged,
+            tool_hint: 'search_graph rerank',
+          });
+        }
+      }
+    } catch {
+      llmUsage.fallback_used = true;
+      llmUsage.fallback_reason = `rerank exception (provider: ${getRerankProviderMode()}), kept BM25 order`;
+    }
+  }
+  if (!enableLlm) {
+    llmUsage.fallback_reason = 'enable_llm=false, skipped rerank';
+  }
+
+  const hasMore = offset + limit < total;
+
+  // Build results array
+  const limitedResults = deduped.slice(0, limit);
+  const resultsArray = limitedResults.map(r => {
+    const item: Record<string, unknown> = {
+      name: r.name,
+      qualified_name: r.qualified_name,
+      kind: r.kind,
+      file: r.file_path,
+      start_line: r.start_line,
+      end_line: r.end_line,
+      in_degree: r.in_degree,
+      out_degree: r.out_degree,
+    };
+    if (r.is_entry_point) item.is_entry_point = true;
+    if (r.is_test) item.is_test = true;
+    return item;
+  });
+
+  // Snippet inclusion: read first 5 source lines per result to eliminate follow-up get_code_snippet calls.
+  if (includeSnippets && resultsArray.length > 0) {
+    const projectMeta = db.getProject(project);
+    const rootPath = projectMeta?.rootPath || process.cwd();
+    // Group by file to minimize I/O
+    const byFile = new Map<string, { idx: number; start: number; end: number }[]>();
+    resultsArray.forEach((r, i) => {
+      const fp = String(r.file);
+      if (!byFile.has(fp)) byFile.set(fp, []);
+      byFile.get(fp)!.push({ idx: i, start: Number(r.start_line), end: Number(r.end_line) });
+    });
+    for (const [fp, entries] of byFile) {
+      try {
+        const fullPath = path.join(rootPath, fp);
+        const source = fs.readFileSync(fullPath, 'utf-8');
+        const lines = source.split('\n');
+        for (const e of entries) {
+          const start = Math.max(0, e.start - 1);
+          const end = Math.min(lines.length, start + 5); // first 5 lines only
+          const preview = lines.slice(start, end).join('\n');
+          (resultsArray[e.idx] as Record<string, unknown>).snippet = preview;
+        }
+      } catch {
+        // File unreadable — skip snippets for this file
+      }
+    }
+  }
+
+  const response: Record<string, unknown> = {
+    results: resultsArray,
+    total,
+    has_more: hasMore,
+    match_status: total === 0 ? 'no_indexed_match' : 'matches_found',
+  };
+
+  if (total === 0 && query) {
+    response.no_match_guidance = {
+      requested_query: query,
+      inference: 'No indexed symbol matched the requested concept. Do not relabel an unrelated workflow as the requested domain.',
+      next_step: 'Run at most one exact search_code check for the key domain noun. If it is also empty, report that the project contains insufficient evidence for the requested feature.',
+    };
+  }
+
+  if (projectCheck) {
+    response.diagnostic = projectCheck;
+  }
+
+  if (provenanceSummary) {
+    response.provenance_summary = provenanceSummary;
+  }
+
+  const value = estimateTokensSaved(resultsArray.length, Math.max(total, resultsArray.length));
+  response.value_metrics = {
+    estimated_files_avoided: value.filesAvoided,
+    estimated_tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
+    latency_ms: Date.now() - started,
+  };
+
+  // Add real session savings if available
+  try {
+    const meta = db.getProject(project);
+    if (meta) {
+      const real = computeRealSavings(project, meta.rootPath, meta.rootPath);
+      if (real.tokensSaved > 0) {
+        (response.value_metrics as Record<string, unknown>).real_files_avoided = real.filesAvoided;
+        (response.value_metrics as Record<string, unknown>).real_tokens_saved = real.tokensSaved;
+        (response.value_metrics as Record<string, unknown>).real_confidence =
+          real.suggestionsResolved >= 2 ? 'high' : real.suggestionsResolved >= 1 ? 'medium' : 'low';
+      }
+    }
+  } catch {
+    // Session tracking is best-effort
+  }
+  recordUsageEvent({
+    type: 'search_graph',
+    project,
+    query: query || namePattern || qnPattern || filePattern || '',
+    result_count: resultsArray.length,
+    unique_files: new Set(resultsArray.map((r) => String(r.file))).size,
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
+    latency_ms: Date.now() - started,
+    tool_hint: 'search_graph',
+  });
+
+  if (llmReranked) {
+    response.llm_reranked = true;
+  }
+  if (llmMetrics) {
+    response.llm_metrics = llmMetrics;
+  }
+  response.llm_usage = llmUsage;
+
+  // Semantic query note (vector search requires embeddings index — future work)
+  if (semanticQuery && semanticQuery.length > 0) {
+    response.semantic_query = semanticQuery;
+    response.semantic_note =
+      'semantic_query received but vector search is not yet active. ' +
+      'Results are from text/regex matching. ' +
+      'Install embeddings index for cosine search.';
+  }
+
+  if (includeNarrative && query) {
+    const narrative = narrateSearchResults(
+      limitedResults.map((r) => ({
+        node: {
+          id: 0,
+          project,
+          kind: r.kind as never,
+          name: r.name,
+          qualifiedName: r.qualified_name,
+          filePath: r.file_path,
+          startLine: r.start_line,
+          endLine: r.end_line,
+          isExported: false,
+          isTest: r.is_test,
+          isEntryPoint: r.is_entry_point,
+        },
+      })),
+      total,
+      query
+    );
+    response.narrative = narrative.summary;
+    response.top3 = narrative.top3;
+  }
+
+  return response;
+}

@@ -312,6 +312,10 @@ async function callDeepSeek(prompt: string): Promise<string | null> {
   if (isPkg()) return null;
   const key = process.env.LYNX_DEEPSEEK_KEY || '';
   if (!key) return null;
+  const locale = readLynxConfig().locale;
+  const sysContent = locale === 'es'
+    ? 'Eres un arquitecto de software. Respondes en espanol, con precision y sin relleno.'
+    : 'You are a software architect. Respond in English, with precision and no filler.';
   try {
     const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
       method: 'POST',
@@ -319,7 +323,7 @@ async function callDeepSeek(prompt: string): Promise<string | null> {
       body: JSON.stringify({
         model: 'deepseek-v4-flash',
         messages: [
-          { role: 'system', content: 'Eres un arquitecto de software. Respondes en espanol, con precision y sin relleno.' },
+          { role: 'system', content: sysContent },
           { role: 'user', content: prompt },
         ],
         max_tokens: 1100,
@@ -352,12 +356,19 @@ function heuristicExtToName(ext: string): string {
 }
 
 function heuristicProjectBrief(digest: ProjectDigest): string {
-  const topDirs = digest.topDirectories.map((d) => d.path).slice(0, 6).join(', ') || 'sin directorios destacados';
-  const entries = digest.entryPoints.slice(0, 6).map((e) => `${e.name} (${e.file_path})`).join(', ') || 'no detectados';
-  const hotspots = digest.hotspots.slice(0, 6).map((h) => `${h.name} (${h.file_path})`).join(', ') || 'sin hotspots destacados';
-  const edgeTypes = digest.edgeTypes.slice(0, 8).map((e) => e.type).join(', ') || 'sin relaciones destacadas';
+  const locale = readLynxConfig().locale;
+  const isEn = locale === 'en';
 
-  // Extract stack tecnologico from digest text (language names only, no file counts)
+  const topDirs = digest.topDirectories.map((d) => d.path).slice(0, 6).join(', ')
+    || (isEn ? 'no notable directories' : 'sin directorios destacados');
+  const entries = digest.entryPoints.slice(0, 6).map((e) => `${e.name} (${e.file_path})`).join(', ')
+    || (isEn ? 'none detected' : 'no detectados');
+  const hotspots = digest.hotspots.slice(0, 6).map((h) => `${h.name} (${h.file_path})`).join(', ')
+    || (isEn ? 'no notable hotspots' : 'sin hotspots destacados');
+  const edgeTypes = digest.edgeTypes.slice(0, 8).map((e) => e.type).join(', ')
+    || (isEn ? 'no notable relationships' : 'sin relaciones destacadas');
+
+  // Extract tech stack from digest text (language names only, no file counts)
   const langMatch = digest.digestText.match(/^Languages: (.+)$/m);
   const langStr = langMatch ? langMatch[1] : '';
   const langNames = langStr ? langStr.split(', ').slice(0, 6).map((pair) => {
@@ -365,9 +376,37 @@ function heuristicProjectBrief(digest: ProjectDigest): string {
     const name = heuristicExtToName(ext);
     return name === 'UNKNOWN' || name === 'unknown' ? null : name;
   }).filter(Boolean) : [];
+
   const stackSentence = langNames.length > 0
-    ? ` Stack tecnologico: ${langNames.join(', ')}.`
+    ? (isEn ? ` Tech stack: ${langNames.join(', ')}.` : ` Stack tecnologico: ${langNames.join(', ')}.`)
     : '';
+
+  if (isEn) {
+    return JSON.stringify({
+      sections: [
+        {
+          title: `What is ${digest.project}`,
+          content: `${digest.project} is a project indexed by LYNX.${stackSentence} The code graph shows a clear foundation with identifiable entry points, high-connectivity zones, and traceable inter-module dependencies. Check the dashboard cards for up-to-date metrics.`,
+        },
+        {
+          title: 'Architecture',
+          content: `The most visible areas of the project are ${topDirs}. The dominant graph relationships are ${edgeTypes}, indicating LYNX can track both structural dependencies and call flow. Files with the most symbols and the highest edge density should be treated as an initial map for understanding responsibilities.`,
+        },
+        {
+          title: 'Entry points',
+          content: `Notable entry points are ${entries}. To start a task, it's best to begin from these nodes and use trace_path to see what calls, imports, and usages lie downstream.`,
+        },
+        {
+          title: 'Critical areas',
+          content: `The highest-impact areas are ${hotspots}. This doesn't mean they're poorly written — it means they concentrate dependencies. Any change there can affect more surface area than an isolated file.`,
+        },
+        {
+          title: 'How to work safely',
+          content: `Before modifying hotspots or symbols with high fan-in, use trace_path to measure impact and get_code_snippet to read the exact source. For intent-based searches, start with semantic_search or search_graph and limit context to the recommended nodes.`,
+        },
+      ],
+    });
+  }
 
   return JSON.stringify({
     sections: [

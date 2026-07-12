@@ -19,10 +19,40 @@ import type {
   LlmChangeRiskResult,
   LlmReRankResult,
 } from './types.js';
+import { readLynxConfig } from '../config/runtime.js';
 
 const BASE_URL = process.env.LYNX_QWEN_URL || 'http://localhost:8011/v1';
 const MODEL = process.env.LYNX_QWEN_MODEL || 'mlx-community/Qwen3.6-35B-A3B-4bit';
 const TIMEOUT_MS = parseInt(process.env.LYNX_QWEN_TIMEOUT || '30000', 10);
+
+function getLocale(): 'es' | 'en' {
+  try { return readLynxConfig().locale; } catch { return 'en'; }
+}
+
+function isYes(text: string): boolean {
+  const lower = text.toLowerCase();
+  return lower.startsWith('si') || lower.startsWith('yes');
+}
+
+function systemPrompts(locale: 'es' | 'en') {
+  return locale === 'en'
+    ? {
+        summarize: 'You are a technical assistant. Respond in English with concise sentences.',
+        entryPoint: 'You are a code analyzer. Respond in English, format: "yes|no: reason".',
+        test: 'You are a test detector. Respond in English, format: "yes|no: reason".',
+        codeSmell: 'You are a code reviewer. Classify as: tech_debt, over_engineered, complex_but_necessary, fine.',
+        risk: 'You are a code risk analyzer. Classify as: critical, high, medium, low.',
+        rerank: 'You are a search engine. Respond only with comma-separated numbers.',
+      }
+    : {
+        summarize: 'Eres un asistente tecnico. Respondes en espanol con frases concisas.',
+        entryPoint: 'Eres un analizador de codigo. Responde en espanol, formato: "si|no: razon".',
+        test: 'Eres un detector de tests. Responde en espanol, formato: "si|no: razon".',
+        codeSmell: 'Eres un revisor de codigo. Clasificas en: tech_debt, over_engineered, complex_but_necessary, fine.',
+        risk: 'Eres un analizador de riesgo de codigo. Clasificas en: critical, high, medium, low.',
+        rerank: 'Eres un motor de busqueda. Responde solo con numeros separados por comas.',
+      };
+}
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -68,8 +98,9 @@ function parseConfidence(_text: string): 'high' | 'medium' | 'low' {
 export async function qwenSummarize(
   prompt: string
 ): Promise<LlmSummaryResult | null> {
+  const S = systemPrompts(getLocale());
   const r = await chat([
-    { role: 'system', content: 'Eres un asistente tecnico. Respondes en espanol con frases concisas.' },
+    { role: 'system', content: S.summarize },
     { role: 'user', content: prompt },
   ], 80);
 
@@ -87,15 +118,16 @@ export async function qwenSummarize(
 export async function qwenDetectEntryPoint(
   prompt: string
 ): Promise<LlmEntryPointResult | null> {
+  const S = systemPrompts(getLocale());
   const r = await chat([
-    { role: 'system', content: 'Eres un analizador de codigo. Responde en espanol, formato: "si|no: razon".' },
+    { role: 'system', content: S.entryPoint },
     { role: 'user', content: prompt },
   ], 40);
 
   if (!r || !r.text) return null;
 
-  const isEntry = r.text.toLowerCase().startsWith('si');
-  const reason = r.text.replace(/^si\|?no:?\s*/i, '').trim();
+  const isEntry = isYes(r.text);
+  const reason = r.text.replace(/^(?:si|yes)\|?(?:no)?:?\s*/i, '').trim();
 
   return {
     isEntryPoint: isEntry,
@@ -109,15 +141,16 @@ export async function qwenDetectEntryPoint(
 export async function qwenDetectTest(
   prompt: string
 ): Promise<LlmTestDetectionResult | null> {
+  const S = systemPrompts(getLocale());
   const r = await chat([
-    { role: 'system', content: 'Eres un detector de tests. Responde en espanol, formato: "si|no: razon".' },
+    { role: 'system', content: S.test },
     { role: 'user', content: prompt },
   ], 20);
 
   if (!r || !r.text) return null;
 
-  const isTest = r.text.toLowerCase().startsWith('si');
-  const reason = r.text.replace(/^si\|?no:?\s*/i, '').trim();
+  const isTest = isYes(r.text);
+  const reason = r.text.replace(/^(?:si|yes)\|?(?:no)?:?\s*/i, '').trim();
 
   return {
     isTest,
@@ -131,8 +164,9 @@ export async function qwenDetectTest(
 export async function qwenClassifyCodeSmell(
   prompt: string
 ): Promise<LlmCodeSmellResult | null> {
+  const S = systemPrompts(getLocale());
   const r = await chat([
-    { role: 'system', content: 'Eres un revisor de codigo. Clasificas en: tech_debt, over_engineered, complex_but_necessary, fine.' },
+    { role: 'system', content: S.codeSmell },
     { role: 'user', content: prompt },
   ], 80);
 
@@ -152,8 +186,9 @@ export async function qwenClassifyCodeSmell(
 export async function qwenAssessChangeRisk(
   prompt: string
 ): Promise<LlmChangeRiskResult | null> {
+  const S = systemPrompts(getLocale());
   const r = await chat([
-    { role: 'system', content: 'Eres un analizador de riesgo de codigo. Clasificas en: critical, high, medium, low.' },
+    { role: 'system', content: S.risk },
     { role: 'user', content: prompt },
   ], 80);
 
@@ -173,8 +208,9 @@ export async function qwenAssessChangeRisk(
 export async function qwenReRank(
   prompt: string
 ): Promise<LlmReRankResult | null> {
+  const S = systemPrompts(getLocale());
   const r = await chat([
-    { role: 'system', content: 'Eres un motor de busqueda. Responde solo con numeros separados por comas.' },
+    { role: 'system', content: S.rerank },
     { role: 'user', content: prompt },
   ], 100, 0);
 

@@ -4,7 +4,7 @@
 
 /** Result from summarizing a module */
 export interface LlmSummaryResult {
-  summary: string;        // 1-line Spanish summary
+  summary: string;        // 1-line summary (locale-dependent)
   language: string;        // detected or confirmed language
   confidence: 'high' | 'medium' | 'low';
 }

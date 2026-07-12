@@ -17,10 +17,20 @@ import type {
   LlmReRankResult,
 } from './types.js';
 import { getApiKey, openaiChatCompletion, DEFAULT_MODEL } from './shared.js';
+import { readLynxConfig } from '../config/runtime.js';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
+}
+
+function getLocale(): 'es' | 'en' {
+  try { return readLynxConfig().locale; } catch { return 'en'; }
+}
+
+function isYes(text: string): boolean {
+  const lower = text.toLowerCase();
+  return lower.startsWith('si') || lower.startsWith('yes');
 }
 
 async function chat(
@@ -61,8 +71,13 @@ function parseConfidence(text: string): 'high' | 'medium' | 'low' {
 export async function deepseekSummarize(
   prompt: string
 ): Promise<LlmSummaryResult | null> {
+  const locale = getLocale();
+  const sysPrompt = locale === 'es'
+    ? 'Eres un asistente técnico. Respondes en español con frases concisas.'
+    : 'You are a technical assistant. Respond in English with concise sentences.';
+
   const text = await chat([
-    { role: 'system', content: 'Eres un asistente técnico. Respondes en español con frases concisas.' },
+    { role: 'system', content: sysPrompt },
     { role: 'user', content: prompt },
   ], 80);
 
@@ -80,15 +95,20 @@ export async function deepseekSummarize(
 export async function deepseekDetectEntryPoint(
   prompt: string
 ): Promise<LlmEntryPointResult | null> {
+  const locale = getLocale();
+  const sysPrompt = locale === 'es'
+    ? 'Eres un analizador de código. Responde en español, formato: "si|no: razón".'
+    : 'You are a code analyzer. Respond in English, format: "yes|no: reason".';
+
   const text = await chat([
-    { role: 'system', content: 'Eres un analizador de código. Responde en español, formato: "si|no: razón".' },
+    { role: 'system', content: sysPrompt },
     { role: 'user', content: prompt },
   ], 60);
 
   if (!text) return null;
 
-  const isEntry = text.toLowerCase().startsWith('si');
-  const reason = text.replace(/^si\|?no:?\s*/i, '').trim();
+  const isEntry = isYes(text);
+  const reason = text.replace(/^(?:si|yes)\|?(?:no)?:?\s*/i, '').trim();
 
   return {
     isEntryPoint: isEntry,
@@ -102,15 +122,20 @@ export async function deepseekDetectEntryPoint(
 export async function deepseekDetectTest(
   prompt: string
 ): Promise<LlmTestDetectionResult | null> {
+  const locale = getLocale();
+  const sysPrompt = locale === 'es'
+    ? 'Eres un detector de tests. Responde en español, formato: "si|no: razón".'
+    : 'You are a test detector. Respond in English, format: "yes|no: reason".';
+
   const text = await chat([
-    { role: 'system', content: 'Eres un detector de tests. Responde en español, formato: "si|no: razón".' },
+    { role: 'system', content: sysPrompt },
     { role: 'user', content: prompt },
   ], 60);
 
   if (!text) return null;
 
-  const isTest = text.toLowerCase().startsWith('si');
-  const reason = text.replace(/^si\|?no:?\s*/i, '').trim();
+  const isTest = isYes(text);
+  const reason = text.replace(/^(?:si|yes)\|?(?:no)?:?\s*/i, '').trim();
 
   return {
     isTest,
@@ -124,8 +149,13 @@ export async function deepseekDetectTest(
 export async function deepseekClassifyCodeSmell(
   prompt: string
 ): Promise<LlmCodeSmellResult | null> {
+  const locale = getLocale();
+  const sysPrompt = locale === 'es'
+    ? 'Eres un revisor de código. Clasificas en: tech_debt, over_engineered, complex_but_necessary, fine.'
+    : 'You are a code reviewer. Classify as: tech_debt, over_engineered, complex_but_necessary, fine.';
+
   const text = await chat([
-    { role: 'system', content: 'Eres un revisor de código. Clasificas en: tech_debt, over_engineered, complex_but_necessary, fine.' },
+    { role: 'system', content: sysPrompt },
     { role: 'user', content: prompt },
   ], 80);
 
@@ -145,8 +175,13 @@ export async function deepseekClassifyCodeSmell(
 export async function deepseekAssessChangeRisk(
   prompt: string
 ): Promise<LlmChangeRiskResult | null> {
+  const locale = getLocale();
+  const sysPrompt = locale === 'es'
+    ? 'Eres un analizador de riesgo de código. Clasificas en: critical, high, medium, low.'
+    : 'You are a code risk analyzer. Classify as: critical, high, medium, low.';
+
   const text = await chat([
-    { role: 'system', content: 'Eres un analizador de riesgo de código. Clasificas en: critical, high, medium, low.' },
+    { role: 'system', content: sysPrompt },
     { role: 'user', content: prompt },
   ], 80);
 
@@ -166,8 +201,13 @@ export async function deepseekAssessChangeRisk(
 export async function deepseekReRank(
   prompt: string
 ): Promise<LlmReRankResult | null> {
+  const locale = getLocale();
+  const sysPrompt = locale === 'es'
+    ? 'Eres un motor de búsqueda. Responde solo con números separados por comas.'
+    : 'You are a search engine. Respond only with comma-separated numbers.';
+
   const text = await chat([
-    { role: 'system', content: 'Eres un motor de búsqueda. Responde solo con números separados por comas.' },
+    { role: 'system', content: sysPrompt },
     { role: 'user', content: prompt },
   ], 100, 0);
 

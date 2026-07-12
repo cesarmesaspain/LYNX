@@ -270,6 +270,7 @@ function buildSearchResponse(
 
   const value = estimateTokensSaved(resultsArray.length, Math.max(total, resultsArray.length));
   response.value_metrics = {
+    measurement: 'estimated',
     estimated_files_avoided: value.filesAvoided,
     estimated_tokens_saved: value.tokensSaved,
     confidence: value.confidence,
@@ -281,6 +282,10 @@ function buildSearchResponse(
     if (meta) {
       const real = computeRealSavings(project, meta.rootPath, meta.rootPath);
       if (real.tokensSaved > 0) {
+        (response.value_metrics as Record<string, unknown>).observed_measurement = 'session_file_reads';
+        (response.value_metrics as Record<string, unknown>).observed_files_avoided = real.filesAvoided;
+        (response.value_metrics as Record<string, unknown>).observed_tokens_saved = real.tokensSaved;
+        (response.value_metrics as Record<string, unknown>).observed_suggestions_resolved = real.suggestionsResolved;
         (response.value_metrics as Record<string, unknown>).real_files_avoided = real.filesAvoided;
         (response.value_metrics as Record<string, unknown>).real_tokens_saved = real.tokensSaved;
         (response.value_metrics as Record<string, unknown>).real_confidence =

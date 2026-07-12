@@ -25,6 +25,24 @@ import {
 import type { LynxFinding } from '../../types.js';
 import type { ComplexityTrend, RunComparison } from '../../store/memory.js';
 
+function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
+  const seen = new Set<string>();
+  return findings.filter(f => {
+    // Hotspot snapshots: dedup by target_qn (keep latest — ordered by updated_at DESC)
+    // Title changes per run (different fan_in), so file+title key doesn't collapse them.
+    if (f.category === 'hotspot') {
+      const key = `${f.targetQn}:hotspot`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }
+    const key = `${f.targetFile}:${f.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function handlePackMemory(
   args: Record<string, unknown>
 ): Promise<unknown> {
@@ -32,7 +50,7 @@ export async function handlePackMemory(
   const qualifiedName = args.target_qn ? String(args.target_qn) : undefined;
   const targetFile = args.target_file ? String(args.target_file) : undefined;
   const category = args.category ? String(args.category) : undefined;
-  const limit = args.limit ? Number(args.limit) : 20;
+  const limit = args.limit !== undefined ? Number(args.limit) : 20;
 
   const db = getDb(project);
 
@@ -48,6 +66,9 @@ export async function handlePackMemory(
     findings = getRecentFindings(db, project, limit);
   }
 
+  // Dedup before slicing so limit controls unique findings
+  findings = dedupeFindings(findings).slice(0, limit);
+
   // Complexity trend for specific QN
   let complexityTrend: ComplexityTrend | null = null;
   if (qualifiedName) {
@@ -59,6 +80,7 @@ export async function handlePackMemory(
   if (qualifiedName) {
     relatedFindings = getRelatedFindings(db, project, qualifiedName);
   }
+  const dedupedRelated = dedupeFindings(relatedFindings);
 
   // Index run comparison
   let runComparison: RunComparison | null = null;
@@ -95,14 +117,14 @@ export async function handlePackMemory(
   }
 
   // Attach related findings
-  if (relatedFindings.length > 0) {
-    result.related_findings = relatedFindings.map((f) => ({
+  if (dedupedRelated.length > 0) {
+    result.related_findings = dedupedRelated.map((f) => ({
       title: f.title,
       category: f.category,
       severity: f.severity,
       file: f.targetFile,
     }));
-    result.related_count = relatedFindings.length;
+    result.related_count = dedupedRelated.length;
   }
 
   // Attach run comparison
@@ -128,8 +150,8 @@ export async function handlePackMemory(
     ? ` Trend: ${complexityTrend.narrative}`
     : '';
   const relatedNote =
-    relatedFindings.length > 0
-      ? ` ${relatedFindings.length} related findings in the same file.`
+    dedupedRelated.length > 0
+      ? ` ${dedupedRelated.length} related findings in the same file.`
       : '';
 
   result.narrative =
@@ -142,7 +164,7 @@ export async function handlePackMemory(
       ? 'No data — this project has not been indexed or has no prior findings.'
       : `${findings.length} findings.` +
         (complexityTrend ? ` Complexity: ${complexityTrend.direction}.` : '') +
-        (relatedFindings.length > 0 ? ` ${relatedFindings.length} related.` : '') +
+        (dedupedRelated.length > 0 ? ` ${dedupedRelated.length} related.` : '') +
         (runComparison && runComparison.runs.length >= 2
           ? ` ${runComparison.runs.length} index runs compared.`
           : '');

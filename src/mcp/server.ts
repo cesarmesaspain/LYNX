@@ -253,7 +253,7 @@ export async function runServer(): Promise<void> {
   });
 }
 
-async function maybeAutoIndexCurrentProject(): Promise<void> {
+export async function maybeAutoIndexCurrentProject(): Promise<void> {
   const config = readLynxConfig();
   if (!config.auto_index) return;
 

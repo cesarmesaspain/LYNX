@@ -10,7 +10,6 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getDb } from '../server.js';
 import { findNodeByQn } from '../../store/nodes.js';
-import { searchFullText } from '../../store/search.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
 
 interface BatchSnippet {
@@ -49,14 +48,16 @@ export async function handleBatchGetCode(
   const results: (BatchSnippet | { qualified_name: string; error: string })[] = [];
 
   for (const qn of unique) {
-    let node = findNodeByQn(db, project, qn);
-    if (!node) {
-      // Fallback: fuzzy text search
-      const searchResults = searchFullText(db, project, qn, 1);
-      if (searchResults.length > 0) {
-        node = findNodeByQn(db, project, searchResults[0].node.qualifiedName);
-      }
-    }
+    // Exact QN lookup + fuzzy fallback by exact name match
+    const node = findNodeByQn(db, project, qn)
+      ?? (db.db.prepare(
+        `SELECT id, name, qualified_name, file_path, kind, start_line, end_line
+         FROM nodes WHERE project = ? AND LOWER(name) = LOWER(?)
+         AND kind IN ('Function', 'Method', 'Class') LIMIT 1`
+      ).get(project, qn) as {
+        id: number; name: string; qualified_name: string;
+        file_path: string; kind: string; start_line: number; end_line: number;
+      } | undefined);
 
     if (!node) {
       results.push({ qualified_name: qn, error: 'Symbol not found' });
@@ -71,7 +72,11 @@ export async function handleBatchGetCode(
       }
       const lines = content.split('\n');
       const start = Math.max(0, node.start_line - 1);
-      const end = Math.min(lines.length, node.end_line);
+      let end = Math.min(lines.length, node.end_line);
+      // When the extractor only captured a 1-line range, expand to show context
+      if (end - start <= 1 && start < lines.length) {
+        end = Math.min(lines.length, start + 20);
+      }
       const source = lines.slice(start, end).slice(0, 60).join('\n');
 
       results.push({

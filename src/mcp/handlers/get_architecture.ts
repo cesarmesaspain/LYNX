@@ -1,23 +1,18 @@
 import { getDb } from '../server.js';
+import type { LynxDatabase } from '../../store/database.js';
 import { analyze } from '../../pipeline/phases/analyze.js';
 import { explainArchitecture } from '../../intelligence/narrative.js';
 import { getProjectBrief } from '../../intelligence/project-brief.js';
 
 type Aspect =
-  | 'languages'
-  | 'hotspots'
-  | 'clusters'
-  | 'file_tree'
-  | 'entry_points'
-  | 'brief'
-  | 'narrative'
-  | 'node_labels'
-  | 'edge_types';
+  | 'languages' | 'hotspots' | 'clusters' | 'file_tree'
+  | 'entry_points' | 'brief' | 'narrative' | 'node_labels' | 'edge_types';
 
 const ALL_ASPECTS: Aspect[] = [
   'languages', 'hotspots', 'clusters', 'file_tree',
   'entry_points', 'brief', 'narrative', 'node_labels', 'edge_types',
 ];
+const DEFAULT_ASPECTS: Aspect[] = ['brief', 'narrative', 'languages'];
 
 export async function handleGetArchitecture(
   args: Record<string, unknown>
@@ -28,8 +23,7 @@ export async function handleGetArchitecture(
     ? (args.aspects as string[]).filter((a): a is Aspect => ALL_ASPECTS.includes(a as Aspect))
     : undefined;
 
-  const requestedAspects = aspects || ALL_ASPECTS;
-
+  const requestedAspects = aspects || DEFAULT_ASPECTS;
   const db = getDb(project);
 
   const nodeCount = db.db
@@ -37,16 +31,34 @@ export async function handleGetArchitecture(
     .get(project) as { cnt: number };
 
   if (nodeCount.cnt === 0) {
-    return {
-      error: 'Project not indexed. Run index_repository first.',
-      total_nodes: 0,
-      total_edges: 0,
-    };
+    return { error: 'Project not indexed. Run index_repository first.', total_nodes: 0, total_edges: 0 };
   }
 
   const { architecture } = analyze(db, project);
+  const result = buildAspectSections(db, project, architecture, requestedAspects, scopePath);
 
-  // Scope by path if requested
+  // Omit message when aspects were filtered
+  if (aspects && aspects.length > 0) {
+    const omitted = ALL_ASPECTS.filter(a => !aspects.includes(a));
+    if (omitted.length > 0) {
+      result._omitted_aspects = omitted.join(', ');
+      result._omit_note =
+        `Usa aspects: [${omitted.map(a => `"${a}"`).join(', ')}] para incluir estas secciones si las necesitas.`;
+    }
+  }
+
+  return result;
+}
+
+// ── Aspect assembly ────────────────────────────────────
+
+function buildAspectSections(
+  db: LynxDatabase,
+  project: string,
+  architecture: ReturnType<typeof analyze>['architecture'],
+  requestedAspects: Aspect[],
+  scopePath?: string,
+): Record<string, unknown> {
   const inScope = scopePath
     ? (fp: string) => fp.startsWith(scopePath)
     : () => true;
@@ -56,45 +68,41 @@ export async function handleGetArchitecture(
     total_nodes: architecture.totalNodes,
     total_edges: architecture.totalEdges,
   };
-  let tokenEstimate = 80; // Base overhead
+  let tokenEstimate = 80;
 
-  // ── Languages ──
+  // Brief
   if (requestedAspects.includes('brief')) {
     const brief = getProjectBrief(db, project);
     if (brief) {
-      result.brief = {
-        text: brief.brief,
-        generated_at: brief.generated_at,
-        cached: true,
-      };
+      try {
+        result.brief = { text: JSON.parse(brief.brief), generated_at: brief.generated_at, cached: true };
+      } catch {
+        result.brief = { text: brief.brief, generated_at: brief.generated_at, cached: true };
+      }
       tokenEstimate += Math.ceil(brief.brief.length / 4);
     }
   }
 
-  // ── Languages ──
+  // Languages
   if (requestedAspects.includes('languages')) {
-    const languages = architecture.languages;
-    result.languages = languages;
-    tokenEstimate += languages.length * 15;
+    result.languages = architecture.languages;
+    tokenEstimate += architecture.languages.length * 15;
   }
 
-  // ── Entry points ──
+  // Entry points
   if (requestedAspects.includes('entry_points')) {
     const eps = scopePath
-      ? architecture.entryPoints.filter((e) => inScope(e.filePath))
+      ? architecture.entryPoints.filter(e => inScope(e.filePath))
       : architecture.entryPoints;
     result.entry_points = eps.slice(0, 30);
     tokenEstimate += eps.length * 25;
   }
 
-  // ── Hotspots ──
+  // Hotspots
   if (requestedAspects.includes('hotspots')) {
-    const hots = architecture.hotspots.map((h) => ({
-      name: h.name,
-      qualified_name: h.qualifiedName,
-      fan_in: h.fanIn,
-      file_path: h.filePath,
-      complexity: h.complexity,
+    const hots = architecture.hotspots.map(h => ({
+      name: h.name, qualified_name: h.qualifiedName,
+      fan_in: h.fanIn, file_path: h.filePath, complexity: h.complexity,
     }));
     const truncated = hots.length > 15;
     result.hotspots = hots.slice(0, 15);
@@ -105,23 +113,20 @@ export async function handleGetArchitecture(
     tokenEstimate += hots.length * 50;
   }
 
-  // ── Clusters ──
+  // Clusters
   if (requestedAspects.includes('clusters')) {
-    const clusts = architecture.clusters.map((c) => ({
-      id: c.id,
-      label: c.label,
-      members: c.members,
-      cohesion: c.cohesion,
-      top_nodes: c.topNodes.slice(0, 5),
+    const clusts = architecture.clusters.map(c => ({
+      id: c.id, label: c.label, members: c.members,
+      cohesion: c.cohesion, top_nodes: c.topNodes.slice(0, 5),
     }));
     result.clusters = clusts;
     tokenEstimate += clusts.length * 80;
   }
 
-  // ── File tree ──
+  // File tree
   if (requestedAspects.includes('file_tree')) {
     const tree = scopePath
-      ? architecture.fileTree.filter((f) => inScope(f.path))
+      ? architecture.fileTree.filter(f => inScope(f.path))
       : architecture.fileTree;
     const limit = 100;
     const truncated = tree.length > limit;
@@ -133,34 +138,29 @@ export async function handleGetArchitecture(
     tokenEstimate += Math.min(tree.length, limit) * 12;
   }
 
-  // ── Node labels ──
+  // Node labels
   if (requestedAspects.includes('node_labels')) {
     result.node_labels = architecture.nodeLabels;
     tokenEstimate += architecture.nodeLabels.length * 10;
   }
 
-  // ── Edge types ──
+  // Edge types
   if (requestedAspects.includes('edge_types')) {
     result.edge_types = architecture.edgeTypes;
     tokenEstimate += architecture.edgeTypes.length * 10;
   }
 
-  // ── Narrative (Spanish) — LYNX differentiator ──
+  // Narrative (Spanish)
   if (requestedAspects.includes('narrative')) {
-    const godComponents = architecture.hotspots.filter((h) => h.complexity > 1000);
-    const avgComplexity =
-      architecture.hotspots.length > 0
-        ? architecture.hotspots.reduce((sum, h) => sum + h.complexity, 0) /
-          architecture.hotspots.length
-        : 0;
+    const godComponents = architecture.hotspots.filter(h => h.complexity > 1000);
+    const avgComplexity = architecture.hotspots.length > 0
+      ? architecture.hotspots.reduce((sum, h) => sum + h.complexity, 0) / architecture.hotspots.length
+      : 0;
 
     const narrative = explainArchitecture(
-      architecture.totalNodes,
-      architecture.totalEdges,
-      architecture.hotspots.length,
-      godComponents.length,
-      avgComplexity,
-      architecture.languages
+      architecture.totalNodes, architecture.totalEdges,
+      architecture.hotspots.length, godComponents.length,
+      avgComplexity, architecture.languages,
     );
 
     result.narrative = {
@@ -172,16 +172,5 @@ export async function handleGetArchitecture(
   }
 
   result.token_estimate = Math.round(tokenEstimate);
-
-  // Omit message when aspects were filtered
-  if (aspects && aspects.length > 0) {
-    const omitted = ALL_ASPECTS.filter((a) => !aspects.includes(a));
-    if (omitted.length > 0) {
-      result._omitted_aspects = omitted.join(', ');
-      result._omit_note =
-        `Usa aspects: [${omitted.map((a) => `"${a}"`).join(', ')}] para incluir estas secciones si las necesitas.`;
-    }
-  }
-
   return result;
 }

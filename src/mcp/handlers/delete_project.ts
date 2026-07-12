@@ -3,15 +3,20 @@
  */
 
 import { getDb } from '../server.js';
+import { projectNotIndexed } from '../diagnostics.js';
 
 export async function handleDeleteProject(
   args: Record<string, unknown>
 ): Promise<unknown> {
   const project = String(args.project || '');
+  const confirm = args.confirm === true;
 
   if (!project) return { error: 'project is required' };
+  if (!confirm) return { error: 'confirm: true is required to delete a project. This action is irreversible.' };
 
   const db = getDb(project);
+  const projectMeta = db.getProject(project);
+  if (!projectMeta) return { ...projectNotIndexed(project) };
 
   // Count before deletion
   const nodeCount = (db.db

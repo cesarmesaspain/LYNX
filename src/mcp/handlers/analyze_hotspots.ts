@@ -18,7 +18,7 @@ export async function handleAnalyzeHotspots(
   args: Record<string, unknown>
 ): Promise<unknown> {
   const project = String(args.project || '');
-  const topN = args.limit ? Number(args.limit) : (args.top_n ? Number(args.top_n) : 10);
+  const topN = args.limit !== undefined ? Number(args.limit) : (args.top_n ? Number(args.top_n) : 10);
   const includeGod = args.include_god_components !== false;
 
   const db = getDb(project);
@@ -31,9 +31,29 @@ export async function handleAnalyzeHotspots(
     SELECT file_path AS file, end_line AS lines
     FROM nodes
     WHERE project = ? AND kind = 'File'
+      AND end_line > 10
+      AND (file_path LIKE '%.ts' OR file_path LIKE '%.tsx' OR file_path LIKE '%.js'
+        OR file_path LIKE '%.jsx' OR file_path LIKE '%.py' OR file_path LIKE '%.go'
+        OR file_path LIKE '%.kt' OR file_path LIKE '%.swift' OR file_path LIKE '%.rs'
+        OR file_path LIKE '%.java' OR file_path LIKE '%.rb')
     ORDER BY end_line DESC
     LIMIT ?
   `).all(project, topN) as Array<{ file: string; lines: number }>;
+
+  const mostComplex = db.db.prepare(`
+    SELECT n.name, n.qualified_name, n.file_path,
+           CAST(json_extract(n.properties, '$.cyclomaticComplexity') AS INTEGER) as complexity
+    FROM nodes n
+    WHERE n.project = ?
+      AND n.kind IN ('Function', 'Method')
+    ORDER BY complexity DESC
+    LIMIT ?
+  `).all(project, topN) as Array<{
+    name: string;
+    qualified_name: string;
+    file_path: string;
+    complexity: number;
+  }>;
   const tightestCoupling = db.db.prepare(`
     SELECT n.name, n.qualified_name, n.file_path,
            COUNT(e.id) AS fan_in
@@ -102,12 +122,7 @@ export async function handleAnalyzeHotspots(
     },
     hotspots: hotspotResults,
     largest_files: largestFiles,
-    most_complex: hotspotResults.map((hotspot) => ({
-      name: hotspot.name,
-      qualified_name: hotspot.qualified_name,
-      file_path: hotspot.file_path,
-      complexity: hotspot.complexity,
-    })),
+    most_complex: mostComplex,
     tightest_coupling: tightestCoupling,
     god_components: godResults,
     summary: generateSummary(hotspotResults, godResults),

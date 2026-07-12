@@ -11,10 +11,10 @@ export async function handleFindDeadCode(
   const pathPrefix = args.path ? String(args.path) : '';
   const requestedKinds = Array.isArray(args.kinds)
     ? args.kinds.map(String).filter((kind) => ALLOWED_KINDS.has(kind))
-    : ['Function', 'Method', 'Class'];
+    : ['Function', 'Class'];
   const kinds = requestedKinds.length > 0
     ? [...new Set(requestedKinds)]
-    : ['Function', 'Method', 'Class'];
+    : ['Function', 'Class'];
 
   const db = getDb(project);
   if (!db.getProject(project)) return projectNotIndexed(project);
@@ -48,6 +48,7 @@ export async function handleFindDeadCode(
       AND n.kind IN (${kindPlaceholders})
       AND COALESCE(n.is_test, 0) = 0
       AND COALESCE(n.is_entry_point, 0) = 0
+      AND (n.end_line - n.start_line) >= 2
       AND n.file_path NOT LIKE 'tests/%'
       AND n.file_path NOT LIKE '%/__tests__/%'
       AND n.file_path NOT LIKE '%.test.%'
@@ -70,10 +71,12 @@ export async function handleFindDeadCode(
     definition_verified: true,
     zero_incoming_references: true,
     line_count: Number(row.end_line) - Number(row.start_line) + 1,
-    confidence: Number(row.is_exported || 0) === 0 ? 'high' : 'medium',
-    caveat: Number(row.is_exported || 0) === 0
-      ? null
-      : 'Exported symbols may be public API even when no internal references are indexed.',
+    confidence: Number(row.is_exported || 0) === 0 && row.kind !== 'Method' ? 'high' : 'medium',
+    caveat: row.kind === 'Method'
+      ? 'Methods may be reached through public class APIs or dynamic dispatch; review before removal.'
+      : Number(row.is_exported || 0) === 0
+        ? null
+        : 'Exported symbols may be public API even when no internal references are indexed.',
   }));
 
   return {
@@ -83,12 +86,13 @@ export async function handleFindDeadCode(
       path: pathPrefix || null,
       excluded_tests: true,
       excluded_entry_points: true,
+      methods_require_explicit_kind: !Array.isArray(args.kinds),
     },
     edge_types_checked: ['CALLS', 'USAGE', 'READS', 'TESTS', 'TESTS_FILE'],
     candidates,
     total_returned: candidates.length,
     verification_complete: true,
     guidance:
-      'These are removal candidates, not deletion approvals. Definitions and zero incoming graph references are already verified; do not repeat search_code, get_code_snippet, or trace_path for every candidate. Review exported medium-confidence candidates for external API use.',
+      'These are removal candidates, not deletion approvals. Definitions and zero incoming graph references are already verified; do not repeat search_code, get_code_snippet, or trace_path for every candidate. Methods require an explicit kind filter because they may be reachable through public class APIs or dynamic dispatch.',
   };
 }

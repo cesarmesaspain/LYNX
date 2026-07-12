@@ -12,6 +12,8 @@
  */
 
 import { getDb } from '../server.js';
+import type { LynxDatabase } from '../../store/database.js';
+import type { LynxFinding } from '../../types.js';
 import { searchFullText } from '../../store/search.js';
 import { getRecentFindings, getFindingsByQn } from '../../store/memory.js';
 import {
@@ -85,29 +87,9 @@ export async function handlePackContext(
   const project = String(args.project || '');
   const mode = String(args.mode || 'compact');
 
-  const constraints: string[] = [];
-  const candidates: GraphCandidate[] = [];
-  const maxCandidates = mode === 'full' ? MAX_CANDIDATES_FULL : MAX_CANDIDATES_COMPACT;
-  let confidence = 'low_no_index';
+  const constraints = buildConstraints(task);
 
-  // Classify task
-  const taskLower = task.toLowerCase();
-  const isFrontend =
-    /frontend|ui|react|component|page|view|style|css|tailwind|jsx/i.test(taskLower);
-  const isBackend =
-    /backend|api|server|database|db|prisma|sql|query|route|endpoint/i.test(taskLower);
-  const isReadonly =
-    /analizar|analyze|review|audit|check|explor|investigar|read.only|readonly/i.test(taskLower);
-  const isSpanish = /[áéíóúñ]/.test(task);
-
-  // Constraints
-  constraints.push('READ_TARGET_FILES_BEFORE_EDITING');
-  constraints.push('VALIDATE_BEFORE_FINAL');
-  if (isFrontend && !isBackend) constraints.push('UI_ONLY');
-  if (isBackend && !isFrontend) constraints.push('NO_FRONTEND_CHANGES');
-  if (isReadonly) constraints.push('READONLY_ONLY');
-
-  // ── Decision-ready mode: cross-reference git diff with graph ───
+  // Decision-ready mode
   if (mode === 'decision' && project) {
     const decisionSummary = buildDecisionSummary(project, task);
     const baseResult = await buildBaseResult(project, task, mode, constraints);
@@ -115,150 +97,156 @@ export async function handlePackContext(
     return baseResult;
   }
 
-  // Graph candidates — extract terms and search
+  // Standard mode with indexed project
   if (project) {
-    const db = getDb(project);
-    const terms = extractTerms(task, isSpanish).slice(0, MAX_TERMS);
-
-    for (const term of terms) {
-      const results = searchFullText(db, project, term, 3);
-      for (const r of results) {
-        const area = classifyFlowArea(r.node.filePath);
-        const fanIn = r.inDegree;
-        candidates.push({
-          name: r.node.name,
-          qualified_name: r.node.qualifiedName,
-          file_path: r.node.filePath,
-          kind: r.node.kind,
-          flow_area: area,
-          why: explainCandidate(r.node.kind, r.node.filePath, taskLower, term, fanIn),
-          score: r.score,
-          change_risk: assessChangeRisk(fanIn, r.node.filePath),
-          fan_in: fanIn,
-        });
-      }
-    }
-
-    const dedupedCandidates = dedupeCandidates(candidates).slice(0, maxCandidates);
-    if (dedupedCandidates.length > 0) confidence = 'medium';
-
-    // ── Enrich candidates with persistent memory findings ────
-    // This is LYNX's key differentiator: each candidate carries its
-    // own memory context so the AI doesn't need a separate pack_memory call.
-    let memoryEnriched = 0;
-    for (const c of dedupedCandidates) {
-      try {
-        const memFindings = getFindingsByQn(db, project, c.qualified_name);
-        if (memFindings.length > 0) {
-          c.memory_findings = memFindings.slice(0, 3).map(f => ({
-            title: f.title,
-            severity: f.severity,
-            category: f.category,
-          }));
-          memoryEnriched++;
-        }
-      } catch {
-        // Non-critical — skip memory enrichment for this candidate
-      }
-    }
-
-    // Recent findings — LYNX differentiator
-    const recentFindings = getRecentFindings(db, project, 5);
-
-    // Index health
-    const indexHealth = getIndexHealth(db, project);
-
-    // Value metrics
-    const uniqueFiles = new Set(dedupedCandidates.map((c) => c.file_path)).size;
-    const fileList = dedupedCandidates.map((c) => c.file_path);
-    const value = estimateTokensSaved(dedupedCandidates.length, Math.max(uniqueFiles * 4, 3));
-    recordUsageEvent({
-      type: 'pack_context',
-      project,
-      query: task.slice(0, 240),
-      result_count: dedupedCandidates.length,
-      unique_files: uniqueFiles,
-      files_avoided: value.filesAvoided,
-      tokens_saved: value.tokensSaved,
-      confidence: value.confidence,
-      files: fileList,
-      tool_hint: 'pack_context',
-    });
-    const usage = summarizeUsage(project, 500);
-
-    // Build next-calls with exact QNs
-    const nextCalls: Array<{ tool: string; why: string; qualified_name?: string }> = [
-      { tool: 'search_graph', why: 'Find exact symbols and verify they still exist' },
-    ];
-    if (dedupedCandidates[0]) {
-      nextCalls.push({
-        tool: 'get_code_snippet',
-        why: `Read ${dedupedCandidates[0].name} first — ${dedupedCandidates[0].flow_area} entry point`,
-        qualified_name: dedupedCandidates[0].qualified_name,
-      });
-    }
-    if (isBackend || dedupedCandidates.some((c) => c.change_risk === 'high')) {
-      nextCalls.push({
-        tool: 'trace_path',
-        why: 'Check callers before modifying shared functions (high fan-in detected)',
-      });
-    }
-    if (memoryEnriched > 0) {
-      nextCalls.push({
-        tool: 'pack_memory',
-        why: `${memoryEnriched} candidate(s) have prior review findings — check memory before editing`,
-      });
-    }
-    if (!indexHealth.is_fresh && indexHealth.hours_since_index !== null) {
-      nextCalls.push({
-        tool: 'index_repository',
-        why: `Index is ${indexHealth.hours_since_index}h old — re-index before relying on stale graph`,
-      });
-    }
-
-    return {
-      project,
-      task,
-      mode,
-      critical_constraints: constraints,
-      graph_candidates: dedupedCandidates,
-      recent_findings: recentFindings.map((f) => ({
-        title: f.title,
-        severity: f.severity,
-        target_file: f.targetFile,
-      })),
-      recommended_next_calls: nextCalls,
-      index_health: indexHealth,
-      memory_enriched: memoryEnriched,
-      value_metrics: {
-        estimated_files_avoided: value.filesAvoided,
-        estimated_tokens_saved: value.tokensSaved,
-        confidence: value.confidence,
-        session_tokens_saved: usage.tokens_saved,
-        session_files_avoided: usage.files_avoided,
-        session_unique_files_avoided: usage.unique_files_avoided,
-        ...getRealSavingsBlock(db, project),
-      },
-      token_budget: {
-        estimated_pack_tokens: mode === 'full' ? 320 : 200,
-        confidence,
-      },
-    };
+    return buildProjectPackContext(project, task, mode, constraints);
   }
 
   return {
-    project,
-    task,
-    mode,
+    project, task, mode,
     critical_constraints: constraints,
     graph_candidates: [],
     recent_findings: [],
     recommended_next_calls: [
       { tool: 'search_graph', why: 'Find relevant symbols (no project indexed)' },
     ],
+    token_budget: { estimated_pack_tokens: 100, confidence: 'low_no_index' },
+  };
+}
+
+// ── Constraint extraction ──────────────────────────────
+
+function buildConstraints(task: string): string[] {
+  const taskLower = task.toLowerCase();
+  const isFrontend = /frontend|ui|react|component|page|view|style|css|tailwind|jsx/i.test(taskLower);
+  const isBackend = /backend|api|server|database|db|prisma|sql|query|route|endpoint/i.test(taskLower);
+  const isReadonly = /analizar|analyze|review|audit|check|explor|investigar|read.only|readonly/i.test(taskLower);
+
+  const constraints: string[] = [];
+  constraints.push('READ_TARGET_FILES_BEFORE_EDITING');
+  constraints.push('VALIDATE_BEFORE_FINAL');
+  if (isFrontend && !isBackend) constraints.push('UI_ONLY');
+  if (isBackend && !isFrontend) constraints.push('NO_FRONTEND_CHANGES');
+  if (isReadonly) constraints.push('READONLY_ONLY');
+  return constraints;
+}
+
+// ── Main project context builder ───────────────────────
+
+function buildProjectPackContext(
+  project: string,
+  task: string,
+  mode: string,
+  constraints: string[],
+): PackContextResult {
+  const db = getDb(project);
+  const isSpanish = /[áéíóúñ]/.test(task);
+  const maxCandidates = mode === 'full' ? MAX_CANDIDATES_FULL : MAX_CANDIDATES_COMPACT;
+  const taskLower = task.toLowerCase();
+  const terms = extractTerms(task, isSpanish).slice(0, MAX_TERMS);
+
+  const candidates: GraphCandidate[] = [];
+  for (const term of terms) {
+    const results = searchFullText(db, project, term, 3);
+    for (const r of results) {
+      const area = classifyFlowArea(r.node.filePath);
+      const fanIn = r.inDegree;
+      candidates.push({
+        name: r.node.name,
+        qualified_name: r.node.qualifiedName,
+        file_path: r.node.filePath,
+        kind: r.node.kind,
+        flow_area: area,
+        why: explainCandidate(r.node.kind, r.node.filePath, taskLower, term, fanIn),
+        score: r.score,
+        change_risk: assessChangeRisk(fanIn, r.node.filePath),
+        fan_in: fanIn,
+      });
+    }
+  }
+
+  const dedupedCandidates = dedupeCandidates(candidates).slice(0, maxCandidates);
+  let confidence = 'medium';
+  if (dedupedCandidates.length === 0) confidence = 'low_no_index';
+
+  // Enrich with memory findings
+  let memoryEnriched = 0;
+  for (const c of dedupedCandidates) {
+    try {
+      const memFindings = getFindingsByQn(db, project, c.qualified_name);
+      if (memFindings.length > 0) {
+        c.memory_findings = dedupeFindings(memFindings).slice(0, 3).map(f => ({
+          title: f.title, severity: f.severity, category: f.category,
+        }));
+        memoryEnriched++;
+      }
+    } catch { /* skip */ }
+  }
+
+  const recentFindings = getRecentFindings(db, project, 5);
+  const indexHealth = getIndexHealth(db, project);
+
+  const uniqueFiles = new Set(dedupedCandidates.map(c => c.file_path)).size;
+  const fileList = dedupedCandidates.map(c => c.file_path);
+  const value = estimateTokensSaved(dedupedCandidates.length, Math.max(uniqueFiles * 4, 3));
+  recordUsageEvent({
+    type: 'pack_context', project,
+    query: task.slice(0, 240),
+    result_count: dedupedCandidates.length,
+    unique_files: uniqueFiles,
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
+    files: fileList,
+    tool_hint: 'pack_context',
+  });
+
+  const usage = summarizeUsage(project, 500);
+  const isBackend = /backend|api|server|database|db|prisma|sql|query|route|endpoint/i.test(taskLower);
+
+  // Build next-calls
+  const nextCalls: Array<{ tool: string; why: string; qualified_name?: string }> = [
+    { tool: 'search_graph', why: 'Find exact symbols and verify they still exist' },
+  ];
+  if (dedupedCandidates[0]) {
+    nextCalls.push({
+      tool: 'get_code_snippet',
+      why: `Read ${dedupedCandidates[0].name} first — ${dedupedCandidates[0].flow_area} entry point`,
+      qualified_name: dedupedCandidates[0].qualified_name,
+    });
+  }
+  if (isBackend || dedupedCandidates.some(c => c.change_risk === 'high')) {
+    nextCalls.push({ tool: 'trace_path', why: 'Check callers before modifying shared functions (high fan-in detected)' });
+  }
+  if (memoryEnriched > 0) {
+    nextCalls.push({ tool: 'pack_memory', why: `${memoryEnriched} candidate(s) have prior review findings — check memory before editing` });
+  }
+  if (!indexHealth.is_fresh && indexHealth.hours_since_index !== null) {
+    nextCalls.push({ tool: 'index_repository', why: `Index is ${indexHealth.hours_since_index}h old — re-index before relying on stale graph` });
+  }
+
+  return {
+    project, task, mode,
+    critical_constraints: constraints,
+    graph_candidates: dedupedCandidates,
+    recent_findings: dedupeFindings(recentFindings).map(f => ({
+      title: f.title, severity: f.severity, target_file: f.targetFile,
+    })),
+    recommended_next_calls: nextCalls,
+    index_health: indexHealth,
+    memory_enriched: memoryEnriched,
+    value_metrics: {
+      estimated_files_avoided: value.filesAvoided,
+      estimated_tokens_saved: value.tokensSaved,
+      confidence: value.confidence,
+      session_tokens_saved: usage.tokens_saved,
+      session_files_avoided: usage.files_avoided,
+      session_unique_files_avoided: usage.unique_files_avoided,
+      ...getRealSavingsBlock(db, project),
+    },
     token_budget: {
-      estimated_pack_tokens: 100,
-      confidence: 'low_no_index',
+      estimated_pack_tokens: mode === 'full' ? 320 : 200,
+      confidence,
     },
   };
 }
@@ -270,14 +258,31 @@ function dedupeCandidates(candidates: GraphCandidate[]): GraphCandidate[] {
   const ranked = [...candidates].sort((a, b) => {
     const areaScore = areaPriority(a.flow_area) - areaPriority(b.flow_area);
     if (areaScore !== 0) return areaScore;
-    // Prefer higher fan-in (more important)
     const fanDiff = (b.fan_in || 0) - (a.fan_in || 0);
     if (Math.abs(fanDiff) > 5) return fanDiff;
     return b.score - a.score;
   });
-  return ranked.filter((candidate) => {
+  return ranked.filter(candidate => {
     if (seen.has(candidate.qualified_name)) return false;
     seen.add(candidate.qualified_name);
+    return true;
+  });
+}
+
+function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
+  const seen = new Set<string>();
+  return findings.filter(f => {
+    // Hotspot snapshots: dedup by target_qn (keep latest — ordered by updated_at DESC).
+    // Title changes per run (different fan_in), so file+title key doesn't collapse them.
+    if (f.category === 'hotspot') {
+      const key = `${f.targetQn}:hotspot`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }
+    const key = `${f.targetFile}:${f.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 }
@@ -310,11 +315,7 @@ function assessChangeRisk(fanIn: number, filePath: string): 'high' | 'medium' | 
 }
 
 function explainCandidate(
-  kind: string,
-  filePath: string,
-  taskLower: string,
-  matchedTerm: string,
-  fanIn: number
+  kind: string, filePath: string, taskLower: string, matchedTerm: string, fanIn: number,
 ): string {
   const area = classifyFlowArea(filePath);
   const riskNote = fanIn >= 5 ? ` (${fanIn} callers — high impact)` : '';
@@ -326,7 +327,7 @@ function explainCandidate(
   return `${kind} matched "${matchedTerm}"${riskNote}.`;
 }
 
-function extractTerms(text: string, isSpanish: boolean): string[] {
+function extractTerms(text: string, _isSpanish: boolean): string[] {
   const stopWords = new Set([
     'the', 'and', 'for', 'from', 'with', 'this', 'that', 'what', 'when',
     'where', 'which', 'how', 'all', 'are', 'was', 'has', 'been', 'can',
@@ -339,14 +340,13 @@ function extractTerms(text: string, isSpanish: boolean): string[] {
   const tokens = text
     .toLowerCase()
     .split(/[\s,;:.'"()\[\]{}]+/)
-    .filter((t) => t.length >= 3 && !stopWords.has(t));
+    .filter(t => t.length >= 3 && !stopWords.has(t));
 
   return [...new Set(tokens)];
 }
 
 function getIndexHealth(
-  db: ReturnType<typeof getDb>,
-  project: string
+  db: LynxDatabase, project: string,
 ): { total_nodes: number; total_edges: number; hours_since_index: number | null; is_fresh: boolean } {
   try {
     const nodeCount = (db.db
@@ -365,20 +365,14 @@ function getIndexHealth(
     const hoursSinceIndex = indexedAt ? Math.round((now - indexedAt) / (1000 * 60 * 60)) : null;
     const isFresh = hoursSinceIndex !== null && hoursSinceIndex < 24;
 
-    return {
-      total_nodes: nodeCount,
-      total_edges: edgeCount,
-      hours_since_index: hoursSinceIndex,
-      is_fresh: isFresh,
-    };
+    return { total_nodes: nodeCount, total_edges: edgeCount, hours_since_index: hoursSinceIndex, is_fresh: isFresh };
   } catch {
     return { total_nodes: 0, total_edges: 0, hours_since_index: null, is_fresh: false };
   }
 }
 
 function getRealSavingsBlock(
-  db: ReturnType<typeof getDb>,
-  project: string,
+  db: LynxDatabase, project: string,
 ): { real_files_avoided?: number; real_tokens_saved?: number; real_confidence?: string } {
   try {
     const meta = db.getProject(project);
@@ -406,7 +400,7 @@ function shortestUniqueSuffix(target: string, all: string[]): string {
     const matches = all.filter(f => f.endsWith(suffix));
     if (matches.length === 1 && matches[0] === target) return suffix;
   }
-  return target; // fallback: full path
+  return target;
 }
 
 function collectGitDiffFiles(rootPath: string): string[] {
@@ -479,14 +473,13 @@ function buildDecisionSummary(project: string, task: string): string {
     return cnt > 0;
   });
 
-  // Section: what changed — full canonical paths
   if (changedSymbols.length > 0) {
     const top = changedSymbols.slice(0, 5).map(s => `\`${s.name}\` in ${s.file} (${s.kind}, ${s.callers} callers)`).join(', ');
     lines.push(`**Changed symbols:** ${top}.`);
   }
   lines.push(`**Files:** ${diffFiles.length} modified (${indexedFiles.length} indexed, ${diffFiles.length - indexedFiles.length} unindexed).`);
 
-  // 2. What could break — high-fan-in symbols
+  // 2. What could break
   const risky = changedSymbols.filter(s => s.callers >= 3).sort((a, b) => b.callers - a.callers);
   if (risky.length > 0) {
     const top = risky.slice(0, 5).map(s => `\`${s.name}\` (${s.file}: ${s.callers} callers)`).join(', ');
@@ -512,11 +505,8 @@ function buildDecisionSummary(project: string, task: string): string {
     lines.push('**Test coverage:** None of the changed files have test files linked. Consider adding tests.');
   }
 
-  // 4. Files worth reading — basenames in prose, disambiguate duplicates
-  const topFiles = changedSymbols
-    .sort((a, b) => b.callers - a.callers)
-    .slice(0, 5)
-    .map(s => s.file);
+  // 4. Files worth reading
+  const topFiles = changedSymbols.sort((a, b) => b.callers - a.callers).slice(0, 5).map(s => s.file);
   const uniqueTopFiles = [...new Set(topFiles)];
   if (uniqueTopFiles.length > 0) {
     const basenameCounts = new Map<string, number>();
@@ -541,7 +531,6 @@ function buildDecisionSummary(project: string, task: string): string {
 
   let summary = lines.join(' ');
   if (summary.length > wordLimit * 5) {
-    // Truncate to ~300 words while keeping full sentences
     const words = summary.split(/\s+/);
     summary = words.slice(0, wordLimit).join(' ') + '...';
   }
@@ -550,25 +539,18 @@ function buildDecisionSummary(project: string, task: string): string {
 }
 
 async function buildBaseResult(
-  project: string,
-  task: string,
-  mode: string,
-  constraints: string[],
+  project: string, task: string, mode: string, constraints: string[],
 ): Promise<PackContextResult> {
   const db = getDb(project);
   const indexHealth = getIndexHealth(db, project);
   const recentFindings = getRecentFindings(db, project, 5);
 
   return {
-    project,
-    task,
-    mode,
+    project, task, mode,
     critical_constraints: constraints,
     graph_candidates: [],
-    recent_findings: recentFindings.map((f) => ({
-      title: f.title,
-      severity: f.severity,
-      target_file: f.targetFile,
+    recent_findings: dedupeFindings(recentFindings).map(f => ({
+      title: f.title, severity: f.severity, target_file: f.targetFile,
     })),
     recommended_next_calls: [
       { tool: 'search_graph', why: 'Find exact symbols affected by the changes' },
@@ -577,9 +559,6 @@ async function buildBaseResult(
       { tool: 'assess_impact', why: 'Full test + impact cross-reference' },
     ],
     index_health: indexHealth,
-    token_budget: {
-      estimated_pack_tokens: 320,
-      confidence: 'medium',
-    },
+    token_budget: { estimated_pack_tokens: 320, confidence: 'medium' },
   };
 }

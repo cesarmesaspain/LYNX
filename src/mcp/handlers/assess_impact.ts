@@ -43,7 +43,7 @@ function isCodeFilePath(file: string): boolean {
   return CODE_EXTENSIONS.has(ext);
 }
 
-const DEFAULT_MAX_FINDINGS = 200;
+const DEFAULT_MAX_FINDINGS = 30;
 
 // ═══════════════════════════════════════════════════════════════
 // Shared evidence model

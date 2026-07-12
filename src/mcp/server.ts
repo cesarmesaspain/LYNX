@@ -35,6 +35,7 @@ import { handleSemanticSearch } from './handlers/semantic_search.js';
 import { handleWatchProject } from './handlers/watch_project.js';
 import { handleFindTests } from './handlers/find_tests.js';
 import { handleBatchGetCode } from './handlers/batch_get_code.js';
+import { handleToolCatalog } from './handlers/tool_catalog.js';
 import { decayCounter } from '../cli/hook-augment.js';
 import { cleanupNativeExtractor } from '../paths.js';
 import { LynxDatabase } from '../store/database.js';
@@ -54,6 +55,7 @@ type Handler = (args: Record<string, unknown>) => Promise<unknown>;
 const STRICT_CANONICAL_PROJECT_TOOLS = new Set(['delete_project']);
 
 const HANDLERS: Record<string, Handler> = {
+  tool_catalog: handleToolCatalog,
   pack_context: handlePackContext,
   search_graph: handleSearchGraph,
   trace_path: handleTracePath,
@@ -82,6 +84,12 @@ const HANDLERS: Record<string, Handler> = {
   batch_get_code: handleBatchGetCode,
 };
 
+const CORE_TOOL_NAMES = new Set([
+  'pack_context', 'search_graph', 'get_code_snippet', 'trace_path',
+  'find_tests', 'detect_changes', 'assess_impact', 'list_projects',
+  'tool_catalog',
+]);
+
 // ── JSON-RPC dispatch ─────────────────────────────────────────
 
 interface JsonRpcRequest {
@@ -94,7 +102,9 @@ interface JsonRpcRequest {
 const DB_CACHE = new Map<string, LynxDatabase>();
 
 export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' | 'inputSchema'>> {
-  return TOOLS.map(withEvidenceDiscipline).map((tool) => ({
+  const profile = process.env.LYNX_TOOL_PROFILE || 'core';
+  const visible = profile === 'advanced' ? TOOLS : TOOLS.filter(tool => CORE_TOOL_NAMES.has(tool.name));
+  return visible.map(withEvidenceDiscipline).map((tool) => ({
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,

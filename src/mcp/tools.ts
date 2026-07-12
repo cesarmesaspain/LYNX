@@ -34,6 +34,11 @@ export function withEvidenceDiscipline(tool: LynxToolDef): LynxToolDef {
 
 export const TOOLS: LynxToolDef[] = [
   {
+    name: 'tool_catalog',
+    description: 'Show the core workflow and advanced LYNX tools available on demand. Use when the task needs a capability not exposed in the current profile.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
     name: 'pack_context',
     description:
       'Build a compact, task-oriented context pack for broad or uncertain code tasks. ' +

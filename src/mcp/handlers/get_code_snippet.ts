@@ -67,7 +67,14 @@ export async function handleGetCodeSnippet(
     if (results.length === 0) {
       return { error: `Symbol not found: ${qualifiedName}` };
     }
-    node = findNodeByQn(db, project, results[0].node.qualifiedName);
+    // Only accept fuzzy fallback if the result is a plausible match: the
+    // requested QN or its last segment must appear in the found qualified name.
+    const matchedQn = results[0].node.qualifiedName;
+    const lastSegment = qualifiedName.split('.').pop() || '';
+    if (!matchedQn.includes(qualifiedName) && !matchedQn.includes(lastSegment)) {
+      return { error: `Symbol not found: ${qualifiedName}` };
+    }
+    node = findNodeByQn(db, project, matchedQn);
     if (!node) {
       return { error: `Symbol not found: ${qualifiedName}` };
     }
@@ -89,7 +96,10 @@ export async function handleGetCodeSnippet(
   // Extract the relevant lines
   const lines = source.split('\n');
   const start = Math.max(0, node.start_line - 1);
-  const end = Math.min(lines.length, node.end_line);
+  let end = Math.min(lines.length, node.end_line);
+  if (end - start <= 1 && start < lines.length) {
+    end = Math.min(lines.length, start + 20);
+  }
   const snippet = lines.slice(start, end).join('\n');
 
   const result: Record<string, unknown> = {

@@ -21,17 +21,162 @@ import { executeLocalSearchGraph } from '../../federation/search-core.js';
 import { federatedSearchGraph } from '../../federation/gateway.js';
 import { getFederatedConfig } from '../../federation/handler-bridge.js';
 import type { SearchNode } from '../../federation/types.js';
+import type { LynxDatabase } from '../../store/database.js';
+
+// ═══════════════════════════════════════════════════════════════
+// Private helpers
+// ═══════════════════════════════════════════════════════════════
+
+interface RerankResult {
+  deduped: SearchNode[];
+  llmReranked: boolean;
+  llmMetrics?: Record<string, unknown>;
+  llmUsage: LlmUsage;
+}
+
+/** Apply LLM semantic re-rank to search results when applicable. */
+async function applyLlmRerank(
+  db: LynxDatabase,
+  project: string,
+  deduped: SearchNode[],
+  query: string | undefined,
+  enableLlm: boolean,
+): Promise<RerankResult> {
+  const llmUsage: LlmUsage = {
+    enabled: enableLlm,
+    used: false,
+    provider: null,
+    model: null,
+    calls: 0,
+    latency_ms: 0,
+    fallback_used: false,
+    fallback_reason: null,
+  };
+
+  if (!enableLlm || !query || deduped.length < 3) {
+    if (!enableLlm) llmUsage.fallback_reason = 'enable_llm=false, skipped rerank';
+    return { deduped, llmReranked: false, llmUsage };
+  }
+
+  try {
+    const requestedProvider = getRerankProviderMode();
+    const llmStart = Date.now();
+    const originalOrder = deduped.map(r => r.qualified_name);
+
+    const qnames = deduped.map(r => r.qualified_name);
+    const placeholders = qnames.map(() => '?').join(',');
+    const propRows = db.db
+      .prepare(`SELECT qualified_name, properties FROM nodes WHERE project = ? AND qualified_name IN (${placeholders})`)
+      .all(project, ...qnames) as Array<{ qualified_name: string; properties: string | null }>;
+    const propsMap = new Map<string, string | null>();
+    for (const pr of propRows) propsMap.set(pr.qualified_name, pr.properties);
+
+    const candidates = deduped.map((r, i) => {
+      let summary = '';
+      try { const props = JSON.parse(propsMap.get(r.qualified_name) || '{}'); summary = props.llmSummary || ''; } catch { /* empty */ }
+      const context = summary
+        ? `${r.kind} \`${r.name}\` in ${r.file_path}:${r.start_line} — ${summary}`
+        : `${r.kind} \`${r.name}\` in ${r.file_path}:${r.start_line}`;
+      return { index: i, name: r.name, kind: r.kind, snippet: context };
+    });
+
+    const { items: ranked, provider, model, fallback } = await rerankSearchWithMeta(query, candidates);
+    const llmLatency = Date.now() - llmStart;
+
+    llmUsage.used = true;
+    llmUsage.calls = 1;
+    llmUsage.latency_ms = llmLatency;
+    llmUsage.provider = provider;
+    llmUsage.model = model || null;
+    llmUsage.fallback_used = fallback;
+    llmUsage.fallback_reason = fallback
+      ? (provider === 'heuristic' && requestedProvider !== 'heuristic'
+          ? `${requestedProvider} rerank failed after ${llmLatency}ms, used heuristic — kept BM25 order`
+          : `${provider} rerank used — kept deterministic order`)
+      : null;
+
+    let llmReranked = false;
+    let llmMetrics: Record<string, unknown> | undefined;
+
+    if (ranked.length === deduped.length) {
+      const reordered = ranked
+        .sort((a, b) => b.relevanceScore - a.relevanceScore)
+        .map(r => deduped[r.index])
+        .filter(Boolean);
+      if (reordered.length === deduped.length) {
+        const nextOrder = reordered.map(r => r.qualified_name);
+        const rankChanged = nextOrder.some((qn, i) => qn !== originalOrder[i]);
+        const topChanged = nextOrder[0] !== originalOrder[0];
+        deduped = reordered;
+        llmReranked = provider !== 'heuristic';
+        llmMetrics = {
+          provider, model: model || undefined, candidates: candidates.length,
+          latency_ms: llmLatency, rank_changed: rankChanged, top_changed: topChanged,
+          estimated_cost_usd: provider === 'heuristic' ? 0 : estimateRerankCostUsd(candidates.length),
+          fallback,
+        };
+        recordUsageEvent({
+          type: 'llm_rerank', project, query, result_count: candidates.length,
+          latency_ms: llmLatency, llm_provider: provider, llm_latency_ms: llmLatency,
+          estimated_llm_cost_usd: provider === 'heuristic' ? 0 : estimateRerankCostUsd(candidates.length),
+          rank_changed: rankChanged, top_changed: topChanged, tool_hint: 'search_graph rerank',
+        });
+      }
+    }
+
+    return { deduped, llmReranked, llmMetrics, llmUsage };
+  } catch {
+    llmUsage.fallback_used = true;
+    llmUsage.fallback_reason = `rerank exception (provider: ${getRerankProviderMode()}), kept BM25 order`;
+    return { deduped, llmReranked: false, llmUsage };
+  }
+}
+
+/** Inject source snippets into results by reading the first 5 lines of each file. */
+function injectSnippets(
+  db: LynxDatabase,
+  project: string,
+  resultsArray: Record<string, unknown>[],
+): void {
+  if (resultsArray.length === 0) return;
+  const projectMeta = db.getProject(project);
+  const rootPath = projectMeta?.rootPath || process.cwd();
+  const byFile = new Map<string, { idx: number; start: number; end: number }[]>();
+  resultsArray.forEach((r, i) => {
+    const fp = String(r.file);
+    if (!byFile.has(fp)) byFile.set(fp, []);
+    byFile.get(fp)!.push({ idx: i, start: Number(r.start_line), end: Number(r.end_line) });
+  });
+  for (const [fp, entries] of byFile) {
+    try {
+      const fullPath = path.join(rootPath, fp);
+      const source = fs.readFileSync(fullPath, 'utf-8');
+      const lines = source.split('\n');
+      for (const e of entries) {
+        const start = Math.max(0, e.start - 1);
+        const end = Math.min(lines.length, start + 5);
+        (resultsArray[e.idx] as Record<string, unknown>).snippet = lines.slice(start, end).join('\n');
+      }
+    } catch { /* File unreadable */ }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Handler
+// ═══════════════════════════════════════════════════════════════
 
 export async function handleSearchGraph(args: Record<string, unknown>): Promise<unknown> {
   const started = Date.now();
   const project = String(args.project || '');
   const query = args.query ? String(args.query) : undefined;
+  // Reject empty query strings — they match everything in FTS5 and return garbage
+  if (query === '') return { error: 'query must not be empty. Provide at least one search term, or use name_pattern/qn_pattern for structural queries.' };
   const label = args.label ? String(args.label) : undefined;
   const namePattern = args.name_pattern ? String(args.name_pattern) : undefined;
   const qnPattern = args.qn_pattern ? String(args.qn_pattern) : undefined;
   const filePattern = args.file_pattern ? String(args.file_pattern) : undefined;
-  const limit = args.limit ? Number(args.limit) : 10;
-  const offset = args.offset ? Number(args.offset) : 0;
+  const limit = args.limit !== undefined ? Number(args.limit) : 10;
+  const offset = args.offset !== undefined ? Number(args.offset) : 0;
   const minDegree = args.min_degree !== undefined ? Number(args.min_degree) : undefined;
   const maxDegree = args.max_degree !== undefined ? Number(args.max_degree) : undefined;
   const excludeEntryPoints = args.exclude_entry_points === true;
@@ -71,112 +216,14 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
     total = localResult.total;
   }
 
-  // LLM re-rank: semantic reordering for natural-language queries.
-  // Enriches snippets with per-file LLM summaries (stored during index) so
-  // the re-rank model can disambiguate generic names (GET, POST, etc.)
-  let llmReranked = false;
-  let llmMetrics: Record<string, unknown> | undefined;
-  let llmUsage: LlmUsage = {
-    enabled: enableLlm,
-    used: false,
-    provider: null,
-    model: null,
-    calls: 0,
-    latency_ms: 0,
-    fallback_used: false,
-    fallback_reason: null,
-  };
-  if (enableLlm && query && deduped.length >= 3) {
-    try {
-      const requestedProvider = getRerankProviderMode();
-      const llmStart = Date.now();
-      const originalOrder = deduped.map((r) => r.qualified_name);
-      // Fetch properties (contains llmSummary) for richer re-rank snippets
-      const propsMap = new Map<string, string | null>();
-      {
-        const qnames = deduped.map(r => r.qualified_name);
-        const placeholders = qnames.map(() => '?').join(',');
-        const propRows = db.db
-          .prepare(
-            `SELECT qualified_name, properties FROM nodes WHERE project = ? AND qualified_name IN (${placeholders})`
-          )
-          .all(project, ...qnames) as Array<{ qualified_name: string; properties: string | null }>;
-        for (const pr of propRows) propsMap.set(pr.qualified_name, pr.properties);
-      }
-
-      const candidates = deduped.map((r, i) => {
-        let summary = '';
-        try {
-          const props = JSON.parse(propsMap.get(r.qualified_name) || '{}');
-          summary = props.llmSummary || '';
-        } catch { /* empty */ }
-        const context = summary
-          ? `${r.kind} \`${r.name}\` in ${r.file_path}:${r.start_line} — ${summary}`
-          : `${r.kind} \`${r.name}\` in ${r.file_path}:${r.start_line}`;
-        return { index: i, name: r.name, kind: r.kind, snippet: context };
-      });
-      const { items: ranked, provider, model, fallback } = await rerankSearchWithMeta(query, candidates);
-      const llmLatency = Date.now() - llmStart;
-      llmUsage.used = true;
-      llmUsage.calls = 1;
-      llmUsage.latency_ms = llmLatency;
-      llmUsage.provider = provider;
-      llmUsage.model = model || null;
-      llmUsage.fallback_used = fallback;
-      llmUsage.fallback_reason = fallback
-        ? (provider === 'heuristic' && requestedProvider !== 'heuristic'
-            ? `${requestedProvider} rerank failed after ${llmLatency}ms, used heuristic — kept BM25 order`
-            : `${provider} rerank used — kept deterministic order`)
-        : null;
-      if (ranked.length === deduped.length) {
-        const reordered = ranked
-          .sort((a, b) => b.relevanceScore - a.relevanceScore)
-          .map(r => deduped[r.index])
-          .filter(Boolean);
-        if (reordered.length === deduped.length) {
-          const nextOrder = reordered.map((r) => r.qualified_name);
-          const rankChanged = nextOrder.some((qn, i) => qn !== originalOrder[i]);
-          const topChanged = nextOrder[0] !== originalOrder[0];
-          deduped.splice(0, deduped.length, ...reordered);
-          llmReranked = provider !== 'heuristic';
-          llmMetrics = {
-            provider,
-            model: model || undefined,
-            candidates: candidates.length,
-            latency_ms: llmLatency,
-            rank_changed: rankChanged,
-            top_changed: topChanged,
-            estimated_cost_usd: provider === 'heuristic' ? 0 : estimateRerankCostUsd(candidates.length),
-            fallback,
-          };
-          recordUsageEvent({
-            type: 'llm_rerank',
-            project,
-            query,
-            result_count: candidates.length,
-            latency_ms: llmLatency,
-            llm_provider: provider,
-            llm_latency_ms: llmLatency,
-            estimated_llm_cost_usd: provider === 'heuristic' ? 0 : estimateRerankCostUsd(candidates.length),
-            rank_changed: rankChanged,
-            top_changed: topChanged,
-            tool_hint: 'search_graph rerank',
-          });
-        }
-      }
-    } catch {
-      llmUsage.fallback_used = true;
-      llmUsage.fallback_reason = `rerank exception (provider: ${getRerankProviderMode()}), kept BM25 order`;
-    }
-  }
-  if (!enableLlm) {
-    llmUsage.fallback_reason = 'enable_llm=false, skipped rerank';
-  }
+  const { deduped: reRanked, llmReranked, llmMetrics, llmUsage } =
+    await applyLlmRerank(db, project, deduped, query, enableLlm);
+  deduped = reRanked;
 
   const hasMore = offset + limit < total;
 
   // Build results array
-  const limitedResults = deduped.slice(0, limit);
+  const limitedResults = deduped.slice(offset, offset + limit);
   const resultsArray = limitedResults.map(r => {
     const item: Record<string, unknown> = {
       name: r.name,
@@ -193,32 +240,8 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
     return item;
   });
 
-  // Snippet inclusion: read first 5 source lines per result to eliminate follow-up get_code_snippet calls.
   if (includeSnippets && resultsArray.length > 0) {
-    const projectMeta = db.getProject(project);
-    const rootPath = projectMeta?.rootPath || process.cwd();
-    // Group by file to minimize I/O
-    const byFile = new Map<string, { idx: number; start: number; end: number }[]>();
-    resultsArray.forEach((r, i) => {
-      const fp = String(r.file);
-      if (!byFile.has(fp)) byFile.set(fp, []);
-      byFile.get(fp)!.push({ idx: i, start: Number(r.start_line), end: Number(r.end_line) });
-    });
-    for (const [fp, entries] of byFile) {
-      try {
-        const fullPath = path.join(rootPath, fp);
-        const source = fs.readFileSync(fullPath, 'utf-8');
-        const lines = source.split('\n');
-        for (const e of entries) {
-          const start = Math.max(0, e.start - 1);
-          const end = Math.min(lines.length, start + 5); // first 5 lines only
-          const preview = lines.slice(start, end).join('\n');
-          (resultsArray[e.idx] as Record<string, unknown>).snippet = preview;
-        }
-      } catch {
-        // File unreadable — skip snippets for this file
-      }
-    }
+    injectSnippets(db, project, resultsArray);
   }
 
   const response: Record<string, unknown> = {

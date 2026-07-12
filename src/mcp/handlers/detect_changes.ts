@@ -423,215 +423,105 @@ export function isGitWorkTree(rootPath: string): boolean {
   }
 }
 
-export async function handleDetectChanges(
-  args: Record<string, unknown>
-): Promise<DetectChangesResult> {
-  const project = String(args.project || '');
-  const baseBranch = (args.base_branch as string) || 'main';
-  const since = args.since ? String(args.since) : undefined;
-  const scope = (args.scope as string) === 'files' ? 'files' : 'symbols';
-  const depth = args.depth ? Number(args.depth) : 2;
-  const enableLlm = args.enable_llm !== false;
-  const includeDiff = args.include_diff !== false;
-  const requestedFiles = normalizeRequestedFiles(args.files);
-  const pathFilterRegex = args.path_filter ? new RegExp(String(args.path_filter)) : null;
-
-  const db = getDb(project);
-  const projectMeta = db.getProject(project);
-  if (!projectMeta) {
-    const diag = projectNotIndexed(project);
-    return {
-      contract_version: DETECT_CHANGES_CONTRACT_VERSION,
-      project,
-      base_branch: baseBranch,
-      since: since || null,
-      scope,
-      depth,
-      error: diag.error,
-      hint: diag.hint,
-      recoverable: diag.recoverable,
-      categories: {},
-      category_counts: { tracked_changes: 0, unstaged_changes: 0, untracked_files: 0, deleted_files: 0, renamed_files: 0, total: 0 },
-      impact_assessment: { confirmed_count: 0, probable_count: 0, nominal_count: 0, confirmed: [], probable: [], nominal: [] },
-      related_dependencies: [],
-      related_dependencies_count: 0,
-      changed_files: [],
-      changed_nodes: [],
-      total_changed_files: 0,
-      total_affected_nodes: 0,
-      by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
-      indirect_callers_affected: 0,
-      impact_analysis: { summary: diag.error, risk_level: 'low', details: [] },
-      llm_usage: { enabled: enableLlm, used: false, provider: null, model: null, calls: 0, latency_ms: 0, fallback_used: false, fallback_reason: diag.error },
-    };
-  }
-  const rootPath = projectMeta.rootPath;
-  if (!isGitWorkTree(rootPath)) {
-    return {
-      ...buildEmptyResult(project, baseBranch, since, scope, depth, enableLlm),
-      error: 'Project root is not a Git work tree.',
-      hint: 'Initialize Git or run detect_changes on a repository root.',
-      recoverable: true,
-    };
-  }
-
-  // ── Collect raw git status entries ──────────────────────────
+/** Collect raw GitStatusEntry list from git porcelain + diff commands. */
+function collectGitEntries(rootPath: string, baseBranch: string, since?: string): {
+  rawEntries: GitStatusEntry[];
+  committedRef: string | null;
+} {
   const rawEntries: GitStatusEntry[] = [];
-
   let committedRef: string | null = null;
+
+  committedRef = since || `${baseBranch}...HEAD`;
   try {
-    committedRef = since || `${baseBranch}...HEAD`;
-    try {
-      const out = child_process.execSync(
-        `git diff --name-status ${committedRef}`,
-        { cwd: rootPath, encoding: 'utf-8', timeout: 15000 }
-      );
-      for (const line of out.trim().split('\n')) {
-        const parsed = parseGitStatus(line);
-        if (parsed) rawEntries.push(parsed);
-      }
-    } catch {
-      try {
-        const out = child_process.execSync(
-          'git diff --name-status HEAD~1',
-          { cwd: rootPath, encoding: 'utf-8', timeout: 10000 }
-        );
-        for (const line of out.trim().split('\n')) {
-          const parsed = parseGitStatus(line);
-          if (parsed) rawEntries.push(parsed);
-        }
-        committedRef = 'HEAD~1';
-      } catch { /* no commits */ }
+    const out = child_process.execSync(
+      `git diff --name-status ${committedRef}`,
+      { cwd: rootPath, encoding: 'utf-8', timeout: 15000 }
+    );
+    for (const line of out.trim().split('\n')) {
+      const parsed = parseGitStatus(line);
+      if (parsed) rawEntries.push(parsed);
     }
-
-    // Unstaged changes
-    try {
-      const out = child_process.execSync(
-        'git diff --name-only',
-        { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
-      );
-      for (const rawLine of out.trim().split('\n')) {
-        const file = rawLine.trim();
-        if (file) {
-          rawEntries.push({ kind: 'unstaged', file, status: 'M' });
-        }
-      }
-    } catch { /* ignore */ }
-
-    // Porcelain status
-    try {
-      const out = child_process.execSync(
-        'git --no-optional-locks status --porcelain --untracked-files=normal',
-        { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
-      );
-      for (const line of out.trim().split('\n')) {
-        const parsed = parseGitStatus(line);
-        if (parsed) rawEntries.push(parsed);
-      }
-    } catch { /* ignore */ }
   } catch {
-    return {
-      contract_version: DETECT_CHANGES_CONTRACT_VERSION,
-      project,
-      base_branch: baseBranch,
-      since: since || null,
-      scope,
-      depth,
-      categories: {},
-      category_counts: { tracked_changes: 0, unstaged_changes: 0, untracked_files: 0, deleted_files: 0, renamed_files: 0, total: 0 },
-      impact_assessment: { confirmed_count: 0, probable_count: 0, nominal_count: 0, confirmed: [], probable: [], nominal: [] },
-      related_dependencies: [],
-      related_dependencies_count: 0,
-      changed_files: [],
-      changed_nodes: [],
-      total_changed_files: 0,
-      total_affected_nodes: 0,
-      by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
-      indirect_callers_affected: 0,
-      impact_analysis: { summary: 'Cannot get git diff.', risk_level: 'low', details: [] },
-      llm_usage: { enabled: enableLlm, used: false, provider: null, model: null, calls: 0, latency_ms: 0, fallback_used: false, fallback_reason: 'git diff failed' },
-    };
-  }
-
-  // ── Pipeline ─────────────────────────────────────────────────
-  let changes = canonicalizeAndDeduplicatePaths(rawEntries);
-
-  // Apply path_filter regex
-  if (pathFilterRegex) {
-    changes = changes.filter(c => pathFilterRegex.test(c.file));
-  }
-
-  // Apply --files filter
-  const { included, excluded } = filterPrimaryScope(changes, requestedFiles);
-
-  // Handle unindexed files that were requested but not in git diff
-  if (requestedFiles && requestedFiles.length > 0) {
-    for (const f of requestedFiles) {
-      if (!included.some(c => c.file === f) && !excluded.some(c => c.file === f)) {
-        const graphNodes = db.db.prepare(
-          'SELECT COUNT(*) as cnt FROM nodes WHERE project = ? AND file_path = ?'
-        ).get(project, f) as { cnt: number } | undefined;
-        if (graphNodes && graphNodes.cnt > 0) {
-          included.push({
-            file: f,
-            entries: [{ kind: 'untracked', file: f, status: '?' }],
-            hasMixedState: false,
-          });
-        }
+    try {
+      const out = child_process.execSync(
+        'git diff --name-status HEAD~1',
+        { cwd: rootPath, encoding: 'utf-8', timeout: 10000 }
+      );
+      for (const line of out.trim().split('\n')) {
+        const parsed = parseGitStatus(line);
+        if (parsed) rawEntries.push(parsed);
       }
-    }
+      committedRef = 'HEAD~1';
+    } catch { /* no commits */ }
   }
 
-  const categories = classifyGitEntries(requestedFiles ? included : changes);
-  const allChanges = requestedFiles ? included : changes;
+  try {
+    const out = child_process.execSync(
+      'git diff --name-only',
+      { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
+    );
+    for (const rawLine of out.trim().split('\n')) {
+      const file = rawLine.trim();
+      if (file) rawEntries.push({ kind: 'unstaged', file, status: 'M' });
+    }
+  } catch { /* ignore */ }
 
-  // ── Per-file diffs ───────────────────────────────────────────
+  try {
+    const out = child_process.execSync(
+      'git --no-optional-locks status --porcelain --untracked-files=normal',
+      { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
+    );
+    for (const line of out.trim().split('\n')) {
+      const parsed = parseGitStatus(line);
+      if (parsed) rawEntries.push(parsed);
+    }
+  } catch { /* ignore */ }
+
+  return { rawEntries, committedRef };
+}
+
+/** Collect per-file diffs for the given changes (up to 50 files). */
+function collectFileDiffs(
+  rootPath: string,
+  allChanges: CanonicalChange[],
+  committedRef: string | null,
+): Map<string, string> {
   const fileDiffMap = new Map<string, string>();
-  if (committedRef && allChanges.length <= 50) {
-    for (const c of allChanges) {
-      if (c.entries[0]?.kind === 'deleted' || c.entries[0]?.kind === 'renamed') continue;
+  if (!committedRef || allChanges.length > 50) return fileDiffMap;
+
+  for (const c of allChanges) {
+    if (c.entries[0]?.kind === 'deleted' || c.entries[0]?.kind === 'renamed') continue;
+    try {
+      const diffOut = child_process.execSync(
+        `git diff ${committedRef} -- "${c.file}"`,
+        { cwd: rootPath, encoding: 'utf-8', timeout: 5000, maxBuffer: 1024 * 1024 }
+      );
+      if (diffOut.trim()) fileDiffMap.set(c.file, diffOut.trim());
+    } catch { /* ignore */ }
+    if (!fileDiffMap.has(c.file)) {
       try {
         const diffOut = child_process.execSync(
-          `git diff ${committedRef} -- "${c.file}"`,
+          `git diff -- "${c.file}"`,
           { cwd: rootPath, encoding: 'utf-8', timeout: 5000, maxBuffer: 1024 * 1024 }
         );
         if (diffOut.trim()) fileDiffMap.set(c.file, diffOut.trim());
       } catch { /* ignore */ }
-      if (!fileDiffMap.has(c.file)) {
-        try {
-          const diffOut = child_process.execSync(
-            `git diff -- "${c.file}"`,
-            { cwd: rootPath, encoding: 'utf-8', timeout: 5000, maxBuffer: 1024 * 1024 }
-          );
-          if (diffOut.trim()) fileDiffMap.set(c.file, diffOut.trim());
-        } catch { /* ignore */ }
-      }
     }
   }
+  return fileDiffMap;
+}
 
-  if (allChanges.length === 0) {
-    return buildEmptyResult(project, baseBranch, since, scope, depth, enableLlm);
-  }
-
-  // If scope=files, return file-level result
-  if (scope === 'files') {
-    return buildFilesOnlyResult(project, baseBranch, since, categories, allChanges.length, enableLlm);
-  }
-
-  // ── Symbol-level analysis ────────────────────────────────────
-  const hotspotRows = db.db.prepare(
-    `SELECT n.id, n.qualified_name, n.name, n.file_path,
-            (SELECT COUNT(*) FROM edges e WHERE e.target_id = n.id AND e.type = 'CALLS') as fan_in,
-            json_extract(n.properties, '$.cyclomaticComplexity') as complexity
-     FROM nodes n
-     WHERE n.project = ? AND n.kind IN ('Function', 'Method')
-     ORDER BY fan_in DESC LIMIT 50`
-  ).all(project) as Array<{ id: number; qualified_name: string; name: string; file_path: string; fan_in: number; complexity: number }>;
-
-  const hotspotQns = new Set(hotspotRows.map(h => h.qualified_name));
+/** Symbol-level analysis: for each changed file, query graph nodes and classify impact. */
+function analyzeChangedSymbols(
+  db: ReturnType<typeof getDb>,
+  project: string,
+  allChanges: CanonicalChange[],
+  hotspotQns: Set<string>,
+  depth: number,
+): { changedNodes: InternalChangedNode[]; allCallers: Set<string>; scopedNodeIds: Set<number> } {
   const changedNodes: InternalChangedNode[] = [];
   const allCallers = new Set<string>();
-  const scopedFileSet = requestedFiles ? new Set(requestedFiles) : null;
+  const scopedNodeIds = new Set<number>();
 
   for (const c of allChanges) {
     const nodes = db.db.prepare(
@@ -640,6 +530,7 @@ export async function handleDetectChanges(
     ).all(project, c.file) as Array<{ id: number; name: string; qualified_name: string; file_path: string; kind: string; start_line: number; end_line: number }>;
 
     for (const node of nodes) {
+      scopedNodeIds.add(node.id);
       const { callers } = getNeighborNames(db, node.id, 30);
       for (const cn of callers) allCallers.add(cn);
 
@@ -647,7 +538,6 @@ export async function handleDetectChanges(
       const isHotspot = hotspotQns.has(node.qualified_name);
       const severity = classifySeverity(callerCount, isHotspot);
 
-      // Impact evidence
       const directCalls = db.db.prepare(
         `SELECT COUNT(*) as cnt FROM edges WHERE target_id = ? AND type = 'CALLS'`
       ).get(node.id) as { cnt: number };
@@ -691,56 +581,66 @@ export async function handleDetectChanges(
     }
   }
 
-  // ── Related dependencies ─────────────────────────────────────
+  return { changedNodes, allCallers, scopedNodeIds };
+}
+
+/** Find graph edges from scoped nodes to files outside the scope. */
+function buildRelatedDependencies(
+  db: ReturnType<typeof getDb>,
+  project: string,
+  scopedNodeIds: Set<number>,
+  scopedFileSet: Set<string>,
+): RelatedDependency[] {
   const relatedDeps: RelatedDependency[] = [];
-  if (scopedFileSet && scopedFileSet.size > 0) {
-    const scopedNodeIds = new Set<number>();
-    for (const node of changedNodes) {
-      const row = db.db.prepare(
-        'SELECT id FROM nodes WHERE project = ? AND qualified_name = ?'
-      ).get(project, node.qualified_name) as { id: number } | undefined;
-      if (row) scopedNodeIds.add(row.id);
-    }
 
-    for (const nodeId of scopedNodeIds) {
-      const deps = db.db.prepare(
-        `SELECT e.type, e.source_id, e.target_id,
-                src.qualified_name as src_qn, src.file_path as src_file,
-                tgt.qualified_name as tgt_qn, tgt.file_path as tgt_file
-         FROM edges e
-         JOIN nodes src ON src.id = e.source_id
-         JOIN nodes tgt ON tgt.id = e.target_id
-         WHERE (e.source_id = ? OR e.target_id = ?)
-           AND e.type IN ('CALLS', 'IMPORTS', 'USAGE')`
-      ).all(nodeId, nodeId) as Array<{ type: string; source_id: number; target_id: number; src_qn: string; src_file: string; tgt_qn: string; tgt_file: string }>;
+  for (const nodeId of scopedNodeIds) {
+    const deps = db.db.prepare(
+      `SELECT e.type, e.source_id, e.target_id,
+              src.qualified_name as src_qn, src.file_path as src_file,
+              tgt.qualified_name as tgt_qn, tgt.file_path as tgt_file
+       FROM edges e
+       JOIN nodes src ON src.id = e.source_id
+       JOIN nodes tgt ON tgt.id = e.target_id
+       WHERE (e.source_id = ? OR e.target_id = ?)
+         AND e.type IN ('CALLS', 'IMPORTS', 'USAGE')`
+    ).all(nodeId, nodeId) as Array<{ type: string; source_id: number; target_id: number; src_qn: string; src_file: string; tgt_qn: string; tgt_file: string }>;
 
-      for (const dep of deps) {
-        const isSrcInScope = scopedFileSet.has(dep.src_file);
-        const isTgtInScope = scopedFileSet.has(dep.tgt_file);
-        if (isSrcInScope === isTgtInScope) continue; // both in scope or both out
+    for (const dep of deps) {
+      const isSrcInScope = scopedFileSet.has(dep.src_file);
+      const isTgtInScope = scopedFileSet.has(dep.tgt_file);
+      if (isSrcInScope === isTgtInScope) continue;
 
-        const relatedFile = isSrcInScope ? dep.tgt_file : dep.src_file;
-        const relatedSymbol = isSrcInScope ? dep.tgt_qn : dep.src_qn;
-        const scopeFile = isSrcInScope ? dep.src_file : dep.tgt_file;
-        const scopeSymbol = isSrcInScope ? dep.src_qn : dep.tgt_qn;
-        const direction = isSrcInScope ? 'outbound' : 'inbound';
+      const relatedFile = isSrcInScope ? dep.tgt_file : dep.src_file;
+      const relatedSymbol = isSrcInScope ? dep.tgt_qn : dep.src_qn;
+      const scopeFile = isSrcInScope ? dep.src_file : dep.tgt_file;
+      const scopeSymbol = isSrcInScope ? dep.src_qn : dep.tgt_qn;
+      const direction = isSrcInScope ? 'outbound' : 'inbound';
 
-        relatedDeps.push({
-          scopeFile,
-          scopeSymbol,
-          relatedFile,
-          relatedSymbol,
-          direction,
-          edgeType: dep.type,
-          reason: `${dep.type} edge between ${dep.src_qn} and ${dep.tgt_qn}`,
-          confidence: dep.type === 'IMPORTS' ? 'high' : dep.type === 'CALLS' ? 'high' : 'medium',
-        });
-      }
+      relatedDeps.push({
+        scopeFile,
+        scopeSymbol,
+        relatedFile,
+        relatedSymbol,
+        direction,
+        edgeType: dep.type,
+        reason: `${dep.type} edge between ${dep.src_qn} and ${dep.tgt_qn}`,
+        confidence: dep.type === 'IMPORTS' ? 'high' : dep.type === 'CALLS' ? 'high' : 'medium',
+      });
     }
   }
-  const dedupedDeps = deduplicateRelatedDependencies(relatedDeps);
 
-  // ── LLM Risk Assessment ──────────────────────────────────────
+  return deduplicateRelatedDependencies(relatedDeps);
+}
+
+/** Run LLM-based risk assessment on critical/high-severity changed nodes. */
+async function runLlmRiskAssessment(
+  db: ReturnType<typeof getDb>,
+  project: string,
+  rootPath: string,
+  changedNodes: InternalChangedNode[],
+  fileDiffMap: Map<string, string>,
+  enableLlm: boolean,
+): Promise<{ llmUsage: LlmUsage }> {
   const llmUsage: LlmUsage = {
     enabled: enableLlm,
     used: false,
@@ -751,85 +651,192 @@ export async function handleDetectChanges(
     fallback_used: false,
     fallback_reason: null,
   };
-  if (enableLlm) {
-    const llmCandidates = changedNodes.filter(n => n.severity === 'critical' || n.severity === 'high').slice(0, 5);
-    let llmTotalLatency = 0;
-    let attemptedProvider = '';
-    for (const node of llmCandidates) {
-      const fullPath = path.join(rootPath, node.file_path);
-      let funcSource = '';
-      try {
-        const fileContent = fs.readFileSync(fullPath, 'utf8');
-        const lines = fileContent.split('\n');
-        const dbNode = db.db.prepare(
-          'SELECT start_line, end_line FROM nodes WHERE project = ? AND qualified_name = ?'
-        ).get(project, node.qualified_name) as { start_line: number; end_line: number } | undefined;
-        if (dbNode) {
-          const start = Math.max(0, dbNode.start_line - 1);
-          const end = dbNode.end_line > dbNode.start_line ? dbNode.end_line : Math.min(start + 200, lines.length);
-          funcSource = lines.slice(start, end).join('\n');
-        } else {
-          funcSource = fileContent.slice(0, 3000);
-        }
-      } catch { funcSource = '[source not readable]'; }
 
-      const diff = fileDiffMap.get(node.file_path) || '[diff not available]';
-      try {
-        const callStart = Date.now();
-        const llmResult = await assessRiskWithMeta(node.name, funcSource, node.callers, node.caller_count,
-          `Status: modified, File: ${node.file_path}, Impact: ${node.impact_tier}\n${diff.slice(0, 1500)}`);
-        const callLatency = Date.now() - callStart;
-        llmTotalLatency += callLatency;
-        llmUsage.calls++;
-        llmUsage.provider = llmResult.provider;
-        llmUsage.model = llmResult.model || null;
-        llmUsage.fallback_used = llmUsage.fallback_used || llmResult.fallback;
-        if (llmResult.provider !== 'heuristic') attemptedProvider = llmResult.provider;
-        node.llm_risk = {
-          risk: llmResult.risk,
-          reason: llmResult.reason,
-          fan_in: node.caller_count,
-          source: llmResult.provider,
-          latency_ms: callLatency,
-        };
-      } catch {
-        llmUsage.fallback_used = true;
-      }
-    }
-    llmUsage.latency_ms = llmTotalLatency;
-    llmUsage.used = llmUsage.calls > 0;
-    if (llmUsage.used && llmUsage.fallback_used) {
-      if (attemptedProvider && attemptedProvider !== 'heuristic') {
-        llmUsage.fallback_reason = `${attemptedProvider} risk assessment failed for >=1 of ${llmUsage.calls} call(s), used heuristic`;
-      } else {
-        llmUsage.fallback_reason = `heuristic-only risk assessment used for ${llmUsage.calls} call(s)`;
-      }
-    }
-  } else {
+  if (!enableLlm) {
     llmUsage.fallback_reason = 'enable_llm=false, skipped risk assessment';
+    return { llmUsage };
   }
 
-  // Sort by severity
+  const llmCandidates = changedNodes.filter(n => n.severity === 'critical' || n.severity === 'high').slice(0, 5);
+  let llmTotalLatency = 0;
+  let attemptedProvider = '';
+
+  for (const node of llmCandidates) {
+    const fullPath = path.join(rootPath, node.file_path);
+    let funcSource = '';
+    try {
+      const fileContent = fs.readFileSync(fullPath, 'utf8');
+      const lines = fileContent.split('\n');
+      const dbNode = db.db.prepare(
+        'SELECT start_line, end_line FROM nodes WHERE project = ? AND qualified_name = ?'
+      ).get(project, node.qualified_name) as { start_line: number; end_line: number } | undefined;
+      if (dbNode) {
+        const start = Math.max(0, dbNode.start_line - 1);
+        const end = dbNode.end_line > dbNode.start_line ? dbNode.end_line : Math.min(start + 200, lines.length);
+        funcSource = lines.slice(start, end).join('\n');
+      } else {
+        funcSource = fileContent.slice(0, 3000);
+      }
+    } catch { funcSource = '[source not readable]'; }
+
+    const diff = fileDiffMap.get(node.file_path) || '[diff not available]';
+    try {
+      const callStart = Date.now();
+      const llmResult = await assessRiskWithMeta(node.name, funcSource, node.callers, node.caller_count,
+        `Status: modified, File: ${node.file_path}, Impact: ${node.impact_tier}\n${diff.slice(0, 1500)}`);
+      const callLatency = Date.now() - callStart;
+      llmTotalLatency += callLatency;
+      llmUsage.calls++;
+      llmUsage.provider = llmResult.provider;
+      llmUsage.model = llmResult.model || null;
+      llmUsage.fallback_used = llmUsage.fallback_used || llmResult.fallback;
+      if (llmResult.provider !== 'heuristic') attemptedProvider = llmResult.provider;
+      node.llm_risk = {
+        risk: llmResult.risk,
+        reason: llmResult.reason,
+        fan_in: node.caller_count,
+        source: llmResult.provider,
+        latency_ms: callLatency,
+      };
+    } catch {
+      llmUsage.fallback_used = true;
+    }
+  }
+
+  llmUsage.latency_ms = llmTotalLatency;
+  llmUsage.used = llmUsage.calls > 0;
+  if (llmUsage.used && llmUsage.fallback_used) {
+    if (attemptedProvider && attemptedProvider !== 'heuristic') {
+      llmUsage.fallback_reason = `${attemptedProvider} risk assessment failed for >=1 of ${llmUsage.calls} call(s), used heuristic`;
+    } else {
+      llmUsage.fallback_reason = `heuristic-only risk assessment used for ${llmUsage.calls} call(s)`;
+    }
+  }
+
+  return { llmUsage };
+}
+
+export async function handleDetectChanges(
+  args: Record<string, unknown>
+): Promise<DetectChangesResult> {
+  const project = String(args.project || '');
+  const baseBranch = (args.base_branch as string) || 'main';
+  const since = args.since ? String(args.since) : undefined;
+  const scope = (args.scope as string) === 'files' ? 'files' : 'symbols';
+  const depth = args.depth !== undefined ? Number(args.depth) : 2;
+  const enableLlm = args.enable_llm !== false;
+  const includeDiff = args.include_diff !== false;
+  const requestedFiles = normalizeRequestedFiles(args.files);
+  const pathFilterRegex = args.path_filter ? new RegExp(String(args.path_filter)) : null;
+
+  const db = getDb(project);
+  const projectMeta = db.getProject(project);
+  if (!projectMeta) {
+    const diag = projectNotIndexed(project);
+    return {
+      contract_version: DETECT_CHANGES_CONTRACT_VERSION,
+      project, base_branch: baseBranch, since: since || null, scope, depth,
+      error: diag.error, hint: diag.hint, recoverable: diag.recoverable,
+      categories: {},
+      category_counts: { tracked_changes: 0, unstaged_changes: 0, untracked_files: 0, deleted_files: 0, renamed_files: 0, total: 0 },
+      impact_assessment: { confirmed_count: 0, probable_count: 0, nominal_count: 0, confirmed: [], probable: [], nominal: [] },
+      related_dependencies: [], related_dependencies_count: 0,
+      changed_files: [], changed_nodes: [], total_changed_files: 0, total_affected_nodes: 0,
+      by_severity: { critical: 0, high: 0, medium: 0, low: 0 }, indirect_callers_affected: 0,
+      impact_analysis: { summary: diag.error, risk_level: 'low', details: [] },
+      llm_usage: { enabled: enableLlm, used: false, provider: null, model: null, calls: 0, latency_ms: 0, fallback_used: false, fallback_reason: diag.error },
+    };
+  }
+  const rootPath = projectMeta.rootPath;
+  if (!isGitWorkTree(rootPath)) {
+    return {
+      ...buildEmptyResult(project, baseBranch, since, scope, depth, enableLlm),
+      error: 'Project root is not a Git work tree.',
+      hint: 'Initialize Git or run detect_changes on a repository root.',
+      recoverable: true,
+    };
+  }
+
+  // ── Git collection ────────────────────────────────────────────
+  let rawEntries: GitStatusEntry[];
+  let committedRef: string | null;
+  try {
+    const collected = collectGitEntries(rootPath, baseBranch, since);
+    rawEntries = collected.rawEntries;
+    committedRef = collected.committedRef;
+  } catch {
+    return {
+      ...buildEmptyResult(project, baseBranch, since, scope, depth, enableLlm),
+      impact_analysis: { summary: 'Cannot get git diff.', risk_level: 'low', details: [] },
+      llm_usage: { enabled: enableLlm, used: false, provider: null, model: null, calls: 0, latency_ms: 0, fallback_used: false, fallback_reason: 'git diff failed' },
+    };
+  }
+
+  // ── Pipeline ─────────────────────────────────────────────────
+  let changes = canonicalizeAndDeduplicatePaths(rawEntries);
+  if (pathFilterRegex) changes = changes.filter(c => pathFilterRegex.test(c.file));
+
+  const { included, excluded } = filterPrimaryScope(changes, requestedFiles);
+
+  if (requestedFiles && requestedFiles.length > 0) {
+    for (const f of requestedFiles) {
+      if (!included.some(c => c.file === f) && !excluded.some(c => c.file === f)) {
+        const graphNodes = db.db.prepare(
+          'SELECT COUNT(*) as cnt FROM nodes WHERE project = ? AND file_path = ?'
+        ).get(project, f) as { cnt: number } | undefined;
+        if (graphNodes && graphNodes.cnt > 0) {
+          included.push({ file: f, entries: [{ kind: 'untracked', file: f, status: '?' }], hasMixedState: false });
+        }
+      }
+    }
+  }
+
+  const categories = classifyGitEntries(requestedFiles ? included : changes);
+  const allChanges = requestedFiles ? included : changes;
+
+  if (allChanges.length === 0) return buildEmptyResult(project, baseBranch, since, scope, depth, enableLlm);
+  if (scope === 'files') return buildFilesOnlyResult(project, baseBranch, since, categories, allChanges.length, enableLlm);
+
+  const fileDiffMap = collectFileDiffs(rootPath, allChanges, committedRef);
+
+  // ── Symbol-level analysis ────────────────────────────────────
+  const hotspotRows = db.db.prepare(
+    `SELECT n.id, n.qualified_name, n.name, n.file_path,
+            (SELECT COUNT(*) FROM edges e WHERE e.target_id = n.id AND e.type = 'CALLS') as fan_in,
+            json_extract(n.properties, '$.cyclomaticComplexity') as complexity
+     FROM nodes n WHERE n.project = ? AND n.kind IN ('Function', 'Method')
+     ORDER BY fan_in DESC LIMIT 50`
+  ).all(project) as Array<{ id: number; qualified_name: string; name: string; file_path: string; fan_in: number; complexity: number }>;
+
+  const hotspotQns = new Set(hotspotRows.map(h => h.qualified_name));
+  const { changedNodes, allCallers, scopedNodeIds } = analyzeChangedSymbols(db, project, allChanges, hotspotQns, depth);
+
+  // ── Related dependencies ─────────────────────────────────────
+  const scopedFileSet = requestedFiles ? new Set(requestedFiles) : null;
+  const dedupedDeps = scopedFileSet && scopedFileSet.size > 0
+    ? buildRelatedDependencies(db, project, scopedNodeIds, scopedFileSet)
+    : [];
+
+  // ── LLM Risk Assessment ──────────────────────────────────────
+  const { llmUsage } = await runLlmRiskAssessment(db, project, rootPath, changedNodes, fileDiffMap, enableLlm);
+
+  // ── Sort & trim ──────────────────────────────────────────────
   const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
   changedNodes.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // ── Build result ─────────────────────────────────────────────
   const MAX_FILES = 50, MAX_NODES = 30, MAX_CALLERS = 5, MAX_IMPACTED = 5, MAX_DIFF = 3000;
-
   for (const node of changedNodes) {
     node.callers = node.callers.slice(0, MAX_CALLERS);
     if (node.impacted_symbols) node.impacted_symbols = node.impacted_symbols.slice(0, MAX_IMPACTED);
   }
 
+  // ── Build result ─────────────────────────────────────────────
   const confirmedNodes = changedNodes.filter(n => n.impact_tier === 'confirmed');
   const probableNodes = changedNodes.filter(n => n.impact_tier === 'probable');
   const nominalNodes = changedNodes.filter(n => n.impact_tier === 'nominal');
 
   const impactEntry = (n: InternalChangedNode) => ({
-    name: n.name,
-    qualified_name: n.qualified_name,
-    file_path: n.file_path,
-    evidence: n.impact_evidence,
+    name: n.name, qualified_name: n.qualified_name, file_path: n.file_path, evidence: n.impact_evidence,
   });
 
   const fileToCompat = (c: CanonicalChange): CompatFileEntry => {
@@ -848,13 +855,9 @@ export async function handleDetectChanges(
 
   const narrative = buildNarrative(changedNodes, allChanges.length, allCallers.size);
 
-  const result: DetectChangesResult = {
+  return {
     contract_version: DETECT_CHANGES_CONTRACT_VERSION,
-    project,
-    base_branch: baseBranch,
-    since: since || null,
-    scope,
-    depth,
+    project, base_branch: baseBranch, since: since || null, scope, depth,
     categories: {
       tracked_changes: categories.tracked_changes.slice(0, MAX_FILES).map(c => ({ file: c.file, status: c.entries[0]?.kind === 'mixed' ? 'MM' : 'M', old_path: c.oldPath || null })),
       unstaged_changes: categories.unstaged_changes.slice(0, MAX_FILES).map(c => ({ file: c.file, status: 'M (unstaged)', old_path: c.oldPath || null })),
@@ -863,49 +866,31 @@ export async function handleDetectChanges(
       renamed_files: categories.renamed_files.slice(0, MAX_FILES).map(c => ({ file: c.file, status: 'R', old_path: c.oldPath || null })),
     },
     category_counts: {
-      tracked_changes: categories.tracked_changes.length,
-      unstaged_changes: categories.unstaged_changes.length,
-      untracked_files: categories.untracked_files.length,
-      deleted_files: categories.deleted_files.length,
-      renamed_files: categories.renamed_files.length,
-      total: allChanges.length,
+      tracked_changes: categories.tracked_changes.length, unstaged_changes: categories.unstaged_changes.length,
+      untracked_files: categories.untracked_files.length, deleted_files: categories.deleted_files.length,
+      renamed_files: categories.renamed_files.length, total: allChanges.length,
     },
     impact_assessment: {
-      confirmed_count: confirmedNodes.length,
-      probable_count: probableNodes.length,
-      nominal_count: nominalNodes.length,
+      confirmed_count: confirmedNodes.length, probable_count: probableNodes.length, nominal_count: nominalNodes.length,
       confirmed: confirmedNodes.slice(0, MAX_NODES).map(impactEntry),
       probable: probableNodes.slice(0, MAX_NODES).map(impactEntry),
       nominal: nominalNodes.slice(0, MAX_NODES).map(impactEntry),
     },
     related_dependencies: dedupedDeps.slice(0, 30).map(d => ({
-      scope_file: d.scopeFile,
-      scope_symbol: d.scopeSymbol,
-      related_file: d.relatedFile,
-      related_symbol: d.relatedSymbol,
-      direction: d.direction,
-      edge_type: d.edgeType,
-      reason: d.reason,
-      confidence: d.confidence,
+      scope_file: d.scopeFile, scope_symbol: d.scopeSymbol,
+      related_file: d.relatedFile, related_symbol: d.relatedSymbol,
+      direction: d.direction, edge_type: d.edgeType, reason: d.reason, confidence: d.confidence,
     })),
     related_dependencies_count: dedupedDeps.length,
     changed_files: allChanges.slice(0, MAX_FILES).map(fileToCompat),
     changed_nodes: changedNodes.slice(0, MAX_NODES).map(n => ({
-      name: n.name,
-      qualified_name: n.qualified_name,
-      file_path: n.file_path,
-      kind: n.kind,
-      callers: n.callers,
-      caller_count: n.caller_count,
-      severity: n.severity,
-      is_hotspot: n.is_hotspot,
-      impacted_symbols: n.impacted_symbols,
-      impact_tier: n.impact_tier,
-      impact_evidence: n.impact_evidence,
+      name: n.name, qualified_name: n.qualified_name, file_path: n.file_path, kind: n.kind,
+      callers: n.callers, caller_count: n.caller_count, severity: n.severity,
+      is_hotspot: n.is_hotspot, impacted_symbols: n.impacted_symbols,
+      impact_tier: n.impact_tier, impact_evidence: n.impact_evidence,
       llm_risk: n.llm_risk || null,
     })),
-    total_changed_files: allChanges.length,
-    total_affected_nodes: changedNodes.length,
+    total_changed_files: allChanges.length, total_affected_nodes: changedNodes.length,
     by_severity: {
       critical: changedNodes.filter(n => n.severity === 'critical').length,
       high: changedNodes.filter(n => n.severity === 'high').length,
@@ -916,8 +901,6 @@ export async function handleDetectChanges(
     impact_analysis: narrative,
     llm_usage: llmUsage,
   };
-
-  return result;
 }
 
 // ═══════════════════════════════════════════════════════════════

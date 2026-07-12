@@ -18,7 +18,7 @@ export async function handleQueryGraph(
   const started = Date.now();
   const query = String(args.query || '');
   const project = String(args.project || '');
-  const maxRows = args.max_rows ? Number(args.max_rows) : 100;
+  const maxRows = args.max_rows !== undefined ? Number(args.max_rows) : 100;
 
   const db = getDb(project);
 
@@ -142,7 +142,12 @@ function translateCypher(query: string, project: string): string {
 }
 
 function columnSql(expr: string, varName: string): string {
-  return expr.replace(new RegExp(`${varName}\\.(\\w+)`, 'g'), (_, prop) => {
+  // Convert aggregate(var) to aggregate(*) when bare variable reference (no property)
+  const aggFixed = expr.replace(
+    new RegExp(`\\b(COUNT|SUM|AVG|MIN|MAX)\\s*\\(\\s*${varName}\\s*\\)`, 'gi'),
+    (_, fn) => `${fn}(*)`
+  );
+  return aggFixed.replace(new RegExp(`${varName}\\.(\\w+)`, 'g'), (_, prop) => {
     if (['name', 'qualified_name', 'file_path', 'kind', 'id', 'start_line', 'end_line'].includes(prop)) {
       return `${varName}.${prop}`;
     }
@@ -151,12 +156,14 @@ function columnSql(expr: string, varName: string): string {
 }
 
 function conditionSql(clause: string, varName: string): string {
-  return clause
-    .replace(new RegExp(`${varName}\\.(\\w+)\\s*=\\s*'([^']+)'`, 'g'), (_, prop, val) => {
+  const result = clause
+    .replace(new RegExp(`${varName}\\.(\\w+)\\s*=\\s*'((?:[^'\\\\]|\\\\')+)'`, 'g'), (_, prop, val) => {
+      // Convert Cypher \' escape to SQLite '' escape
+      const sqlVal = val.replace(/\\'/g, "''");
       if (['name', 'qualified_name', 'file_path', 'kind', 'is_exported', 'is_entry_point', 'is_test'].includes(prop)) {
-        return `${varName}.${prop} = '${val}'`;
+        return `${varName}.${prop} = '${sqlVal}'`;
       }
-      return `json_extract(${varName}.properties, '$.${prop}') = '${val}'`;
+      return `json_extract(${varName}.properties, '$.${prop}') = '${sqlVal}'`;
     })
     .replace(new RegExp(`${varName}\\.(\\w+)\\s*(>=|<=|>|<|<>)\\s*(\\d+)`, 'g'), (_, prop, op, val) => {
       const col = ['name', 'qualified_name', 'file_path', 'kind', 'start_line', 'end_line']
@@ -169,7 +176,46 @@ function conditionSql(clause: string, varName: string): string {
       }
       return `json_extract(${varName}.properties, '$.${prop}') = ${val}`;
     });
+
+  // Reject SQL injection: OR lets untransformed tautologies (OR 1=1) bypass
+  // the WHERE clause. UNION and ; enable multi-statement attacks. -- is a SQLite
+  // line comment that would truncate the rest of the query. AND between
+  // var.prop = 'value' conditions is legitimate and passes through safely.
+  if (/\bOR\b/i.test(result) || /\bUNION\b/i.test(result) || /;/.test(result) || /--/.test(result)) {
+    throw new Error(`Unsafe WHERE condition: "${clause}". OR, UNION, ;, and -- are not supported in WHERE. Use multiple var.prop = 'value' conditions joined by AND.`);
+  }
+
+  return result;
 }
+
+// ── Shared clause helpers ──────────────────────────────────
+
+function appendPagination(sql: string, query: string): string {
+  let result = sql;
+  const limitMatch = query.match(/LIMIT\s+(\d+)/i);
+  result += limitMatch ? ` LIMIT ${limitMatch[1]}` : ' LIMIT 100';
+  const skipMatch = query.match(/SKIP\s+(\d+)/i);
+  if (skipMatch) result += ` OFFSET ${skipMatch[1]}`;
+  return result;
+}
+
+function appendOrderBy(sql: string, query: string, varName: string): string {
+  const orderMatch = query.match(/ORDER BY\s+(.+?)(?:\s+LIMIT|\s+SKIP|\s*$)/i);
+  if (!orderMatch) return sql;
+  const orderParts = orderMatch[1].trim().split(',').map(p => {
+    const trimmed = p.trim();
+    const dirMatch = trimmed.match(/^(.+?)\s+(ASC|DESC)$/i);
+    const col = dirMatch ? dirMatch[1] : trimmed;
+    const dir = dirMatch ? ` ${dirMatch[2].toUpperCase()}` : '';
+    const translated = columnSql(col, varName);
+    const bareMatch = translated.match(/^(\w+)$/);
+    if (bareMatch) return `"${bareMatch[1]}"${dir}`;
+    return translated + dir;
+  });
+  return sql + ` ORDER BY ${orderParts.join(', ')}`;
+}
+
+// ── MATCH (a:Label)-[r:TYPE]->(b:Label) ────────────────────
 
 function translatePathQuery(
   query: string, project: string, m: RegExpMatchArray
@@ -181,15 +227,43 @@ function translatePathQuery(
   const bVar = m[5];
   const bLabel = m[6] || '';
 
-  // RETURN
-  const returnMatch = query.match(/RETURN\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  // RETURN — stop at GROUP BY, LIMIT, ORDER, SKIP, or end of string
+  const returnMatch = query.match(/RETURN\s+(.+?)(?:\s+GROUP\s+BY|\s+LIMIT(?=\s+\d+|\s*$)|\s+ORDER\s+BY|\s+SKIP(?=\s+\d+|\s*$)|\s*$)/i);
   const returnExpr = returnMatch ? returnMatch[1].trim() : '*';
 
   const columns = returnExpr === '*'
     ? ['a.name as a_name', 'a.qualified_name as a_qualified_name', 'a.kind as a_kind',
        'r.type as edge_type',
        'b.name as b_name', 'b.qualified_name as b_qualified_name', 'b.kind as b_kind']
-    : returnExpr.split(',').map(c => columnSql(c.trim(), aVar));
+    : returnExpr.split(',').map(c => {
+        // Map Cypher variable names to SQL aliases (f→a, t→b, r stays r)
+        // and add AS aliases so columns don't collide (e.g. a.name AS f_name)
+        let expr = c.trim();
+        const asMatch = expr.match(/^(.*)\s+AS\s+(\w+)$/i);
+        const hasExplicitAlias = !!asMatch;
+        const coreExpr = hasExplicitAlias ? asMatch![1].trim() : expr;
+        const explicitAlias = hasExplicitAlias ? asMatch![2] : null;
+
+        let mapped = coreExpr;
+        mapped = mapped.replace(new RegExp(`\\b${aVar}\\.`, 'g'), 'a.');
+        if (bVar !== aVar) mapped = mapped.replace(new RegExp(`\\b${bVar}\\.`, 'g'), 'b.');
+        if (rVar !== aVar && rVar !== bVar) mapped = mapped.replace(new RegExp(`\\b${rVar}\\.`, 'g'), 'r.');
+
+        const colSql = columnSql(mapped, 'a');
+
+        // Auto-alias: if no explicit AS, generate one from the Cypher var + prop
+        if (!hasExplicitAlias && coreExpr !== '*' && coreExpr !== 'count(*)') {
+          let alias = coreExpr.trim();
+          alias = alias.replace(new RegExp(`\\b${aVar}\\.`, 'g'), `${aVar}_`);
+          if (bVar !== aVar) alias = alias.replace(new RegExp(`\\b${bVar}\\.`, 'g'), `${bVar}_`);
+          if (rVar !== aVar && rVar !== bVar) alias = alias.replace(new RegExp(`\\b${rVar}\\.`, 'g'), `${rVar}_`);
+          return `${colSql} AS "${alias}"`;
+        }
+        if (hasExplicitAlias) {
+          return `${colSql} AS "${explicitAlias}"`;
+        }
+        return colSql;
+      });
 
   let sql = `SELECT ${columns.join(', ')} FROM edges r JOIN nodes a ON r.source_id = a.id JOIN nodes b ON r.target_id = b.id WHERE r.project = '${project}' AND a.project = '${project}' AND b.project = '${project}'`;
 
@@ -198,31 +272,42 @@ function translatePathQuery(
   if (rType) sql += ` AND r.type = '${rType}'`;
 
   // WHERE
-  const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+RETURN|\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+RETURN|\s+GROUP\s+BY|\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
   if (whereMatch) {
-    const cond = conditionSql(whereMatch[1].trim(), aVar);
+    let cond = conditionSql(whereMatch[1].trim(), aVar);
+    // Map Cypher variable names to SQL table aliases (same as RETURN columns)
+    cond = cond.replace(new RegExp(`\\b${aVar}\\.`, 'g'), 'a.');
+    if (bVar !== aVar) cond = cond.replace(new RegExp(`\\b${bVar}\\.`, 'g'), 'b.');
+    if (rVar !== aVar && rVar !== bVar) cond = cond.replace(new RegExp(`\\b${rVar}\\.`, 'g'), 'r.');
     sql += ` AND (${cond})`;
   }
 
   // WITH (pipeline only — just pass-through for now)
   const withMatch = query.match(/WITH\s+(.+?)(?:\s+MATCH|\s*$)/i);
 
-  // ORDER BY
-  const orderMatch = query.match(/ORDER BY\s+(.+?)(?:\s+LIMIT|\s+SKIP|\s*$)/i);
-  if (orderMatch) {
-    sql += ` ORDER BY ${orderMatch[1].trim()}`;
+  // GROUP BY
+  const groupMatch = query.match(/GROUP\s+BY\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  if (groupMatch) {
+    sql += ` GROUP BY ${groupMatch[1].trim()}`;
   }
 
-  // SKIP
-  const skipMatch = query.match(/SKIP\s+(\d+)/i);
-  if (skipMatch) sql += ` OFFSET ${skipMatch[1]}`;
+  // ORDER BY — quote bare identifiers (RETURN aliases) to protect reserved words
+  const orderMatch = query.match(/ORDER BY\s+(.+?)(?:\s+LIMIT|\s+SKIP|\s*$)/i);
+  if (orderMatch) {
+    const orderParts = orderMatch[1].trim().split(',').map(p => {
+      const trim = p.trim();
+      const m = trim.match(/^(\w+)(\s+(?:ASC|DESC))?$/i);
+      if (m) return `"${m[1]}"${m[2] || ''}`;
+      return trim;
+    });
+    sql += ` ORDER BY ${orderParts.join(', ')}`;
+  }
 
-  // LIMIT
-  const limitMatch = query.match(/LIMIT\s+(\d+)/i);
-  sql += limitMatch ? ` LIMIT ${limitMatch[1]}` : ' LIMIT 100';
-
+  sql = appendPagination(sql, query);
   return sql;
 }
+
+// ── MATCH (var:Label) ──────────────────────────────────────
 
 function translateSingleMatch(
   query: string, project: string, m: RegExpMatchArray
@@ -230,52 +315,48 @@ function translateSingleMatch(
   const varName = m[1];
   const label = m[2];
 
-  // RETURN
-  const returnMatch = query.match(/RETURN\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  // RETURN — stop at GROUP BY, LIMIT, ORDER, SKIP, or end of string
+  const returnMatch = query.match(/RETURN\s+(.+?)(?:\s+GROUP\s+BY|\s+LIMIT(?=\s+\d+|\s*$)|\s+ORDER\s+BY|\s+SKIP(?=\s+\d+|\s*$)|\s*$)/i);
   const returnExpr = returnMatch ? returnMatch[1].trim() : `${varName}.*`;
 
   const columns = returnExpr
     .split(',')
     .map((c) => c.trim())
     .map((c) => {
-      if (/COUNT\s*\(/i.test(c) || /SUM\s*\(/i.test(c) || /AVG\s*\(/i.test(c) || /MIN\s*\(/i.test(c) || /MAX\s*\(/i.test(c)) {
-        return columnSql(c, varName);
-      }
       return columnSql(c, varName);
     });
 
   let sql = `SELECT ${columns.join(', ')} FROM nodes ${varName} WHERE ${varName}.project = '${project}' AND ${varName}.kind = '${label}'`;
 
   // WHERE
-  const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+RETURN|\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+RETURN|\s+GROUP\s+BY|\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
   if (whereMatch) {
     const cond = conditionSql(whereMatch[1].trim(), varName);
     sql += ` AND (${cond})`;
   }
 
-  // ORDER BY
-  const orderMatch = query.match(/ORDER BY\s+(.+?)(?:\s+LIMIT|\s+SKIP|\s*$)/i);
-  if (orderMatch) {
-    sql += ` ORDER BY ${columnSql(orderMatch[1].trim(), varName)}`;
+  // GROUP BY
+  const groupMatch = query.match(/GROUP\s+BY\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  if (groupMatch) {
+    const groupExpr = groupMatch[1].trim().split(',').map(g => columnSql(g.trim(), varName)).join(', ');
+    sql += ` GROUP BY ${groupExpr}`;
   }
 
-  // SKIP
-  const skipMatch = query.match(/SKIP\s+(\d+)/i);
-  if (skipMatch) sql += ` OFFSET ${skipMatch[1]}`;
+  // ORDER BY — quote bare identifiers to protect reserved words
+  sql = appendOrderBy(sql, query, varName);
 
-  // LIMIT
-  const limitMatch = query.match(/LIMIT\s+(\d+)/i);
-  sql += limitMatch ? ` LIMIT ${limitMatch[1]}` : ' LIMIT 100';
-
+  sql = appendPagination(sql, query);
   return sql;
 }
+
+// ── MATCH (n) — match all ──────────────────────────────────
 
 function translateAllMatch(
   query: string, project: string, m: RegExpMatchArray
 ): string {
   const varName = m[1];
 
-  const returnMatch = query.match(/RETURN\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  const returnMatch = query.match(/RETURN\s+(.+?)(?:\s+GROUP\s+BY|\s+LIMIT(?=\s+\d+|\s*$)|\s+ORDER\s+BY|\s+SKIP(?=\s+\d+|\s*$)|\s*$)/i);
   const returnExpr = returnMatch ? returnMatch[1].trim() : `${varName}.*`;
 
   const columns = returnExpr === '*'
@@ -285,21 +366,22 @@ function translateAllMatch(
   let sql = `SELECT ${columns.join(', ')} FROM nodes ${varName} WHERE ${varName}.project = '${project}'`;
 
   // WHERE
-  const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+RETURN|\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  const whereMatch = query.match(/WHERE\s+(.+?)(?:\s+RETURN|\s+GROUP\s+BY|\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
   if (whereMatch) {
     const cond = conditionSql(whereMatch[1].trim(), varName);
     sql += ` AND (${cond})`;
   }
 
-  // ORDER BY
-  const orderMatch = query.match(/ORDER BY\s+(.+?)(?:\s+LIMIT|\s+SKIP|\s*$)/i);
-  if (orderMatch) {
-    sql += ` ORDER BY ${columnSql(orderMatch[1].trim(), varName)}`;
+  // GROUP BY
+  const groupMatch = query.match(/GROUP\s+BY\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  if (groupMatch) {
+    const groupExpr = groupMatch[1].trim().split(',').map(g => columnSql(g.trim(), varName)).join(', ');
+    sql += ` GROUP BY ${groupExpr}`;
   }
 
-  // LIMIT
-  const limitMatch = query.match(/LIMIT\s+(\d+)/i);
-  sql += limitMatch ? ` LIMIT ${limitMatch[1]}` : ' LIMIT 100';
+  // ORDER BY — quote bare identifiers to protect reserved words
+  sql = appendOrderBy(sql, query, varName);
 
+  sql = appendPagination(sql, query);
   return sql;
 }

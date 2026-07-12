@@ -11,9 +11,27 @@
 
 import * as path from 'node:path';
 import { getDb } from '../server.js';
+import type { LynxDatabase } from '../../store/database.js';
 import { getFindingsByFile, getFindingsByQn } from '../../store/memory.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
 import { projectNotIndexed } from '../diagnostics.js';
+import type { LynxFinding } from '../../types.js';
+
+function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
+  const seen = new Set<string>();
+  return findings.filter(f => {
+    if (f.category === 'hotspot') {
+      const key = `${f.targetQn}:hotspot`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }
+    const key = `${f.targetFile}:${f.title}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 interface ReviewIssue {
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
@@ -24,15 +42,6 @@ interface ReviewIssue {
   suggestion: string;
 }
 
-interface ReviewStats {
-  totalFunctions: number;
-  totalLines: number;
-  avgComplexity: number;
-  maxComplexity: number;
-  totalCallers: number;
-  riskyFunctions: number;
-}
-
 export async function handleSmartReview(
   args: Record<string, unknown>
 ): Promise<unknown> {
@@ -40,7 +49,7 @@ export async function handleSmartReview(
   const project = String(args.project || '');
   const filePath = args.file ? String(args.file) : undefined;
   const qualifiedName = args.qualified_name ? String(args.qualified_name) : undefined;
-  const limit = args.limit ? Number(args.limit) : 20;
+  const limit = args.limit !== undefined ? Number(args.limit) : 20;
 
   if (!project) return { error: 'project is required' };
   if (!filePath && !qualifiedName) return { error: 'file or qualified_name is required' };
@@ -49,24 +58,13 @@ export async function handleSmartReview(
   const projectMeta = db.getProject(project);
   if (!projectMeta) return { ...projectNotIndexed(project) };
 
-  const issues: ReviewIssue[] = [];
-
-  let nodes: any[];
-  if (qualifiedName) {
-    // Single symbol review
-    nodes = db.db
-      .prepare('SELECT * FROM nodes WHERE project = ? AND qualified_name = ?')
-      .all(project, qualifiedName);
-  } else {
-    // File review — all functions and classes
-    nodes = db.db
-      .prepare(
+  const nodes = qualifiedName
+    ? db.db.prepare('SELECT * FROM nodes WHERE project = ? AND qualified_name = ?')
+        .all(project, qualifiedName)
+    : db.db.prepare(
         `SELECT * FROM nodes WHERE project = ? AND file_path = ?
-         AND kind IN ('Function', 'Method', 'Class', 'Interface')
-         ORDER BY start_line`
-      )
-      .all(project, filePath);
-  }
+         AND kind IN ('Function', 'Method', 'Class', 'Interface') ORDER BY start_line`
+      ).all(project, filePath);
 
   if (nodes.length === 0) {
     return {
@@ -76,12 +74,29 @@ export async function handleSmartReview(
     };
   }
 
+  const issues = reviewNodes(db, project, nodes);
+
+  // Memory findings for the target
+  const memoryFindings = qualifiedName
+    ? getFindingsByQn(db, project, qualifiedName)
+    : filePath ? getFindingsByFile(db, project, filePath) : [];
+
+  return buildReviewResponse(issues, limit, nodes, filePath, qualifiedName, memoryFindings, project, started);
+}
+
+// ── Per-node review ────────────────────────────────────
+
+function reviewNodes(
+  db: LynxDatabase,
+  project: string,
+  nodes: any[],
+): ReviewIssue[] {
+  const issues: ReviewIssue[] = [];
   const seenWarnings = new Set<string>();
 
   for (const node of nodes) {
     const props = JSON.parse(node.properties || '{}');
     const cyclomatic = props.cyclomaticComplexity || 0;
-    const cognitive = props.cognitiveComplexity || 0;
     const loopDepth = props.loopDepth || 0;
     const lineCount = node.end_line - node.start_line + 1;
 
@@ -92,17 +107,15 @@ export async function handleSmartReview(
     // Length check
     if (lineCount > 200) {
       issues.push({
-        severity: 'high',
-        category: 'size',
+        severity: 'high', category: 'size',
         title: `${node.kind} too long (${lineCount} lines)`,
         description: `${node.kind} \`${node.name}\` spans ${lineCount} lines. Long functions are hard to test and understand.`,
         location: `${node.file_path}:${node.start_line}`,
-        suggestion: `Split into smaller functions of 50-80 lines each. Extract logical blocks into helper functions with descriptive names.`,
+        suggestion: 'Split into smaller functions of 50-80 lines each. Extract logical blocks into helper functions with descriptive names.',
       });
     } else if (lineCount > 80) {
       issues.push({
-        severity: 'medium',
-        category: 'size',
+        severity: 'medium', category: 'size',
         title: `${node.kind} lengthy (${lineCount} lines)`,
         description: `${node.kind} \`${node.name}\` with ${lineCount} lines — check for mixed responsibilities.`,
         location: `${node.file_path}:${node.start_line}`,
@@ -113,8 +126,7 @@ export async function handleSmartReview(
     // Complexity check
     if (cyclomatic > 100) {
       issues.push({
-        severity: 'critical',
-        category: 'complexity',
+        severity: 'critical', category: 'complexity',
         title: `Extreme cyclomatic complexity (${cyclomatic})`,
         description: `${node.kind} \`${node.name}\` has cyclomatic complexity of ${cyclomatic} — extremely hard to test and maintain.`,
         location: `${node.file_path}:${node.start_line}`,
@@ -122,8 +134,7 @@ export async function handleSmartReview(
       });
     } else if (cyclomatic > 50) {
       issues.push({
-        severity: 'high',
-        category: 'complexity',
+        severity: 'high', category: 'complexity',
         title: `High cyclomatic complexity (${cyclomatic})`,
         description: `${node.kind} \`${node.name}\` with ${cyclomatic} execution paths — prone to bugs in untested branches.`,
         location: `${node.file_path}:${node.start_line}`,
@@ -131,8 +142,7 @@ export async function handleSmartReview(
       });
     } else if (cyclomatic > 20) {
       issues.push({
-        severity: 'medium',
-        category: 'complexity',
+        severity: 'medium', category: 'complexity',
         title: `Moderate cyclomatic complexity (${cyclomatic})`,
         description: `${node.kind} \`${node.name}\` with complexity ${cyclomatic} — acceptable but keep an eye on it.`,
         location: `${node.file_path}:${node.start_line}`,
@@ -143,8 +153,7 @@ export async function handleSmartReview(
     // Loop depth check
     if (loopDepth >= 3) {
       issues.push({
-        severity: 'high',
-        category: 'performance',
+        severity: 'high', category: 'performance',
         title: `Deep nested loops (level ${loopDepth})`,
         description: `${node.kind} \`${node.name}\` contains loops nested ${loopDepth} levels deep. This is a structural risk signal, but loop depth alone does not establish O(n^${loopDepth}) runtime complexity.`,
         location: `${node.file_path}:${node.start_line}`,
@@ -155,8 +164,7 @@ export async function handleSmartReview(
     // Fan-in risk
     if (fanIn.cnt >= 20) {
       issues.push({
-        severity: 'high',
-        category: 'risk',
+        severity: 'high', category: 'risk',
         title: `High coupling — ${fanIn.cnt} callers`,
         description: `${node.kind} \`${node.name}\` is called by ${fanIn.cnt} functions. Changes here have high impact.`,
         location: `${node.file_path}:${node.start_line}`,
@@ -179,8 +187,7 @@ export async function handleSmartReview(
         if (!seenWarnings.has(key)) {
           seenWarnings.add(key);
           issues.push({
-            severity: 'medium',
-            category: 'test-coverage',
+            severity: 'medium', category: 'test-coverage',
             title: 'No tests in this directory',
             description: `No test files found in ${path.dirname(node.file_path)} for a function with complexity ${cyclomatic} and ${fanIn.cnt} callers.`,
             location: path.dirname(node.file_path),
@@ -191,18 +198,25 @@ export async function handleSmartReview(
     }
   }
 
-  // Memory findings for the target
-  const memoryFindings = qualifiedName
-    ? getFindingsByQn(db, project, qualifiedName)
-    : filePath ? getFindingsByFile(db, project, filePath) : [];
+  return issues;
+}
 
-  // Sort by severity
+// ── Response building ──────────────────────────────────
+
+function buildReviewResponse(
+  issues: ReviewIssue[],
+  limit: number,
+  nodes: any[],
+  filePath?: string,
+  qualifiedName?: string,
+  memoryFindings: any[] = [],
+  project: string = '',
+  started: number = Date.now(),
+): unknown {
   const severityOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
   issues.sort((a, b) => (severityOrder[a.severity] ?? 5) - (severityOrder[b.severity] ?? 5));
 
   const limitedIssues = issues.slice(0, limit);
-
-  // Counts
   const critical = limitedIssues.filter(i => i.severity === 'critical').length;
   const high = limitedIssues.filter(i => i.severity === 'high').length;
   const medium = limitedIssues.filter(i => i.severity === 'medium').length;
@@ -213,9 +227,11 @@ export async function handleSmartReview(
       ? `Review needed: ${high} high, ${medium} medium issues.`
       : medium > 0
         ? `Acceptable: ${medium} medium issues detected.`
-        : issues.length > 0
-          ? `Healthy: only ${issues.length} low-priority warnings.`
-          : 'Clean: no issues detected in this review.';
+        : limitedIssues.length > 0
+          ? `Healthy: only ${limitedIssues.length} low-priority warnings.`
+          : issues.length > 0
+            ? `Review returned ${Math.min(issues.length, limit)} of ${issues.length} issues — increase limit to see all.`
+            : 'Clean: no issues detected in this review.';
 
   recordUsageEvent({
     type: 'search_graph',
@@ -237,25 +253,16 @@ export async function handleSmartReview(
     stats: {
       functions_reviewed: nodes.length,
       total_issues: issues.length,
-      critical,
-      high,
-      medium,
+      critical, high, medium,
       low: limitedIssues.filter(i => i.severity === 'low').length,
       info: limitedIssues.filter(i => i.severity === 'info').length,
     },
     issues: limitedIssues.map(i => ({
-      severity: i.severity,
-      category: i.category,
-      title: i.title,
-      description: i.description,
-      location: i.location,
-      suggestion: i.suggestion,
+      severity: i.severity, category: i.category, title: i.title,
+      description: i.description, location: i.location, suggestion: i.suggestion,
     })),
-    memory_findings: memoryFindings.map(f => ({
-      title: f.title,
-      severity: f.severity,
-      category: f.category,
-      discovered: f.createdAt,
+    memory_findings: dedupeFindings(memoryFindings).map(f => ({
+      title: f.title, severity: f.severity, category: f.category, discovered: f.createdAt,
     })),
     remaining_issues: Math.max(0, issues.length - limitedIssues.length),
     value_metrics: {

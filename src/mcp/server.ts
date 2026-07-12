@@ -102,8 +102,10 @@ interface JsonRpcRequest {
 const DB_CACHE = new Map<string, LynxDatabase>();
 
 export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' | 'inputSchema'>> {
-  const profile = process.env.LYNX_TOOL_PROFILE || 'core';
-  const visible = profile === 'advanced' ? TOOLS : TOOLS.filter(tool => CORE_TOOL_NAMES.has(tool.name));
+  // A configured MCP server must expose the full public contract by default.
+  // Clients that need a compact registry can explicitly opt into `core`.
+  const profile = process.env.LYNX_TOOL_PROFILE || 'advanced';
+  const visible = profile === 'core' ? TOOLS.filter(tool => CORE_TOOL_NAMES.has(tool.name)) : TOOLS;
   return visible.map(withEvidenceDiscipline).map((tool) => ({
     name: tool.name,
     description: tool.description,

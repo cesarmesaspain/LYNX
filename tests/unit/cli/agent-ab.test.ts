@@ -252,10 +252,9 @@ describe("grep shell safety", () => {
 
 describe("external task prompt discipline", () => {
   it("avoids open-ended exploration instructions", () => {
-    const source = fs.readFileSync(
-      path.join(process.cwd(), "src/cli/agent-ab/benchmark.ts"),
-      "utf8",
-    );
+    const source = ["benchmark.ts", "execution-support.ts", "runtime.ts"]
+      .map((file) => fs.readFileSync(path.join(process.cwd(), "src/cli/agent-ab", file), "utf8"))
+      .join("\n");
     expect(source).not.toContain("Explore freely");
     expect(source).not.toContain("Choose tools freely");
     expect(source).not.toContain("Choose and use them freely");

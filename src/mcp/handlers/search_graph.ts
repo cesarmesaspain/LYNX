@@ -190,6 +190,10 @@ function parseSearchGraphArgs(args: Record<string, unknown>): SearchGraphArgs | 
   const query = args.query ? String(args.query) : undefined;
   if (query === '') return { error: 'query must not be empty. Provide at least one search term, or use name_pattern/qn_pattern for structural queries.' };
   const limit = args.limit !== undefined ? Number(args.limit) : 10;
+  const unsupportedPattern = [args.name_pattern, args.qn_pattern]
+    .map(value => value === undefined ? '' : String(value))
+    .find(value => /[\[\](){}|?]/.test(value));
+  if (unsupportedPattern) return { error: `Unsupported regex construct in '${unsupportedPattern}'. Use name_like/qn_like for SQL LIKE patterns.` };
   return {
     project: String(args.project || ''),
     query,

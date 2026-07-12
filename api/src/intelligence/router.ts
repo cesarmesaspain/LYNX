@@ -47,13 +47,21 @@ function getRouting(task: string): RoutingConfig | null {
   return row || null;
 }
 
-function cacheKey(task: string, payload: Record<string, unknown>): string {
-  const normalized = JSON.stringify({ task, ...payload }, Object.keys(payload).sort());
+function stableSerialize(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record).sort().map(key => `${JSON.stringify(key)}:${stableSerialize(record[key])}`).join(',')}}`;
+}
+
+export function cacheKey(task: string, licenseId: string, payload: Record<string, unknown>): string {
+  const normalized = stableSerialize({ task, licenseId, payload });
   return `lynx:intel:${createHash('sha256').update(normalized).digest('hex').slice(0, 16)}`;
 }
 
 export async function routeIntelligence(
-  req: IntelligenceRequest
+  req: IntelligenceRequest,
+  licenseId: string
 ): Promise<IntelligenceResponse> {
   const routing = getRouting(req.task);
   if (!routing) {
@@ -62,7 +70,7 @@ export async function routeIntelligence(
   }
 
   // Check cache
-  const key = cacheKey(req.task, req.payload);
+  const key = cacheKey(req.task, licenseId, req.payload);
   const cached = await cacheGet(key);
   if (cached) {
     return { result: cached, latency_ms: 0, cached: true };

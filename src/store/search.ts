@@ -59,6 +59,12 @@ interface RawRow {
  *   \.\*test     → %test
  */
 function regexToLike(pattern: string): string {
+  // This is a deliberately small regex-to-LIKE bridge. Reject constructs we
+  // cannot preserve instead of returning silently incorrect matches; callers
+  // can use name_like/qn_like for SQL wildcards.
+  if (/[\[\](){}|?]/.test(pattern)) {
+    throw new Error(`Unsupported regex construct in pattern '${pattern}'. Use name_like/qn_like for SQL LIKE patterns.`);
+  }
   // Fast path: if it doesn't look like a regex, treat it as a raw SQL LIKE pattern
   if (!/[.^$]|\\[dw]/i.test(pattern)) return pattern;
 

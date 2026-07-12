@@ -15,6 +15,7 @@ export interface McpVerification {
 }
 
 const VERIFY_TIMEOUT_MS = 8_000;
+const MAX_OUTPUT_BYTES = 1_000_000;
 
 export function verifyMcpServer(command: string, args: string[]): Promise<McpVerification> {
   return new Promise((resolve) => {
@@ -54,8 +55,24 @@ export function verifyMcpServer(command: string, args: string[]): Promise<McpVer
       });
     }, VERIFY_TIMEOUT_MS);
 
-    child.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
-    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    const appendOutput = (current: string, chunk: Buffer): string | null => {
+      const next = current + chunk.toString();
+      return Buffer.byteLength(next) > MAX_OUTPUT_BYTES ? null : next;
+    };
+    child.stdout.on('data', (chunk: Buffer) => {
+      const next = appendOutput(stdout, chunk);
+      if (next === null) {
+        child.kill();
+        finish({ expected: expectedNames.length, discovered: 0, missing: expectedNames, ok: false, error: 'MCP handshake exceeded output limit' });
+      } else stdout = next;
+    });
+    child.stderr.on('data', (chunk: Buffer) => {
+      const next = appendOutput(stderr, chunk);
+      if (next === null) {
+        child.kill();
+        finish({ expected: expectedNames.length, discovered: 0, missing: expectedNames, ok: false, error: 'MCP handshake exceeded output limit' });
+      } else stderr = next;
+    });
     child.on('error', (error) => {
       finish({ expected: expectedNames.length, discovered: 0, missing: expectedNames, ok: false, error: String(error) });
     });

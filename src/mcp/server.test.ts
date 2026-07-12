@@ -8,11 +8,22 @@ describe('MCP tool registry', () => {
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
     expect(TOOLS.map((tool) => tool.name)).toContain('find_dead_code');
     const listed = listMcpTools();
-    expect(listed).toHaveLength(9);
+    expect(listed).toHaveLength(TOOLS.length);
     expect(listed.map(tool => tool.name)).toContain('pack_context');
-    expect(listed.map(tool => tool.name)).not.toContain('delete_project');
+    expect(listed.map(tool => tool.name)).toContain('delete_project');
     expect(listed.find((tool) => tool.name === 'search_graph')?.description).toContain(
       'consolidate it and stop investigating',
     );
+  });
+
+  it('offers the compact profile only when explicitly requested', () => {
+    const previous = process.env.LYNX_TOOL_PROFILE;
+    process.env.LYNX_TOOL_PROFILE = 'core';
+    try {
+      expect(listMcpTools()).toHaveLength(9);
+    } finally {
+      if (previous === undefined) delete process.env.LYNX_TOOL_PROFILE;
+      else process.env.LYNX_TOOL_PROFILE = previous;
+    }
   });
 });

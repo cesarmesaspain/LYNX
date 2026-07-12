@@ -25,35 +25,12 @@
  */
 
 import 'dotenv/config';
-import Fastify from 'fastify';
-import { intelligenceRoutes } from './routes/intelligence.js';
-import { licenseRoutes } from './routes/license.js';
-import { versionRoutes } from './routes/version.js';
-import { telemetryRoutes } from './routes/telemetry.js';
-import { stripeRoutes } from './routes/stripe.js';
+import { createApp } from './app.js';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
-const app = Fastify({
-  logger: {
-    level: process.env.LOG_LEVEL || 'info',
-  },
-});
-
-// ── Routes ───────────────────────────────────────────
-
-intelligenceRoutes(app);
-licenseRoutes(app);
-versionRoutes(app);
-telemetryRoutes(app);
-stripeRoutes(app);
-
-// ── Health check ─────────────────────────────────────
-
-app.get('/health', async () => {
-  return { status: 'ok', uptime: process.uptime() };
-});
+const app = createApp();
 
 // ── Start ────────────────────────────────────────────
 

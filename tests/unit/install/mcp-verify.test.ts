@@ -30,4 +30,9 @@ describe('verifyMcpServer', () => {
     expect(result.ok).toBe(false);
     expect(result.missing).toContain(TOOLS[0].name);
   });
+
+  it('stops a server that emits unbounded handshake output', async () => {
+    const result = await verifyMcpServer(process.execPath, ['-e', 'process.stdout.write("x".repeat(1_100_000)); setInterval(() => {}, 1000);']);
+    expect(result).toMatchObject({ ok: false, error: 'MCP handshake exceeded output limit' });
+  }, 10_000);
 });

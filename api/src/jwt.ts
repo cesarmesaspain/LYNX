@@ -15,11 +15,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 
-const DATA_DIR = path.resolve(import.meta.dirname, '../data');
+const DATA_DIR = process.env.LYNX_API_DATA_DIR || path.resolve(import.meta.dirname, '../data');
 const PRIVATE_KEY_PATH = path.join(DATA_DIR, 'license_private.pem');
 const PUBLIC_KEY_PATH = path.join(DATA_DIR, 'license_public.pem');
 
 function generateKeys(): void {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
   execSync(
     `ssh-keygen -t rsa -b 2048 -m PEM -N "" -f "${PRIVATE_KEY_PATH}"`,
     { stdio: 'pipe' }
@@ -32,6 +33,11 @@ function generateKeys(): void {
 }
 
 function getPrivateKey(): string {
+  const configured = process.env.LYNX_LICENSE_PRIVATE_KEY;
+  if (configured) return configured.replace(/\\n/g, '\n');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('LYNX_LICENSE_PRIVATE_KEY must be configured in production');
+  }
   if (!fs.existsSync(PRIVATE_KEY_PATH)) {
     generateKeys();
   }
@@ -39,6 +45,11 @@ function getPrivateKey(): string {
 }
 
 function getPublicKey(): string {
+  const configured = process.env.LYNX_LICENSE_PUBLIC_KEY;
+  if (configured) return configured.replace(/\\n/g, '\n');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('LYNX_LICENSE_PUBLIC_KEY must be configured in production');
+  }
   if (!fs.existsSync(PUBLIC_KEY_PATH)) {
     generateKeys();
   }

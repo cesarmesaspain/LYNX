@@ -29,15 +29,21 @@ export function stripeRoutes(app: FastifyInstance): void {
 
     let event: Stripe.Event;
     try {
-      const rawBody = request.body as string;
+      const rawBody = (request.body as { __rawBody?: Buffer }).__rawBody;
+      if (!rawBody) throw new Error('raw body unavailable');
       event = stripe.webhooks.constructEvent(
-        typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody),
+        rawBody,
         signature,
         STRIPE_WEBHOOK_SECRET
       );
     } catch {
       return reply.status(400).send({ error: 'invalid_signature' });
     }
+
+    const inserted = licensesDb.prepare(
+      'INSERT INTO stripe_events (event_id, event_type) VALUES (?, ?) ON CONFLICT(event_id) DO NOTHING'
+    ).run(event.id, event.type);
+    if (inserted.changes === 0) return reply.send({ received: true, duplicate: true });
 
     try {
       switch (event.type) {
@@ -47,7 +53,7 @@ export function stripeRoutes(app: FastifyInstance): void {
           const customerId = session.customer as string;
 
           if (email) {
-            await handleCheckoutCompleted(email, customerId, session);
+            await handleCheckoutCompleted(stripe, email, customerId, session);
           }
           break;
         }
@@ -55,7 +61,7 @@ export function stripeRoutes(app: FastifyInstance): void {
           const sub = event.data.object as Stripe.Subscription;
           const customerId = sub.customer as string;
           const status = sub.status;
-          await handleSubscriptionUpdated(customerId, status);
+          await handleSubscriptionUpdated(customerId, status, tierFromPriceIds(sub.items.data.map(item => item.price.id)));
           break;
         }
         case 'customer.subscription.deleted': {
@@ -72,6 +78,7 @@ export function stripeRoutes(app: FastifyInstance): void {
         }
       }
     } catch (err) {
+      licensesDb.prepare('DELETE FROM stripe_events WHERE event_id = ?').run(event.id);
       app.log.error(err, 'Stripe webhook handler error');
       return reply.status(500).send({ error: 'handler_error' });
     }
@@ -80,9 +87,10 @@ export function stripeRoutes(app: FastifyInstance): void {
   });
 }
 
-async function handleCheckoutCompleted(email: string, customerId: string, session: Stripe.Checkout.Session): Promise<void> {
-  // Determine tier from Stripe price/line items
-  const tier = 'pro'; // Default — can be refined by price ID lookup
+async function handleCheckoutCompleted(stripe: Stripe, email: string, customerId: string, session: Stripe.Checkout.Session): Promise<void> {
+  const items = await stripe.checkout.sessions.listLineItems(session.id, { limit: 100 });
+  const tier = tierFromPriceIds(items.data.map(item => item.price?.id));
+  if (!tier) throw new Error('Stripe checkout does not contain a configured tier price');
 
   const existing = licensesDb.prepare('SELECT id, tier FROM users WHERE email = ?').get(email) as any;
 
@@ -98,16 +106,35 @@ async function handleCheckoutCompleted(email: string, customerId: string, sessio
   }
 }
 
-async function handleSubscriptionUpdated(customerId: string, status: string): Promise<void> {
+export function tierFromPriceIds(priceIds: Array<string | null | undefined>): 'pro' | 'team' | 'enterprise' | null {
+  const tiers: Array<['pro' | 'team' | 'enterprise', string | undefined]> = [
+    ['pro', process.env.STRIPE_PRO_PRICE_ID],
+    ['team', process.env.STRIPE_TEAM_PRICE_ID],
+    ['enterprise', process.env.STRIPE_ENTERPRISE_PRICE_ID],
+  ];
+  return tiers.find(([, priceId]) => priceId && priceIds.includes(priceId))?.[0] ?? null;
+}
+
+async function handleSubscriptionUpdated(
+  customerId: string,
+  status: string,
+  tier: 'pro' | 'team' | 'enterprise' | null,
+): Promise<void> {
   const billingStatus =
     status === 'active' ? 'active' :
     status === 'past_due' ? 'past_due' :
     status === 'canceled' ? 'canceled' :
     status === 'trialing' ? 'trialing' : status;
 
-  licensesDb.prepare(
-    'UPDATE users SET billing_status = ? WHERE stripe_customer_id = ?'
-  ).run(billingStatus, customerId);
+  if (tier && (billingStatus === 'active' || billingStatus === 'trialing')) {
+    licensesDb.prepare(
+      'UPDATE users SET billing_status = ?, tier = ? WHERE stripe_customer_id = ?'
+    ).run(billingStatus, tier, customerId);
+  } else {
+    licensesDb.prepare(
+      'UPDATE users SET billing_status = ? WHERE stripe_customer_id = ?'
+    ).run(billingStatus, customerId);
+  }
 }
 
 async function handleSubscriptionDeleted(customerId: string): Promise<void> {

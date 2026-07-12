@@ -14,5 +14,7 @@ export async function cmdServe(): Promise<void> {
       console.error(`Run: npx lynx watch   to watch for changes`);
     }
   }
+
+  // runServer starts: MCP JSON-RPC over stdio + dashboard + auto-index + auto-watch
   await runServer();
 }

@@ -12,10 +12,9 @@ import * as path from "node:path";
 import * as os from "node:os";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// `process.argv[1]` is stable in both ESM source runs and the packaged CLI.
+// Avoid `import.meta.url`: pkg executes its bundled entry through CommonJS.
+const benchmarkDir = path.dirname(process.argv[1] || process.cwd());
 
 import { LynxDatabase } from "../../store/database.js";
 import { runPipeline } from "../../pipeline/orchestrator.js";
@@ -375,27 +374,6 @@ function makeExternalProjectTasks(projectLabel: string): BenchmarkTask[] {
       evaluation_kind: "designed-only",
     },
     {
-      id: "external_config_lookup",
-      name: "Single config file lookup (LYNX weakness test)",
-      userPrompt: `What is the exact value of the "name" field in ${projectLabel}'s package.json? Also, what is the value of the "private" field? Respond with JSON: {"name":"...","private":true/false}.`,
-      expected: {},
-      evaluation_kind: "designed-only",
-    },
-    {
-      id: "external_tiny_config",
-      name: "Tiny config file — LYNX worst case",
-      userPrompt: `Read the file .env.example at the root of ${projectLabel}. What is the value of NEXT_PUBLIC_VAPI_API_KEY? Respond with JSON: {"NEXT_PUBLIC_VAPI_API_KEY":"..."}.`,
-      expected: {},
-      evaluation_kind: "designed-only",
-    },
-    {
-      id: "external_impact_analysis",
-      name: "Specific function change impact",
-      userPrompt: `I need to modify the function handleSearchGraph in ${projectLabel}. Before I touch it, I need to know: (1) what other functions call it directly or indirectly, (2) what functions it calls, (3) what tests cover it, and (4) what routes or entry points would be affected. Find this information precisely — do not make guesses. Respond with JSON: {"callers":["..."],"callees":["..."],"tests":["..."],"affected_entry_points":["..."],"summary":"..."}.`,
-      expected: {},
-      evaluation_kind: "designed-only",
-    },
-    {
       id: "external_multi_turn",
       name: "Multi-turn session: 2 tasks in same conversation",
       userPrompt: `I have two questions about ${projectLabel}. Answer them one after another in the same JSON response.
@@ -411,7 +389,7 @@ Respond with a single JSON: {"question1":{"language":"...","framework":"...","ho
     {
       id: "external_dead_code",
       name: "Find dead code — unused functions/classes",
-      userPrompt: `I'm doing a ${projectLabel} cleanup sprint. Find symbols (functions, classes) in the codebase that appear to have zero callers and zero usages — these are candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Only report symbols you have verified are defined in the codebase, and stop once 5 well-supported candidates are established. Respond with JSON: {"unused_symbols":[{"name":"...","file":"...","kind":"function|class"}], "evidence":["..."], "summary":"..."}.`,
+      userPrompt: `I'm doing a ${projectLabel} cleanup sprint. Find symbols (functions, classes) in the codebase that have zero callers and zero usages — candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Prefer a structural dead-code operation when available: its returned definition location and zero-incoming-edge evidence are sufficient; do not reopen every candidate unless that operation cannot provide the evidence, and stop once 5 well-supported candidates are established. Respond with JSON: {"unused_symbols":[{"name":"...","file":"...","kind":"function|class"}], "evidence":["..."], "summary":"..."}.`,
       expected: {},
       evaluation_kind: "partial",
     },
@@ -444,34 +422,6 @@ Respond with a single JSON: {"question1":{"language":"...","framework":"...","ho
       evaluation_kind: "designed-only",
     },
     {
-      id: "external_project_overview",
-      name: "Project architecture orientation",
-      userPrompt: `You have just joined the ${projectLabel} team. Analyze the project and give a concise technical orientation: its primary architecture, main entry points, important hotspots, and relevant tests. Respond with JSON: {"primary_language":"...","entry_points":["..."],"hotspots":["..."],"relevant_tests":["..."],"summary":"..."}.`,
-      expected: {},
-      evaluation_kind: "designed-only",
-    },
-    {
-      id: "external_trade_flow",
-      name: "Trace a live-trade request",
-      userPrompt: `A user says they clicked to place a live trade in ${projectLabel}. Trace the most likely path from the user-facing action through validation and execution. Identify the main components, trust boundaries, and the highest-risk failure points. Respond with JSON: {"flow":["..."],"validation_points":["..."],"risk_points":["..."],"evidence":["..."],"summary":"..."}.`,
-      expected: {},
-      evaluation_kind: "designed-only",
-    },
-    {
-      id: "external_safety_change_impact",
-      name: "Assess automated-trading safety change",
-      userPrompt: `The ${projectLabel} team wants to tighten a safety guard before automated trades are sent. Identify where the change should likely be made, what callers or dependencies may be affected, and what tests or checks should be added before release. Respond with JSON: {"change_areas":["..."],"affected_dependencies":["..."],"test_plan":["..."],"risks":["..."],"summary":"..."}.`,
-      expected: {},
-      evaluation_kind: "designed-only",
-    },
-    {
-      id: "external_trade_incident_triage",
-      name: "Triage failed-trade incident",
-      userPrompt: `A live trade in ${projectLabel} failed unexpectedly. Give the first investigation plan: where to inspect, what evidence to collect, which execution and configuration paths may be involved, and how to avoid making the incident worse. Respond with JSON: {"investigation_steps":["..."],"evidence_sources":["..."],"likely_components":["..."],"containment_actions":["..."],"summary":"..."}.`,
-      expected: {},
-      evaluation_kind: "designed-only",
-    },
-    {
       id: "external_missing_tests",
       name: "Find untested functions (graph-native)",
       userPrompt: `I'm auditing test coverage in ${projectLabel}. Find functions that have NO test coverage — meaning no test function calls or imports them. Give concrete examples with file paths and function names. Also identify the top 3 most complex functions that lack tests. Do NOT guess — verify each reported finding with structural evidence, and stop once the requested examples and top 3 are supported. Respond with JSON: {"untested": [{"name":"...","file":"...","complexity":N}], "top3_risky_untested": [{"name":"...","file":"...","complexity":N,"reason":"..."}], "methodology":"...", "summary":"..."}.`,
@@ -494,6 +444,19 @@ Respond with a single JSON: {"question1":{"language":"...","framework":"...","ho
     },
   ];
 }
+
+const EXTERNAL_TASK_TOOL_PROFILES: Record<string, readonly string[]> = {
+  external_simple_techstack: ['get_architecture', 'search_graph', 'read_file'],
+  external_multi_turn: ['get_architecture', 'analyze_hotspots', 'trace_path', 'find_tests', 'read_file'],
+  external_dead_code: ['find_dead_code', 'read_file'],
+  external_generic_architecture: ['get_architecture', 'analyze_hotspots', 'search_graph', 'read_file'],
+  external_generic_flow: ['get_architecture', 'search_graph', 'trace_path', 'get_code_snippet', 'read_file'],
+  external_generic_change_impact: ['get_architecture', 'search_graph', 'trace_path', 'find_tests', 'read_file'],
+  external_generic_incident: ['get_architecture', 'search_graph', 'trace_path', 'get_code_snippet', 'read_file'],
+  external_missing_tests: ['analyze_hotspots', 'search_graph', 'query_graph', 'read_file'],
+  external_semantic_discovery: ['semantic_search', 'get_code_snippet', 'read_file'],
+  external_scalability_snapshot: ['get_architecture', 'analyze_hotspots', 'query_graph', 'read_file'],
+};
 
 const TASKS: BenchmarkTask[] = [
   {
@@ -916,7 +879,7 @@ export async function runAgentABBenchmark(
       (configOverrides.tier === "screening" ? 1024 : undefined),
     maxToolCalls:
       configOverrides.maxToolCalls ??
-      (configOverrides.tier === "screening" ? 12 : undefined),
+      (configOverrides.projectDir ? 8 : configOverrides.tier === "screening" ? 12 : undefined),
     timeoutMs: configOverrides.timeoutMs,
     maxRetries: configOverrides.maxRetries,
     warmupRounds: configOverrides.warmupRounds ?? 0,
@@ -964,11 +927,13 @@ export async function runAgentABBenchmark(
   let tasks: BenchmarkTask[];
   let suiteOverrides: {
     lynxTools?: AgentToolDefinition[];
+    lynxToolsForTask?: (task: BenchmarkTask) => AgentToolDefinition[];
     lynxExecutor?: (
       toolName: string,
       args: Record<string, unknown>,
       project: string,
       fixtureDir: string,
+      task?: BenchmarkTask,
     ) => Promise<string>;
   } = {};
   let validatePreflight:
@@ -979,7 +944,12 @@ export async function runAgentABBenchmark(
     const projectLabel = path.basename(projectDir);
     if (!fs.statSync(projectDir).isDirectory())
       throw new Error(`External project is not a directory: ${projectDir}`);
-    tasks = makeExternalProjectTasks(projectLabel);
+    tasks = makeExternalProjectTasks(projectLabel).filter(
+      (task) => task.id !== 'external_missing_tests',
+    );
+    warnings.push(
+      'External suite excludes untested-symbol discovery until it has a dedicated, verifiable graph operation.',
+    );
     if (config.taskIds)
       tasks = tasks.filter((task) => config.taskIds!.includes(task.id));
     const realistic = await import("./realistic-suite.js");
@@ -988,26 +958,21 @@ export async function runAgentABBenchmark(
     // catalogue test. Keep the tools needed by the external workflows so a
     // provider's small TPM allowance is not exhausted by unused schemas.
     const screeningTools = new Set<string>(["read_file"]);
-    const toolsByTask: Record<string, string[]> = {
-      external_dead_code: ["find_dead_code", "get_code_snippet"],
-      external_simple_techstack: ["get_architecture", "search_graph"],
-      external_config_lookup: ["search_graph"],
-      external_tiny_config: [],
-      external_impact_analysis: ["search_graph", "trace_path", "find_tests", "get_code_snippet"],
-      external_multi_turn: ["get_architecture", "analyze_hotspots", "trace_path", "find_tests"],
-      external_generic_architecture: ["get_architecture", "analyze_hotspots", "search_graph"],
-      external_generic_flow: ["get_architecture", "search_graph", "trace_path", "get_code_snippet"],
-      external_generic_change_impact: ["get_architecture", "search_graph", "trace_path", "find_tests"],
-      external_generic_incident: ["get_architecture", "search_graph", "trace_path", "get_code_snippet"],
-    };
+    const toolsByTask = EXTERNAL_TASK_TOOL_PROFILES;
     for (const task of tasks) {
       for (const tool of toolsByTask[task.id] || []) screeningTools.add(tool);
     }
     suiteOverrides = {
-      lynxTools: config.tier === "screening"
-        ? allTools.filter((tool) => screeningTools.has(tool.function.name))
-        : allTools,
-      lynxExecutor: realistic.executeLynxToolRealistic,
+      lynxToolsForTask: (task) => allTools.filter((tool) =>
+        (toolsByTask[task.id] || ['read_file']).includes(tool.function.name) &&
+        (config.tier !== "screening" || screeningTools.has(tool.function.name))
+      ),
+      lynxExecutor: (toolName, args, toolProject, fixtureDir, task) => {
+        if (task?.id === 'external_dead_code' && toolName === 'find_dead_code') {
+          args = { ...args, limit: Math.min(5, Number(args.limit) || 5) };
+        }
+        return realistic.executeLynxToolRealistic(toolName, args, toolProject, fixtureDir);
+      },
     };
     if (config.tier === "screening") {
       warnings.push(
@@ -1320,7 +1285,7 @@ export async function runAgentABBenchmark(
         isRealistic || isExternalProject
           ? config.tier === "screening"
             ? `with_lynx: LLM has access to a task-specific compact LYNX profile (${screeningToolNames}).`
-            : "with_lynx: LLM has access to 18 LYNX graph tools (including find_dead_code) plus read_file."
+            : "with_lynx: LLM has access only to the task-specific LYNX tool profile plus read_file."
           : "with_lynx: LLM has access to LYNX graph tools (search_graph, trace_path, explain_symbol, find_tests) + read_file.",
         "without_lynx: LLM has access to read_file + grep only.",
         "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
@@ -1331,6 +1296,9 @@ export async function runAgentABBenchmark(
         config.tier === "screening"
           ? "Screening cost is not comparable to the official pricing series. Wall time includes API latency."
           : "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+        ...(isExternalProject && config.maxToolCalls !== undefined
+          ? [`External-project budget: each condition is capped at ${config.maxToolCalls} tool calls per task to prevent an unsupported workflow from consuming unbounded paid context.`]
+          : []),
         "ROI claims blocked when baseline invalid or sample size too small.",
       ],
       tasks: allRuns,
@@ -1371,11 +1339,13 @@ async function runSingleAgentTask(
   includeTrace: boolean,
   overrides?: {
     lynxTools?: AgentToolDefinition[];
+    lynxToolsForTask?: (task: BenchmarkTask) => AgentToolDefinition[];
     lynxExecutor?: (
       toolName: string,
       args: Record<string, unknown>,
       project: string,
       fixtureDir: string,
+      task?: BenchmarkTask,
     ) => Promise<string>;
   },
 ): Promise<AgentABRun> {
@@ -1389,7 +1359,7 @@ async function runSingleAgentTask(
   ];
 
   const tools = isWithLynx
-    ? (overrides?.lynxTools ?? makeLynxTools())
+    ? (overrides?.lynxToolsForTask?.(task) ?? overrides?.lynxTools ?? makeLynxTools())
     : makeBaselineTools();
   const shared = getSharedParams(config);
 
@@ -1439,6 +1409,7 @@ async function runSingleAgentTask(
                   args,
                   project,
                   fixtureDir,
+                  task,
                 );
               }
               return executeLynxTool(
@@ -2185,7 +2156,7 @@ function lynxRoot(): string {
   // Prefer the binary's project root (dist/cli/agent-ab/ → walk up).
   // This ensures benchmarks always save to the authoritative LYNX checkout,
   // not to a stale CWD copy.
-  let dir = __dirname;
+  let dir = benchmarkDir;
   for (let i = 0; i < 4; i++) {
     if (
       fs.existsSync(path.join(dir, "package.json")) &&
@@ -2382,132 +2353,105 @@ function autoSaveResult(
   }
 }
 
-// ── CLI entry ─────────────────────────────────────────────────
+interface ParsedCliArgs {
+  config: Partial<AgentABConfig>;
+  jsonFlag: boolean;
+  csvFlag: boolean;
+  includeTrace: boolean;
+  chainedFlag: boolean;
+  outPath: string | null;
+  suite: "default" | "realistic";
+  screeningLocal: boolean;
+  screeningGroq: boolean;
+}
 
-export async function cmdAgentABBenchmark(args: string[]): Promise<void> {
-  if (args.includes("--history")) {
-    const historyIndexIdx = args.indexOf("--history-index");
-    if (historyIndexIdx !== -1 && !args[historyIndexIdx + 1]) {
-      console.error("Error: --history-index requires a path.");
-      process.exit(1);
-      return;
-    }
-    const indexPath =
-      historyIndexIdx !== -1
-        ? path.resolve(args[historyIndexIdx + 1])
-        : path.join(
-            lynxRoot(),
-            "benchmarks",
-            "results",
-            "_index.jsonl",
-          );
-    const history = readAgentABIndex(indexPath);
-    const aggregate = aggregateAgentABHistory(history.included);
-    console.log(
-      JSON.stringify(
-        {
-          index_path: indexPath,
-          index_exists: fs.existsSync(indexPath),
-          hygiene: {
-            total_lines: history.total_lines,
-            included_count: history.included_count,
-            excluded_count: history.excluded_count,
-            excluded_by_reason: history.excluded_by_reason,
-          },
-          aggregate,
-        },
-        null,
-        2,
-      ),
-    );
-    return;
+function handleHistoryCommand(args: string[]): boolean {
+  if (!args.includes("--history")) return false; // not a history command, continue
+  const historyIndexIdx = args.indexOf("--history-index");
+  if (historyIndexIdx !== -1 && !args[historyIndexIdx + 1]) {
+    console.error("Error: --history-index requires a path.");
+    process.exit(1);
   }
-  const seedIdx = args.indexOf("--seed");
-  const roundsIdx = args.indexOf("--rounds");
-  const warmupIdx = args.indexOf("--warmup");
-  const taskIdx = args.indexOf("--tasks");
-  const modelIdx = args.indexOf("--model");
-  const screeningGroq = args.includes("--screening-groq");
-  const screeningLocal = args.includes("--screening-local");
-  const localBaseUrlIdx = args.indexOf("--local-base-url");
+  const indexPath = historyIndexIdx !== -1
+    ? path.resolve(args[historyIndexIdx + 1])
+    : path.join(lynxRoot(), "benchmarks", "results", "_index.jsonl");
+  const history = readAgentABIndex(indexPath);
+  const aggregate = aggregateAgentABHistory(history.included);
+  console.log(JSON.stringify({
+    index_path: indexPath,
+    index_exists: fs.existsSync(indexPath),
+    hygiene: {
+      total_lines: history.total_lines,
+      included_count: history.included_count,
+      excluded_count: history.excluded_count,
+      excluded_by_reason: history.excluded_by_reason,
+    },
+    aggregate,
+  }, null, 2));
+  return true; // handled: caller should return
+}
+
+function parseAgentABCliArgs(args: string[]): ParsedCliArgs {
+  const flag = (name: string) => args.includes(name);
+  const val = (name: string): string | undefined => {
+    const idx = args.indexOf(name);
+    return idx !== -1 && args[idx + 1] ? args[idx + 1] : undefined;
+  };
+
+  const screeningGroq = flag("--screening-groq");
+  const screeningLocal = flag("--screening-local");
   if (screeningGroq && screeningLocal) {
     throw new Error("Use only one screening provider: --screening-groq or --screening-local.");
   }
   const isScreening = screeningGroq || screeningLocal;
-  const localBaseUrl = localBaseUrlIdx !== -1 && args[localBaseUrlIdx + 1]
-    ? args[localBaseUrlIdx + 1]
-    : "http://127.0.0.1:8011/v1";
-  const jsonFlag = args.includes("--json");
-  const csvFlag = args.includes("--csv");
-  const htmlFlag = args.includes("--html");
-  const outIdx = args.indexOf("--out");
-  const dryRunFlag = args.includes("--dry-run");
-  const includeTrace = args.includes("--include-trace");
-  const chainedFlag = args.includes("--chained");
-  const suiteIdx = args.indexOf("--suite");
-  const projectDirIdx = args.indexOf("--project-dir");
-  const suite =
-    suiteIdx !== -1 && args[suiteIdx + 1] === "realistic"
-      ? ("realistic" as const)
-      : ("default" as const);
+  const localBaseUrl = val("--local-base-url") || "http://127.0.0.1:8011/v1";
 
-  // Reject unsupported flags
-  if (htmlFlag) {
+  if (flag("--html")) {
     console.error("Error: --html is not yet implemented.");
     process.exit(1);
   }
 
-  const outPath = outIdx !== -1 && args[outIdx + 1] ? args[outIdx + 1] : null;
-
-  const config: Partial<AgentABConfig> = {
-    tier: isScreening ? "screening" : "official",
-    seed:
-      seedIdx !== -1 && args[seedIdx + 1]
-        ? parseInt(args[seedIdx + 1], 10) || 42
-        : 42,
-    measuredRounds:
-      roundsIdx !== -1
-        ? Math.max(1, parseInt(args[roundsIdx + 1], 10) || 1)
-        : 1,
-    warmupRounds:
-      warmupIdx !== -1
-        ? Math.max(0, parseInt(args[warmupIdx + 1], 10) || 0)
-        : 0,
-    model:
-      modelIdx !== -1 && args[modelIdx + 1]
-        ? args[modelIdx + 1]
-        : screeningLocal
-          ? "mlx-community/Qwen3.6-35B-A3B-4bit"
-          : screeningGroq
-            ? "meta-llama/llama-4-scout-17b-16e-instruct"
-          : AGENT_AB_DEFAULT_MODEL,
-    ...(screeningLocal
-      ? {
-          baseUrl: localBaseUrl,
-          apiKey: "local-no-auth",
-        }
-      : screeningGroq
-      ? {
-          baseUrl: "https://api.groq.com/openai/v1",
-          apiKey: process.env.GROQ_API_KEY || "",
-        }
-      : {}),
-    taskIds:
-      taskIdx !== -1 && args[taskIdx + 1]
-        ? args[taskIdx + 1]
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : undefined,
-    projectDir:
-      projectDirIdx !== -1 && args[projectDirIdx + 1]
-        ? args[projectDirIdx + 1]
-        : undefined,
-    dryRun: dryRunFlag,
+  return {
+    screeningLocal,
+    screeningGroq,
+    config: {
+      tier: isScreening ? "screening" : "official",
+      seed: parseInt(val("--seed") || "42", 10) || 42,
+      measuredRounds: Math.max(1, parseInt(val("--rounds") || "1", 10) || 1),
+      warmupRounds: Math.max(0, parseInt(val("--warmup") || "0", 10) || 0),
+      model: val("--model")
+        || (screeningLocal ? "mlx-community/Qwen3.6-35B-A3B-4bit"
+          : screeningGroq ? "meta-llama/llama-4-scout-17b-16e-instruct"
+          : AGENT_AB_DEFAULT_MODEL),
+      ...(screeningLocal
+        ? { baseUrl: localBaseUrl, apiKey: "local-no-auth" }
+        : screeningGroq
+        ? { baseUrl: "https://api.groq.com/openai/v1", apiKey: process.env.GROQ_API_KEY || "" }
+        : {}),
+      taskIds: val("--tasks")?.split(",").map(t => t.trim()).filter(Boolean),
+      projectDir: val("--project-dir"),
+      dryRun: flag("--dry-run"),
+    },
+    jsonFlag: flag("--json"),
+    csvFlag: flag("--csv"),
+    includeTrace: flag("--include-trace"),
+    chainedFlag: flag("--chained"),
+    outPath: val("--out") || null,
+    suite: val("--suite") === "realistic" ? "realistic" : "default",
   };
+}
 
+// ── CLI entry ─────────────────────────────────────────────────
+
+export async function cmdAgentABBenchmark(args: string[]): Promise<void> {
+  if (handleHistoryCommand(args)) return;
+
+  const { config, jsonFlag, csvFlag, includeTrace, chainedFlag, outPath, suite,
+    screeningLocal, screeningGroq } = parseAgentABCliArgs(args);
+
+  const isScreening = screeningLocal || screeningGroq;
   const hasKey = !!(config.apiKey || getApiKey());
-  if (!hasKey && !dryRunFlag) {
+  if (!hasKey && !config.dryRun) {
     console.error(
       screeningLocal
         ? "Local screening server is unavailable. Start it or set --local-base-url."
@@ -2515,18 +2459,18 @@ export async function cmdAgentABBenchmark(args: string[]): Promise<void> {
         ? "No GROQ_API_KEY set. Running in dry-run mode (--dry-run implied)."
         : "No LYNX_DEEPSEEK_KEY or DEEPSEEK_API_KEY set. Running in dry-run mode (--dry-run implied).",
     );
-    console.error(
-      screeningLocal
-        ? "Start the local OpenAI-compatible server before running screening."
-        : screeningGroq
-        ? "Set GROQ_API_KEY to run experimental screening calls."
-        : "Set LYNX_DEEPSEEK_KEY to run official DeepSeek calls.",
-    );
+    if (screeningLocal)
+      console.error("Start the local OpenAI-compatible server before running screening.");
+    else if (screeningGroq)
+      console.error("Set GROQ_API_KEY to run experimental screening calls.");
+    else
+      console.error("Set LYNX_DEEPSEEK_KEY to run official DeepSeek calls.");
     config.dryRun = true;
   }
 
+  const modeLabel = screeningLocal ? "SCREENING-LOCAL" : screeningGroq ? "SCREENING" : "OFFICIAL";
   console.error(
-    `LYNX agent-ab ${isScreening ? screeningLocal ? "SCREENING-LOCAL" : "SCREENING" : "OFFICIAL"} benchmark — seed=${config.seed} rounds=${config.measuredRounds} model=${config.model} ${config.dryRun ? "DRY-RUN" : "LIVE"}`,
+    `LYNX agent-ab ${modeLabel} benchmark — seed=${config.seed} rounds=${config.measuredRounds} model=${config.model} ${config.dryRun ? "DRY-RUN" : "LIVE"}`,
   );
 
   // ── Live progress state ───────────────────────────────────

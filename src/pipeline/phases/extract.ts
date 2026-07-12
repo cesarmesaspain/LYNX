@@ -11,13 +11,13 @@
 
 import * as fs from 'node:fs';
 import * as os from 'node:os';
+import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { Worker } from 'node:worker_threads';
-import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { extractFile } from '../../extraction/extractor.js';
 import { isSupportedFilePath } from '../../extraction/language-registry.js';
-import { getNativeExtractorPath } from '../../paths.js';
+import { getNativeExtractorPath, getProjectRoot } from '../../paths.js';
 import type { DiscoveredFile } from './discover.js';
 import type { ExtractionResult } from '../../extraction/extractor.js';
 
@@ -177,7 +177,8 @@ async function extractNativeLargeFiles(
       });
     }
     return map;
-  } catch {
+  } catch (err) {
+    console.error('[lynx] Native extractor failed:', (err as Error).message || String(err));
     return new Map();
   }
 }
@@ -212,9 +213,15 @@ async function extractWithWorkers(
 ): Promise<ExtractionBatch[]> {
   if (toProcess.length === 0) return [];
 
-  const workerUrl = new URL('./extract-worker.js', import.meta.url);
+  // The packaged CLI keeps extraction deterministic and avoids resolving a
+  // worker module from pkg's virtual filesystem.
+  if ((process as NodeJS.Process & { pkg?: unknown }).pkg) {
+    return extractDirect(toProcess, project, emptyResult);
+  }
+
+  const workerPath = path.join(getProjectRoot(), 'dist', 'pipeline', 'phases', 'extract-worker.js');
   const directThreshold = Number(process.env.LYNX_DIRECT_THRESHOLD || 16);
-  if (!fs.existsSync(fileURLToPath(workerUrl)) || toProcess.length < directThreshold) {
+  if (!fs.existsSync(workerPath) || toProcess.length < directThreshold) {
     return extractDirect(toProcess, project, emptyResult);
   }
 
@@ -259,7 +266,7 @@ async function extractWithWorkers(
     };
 
     for (let i = 0; i < workerCount; i++) {
-      const worker = new Worker(workerUrl);
+      const worker = new Worker(workerPath);
       workers.push(worker);
 
       worker.on('message', (message: WorkerResult) => {

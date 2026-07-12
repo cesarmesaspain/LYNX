@@ -299,13 +299,18 @@ export function detectProjectInstructionPaths(root: string): string[] {
 // ── Binary path helpers ────────────────────────────────────────────
 
 export function getLynxCommand(): { command: string; args: string[] } {
+  if ((process as NodeJS.Process & { pkg?: unknown }).pkg) {
+    // pkg launches the embedded CLI itself; an extra argument is interpreted
+    // as a snapshot entry path instead of a CLI command.
+    return { command: process.execPath, args: [] };
+  }
   const nodeBin = process.execPath;
   const cliPath = process.argv[1];
   if (cliPath && cliPath.endsWith('cli.js')) {
     return { command: nodeBin, args: [cliPath, 'serve'] };
   }
   // Fallback: resolve relative to this install module
-  const installDir = path.dirname(import.meta.url.replace('file://', ''));
+  const installDir = path.dirname(process.argv[1] || process.cwd());
   const inferredCli = path.resolve(installDir, '..', 'cli.js');
   return { command: nodeBin, args: [inferredCli, 'serve'] };
 }

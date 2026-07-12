@@ -7,10 +7,30 @@ import * as os from 'node:os';
 import { execSync } from 'node:child_process';
 import { readLynxConfig } from '../../config/runtime.js';
 
-function readRequestBody(req: http.IncomingMessage): Promise<string> {
+export const MAX_REQUEST_BODY_BYTES = 1_048_576;
+
+export class RequestBodyTooLargeError extends Error {
+  constructor() {
+    super(`Request body exceeds ${MAX_REQUEST_BODY_BYTES} bytes`);
+    this.name = 'RequestBodyTooLargeError';
+  }
+}
+
+function readRequestBody(req: http.IncomingMessage, maxBytes = MAX_REQUEST_BODY_BYTES): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    let size = 0;
+    let rejected = false;
+    req.on('data', (chunk: Buffer) => {
+      if (rejected) return;
+      size += chunk.length;
+      if (size > maxBytes) {
+        rejected = true;
+        reject(new RequestBodyTooLargeError());
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
     req.on('error', reject);
   });

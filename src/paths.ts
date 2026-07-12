@@ -114,6 +114,16 @@ let _nativeExtractorPath: string | null = null;
 export function getNativeExtractorPath(): string | null {
   if (_nativeExtractorPath !== null) return _nativeExtractorPath || null;
 
+  // Allow override via env var (for custom/cross-compiled binaries)
+  const envPath = process.env.LYNX_NATIVE_EXTRACTOR_PATH;
+  if (envPath) {
+    if (fs.existsSync(envPath)) {
+      _nativeExtractorPath = envPath;
+      return envPath;
+    }
+    console.error(`[lynx] LYNX_NATIVE_EXTRACTOR_PATH set but file not found: ${envPath}`);
+  }
+
   const assetRelPath = 'native/lynx_ts_extractor';
 
   if (isPkg()) {
@@ -121,6 +131,7 @@ export function getNativeExtractorPath(): string | null {
     try {
       const vfsPath = path.join(getAssetRoot(), assetRelPath);
       if (!fs.existsSync(vfsPath)) {
+        console.error('[lynx] Native extractor not found in VFS — binary was not bundled for this platform.');
         _nativeExtractorPath = '';
         return null;
       }
@@ -130,7 +141,8 @@ export function getNativeExtractorPath(): string | null {
       fs.chmodSync(tmpPath, 0o755);
       _nativeExtractorPath = tmpPath;
       return tmpPath;
-    } catch {
+    } catch (err) {
+      console.error('[lynx] Native extractor VFS extraction failed:', (err as Error).message);
       _nativeExtractorPath = '';
       return null;
     }

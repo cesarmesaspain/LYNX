@@ -215,9 +215,12 @@ export function computeCyclomaticComplexities(
         const fileContent = fs.readFileSync(fullPath, 'utf8');
         const lines = fileContent.split('\n');
         const start = Math.max(0, func.start_line - 1);
+        // When the extractor can only capture a single line (common for
+        // non-TS/TSX languages), limit to the actual line — don't feed 500
+        // lines of unrelated code into the complexity calculator.
         const end = func.end_line > func.start_line
           ? func.end_line
-          : Math.min(start + 500, lines.length);
+          : start + 1;
         source = lines.slice(start, end).join('\n');
       } catch {
         continue; // file not readable — skip

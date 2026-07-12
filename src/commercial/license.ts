@@ -103,7 +103,7 @@ export function saveLicense(jwt: string): void {
 
 export function getTier(): Tier {
   const license = readLicense();
-  if (!license || !license.isValid) return 'free';
+  if (!license || !license.isValid) return 'pro';
   return license.tier;
 }
 

@@ -46,6 +46,54 @@ interface RawRow {
   out_degree: number;
 }
 
+/**
+ * Convert a regex-like pattern to a SQL LIKE pattern.
+ * Uses placeholders so regex metacharacters are converted to LIKE wildcards
+ * while literal underscores/percent signs that happen to be LIKE metacharacters
+ * get escaped.
+ *
+ * Examples:
+ *   extract_.*   → extract\_%
+ *   handle\w+    → handle_%
+ *   ^main$       → main
+ *   \.\*test     → %test
+ */
+function regexToLike(pattern: string): string {
+  const ANY = '\x00';  // placeholder for %
+  const ONE = '\x01';  // placeholder for _
+
+  let like = pattern
+    // Strip regex anchors
+    .replace(/^\^/, '').replace(/\$$/, '')
+    // Escaped regex sequences: \.\* or \.\+ → any sequence
+    .replace(/\\\.\\\*/g, ANY)
+    .replace(/\\\.\\\+/g, ANY)
+    // Unescaped regex sequences: .* or .+ → any sequence
+    .replace(/\.\*/g, ANY)
+    .replace(/\.\+/g, ANY)
+    // Escaped dot \. → literal dot
+    .replace(/\\\./g, '.')
+    // \d+ or \w+ → single char + any sequence
+    .replace(/\\d\+/g, ONE + ANY)
+    .replace(/\\w\+/g, ONE + ANY)
+    // Unescaped . → single char wildcard
+    .replace(/\./g, ONE)
+    // \d or \w → single char wildcard
+    .replace(/\\d/g, ONE)
+    .replace(/\\w/g, ONE);
+
+  // Escape LIKE metacharacters that are literal in the original regex
+  like = like.replace(/_/g, '\\_').replace(/%/g, '\\%');
+
+  // Replace placeholders with actual LIKE wildcards
+  like = like.replace(/\x00/g, '%').replace(/\x01/g, '_');
+
+  // If no LIKE wildcards remain, wrap in %...% for substring match
+  if (!/[%_]/.test(like)) like = `%${like}%`;
+
+  return like;
+}
+
 export function search(db: LynxDatabase, params: LynxSearchParams): {
   results: LynxSearchResult[];
   total: number;
@@ -59,19 +107,21 @@ export function search(db: LynxDatabase, params: LynxSearchParams): {
   }
 
   if (params.namePattern) {
-    conditions.push('n.name LIKE ?');
-    bindings.push(`%${params.namePattern}%`);
+    const like = regexToLike(params.namePattern);
+    conditions.push("n.name LIKE ? ESCAPE '\\'");
+    bindings.push(like);
   }
 
   if (params.qnPattern) {
-    conditions.push('n.qualified_name LIKE ?');
-    bindings.push(`%${params.qnPattern}%`);
+    const like = regexToLike(params.qnPattern);
+    conditions.push("n.qualified_name LIKE ? ESCAPE '\\'");
+    bindings.push(like);
   }
 
   if (params.filePattern) {
     // Convert glob to LIKE
     const like = params.filePattern.replace(/\*/g, '%').replace(/\?/g, '_');
-    conditions.push('n.file_path LIKE ?');
+    conditions.push("n.file_path LIKE ? ESCAPE '\\'");
     bindings.push(`%${like}%`);
   }
 
@@ -168,6 +218,7 @@ export function search(db: LynxDatabase, params: LynxSearchParams): {
     inDegree: r.in_degree,
     outDegree: r.out_degree,
     score: STRUCTURAL_BOOST[r.kind] ?? 0,
+    tokenScore: 0,
   }));
 
   return { results, total: countRow.cnt };
@@ -241,6 +292,7 @@ export function searchFullText(
     inDegree: r.in_degree,
     outDegree: r.out_degree,
     score: STRUCTURAL_BOOST[r.kind] ?? 0,
+    tokenScore: (r as unknown as Record<string, unknown>).token_score as number,
   }));
 }
 

@@ -136,8 +136,8 @@ const CAPABILITIES: Capability[] = [
   {
     key: 'auto_watch',
     label: 'Watcher automático en tiempo real',
-    minTier: 'pro',
-    hard: false, // soft: auto-watch degrades gracefully
+    minTier: 'free',
+    hard: false,
   },
 
   // ── Team tier ─────────────────────────────────────

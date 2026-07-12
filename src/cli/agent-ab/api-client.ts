@@ -125,10 +125,10 @@ export async function chatCompletion(
     };
   };
 
-  for (let turn = 0; ; turn++) {
-    // When the normal budget is exhausted, make one forced-final call (tools disabled)
-    // so the model must produce an answer from the evidence already collected.
-    if (options.maxToolCalls !== undefined && turn === options.maxToolCalls) {
+  for (;;) {
+    // The budget is a count of executed tool calls, not LLM turns: one model
+    // response may request many tools at once.
+    if (options.maxToolCalls !== undefined && allToolCalls.length >= options.maxToolCalls) {
       toolLoopExhausted = true;
       conversationMessages.push({
         role: 'user',
@@ -217,6 +217,15 @@ export async function chatCompletion(
 
     if (choice.finish_reason === 'tool_calls' && msg.tool_calls && msg.tool_calls.length > 0) {
       for (const tc of msg.tool_calls) {
+        if (options.maxToolCalls !== undefined && allToolCalls.length >= options.maxToolCalls) {
+          toolLoopExhausted = true;
+          conversationMessages.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: '[SYSTEM] Tool call skipped: the benchmark tool-call budget is exhausted.',
+          });
+          continue;
+        }
         allToolCalls.push(tc);
         const toolStart = Date.now();
         let toolResult: string | null = null;

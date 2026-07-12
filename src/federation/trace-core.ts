@@ -9,7 +9,6 @@
  */
 
 import type { LynxDatabase } from '../store/database.js';
-import { searchFullText } from '../store/search.js';
 import { bfsTraverse } from '../store/traverse.js';
 import { findNodeByQn } from '../store/nodes.js';
 import type {
@@ -76,15 +75,18 @@ export function executeLocalTracePath(
   if (exactMatch) {
     nodeId = exactMatch.id;
     resolvedKind = exactMatch.kind;
-  } else {
-    const searchResults = searchFullText(db, project, functionName, 5);
-    if (searchResults.length > 0) {
-      const callable = searchResults.find(
-        r => r.node.kind === 'Function' || r.node.kind === 'Method'
-      );
-      const best = callable || searchResults[0];
-      nodeId = best.node.id;
-      resolvedKind = best.node.kind;
+  }
+
+  // Fuzzy fallback: find by exact name when QN lookup fails.
+  // Uses a simple name match (not tokenized FTS) so "main" resolves but
+  // "nonexistent_function_xyz" correctly returns nothing.
+  if (!nodeId) {
+    const nameMatch = db.db.prepare(
+      `SELECT id, kind FROM nodes WHERE project = ? AND LOWER(name) = LOWER(?) AND kind IN ('Function', 'Method', 'Class') LIMIT 1`
+    ).get(project, functionName) as { id: number; kind: string } | undefined;
+    if (nameMatch) {
+      nodeId = nameMatch.id;
+      resolvedKind = nameMatch.kind;
     }
   }
 

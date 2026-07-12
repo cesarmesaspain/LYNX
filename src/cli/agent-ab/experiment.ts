@@ -18,7 +18,7 @@ export const PAID_MICROBENCHMARK_TEMPERATURE = 0 as const;
 
 /** Reject configuration drift before a paid benchmark can make an API call. */
 export function assertPaidMicrobenchmarkProtocol(config: Pick<AgentABConfig,
-  'model' | 'temperature' | 'baseUrl' | 'seed' | 'maxTokens' | 'maxToolCalls' | 'timeoutMs' | 'maxRetries'
+  'model' | 'temperature' | 'baseUrl' | 'seed' | 'maxTokens' | 'maxToolCalls' | 'timeoutMs' | 'maxRetries' | 'projectDir'
 >): void {
   const failures: string[] = [];
   if (config.model !== PAID_MICROBENCHMARK_MODEL) {
@@ -31,8 +31,8 @@ export function assertPaidMicrobenchmarkProtocol(config: Pick<AgentABConfig,
     failures.push('baseUrl must be the DeepSeek API endpoint; provider fallback is forbidden');
   }
   if (!Number.isInteger(config.seed)) failures.push('seed must be a fixed integer');
-  if (config.maxTokens !== undefined || config.maxToolCalls !== undefined) {
-    failures.push('real-world microbenchmarks must not set artificial token or tool-call ceilings');
+  if (config.maxTokens !== undefined || (config.maxToolCalls !== undefined && !config.projectDir)) {
+    failures.push('internal microbenchmarks must not set artificial token or tool-call ceilings');
   }
   if (failures.length) throw new Error(`Paid microbenchmark protocol rejected: ${failures.join('; ')}`);
 }

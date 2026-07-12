@@ -221,6 +221,8 @@ export interface LynxSearchResult {
   inDegree: number;
   outDegree: number;
   score: number;
+  /** Actual text-match score from FTS5 token matching (0 = no text overlap). */
+  tokenScore: number;
 }
 
 // ── Architecture types ────────────────────────────────────────────

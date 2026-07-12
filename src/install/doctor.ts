@@ -35,7 +35,7 @@ function checkBinary(): DoctorCheck {
   const { command, args } = getLynxCommand();
   const nodeOk = fs.existsSync(command);
   const cliPath = args[0] || '';
-  const cliOk = fs.existsSync(cliPath);
+  const cliOk = (process as NodeJS.Process & { pkg?: unknown }).pkg ? nodeOk : fs.existsSync(cliPath);
 
   if (nodeOk && cliOk) {
     return {

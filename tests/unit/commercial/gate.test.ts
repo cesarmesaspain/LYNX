@@ -102,7 +102,7 @@ describe('capability gating', () => {
     });
 
     it('works for soft capabilities (auto_watch)', () => {
-      expect(hasCapability('auto_watch', 'free')).toBe(false);
+      expect(hasCapability('auto_watch', 'free')).toBe(true);
       expect(hasCapability('auto_watch', 'pro')).toBe(true);
     });
 

@@ -35,7 +35,7 @@ describe('tier capability matrix', () => {
     expect(keys).not.toContain('semantic_rerank');
     expect(keys).not.toContain('report_html');
     expect(keys).not.toContain('savings_lab');
-    expect(keys).not.toContain('auto_watch');
+    expect(keys).toContain('auto_watch');
     expect(keys).not.toContain('mcp_gateway');
   });
 

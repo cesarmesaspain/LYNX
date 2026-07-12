@@ -1,0 +1,432 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "maxToolCalls": 8,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_dead_code"
+    ],
+    "projectDir": "/tmp/lynx-fastapi",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_lynx: LLM has access only to the task-specific LYNX tool profile plus read_file.",
+    "without_lynx: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "External-project budget: each condition is capped at 8 tool calls per task to prevent an unsupported workflow from consuming unbounded paid context.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_ea38b20c5a2d",
+      "task_id": "external_dead_code",
+      "condition": "with_lynx",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a lynx-fastapi cleanup sprint. Find symbols (functions, classes) in the codebase that have zero callers and zero usages — candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Prefer a structural dead-code operation when available: its returned definition location and zero-incoming-edge evidence are sufficient; do not reopen every candidate unless that operation cannot provide the evidence, and stop once 5 well-supported candidates are established. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_kFV2MuLoLCBflXAtrwYm6017",
+          "type": "function",
+          "function": {
+            "name": "find_dead_code",
+            "arguments": "{\"kinds\": [\"Function\", \"Method\", \"Class\"], \"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_CqvCvE8dwBa8z4mqkFbg1224",
+          "type": "function",
+          "function": {
+            "name": "find_dead_code",
+            "arguments": "{\"kinds\": [\"Function\",\"Class\"], \"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0hUhBeGuRjrR2e2ZTIZ53136",
+          "type": "function",
+          "function": {
+            "name": "find_dead_code",
+            "arguments": "{\"kinds\": [\"Function\",\"Class\"], \"limit\": 100}"
+          }
+        }
+      ],
+      "response": "Here are the results — 5 concrete high-confidence dead-code candidates with verified zero incoming references.\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"update_item\",\n      \"file\": \"docs_src/schema_extra_example/tutorial005_an_py310.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"update_item\",\n      \"file\": \"docs_src/schema_extra_example/tutorial005_py310.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"get_websocket_app\",\n      \"file\": \"fastapi/routing.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"get_authors\",\n      \"file\": \"docs_src/dataclasses_/tutorial003_py310.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"update_item\",\n      \"file\": \"docs_src/schema_extra_example/tutorial004_an_py310.py\",\n      \"kind\": \"function\"\n    }\n  ],\n  \"evidence\": [\n    \"`find_dead_code` (kinds=Function|Class, limit=100) verified all 5 symbols have zero incoming CALLS, USAGE, READS, and TESTS edges across the entire graph.\",\n    \"All 5 symbols are non-exported (`is_exported=0`), definition-verified, with high confidence and no caveats.\",\n    \"`get_websocket_app` in `fastapi/routing.py` (line 748-782): a 35-line helper that constructs a raw ASGI websocket app; no incoming references anywhere.\",\n    \"`get_authors` in `docs_src/dataclasses_/tutorial003_py310.py` (line 28-54): a 27-line doc-example endpoint; graph shows no callers, tests, or usages.\",\n    \"Three `update_item` functions across docs_src/schema_extra_example/ tutorial files — each is an async endpoint defined only as a code example with zero inbound references.\"\n  ],\n  \"summary\": \"Found 5 high-confidence dead-code candidates (all Functions, non-exported) with zero incoming callers, usages, reads, or tests. `get_websocket_app` in routing.py is the most impactful candidate (core-adjacent code); the other four are unused doc-tutorial endpoints. All are safe removal candidates after manual review.\"\n}\n```",
+      "responseHash": "2f86ece2782e8689",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 10176,
+        "output_tokens": 1391,
+        "cached_tokens": 7424,
+        "reasoning_tokens": 128,
+        "tool_call_count": 3,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 13608,
+        "api_latency_ms": 13608,
+        "cost_usd": 0.0008787,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [
+          {
+            "name": "update_item",
+            "file": "docs_src/schema_extra_example/tutorial005_an_py310.py",
+            "kind": "function"
+          },
+          {
+            "name": "update_item",
+            "file": "docs_src/schema_extra_example/tutorial005_py310.py",
+            "kind": "function"
+          },
+          {
+            "name": "get_websocket_app",
+            "file": "fastapi/routing.py",
+            "kind": "function"
+          },
+          {
+            "name": "get_authors",
+            "file": "docs_src/dataclasses_/tutorial003_py310.py",
+            "kind": "function"
+          },
+          {
+            "name": "update_item",
+            "file": "docs_src/schema_extra_example/tutorial004_an_py310.py",
+            "kind": "function"
+          }
+        ],
+        "evidence": [
+          "`find_dead_code` (kinds=Function|Class, limit=100) verified all 5 symbols have zero incoming CALLS, USAGE, READS, and TESTS edges across the entire graph.",
+          "All 5 symbols are non-exported (`is_exported=0`), definition-verified, with high confidence and no caveats.",
+          "`get_websocket_app` in `fastapi/routing.py` (line 748-782): a 35-line helper that constructs a raw ASGI websocket app; no incoming references anywhere.",
+          "`get_authors` in `docs_src/dataclasses_/tutorial003_py310.py` (line 28-54): a 27-line doc-example endpoint; graph shows no callers, tests, or usages.",
+          "Three `update_item` functions across docs_src/schema_extra_example/ tutorial files — each is an async endpoint defined only as a code example with zero inbound references."
+        ],
+        "summary": "Found 5 high-confidence dead-code candidates (all Functions, non-exported) with zero incoming callers, usages, reads, or tests. `get_websocket_app` in routing.py is the most impactful candidate (core-adjacent code); the other four are unused doc-tutorial endpoints. All are safe removal candidates after manual review."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "partial",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_5b9caf3fe688",
+      "task_id": "external_dead_code",
+      "condition": "without_lynx",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a lynx-fastapi cleanup sprint. Find symbols (functions, classes) in the codebase that have zero callers and zero usages — candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Prefer a structural dead-code operation when available: its returned definition location and zero-incoming-edge evidence are sufficient; do not reopen every candidate unless that operation cannot provide the evidence, and stop once 5 well-supported candidates are established. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_xuEheBqYjgAmBUCNmblf0822",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^def |^class |^async def \", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_trqvznsYCyhB2yOVAVmP7155",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"from .* import |from fastapi import |from lynx.* import \", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_NjVUmukb9u20CULEcxJB2970",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"def \"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_XT2RHOb7DvkP1mXXyxCc1906",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \".\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_X8Pt1MplLW360207TK0s3386",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"fastapi\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_sENsaiGUkJ8y6DnY4VX07927",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^def |^class \", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_2Br8pZrFkmMijepSnZdz5572",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"^class \"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_sDctadQWD9bl4cfL7gLG2427",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"^def \"}"
+          }
+        }
+      ],
+      "response": "{\n  \"unused_symbols\": [\n    {\n      \"name\": \"_annotation_is_sequence\",\n      \"file\": \"fastapi/_compat/shared.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"_annotation_is_complex\",\n      \"file\": \"fastapi/_compat/shared.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"_UjsonModule\",\n      \"file\": \"fastapi/responses.py\",\n      \"kind\": \"class\"\n    },\n    {\n      \"name\": \"_OrjsonModule\",\n      \"file\": \"fastapi/responses.py\",\n      \"kind\": \"class\"\n    },\n    {\n      \"name\": \"generate_operation_id_for_path\",\n      \"file\": \"fastapi/utils.py\",\n      \"kind\": \"function\"\n    }\n  ],\n  \"evidence\": [\n    \"_annotation_is_sequence in fastapi/_compat/shared.py (line 58) is a private helper; the public field_annotation_is_sequence (line 64) is the intended API — no internal references to the private variant were found.\",\n    \"_annotation_is_complex in fastapi/_compat/shared.py (line 80) is a private helper; field_annotation_is_complex (line 88) is the public API — no internal call sites for the private variant found.\",\n    \"_UjsonModule in fastapi/responses.py (line 16) is a Protocol class only used to type-annotate the ujson dependency of the deprecated UJSONResponse. No direct import or instantiation exists except via the deprecated response.\",\n    \"_OrjsonModule in fastapi/responses.py (line 20) is a Protocol class only used to type-annotate the orjson dependency of the deprecated ORJSONResponse. No direct import or instantiation exists except via the deprecated response.\",\n    \"generate_operation_id_for_path in fastapi/utils.py (line 80) is defined but appears superseded by generate_operation_id (line 95) and generate_unique_id (line 95); no callers found within the fastapi/ package.\"\n  ],\n  \"summary\": \"Found 5 symbols in the fastapi/ package source (excluding tests, scripts, docs_src) that have zero callers and zero usages. Two are private helper functions shadowed by public wrappers, two are Protocol classes tied to deprecated response classes, and one is a utility function superseded by newer naming functions. These are strong candidates for removal in a cleanup sprint.\"\n}",
+      "responseHash": "b72d18e3e1e842c0",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 776559,
+        "output_tokens": 4246,
+        "cached_tokens": 325248,
+        "reasoning_tokens": 3097,
+        "tool_call_count": 8,
+        "files_read": 1,
+        "bytes_read": 1024,
+        "wall_time_ms": 48961,
+        "api_latency_ms": 48961,
+        "cost_usd": 0.06892589,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 5,
+        "fixes_needed": 5,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [
+          {
+            "name": "_annotation_is_sequence",
+            "file": "fastapi/_compat/shared.py",
+            "kind": "function"
+          },
+          {
+            "name": "_annotation_is_complex",
+            "file": "fastapi/_compat/shared.py",
+            "kind": "function"
+          },
+          {
+            "name": "_UjsonModule",
+            "file": "fastapi/responses.py",
+            "kind": "class"
+          },
+          {
+            "name": "_OrjsonModule",
+            "file": "fastapi/responses.py",
+            "kind": "class"
+          },
+          {
+            "name": "generate_operation_id_for_path",
+            "file": "fastapi/utils.py",
+            "kind": "function"
+          }
+        ],
+        "evidence": [
+          "_annotation_is_sequence in fastapi/_compat/shared.py (line 58) is a private helper; the public field_annotation_is_sequence (line 64) is the intended API — no internal references to the private variant were found.",
+          "_annotation_is_complex in fastapi/_compat/shared.py (line 80) is a private helper; field_annotation_is_complex (line 88) is the public API — no internal call sites for the private variant found.",
+          "_UjsonModule in fastapi/responses.py (line 16) is a Protocol class only used to type-annotate the ujson dependency of the deprecated UJSONResponse. No direct import or instantiation exists except via the deprecated response.",
+          "_OrjsonModule in fastapi/responses.py (line 20) is a Protocol class only used to type-annotate the orjson dependency of the deprecated ORJSONResponse. No direct import or instantiation exists except via the deprecated response.",
+          "generate_operation_id_for_path in fastapi/utils.py (line 80) is defined but appears superseded by generate_operation_id (line 95) and generate_unique_id (line 95); no callers found within the fastapi/ package."
+        ],
+        "summary": "Found 5 symbols in the fastapi/ package source (excluding tests, scripts, docs_src) that have zero callers and zero usages. Two are private helper functions shadowed by public wrappers, two are Protocol classes tied to deprecated response classes, and one is a utility function superseded by newer naming functions. These are strong candidates for removal in a cleanup sprint."
+      },
+      "expected": {},
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "partial",
+      "errors": [
+        "unused_symbols[0]: not a verified zero-reference definition: _annotation_is_sequence|fastapi/_compat/shared.py",
+        "unused_symbols[1]: not a verified zero-reference definition: _annotation_is_complex|fastapi/_compat/shared.py",
+        "unused_symbols[2]: not a verified zero-reference definition: _UjsonModule|fastapi/responses.py",
+        "unused_symbols[3]: not a verified zero-reference definition: _OrjsonModule|fastapi/responses.py",
+        "unused_symbols[4]: not a verified zero-reference definition: generate_operation_id_for_path|fastapi/utils.py"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": true
+    }
+  ],
+  "summary": {
+    "with_lynx": {
+      "wall_time_ms": {
+        "median": 13608,
+        "p95": 13608
+      },
+      "input_tokens": {
+        "median": 10176,
+        "total": 10176
+      },
+      "output_tokens": {
+        "median": 1391,
+        "total": 1391
+      },
+      "cached_tokens": {
+        "median": 7424,
+        "total": 7424
+      },
+      "reasoning_tokens": {
+        "median": 128,
+        "total": 128
+      },
+      "tool_calls": {
+        "median": 3,
+        "total": 3
+      },
+      "cost_usd": {
+        "median": 0.0008787,
+        "total": 0.0008787
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 1,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "without_lynx": {
+      "wall_time_ms": {
+        "median": 48961,
+        "p95": 48961
+      },
+      "input_tokens": {
+        "median": 776559,
+        "total": 776559
+      },
+      "output_tokens": {
+        "median": 4246,
+        "total": 4246
+      },
+      "cached_tokens": {
+        "median": 325248,
+        "total": 325248
+      },
+      "reasoning_tokens": {
+        "median": 3097,
+        "total": 3097
+      },
+      "tool_calls": {
+        "median": 8,
+        "total": 8
+      },
+      "cost_usd": {
+        "median": 0.06892589,
+        "total": 0.06892589
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 1,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 5
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_lynx": "13608ms",
+        "without_lynx": "48961ms",
+        "delta": "-72.2%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_lynx": "10176",
+        "without_lynx": "776559",
+        "delta": "-98.7%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_lynx": "1391",
+        "without_lynx": "4246",
+        "delta": "-67.2%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_lynx": "3",
+        "without_lynx": "8",
+        "delta": "-62.5%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_lynx": "$0.000879",
+        "without_lynx": "$0.068926",
+        "delta": "-98.7%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_lynx": "100%",
+        "without_lynx": "0%",
+        "delta": "N/A",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (1 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External suite excludes untested-symbol discovery until it has a dedicated, verifiable graph operation.",
+    "External project mode: read-only source at /tmp/lynx-fastapi; LYNX state remains temporary."
+  ]
+}

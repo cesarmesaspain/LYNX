@@ -58,7 +58,8 @@ npm run bundle       # node20-macos-arm64
 npm run bundle:all   # todas las plataformas
 ```
 
-Limitaciones del binario: sin extractor nativo C (`isPkg()` lo deshabilita), sin worker threads, ~14.8s vs ~1.9s dev. Aceptable para v0.1.
+Limitaciones del binario: el extractor nativo C se empaqueta y funciona si la plataforma coincide (se copia de VFS a tmp en runtime). `tree-sitter` npm nativo (node-gyp-build) esta deshabilitado en pkg — solo se usa el extractor C via `spawn`. Sin worker threads. ~14.8s vs ~1.9s dev. Aceptable para v0.1.
+Para cross-compilacion usa `--all` en build-native-extractor.js (requiere cross-compilers) o setea `LYNX_NATIVE_EXTRACTOR_PATH` en runtime.
 
 ## LLM Hibrido (Fase 2 completada)
 

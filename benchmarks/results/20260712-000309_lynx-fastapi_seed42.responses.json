@@ -1,0 +1,43 @@
+{
+  "generated": "2026-07-12T00:03:09.768Z",
+  "project": "lynx-fastapi",
+  "seed": 42,
+  "model": "deepseek-v4-flash",
+  "tier": "official",
+  "tasks": [
+    {
+      "task_id": "external_dead_code",
+      "lynx": {
+        "response": "All five symbols are verified as defined in the codebase with zero incoming references. Here is the final answer.\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"get_websocket_app\",\n      \"file\": \"fastapi/routing.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"websocket_session\",\n      \"file\": \"fastapi/routing.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"build_middleware_stack\",\n      \"file\": \"fastapi/applications.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"setup\",\n      \"file\": \"fastapi/applications.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"make_not_authenticated_error\",\n      \"file\": \"fastapi/security/oauth2.py\",\n      \"kind\": \"function\"\n    }\n  ],\n  \"evidence\": [\n    \"find_dead_code confirmed zero incoming CALLS, USAGE, READS, and TESTS edges for all five symbols across the entire graph\",\n    \"get_code_snippet verified each symbol is actually defined in the source (not a stale index entry)\",\n    \"All five are non-exported (is_exported=false), meaning they are not part of the public API surface\",\n    \"build_middleware_stack (fastapi/applications.py:1020-1068) is a 49-line override of Starlette's middleware stack builder — it calls some functions but nothing calls it\",\n    \"setup (fastapi/applications.py:1105-1158) registers OpenAPI, Swagger UI, and ReDoc routes internally but has no external callers\",\n    \"get_websocket_app (fastapi/routing.py:748-782) builds a WebSocket ASGI app from a Dependant but is never referenced anywhere\",\n    \"websocket_session (fastapi/routing.py:157-178) wraps a WebSocket coroutine into an ASGI app but has zero callers\",\n    \"make_not_authenticated_error (fastapi/security/oauth2.py:401-421) creates a 401 HTTPException with Bearer challenge but is never called, even within the OAuth2 class itself\"\n  ],\n  \"summary\": \"Found 5 well-supported dead-code candidates in the FastAPI codebase. These are all non-exported functions/methods with zero incoming graph references (no callers, no usages, no reads, no tests). The most impactful removal candidate by line count is setup (54 lines) and build_middleware_stack (49 lines) in applications.py, while get_websocket_app (35 lines), websocket_session (22 lines), and make_not_authenticated_error (21 lines) provide smaller wins but equal confidence. All are safe for a cleanup sprint since they are not part of the public API.\"\n}\n```",
+        "wall_ms": 15064,
+        "tool_calls": 6,
+        "tool_call_summary": {
+          "find_dead_code": 1,
+          "get_code_snippet": 5
+        },
+        "input_tokens": 14697,
+        "cost_usd": 0.00158158,
+        "errors": [],
+        "tool_loop_exhausted": false
+      },
+      "baseline": {
+        "response": "Based on the evidence collected, I have identified the following verified symbols defined in the `fastapi/` library source code that appear to have zero callers or usages outside their defining module (or outside themselves):\n\n1. **`is_body_allowed_for_status_code`** in `fastapi/utils.py` – a function defined but I found no import or call of it in any other file (not in `fastapi/routing.py`, `fastapi/applications.py`, `fastapi/openapi/utils.py`, or `fastapi/dependencies/utils.py`).\n\n2. **`generate_encoders_by_class_tuples`** in `fastapi/encoders.py` – a helper function that is only called once at module level (line 126) to build `encoders_by_class_tuples`; never imported or used by any other module.\n\n3. **`encoders_by_class_tuples`** in `fastapi/encoders.py` – a module-level variable built by `generate_encoders_by_class_tuples` and used only inside `jsonable_encoder` in the same file. It is never directly imported or referenced from outside `fastapi/encoders.py`.\n\n4. **`_UjsonModule`** in `fastapi/responses.py` – a `Protocol` class used only as a local type annotation guard for the ujson optional import. Never referenced outside this file.\n\n5. **`_OrjsonModule`** in `fastapi/responses.py` – a `Protocol` class used only as a local type annotation guard for the orjson optional import. Never referenced outside this file.\n\nAll five are concrete, verified symbols defined in `fastapi/` source files with no evidence of external callers or usages.\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"is_body_allowed_for_status_code\",\n      \"file\": \"fastapi/utils.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"generate_encoders_by_class_tuples\",\n      \"file\": \"fastapi/encoders.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"encoders_by_class_tuples\",\n      \"file\": \"fastapi/encoders.py\",\n      \"kind\": \"function\"\n    },\n    {\n      \"name\": \"_UjsonModule\",\n      \"file\": \"fastapi/responses.py\",\n      \"kind\": \"class\"\n    },\n    {\n      \"name\": \"_OrjsonModule\",\n      \"file\": \"fastapi/responses.py\",\n      \"kind\": \"class\"\n    }\n  ],\n  \"evidence\": [\n    \"is_body_allowed_for_status_code is defined at fastapi/utils.py line 26 but is not imported or called in fastapi/routing.py, fastapi/applications.py, fastapi/openapi/utils.py, or fastapi/dependencies/utils.py (the main utility consumers).\",\n    \"generate_encoders_by_class_tuples is defined at fastapi/encoders.py line 115 and called only once at line 126 of the same file. It is not re-exported from fastapi/__init__.py and no other module imports it.\",\n    \"encoders_by_class_tuples is a module-level variable at fastapi/encoders.py line 126 and is only referenced inside jsonable_encoder (line 336) in the same file. It is never imported externally.\",\n    \"_UjsonModule protocol class at fastapi/responses.py line 16 is only used for a local type cast on the optional ujson import (line 49). No external references exist.\",\n    \"_OrjsonModule protocol class at fastapi/responses.py line 20 is only used for a local type cast on the optional orjson import (line 57). No external references exist.\"\n  ],\n  \"summary\": \"Found 5 symbols (3 functions, 2 classes) in the fastapi/ source directory that are defined but have zero callers or usages outside their own defining module. These are safe candidates for removal in a cleanup sprint.\"\n}\n```",
+        "wall_ms": 112894,
+        "tool_calls": 17,
+        "tool_call_summary": {
+          "grep": 12,
+          "read_file": 5
+        },
+        "input_tokens": 1531548,
+        "cost_usd": 0.07360976,
+        "errors": [
+          "unused_symbols[0]: not a verified zero-reference definition: is_body_allowed_for_status_code|fastapi/utils.py",
+          "unused_symbols[1]: not a verified zero-reference definition: generate_encoders_by_class_tuples|fastapi/encoders.py",
+          "unused_symbols[2]: not a verified zero-reference definition: encoders_by_class_tuples|fastapi/encoders.py",
+          "unused_symbols[3]: not a verified zero-reference definition: _UjsonModule|fastapi/responses.py",
+          "unused_symbols[4]: not a verified zero-reference definition: _OrjsonModule|fastapi/responses.py"
+        ]
+      }
+    }
+  ]
+}

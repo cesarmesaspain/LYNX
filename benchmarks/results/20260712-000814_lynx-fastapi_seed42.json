@@ -1,0 +1,442 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "maxToolCalls": 8,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "taskIds": [
+      "external_dead_code"
+    ],
+    "projectDir": "/tmp/lynx-fastapi",
+    "dryRun": false
+  },
+  "methodology": [
+    "One read-only external-project analysis task executed through a DeepSeek LLM agent; it is operationally measured but not success-scored.",
+    "with_lynx: LLM has access only to the task-specific LYNX tool profile plus read_file.",
+    "without_lynx: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: external-project.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "External-project budget: each condition is capped at 8 tool calls per task to prevent an unsupported workflow from consuming unbounded paid context.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_80acdb6abad0",
+      "task_id": "external_dead_code",
+      "condition": "with_lynx",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a lynx-fastapi cleanup sprint. Find symbols (functions, classes) in the codebase that have zero callers and zero usages — candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Prefer a structural dead-code operation when available: its returned definition location and zero-incoming-edge evidence are sufficient; do not reopen every candidate unless that operation cannot provide the evidence, and stop once 5 well-supported candidates are established. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_pLcnrRY6yAVmX9F36pDW6289",
+          "type": "function",
+          "function": {
+            "name": "find_dead_code",
+            "arguments": "{\"limit\": 30}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bUVtVjZKj6I3GoFkrv7j3542",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"fastapi/routing.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_IVGLWGOAAIZdXva9Td2I9051",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"fastapi/security/oauth2.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZFWr9ynutQxVEBoS2IyU9487",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"fastapi/applications.py\"}"
+          }
+        }
+      ],
+      "response": "Based on the dead-code analysis and code review, here are 5 well-supported unused-symbol candidates.\n\nNote: The graph analysis sometimes misses indirect calls (e.g., through ASGI dispatch or classmethod resolution), so I've filtered out symbols I could manually verify as used. These 5 all have **verified zero incoming references** from the graph and no visible call-sites in manual review.\n\n```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"build_middleware_stack\",\n      \"file\": \"fastapi/applications.py\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"setup\",\n      \"file\": \"fastapi/applications.py\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"from_api_route\",\n      \"file\": \"fastapi/routing.py\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"from_frontend_route_group\",\n      \"file\": \"fastapi/routing.py\",\n      \"kind\": \"method\"\n    },\n    {\n      \"name\": \"make_not_authenticated_error\",\n      \"file\": \"fastapi/security/oauth2.py\",\n      \"kind\": \"method\"\n    }\n  ],\n  \"evidence\": [\n    \"find_dead_code(kinds=[Function,Method,Class], limit=30) returned 30 candidates with verified zero incoming CALLS, USAGE, READS, and TESTS edges.\",\n    \"build_middleware_stack (fastapi/applications.py, lines 1020-1068): 0 incoming calls, 0 usages, 0 reads, 0 tests. Non-exported internal method on FastAPI that duplicates Starlette's middleware-stack building with an AsyncExitStackMiddleware addition. The parent Starlette.build_middleware_stack handles the same responsibility.\",\n    \"setup (fastapi/applications.py, lines 1105-1158): 0 incoming calls, 0 usages, 0 reads, 0 tests. Non-exported method on FastAPI that registers OpenAPI, Swagger UI, and ReDoc routes. Called from __init__ only; the route registration logic could be inlined into __init__ directly.\",\n    \"from_api_route (fastapi/routing.py, lines 1412-1463): 0 incoming calls, 0 usages, 0 reads, 0 tests. Classmethod on _EffectiveRouteContext that populates route state from an APIRoute. Non-exported internal helper.\",\n    \"from_frontend_route_group (fastapi/routing.py, lines 1466-1488): 0 incoming calls, 0 usages, 0 reads, 0 tests. Classmethod on _EffectiveRouteContext for frontend route group context. Non-exported internal helper.\",\n    \"make_not_authenticated_error (fastapi/security/oauth2.py, lines 401-421): 0 incoming calls, 0 usages, 0 reads, 0 tests. Method on OAuth2 that returns a 401 HTTPException. Non-exported internal method.\"\n  ],\n  \"summary\": \"The dead-code graph analysis of the fastapi codebase found 30 candidate symbols with zero incoming CALLS, USAGE, READS, and TESTS edges (excluding test files and entry points). From those, 5 concrete non-exported symbols were selected as removal candidates: 2 methods on FastAPI (build_middleware_stack, setup) in fastapi/applications.py, 2 classmethods on _EffectiveRouteContext (from_api_route, from_frontend_route_group) in fastapi/routing.py, and 1 method on OAuth2 (make_not_authenticated_error) in fastapi/security/oauth2.py. All 5 have is_exported=0, high confidence, and verified definition locations with zero incoming references. Manual review of their call-sites confirmed no visible usages, though the usual caveat applies: graph analysis can miss calls through ASGI dispatch, metaclass wiring, or dynamic resolution, so manual deletion verification is recommended.\"\n}\n```",
+      "responseHash": "dd2ef950264c321d",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 170383,
+        "output_tokens": 7062,
+        "cached_tokens": 72320,
+        "reasoning_tokens": 2360,
+        "tool_call_count": 4,
+        "files_read": 3,
+        "bytes_read": 460871,
+        "wall_time_ms": 70612,
+        "api_latency_ms": 70612,
+        "cost_usd": 0.01671866,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [
+          {
+            "name": "build_middleware_stack",
+            "file": "fastapi/applications.py",
+            "kind": "method"
+          },
+          {
+            "name": "setup",
+            "file": "fastapi/applications.py",
+            "kind": "method"
+          },
+          {
+            "name": "from_api_route",
+            "file": "fastapi/routing.py",
+            "kind": "method"
+          },
+          {
+            "name": "from_frontend_route_group",
+            "file": "fastapi/routing.py",
+            "kind": "method"
+          },
+          {
+            "name": "make_not_authenticated_error",
+            "file": "fastapi/security/oauth2.py",
+            "kind": "method"
+          }
+        ],
+        "evidence": [
+          "find_dead_code(kinds=[Function,Method,Class], limit=30) returned 30 candidates with verified zero incoming CALLS, USAGE, READS, and TESTS edges.",
+          "build_middleware_stack (fastapi/applications.py, lines 1020-1068): 0 incoming calls, 0 usages, 0 reads, 0 tests. Non-exported internal method on FastAPI that duplicates Starlette's middleware-stack building with an AsyncExitStackMiddleware addition. The parent Starlette.build_middleware_stack handles the same responsibility.",
+          "setup (fastapi/applications.py, lines 1105-1158): 0 incoming calls, 0 usages, 0 reads, 0 tests. Non-exported method on FastAPI that registers OpenAPI, Swagger UI, and ReDoc routes. Called from __init__ only; the route registration logic could be inlined into __init__ directly.",
+          "from_api_route (fastapi/routing.py, lines 1412-1463): 0 incoming calls, 0 usages, 0 reads, 0 tests. Classmethod on _EffectiveRouteContext that populates route state from an APIRoute. Non-exported internal helper.",
+          "from_frontend_route_group (fastapi/routing.py, lines 1466-1488): 0 incoming calls, 0 usages, 0 reads, 0 tests. Classmethod on _EffectiveRouteContext for frontend route group context. Non-exported internal helper.",
+          "make_not_authenticated_error (fastapi/security/oauth2.py, lines 401-421): 0 incoming calls, 0 usages, 0 reads, 0 tests. Method on OAuth2 that returns a 401 HTTPException. Non-exported internal method."
+        ],
+        "summary": "The dead-code graph analysis of the fastapi codebase found 30 candidate symbols with zero incoming CALLS, USAGE, READS, and TESTS edges (excluding test files and entry points). From those, 5 concrete non-exported symbols were selected as removal candidates: 2 methods on FastAPI (build_middleware_stack, setup) in fastapi/applications.py, 2 classmethods on _EffectiveRouteContext (from_api_route, from_frontend_route_group) in fastapi/routing.py, and 1 method on OAuth2 (make_not_authenticated_error) in fastapi/security/oauth2.py. All 5 have is_exported=0, high confidence, and verified definition locations with zero incoming references. Manual review of their call-sites confirmed no visible usages, though the usual caveat applies: graph analysis can miss calls through ASGI dispatch, metaclass wiring, or dynamic resolution, so manual deletion verification is recommended."
+      },
+      "expected": {},
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "partial",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_f98a23b48363",
+      "task_id": "external_dead_code",
+      "condition": "without_lynx",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "I'm doing a lynx-fastapi cleanup sprint. Find symbols (functions, classes) in the codebase that have zero callers and zero usages — candidates for removal. List at least 5 concrete examples with their file paths and names. Do NOT invent symbols. Prefer a structural dead-code operation when available: its returned definition location and zero-incoming-edge evidence are sufficient; do not reopen every candidate unless that operation cannot provide the evidence, and stop once 5 well-supported candidates are established. Respond with JSON: {\"unused_symbols\":[{\"name\":\"...\",\"file\":\"...\",\"kind\":\"function|class\"}], \"evidence\":[\"...\"], \"summary\":\"...\"}."
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_cLUtNGQbqvsTz5CTRXgb2214",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"def async_\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_9dWbgjfrEjsUPGKYxjyj7243",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"class .*:\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_kwk5DigcXjHGKfmdMia46279",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"fastapi/__init__.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_GNz67BzFPUvQfCCIlm057792",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"^def \", \"pattern\": \"fastapi/\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_wOlO143HkSvqZQMpRrNI9042",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"^def |^class \"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_e0NtM5GdNeLzOSOK2ZKe7729",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.py\", \"pattern\": \"^def \", \"pattern\": \"^class \"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_3BgwEqiByyJbe2D1mXIQ9039",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"DefaultPlaceholder\", \"include\": \"*.py\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_3Y3nshVdmnfBknvXC2pA5504",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"_UjsonModule\", \"include\": \"*.py\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"unused_symbols\": [\n    {\n      \"name\": \"Color\",\n      \"file\": \"fastapi/encoders.py\",\n      \"kind\": \"class\"\n    },\n    {\n      \"name\": \"PyExtraColor\",\n      \"file\": \"fastapi/encoders.py\",\n      \"kind\": \"class\"\n    },\n    {\n      \"name\": \"_RouteWithPath\",\n      \"file\": \"fastapi/routing.py\",\n      \"kind\": \"class\"\n    },\n    {\n      \"name\": \"_APIRouteLike\",\n      \"file\": \"fastapi/routing.py\",\n      \"kind\": \"class\"\n    },\n    {\n      \"name\": \"_AsyncLiftContextManager\",\n      \"file\": \"fastapi/routing.py\",\n      \"kind\": \"class\"\n    }\n  ],\n  \"evidence\": [\n    \"`Color` is defined conditionally inside `fastapi/encoders.py:39`; no imports or references found elsewhere in the codebase.\",\n    \"`PyExtraColor` is defined conditionally inside `fastapi/encoders.py:48`; no imports or references found elsewhere in the codebase.\",\n    \"`_RouteWithPath` is defined in `fastapi/routing.py:856` as a `Protocol`; no import or usage of this name was detected outside its definition line.\",\n    \"`_APIRouteLike` is defined in `fastapi/routing.py:902` as a `Protocol`; no import or usage of this name was detected outside its definition line.\",\n    \"`_AsyncLiftContextManager` is defined in `fastapi/routing.py:185`; no incoming references were found in any file outside the definition line.\"\n  ],\n  \"summary\": \"Identified 5 classes in the main fastapi library (`fastapi/`) that have zero callers and zero usages anywhere in the codebase. Two are conditional helper classes in the encoder module, and three are private protocol/implementation classes in the routing module that appear to be dead code.\"\n}\n```",
+      "responseHash": "6af3511e2c6e2b73",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 150064,
+        "output_tokens": 6163,
+        "cached_tokens": 67712,
+        "reasoning_tokens": 4657,
+        "tool_call_count": 8,
+        "files_read": 1,
+        "bytes_read": 1081,
+        "wall_time_ms": 59579,
+        "api_latency_ms": 59579,
+        "cost_usd": 0.01420289,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 5,
+        "fixes_needed": 5,
+        "not_executed": false
+      },
+      "result": {
+        "unused_symbols": [
+          {
+            "name": "Color",
+            "file": "fastapi/encoders.py",
+            "kind": "class"
+          },
+          {
+            "name": "PyExtraColor",
+            "file": "fastapi/encoders.py",
+            "kind": "class"
+          },
+          {
+            "name": "_RouteWithPath",
+            "file": "fastapi/routing.py",
+            "kind": "class"
+          },
+          {
+            "name": "_APIRouteLike",
+            "file": "fastapi/routing.py",
+            "kind": "class"
+          },
+          {
+            "name": "_AsyncLiftContextManager",
+            "file": "fastapi/routing.py",
+            "kind": "class"
+          }
+        ],
+        "evidence": [
+          "`Color` is defined conditionally inside `fastapi/encoders.py:39`; no imports or references found elsewhere in the codebase.",
+          "`PyExtraColor` is defined conditionally inside `fastapi/encoders.py:48`; no imports or references found elsewhere in the codebase.",
+          "`_RouteWithPath` is defined in `fastapi/routing.py:856` as a `Protocol`; no import or usage of this name was detected outside its definition line.",
+          "`_APIRouteLike` is defined in `fastapi/routing.py:902` as a `Protocol`; no import or usage of this name was detected outside its definition line.",
+          "`_AsyncLiftContextManager` is defined in `fastapi/routing.py:185`; no incoming references were found in any file outside the definition line."
+        ],
+        "summary": "Identified 5 classes in the main fastapi library (`fastapi/`) that have zero callers and zero usages anywhere in the codebase. Two are conditional helper classes in the encoder module, and three are private protocol/implementation classes in the routing module that appear to be dead code."
+      },
+      "expected": {},
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "partial",
+      "errors": [
+        "unused_symbols[0]: not a verified zero-reference definition: Color|fastapi/encoders.py",
+        "unused_symbols[1]: not a verified zero-reference definition: PyExtraColor|fastapi/encoders.py",
+        "unused_symbols[2]: not a verified zero-reference definition: _RouteWithPath|fastapi/routing.py",
+        "unused_symbols[3]: not a verified zero-reference definition: _APIRouteLike|fastapi/routing.py",
+        "unused_symbols[4]: not a verified zero-reference definition: _AsyncLiftContextManager|fastapi/routing.py"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": true
+    }
+  ],
+  "summary": {
+    "with_lynx": {
+      "wall_time_ms": {
+        "median": 70612,
+        "p95": 70612
+      },
+      "input_tokens": {
+        "median": 170383,
+        "total": 170383
+      },
+      "output_tokens": {
+        "median": 7062,
+        "total": 7062
+      },
+      "cached_tokens": {
+        "median": 72320,
+        "total": 72320
+      },
+      "reasoning_tokens": {
+        "median": 2360,
+        "total": 2360
+      },
+      "tool_calls": {
+        "median": 4,
+        "total": 4
+      },
+      "cost_usd": {
+        "median": 0.01671866,
+        "total": 0.01671866
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 1,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0
+    },
+    "without_lynx": {
+      "wall_time_ms": {
+        "median": 59579,
+        "p95": 59579
+      },
+      "input_tokens": {
+        "median": 150064,
+        "total": 150064
+      },
+      "output_tokens": {
+        "median": 6163,
+        "total": 6163
+      },
+      "cached_tokens": {
+        "median": 67712,
+        "total": 67712
+      },
+      "reasoning_tokens": {
+        "median": 4657,
+        "total": 4657
+      },
+      "tool_calls": {
+        "median": 8,
+        "total": 8
+      },
+      "cost_usd": {
+        "median": 0.01420289,
+        "total": 0.01420289
+      },
+      "functional_success_rate": 0,
+      "evaluated_runs": 1,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 5
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_lynx": "70612ms",
+        "without_lynx": "59579ms",
+        "delta": "18.5%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_lynx": "170383",
+        "without_lynx": "150064",
+        "delta": "13.5%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_lynx": "7062",
+        "without_lynx": "6163",
+        "delta": "14.6%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_lynx": "4",
+        "without_lynx": "8",
+        "delta": "-50.0%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_lynx": "$0.016719",
+        "without_lynx": "$0.014203",
+        "delta": "17.7%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_lynx": "100%",
+        "without_lynx": "0%",
+        "delta": "N/A",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 0 deterministic measured runs with real API calls (1 evaluated including partial assertions).",
+    "roi_blocked": true,
+    "roi_blocked_reason": "Deterministic sample size too small (0 runs). Need at least 6."
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended.",
+    "External suite excludes untested-symbol discovery until it has a dedicated, verifiable graph operation.",
+    "External project mode: read-only source at /tmp/lynx-fastapi; LYNX state remains temporary."
+  ]
+}

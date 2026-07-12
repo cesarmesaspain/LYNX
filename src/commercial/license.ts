@@ -13,13 +13,38 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { isPkg, getProjectRoot } from '../paths.js';
+import * as crypto from 'node:crypto';
 
 // ── Public key (embedded at build time) ─────────────
+//
+// Ed25519 public key for JWT verification. In production this is
+// replaced at build time with the real key via LYNX_LICENSE_PUBLIC_KEY
+// env var. If empty, signature verification is skipped (offline/dev mode).
 
-const LYNX_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-[EMBEDDED_AT_BUILD_TIME]
------END PUBLIC KEY-----`;
+const LYNX_PUBLIC_KEY = process.env.LYNX_LICENSE_PUBLIC_KEY || '';
+
+/** Verify JWT signature using the embedded public key. Returns true if
+ *  the key is absent (dev mode) or the signature is valid. */
+function verifyJwtSignature(token: string): boolean {
+  if (!LYNX_PUBLIC_KEY) return true; // dev mode — no key embedded
+
+  try {
+    const [headerB64, payloadB64, signatureB64] = token.split('.');
+    if (!headerB64 || !payloadB64 || !signatureB64) return false;
+
+    const signedData = Buffer.from(`${headerB64}.${payloadB64}`);
+    const signature = Buffer.from(signatureB64, 'base64url');
+
+    const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'));
+    const alg = header.alg || 'EdDSA';
+
+    return alg === 'EdDSA'
+      ? crypto.verify(null, signedData, LYNX_PUBLIC_KEY, signature)
+      : crypto.verify('RSA-SHA256', signedData, LYNX_PUBLIC_KEY, signature);
+  } catch {
+    return false;
+  }
+}
 
 // ── License file ────────────────────────────────────
 
@@ -36,28 +61,28 @@ export interface LicenseInfo {
   tier: 'free' | 'pro' | 'team' | 'enterprise';
   expiresAt: Date;
   isValid: boolean;
+  signatureValid: boolean;
 }
 
 export type Tier = 'free' | 'pro' | 'team' | 'enterprise';
 
-// ── JWT decode (no verify — just parse) ─────────────
+// ── JWT decode + verify ──────────────────────────────
 
-function decodeJwt(token: string): { payload: any; valid: boolean } {
+function decodeJwt(token: string): { payload: any; timeValid: boolean; sigValid: boolean } {
   try {
     const parts = token.split('.');
-    if (parts.length !== 3) return { payload: null, valid: false };
+    if (parts.length !== 3) return { payload: null, timeValid: false, sigValid: false };
 
     const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
 
     // Check expiry
     const now = Math.floor(Date.now() / 1000);
-    if (payload.exp && payload.exp < now) {
-      return { payload, valid: false }; // expired but still readable
-    }
+    const timeValid = !payload.exp || payload.exp >= now;
+    const sigValid = verifyJwtSignature(token);
 
-    return { payload, valid: true };
+    return { payload, timeValid, sigValid };
   } catch {
-    return { payload: null, valid: false };
+    return { payload: null, timeValid: false, sigValid: false };
   }
 }
 
@@ -75,15 +100,18 @@ export function readLicense(): LicenseInfo | null {
     const jwt = fs.readFileSync(filePath, 'utf8').trim();
     if (!jwt) return null;
 
-    const { payload, valid } = decodeJwt(jwt);
+    const { payload, timeValid, sigValid } = decodeJwt(jwt);
     if (!payload) return null;
+
+    const fullyValid = timeValid && sigValid;
 
     _cachedLicense = {
       sub: payload.sub || '',
       email: payload.email || '',
-      tier: valid ? (payload.tier || 'free') : 'free', // expired → free
+      tier: fullyValid ? (payload.tier || 'free') : 'free', // invalid → free
       expiresAt: payload.exp ? new Date(payload.exp * 1000) : new Date(0),
-      isValid: valid,
+      isValid: fullyValid,
+      signatureValid: sigValid,
     };
 
     return _cachedLicense;

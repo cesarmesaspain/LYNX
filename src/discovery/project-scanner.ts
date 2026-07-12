@@ -168,6 +168,20 @@ export function findNearestProject(startPath: string): DetectedProject | null {
 }
 
 /**
+ * Resolve a project from CLI args or auto-detection.
+ * Centralizes the pattern repeated across command files.
+ * Returns the detected project info or null if nothing found.
+ */
+export function resolveProjectPath(firstArg?: string): { rootPath: string; name: string } | null {
+  if (firstArg && !firstArg.startsWith('--')) {
+    return { rootPath: firstArg, name: path.basename(path.resolve(firstArg)) };
+  }
+  const detected = findNearestProject(process.cwd());
+  if (!detected) return null;
+  return { rootPath: detected.rootPath, name: detected.name };
+}
+
+/**
  * Detect a single project at a specific directory path.
  */
 function detectAtPath(dirPath: string): DetectedProject | null {

@@ -162,68 +162,69 @@ function injectSnippets(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Handler
+// Argument parsing
 // ═══════════════════════════════════════════════════════════════
 
-export async function handleSearchGraph(args: Record<string, unknown>): Promise<unknown> {
-  const started = Date.now();
-  const project = String(args.project || '');
+interface SearchGraphArgs {
+  project: string;
+  query: string | undefined;
+  label: string | undefined;
+  namePattern: string | undefined;
+  qnPattern: string | undefined;
+  filePattern: string | undefined;
+  limit: number;
+  offset: number;
+  minDegree: number | undefined;
+  maxDegree: number | undefined;
+  excludeEntryPoints: boolean;
+  includeNarrative: boolean;
+  semanticQuery: string[] | undefined;
+  enableLlm: boolean;
+  includeSnippets: boolean;
+}
+
+function parseSearchGraphArgs(args: Record<string, unknown>): SearchGraphArgs | { error: string } {
   const query = args.query ? String(args.query) : undefined;
-  // Reject empty query strings — they match everything in FTS5 and return garbage
   if (query === '') return { error: 'query must not be empty. Provide at least one search term, or use name_pattern/qn_pattern for structural queries.' };
-  const label = args.label ? String(args.label) : undefined;
-  const namePattern = args.name_pattern ? String(args.name_pattern) : undefined;
-  const qnPattern = args.qn_pattern ? String(args.qn_pattern) : undefined;
-  const filePattern = args.file_pattern ? String(args.file_pattern) : undefined;
   const limit = args.limit !== undefined ? Number(args.limit) : 10;
-  const offset = args.offset !== undefined ? Number(args.offset) : 0;
-  const minDegree = args.min_degree !== undefined ? Number(args.min_degree) : undefined;
-  const maxDegree = args.max_degree !== undefined ? Number(args.max_degree) : undefined;
-  const excludeEntryPoints = args.exclude_entry_points === true;
-  const includeNarrative = args.narrative !== false;
-  const semanticQuery = args.semantic_query as string[] | undefined;
-  const enableLlm = args.enable_llm !== false;
-  // Auto-enable snippets when ≤5 results, unless explicitly disabled. Eliminates follow-up get_code_snippet calls.
-  const includeSnippets = args.include_snippets === true || (args.include_snippets !== false && limit <= 5);
+  return {
+    project: String(args.project || ''),
+    query,
+    label: args.label ? String(args.label) : undefined,
+    namePattern: args.name_pattern ? String(args.name_pattern) : undefined,
+    qnPattern: args.qn_pattern ? String(args.qn_pattern) : undefined,
+    filePattern: args.file_pattern ? String(args.file_pattern) : undefined,
+    limit,
+    offset: args.offset !== undefined ? Number(args.offset) : 0,
+    minDegree: args.min_degree !== undefined ? Number(args.min_degree) : undefined,
+    maxDegree: args.max_degree !== undefined ? Number(args.max_degree) : undefined,
+    excludeEntryPoints: args.exclude_entry_points === true,
+    includeNarrative: args.narrative !== false,
+    semanticQuery: args.semantic_query as string[] | undefined,
+    enableLlm: args.enable_llm !== false,
+    includeSnippets: args.include_snippets === true || (args.include_snippets !== false && limit <= 5),
+  };
+}
 
-  const db = getDb(project);
+// ═══════════════════════════════════════════════════════════════
+// Response building
+// ═══════════════════════════════════════════════════════════════
 
-  // Diagnostic: project not indexed → still return results but hint
-  const projectCheck = db.getProject(project) ? null : projectNotIndexed(project);
-
-  // Data retrieval: federated gateway if Team config present, else direct local core
-  const fedConfig = getFederatedConfig();
-  let deduped: SearchNode[];
-  let total: number;
-  let provenanceSummary: Record<string, unknown> | undefined;
-
-  if (fedConfig) {
-    const fedResult = await federatedSearchGraph(db, {
-      project, query, label, namePattern, qnPattern, filePattern,
-      limit, offset, minDegree, maxDegree, excludeEntryPoints,
-      hasSemanticQuery: !!(semanticQuery && semanticQuery.length > 0),
-    }, fedConfig);
-    deduped = fedResult.results;
-    total = fedResult.total;
-    provenanceSummary = fedResult.provenance_summary as unknown as Record<string, unknown>;
-  } else {
-    const localResult = executeLocalSearchGraph(db, {
-      project, query, label, namePattern, qnPattern, filePattern,
-      limit, offset, minDegree, maxDegree, excludeEntryPoints,
-      hasSemanticQuery: !!(semanticQuery && semanticQuery.length > 0),
-    });
-    deduped = localResult.results;
-    total = localResult.total;
-  }
-
-  const { deduped: reRanked, llmReranked, llmMetrics, llmUsage } =
-    await applyLlmRerank(db, project, deduped, query, enableLlm);
-  deduped = reRanked;
-
-  const hasMore = offset + limit < total;
-
-  // Build results array
-  const limitedResults = deduped.slice(offset, offset + limit);
+function buildSearchResponse(
+  a: SearchGraphArgs,
+  started: number,
+  deduped: SearchNode[],
+  total: number,
+  provenanceSummary: Record<string, unknown> | undefined,
+  projectCheck: ReturnType<typeof import('../diagnostics.js').projectNotIndexed> | null,
+  llmReranked: boolean,
+  llmMetrics: Record<string, unknown> | undefined,
+  llmUsage: LlmUsage,
+  db: LynxDatabase,
+  project: string,
+): Record<string, unknown> {
+  const hasMore = a.offset + a.limit < total;
+  const limitedResults = deduped.slice(a.offset, a.offset + a.limit);
   const resultsArray = limitedResults.map(r => {
     const item: Record<string, unknown> = {
       name: r.name,
@@ -240,7 +241,7 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
     return item;
   });
 
-  if (includeSnippets && resultsArray.length > 0) {
+  if (a.includeSnippets && resultsArray.length > 0) {
     injectSnippets(db, project, resultsArray);
   }
 
@@ -251,21 +252,16 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
     match_status: total === 0 ? 'no_indexed_match' : 'matches_found',
   };
 
-  if (total === 0 && query) {
+  if (total === 0 && a.query) {
     response.no_match_guidance = {
-      requested_query: query,
+      requested_query: a.query,
       inference: 'No indexed symbol matched the requested concept. Do not relabel an unrelated workflow as the requested domain.',
       next_step: 'Run at most one exact search_code check for the key domain noun. If it is also empty, report that the project contains insufficient evidence for the requested feature.',
     };
   }
 
-  if (projectCheck) {
-    response.diagnostic = projectCheck;
-  }
-
-  if (provenanceSummary) {
-    response.provenance_summary = provenanceSummary;
-  }
+  if (projectCheck) response.diagnostic = projectCheck;
+  if (provenanceSummary) response.provenance_summary = provenanceSummary;
 
   const value = estimateTokensSaved(resultsArray.length, Math.max(total, resultsArray.length));
   response.value_metrics = {
@@ -275,7 +271,6 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
     latency_ms: Date.now() - started,
   };
 
-  // Add real session savings if available
   try {
     const meta = db.getProject(project);
     if (meta) {
@@ -287,62 +282,100 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
           real.suggestionsResolved >= 2 ? 'high' : real.suggestionsResolved >= 1 ? 'medium' : 'low';
       }
     }
-  } catch {
-    // Session tracking is best-effort
-  }
-  recordUsageEvent({
-    type: 'search_graph',
-    project,
-    query: query || namePattern || qnPattern || filePattern || '',
-    result_count: resultsArray.length,
-    unique_files: new Set(resultsArray.map((r) => String(r.file))).size,
-    files_avoided: value.filesAvoided,
-    tokens_saved: value.tokensSaved,
-    confidence: value.confidence,
-    latency_ms: Date.now() - started,
-    tool_hint: 'search_graph',
-  });
+  } catch { /* Session tracking is best-effort */ }
 
-  if (llmReranked) {
-    response.llm_reranked = true;
-  }
-  if (llmMetrics) {
-    response.llm_metrics = llmMetrics;
-  }
+  if (llmReranked) response.llm_reranked = true;
+  if (llmMetrics) response.llm_metrics = llmMetrics;
   response.llm_usage = llmUsage;
 
-  // Semantic query note (vector search requires embeddings index — future work)
-  if (semanticQuery && semanticQuery.length > 0) {
-    response.semantic_query = semanticQuery;
+  if (a.semanticQuery && a.semanticQuery.length > 0) {
+    response.semantic_query = a.semanticQuery;
     response.semantic_note =
       'semantic_query received but vector search is not yet active. ' +
       'Results are from text/regex matching. ' +
       'Install embeddings index for cosine search.';
   }
 
-  if (includeNarrative && query) {
+  if (a.includeNarrative && a.query) {
     const narrative = narrateSearchResults(
-      limitedResults.map((r) => ({
+      limitedResults.map(r => ({
         node: {
-          id: 0,
-          project,
-          kind: r.kind as never,
-          name: r.name,
-          qualifiedName: r.qualified_name,
-          filePath: r.file_path,
-          startLine: r.start_line,
-          endLine: r.end_line,
-          isExported: false,
-          isTest: r.is_test,
-          isEntryPoint: r.is_entry_point,
+          id: 0, project, kind: r.kind as never, name: r.name,
+          qualifiedName: r.qualified_name, filePath: r.file_path,
+          startLine: r.start_line, endLine: r.end_line,
+          isExported: false, isTest: r.is_test, isEntryPoint: r.is_entry_point,
         },
       })),
-      total,
-      query
+      total, a.query,
     );
     response.narrative = narrative.summary;
     response.top3 = narrative.top3;
   }
+
+  return response;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Handler
+// ═══════════════════════════════════════════════════════════════
+
+export async function handleSearchGraph(args: Record<string, unknown>): Promise<unknown> {
+  const started = Date.now();
+  const parsed = parseSearchGraphArgs(args);
+  if ('error' in parsed) return parsed;
+
+  const { project, query, label, namePattern, qnPattern, filePattern,
+          limit, offset, minDegree, maxDegree, excludeEntryPoints,
+          semanticQuery, enableLlm } = parsed;
+
+  const db = getDb(project);
+
+  const projectCheck = db.getProject(project) ? null : projectNotIndexed(project);
+
+  // Data retrieval: federated gateway or direct local core
+  const fedConfig = getFederatedConfig();
+  let deduped: SearchNode[];
+  let total: number;
+  let provenanceSummary: Record<string, unknown> | undefined;
+
+  const searchParams = {
+    project, query, label, namePattern, qnPattern, filePattern,
+    limit, offset, minDegree, maxDegree, excludeEntryPoints,
+    hasSemanticQuery: !!(semanticQuery && semanticQuery.length > 0),
+  };
+
+  if (fedConfig) {
+    const fedResult = await federatedSearchGraph(db, searchParams, fedConfig);
+    deduped = fedResult.results;
+    total = fedResult.total;
+    provenanceSummary = fedResult.provenance_summary as unknown as Record<string, unknown>;
+  } else {
+    const localResult = executeLocalSearchGraph(db, searchParams);
+    deduped = localResult.results;
+    total = localResult.total;
+  }
+
+  const { deduped: reRanked, llmReranked, llmMetrics, llmUsage } =
+    await applyLlmRerank(db, project, deduped, query, enableLlm);
+
+  const response = buildSearchResponse(
+    parsed, started, reRanked, total, provenanceSummary,
+    projectCheck, llmReranked, llmMetrics, llmUsage, db, project,
+  );
+
+  const resultsArray = response.results as Array<Record<string, unknown>>;
+  recordUsageEvent({
+    type: 'search_graph',
+    project,
+    query: query || namePattern || qnPattern || filePattern || '',
+    result_count: resultsArray.length,
+    unique_files: new Set(resultsArray.map((r) => String(r.file))).size,
+    files_avoided: (response.value_metrics as Record<string, unknown>).estimated_files_avoided as number,
+    tokens_saved: (response.value_metrics as Record<string, unknown>).estimated_tokens_saved as number,
+    confidence: ((response.value_metrics as Record<string, unknown>).confidence as string) as "high" | "medium" | "low",
+    latency_ms: Date.now() - started,
+    tool_hint: 'search_graph',
+  });
 
   return response;
 }

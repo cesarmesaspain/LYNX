@@ -2246,7 +2246,7 @@ function autoSaveResult(
   const jsonPath = path.join(resultsDir, `${baseName}.json`);
   fs.writeFileSync(jsonPath, JSON.stringify(result, null, 2));
 
-  // 2. Responses artifact (side-by-side full text, like Codex)
+  // 2. Responses artifact
   const responses: Record<string, unknown> = {
     generated: now.toISOString(),
     project: projectLabel,
@@ -2255,7 +2255,6 @@ function autoSaveResult(
     tier: result.config.tier,
     tasks: [] as Record<string, unknown>[],
   };
-  // Group by task_id
   const byTask = new Map<string, AgentABRun[]>();
   for (const run of result.tasks) {
     const list = byTask.get(run.task_id) || [];
@@ -2267,30 +2266,26 @@ function autoSaveResult(
     const baselineRun = runs.find((r) => r.condition === "without_lynx");
     (responses.tasks as Array<Record<string, unknown>>).push({
       task_id: taskId,
-      lynx: lynxRun
-        ? {
-            response: lynxRun.response,
-            wall_ms: lynxRun.metrics.wall_time_ms,
-            tool_calls: lynxRun.metrics.tool_call_count,
-            tool_call_summary: toolCallSummary(lynxRun.toolCalls),
-            input_tokens: lynxRun.metrics.input_tokens,
-            cost_usd: lynxRun.metrics.cost_usd,
-            errors: lynxRun.errors,
-            tool_loop_exhausted: lynxRun.tool_loop_exhausted,
-            finalization_error: lynxRun.finalization_error,
-          }
-        : null,
-      baseline: baselineRun
-        ? {
-            response: baselineRun.response,
-            wall_ms: baselineRun.metrics.wall_time_ms,
-            tool_calls: baselineRun.metrics.tool_call_count,
-            tool_call_summary: toolCallSummary(baselineRun.toolCalls),
-            input_tokens: baselineRun.metrics.input_tokens,
-            cost_usd: baselineRun.metrics.cost_usd,
-            errors: baselineRun.errors,
-          }
-        : null,
+      lynx: lynxRun ? {
+        response: lynxRun.response,
+        wall_ms: lynxRun.metrics.wall_time_ms,
+        tool_calls: lynxRun.metrics.tool_call_count,
+        tool_call_summary: toolCallSummary(lynxRun.toolCalls),
+        input_tokens: lynxRun.metrics.input_tokens,
+        cost_usd: lynxRun.metrics.cost_usd,
+        errors: lynxRun.errors,
+        tool_loop_exhausted: lynxRun.tool_loop_exhausted,
+        finalization_error: lynxRun.finalization_error,
+      } : null,
+      baseline: baselineRun ? {
+        response: baselineRun.response,
+        wall_ms: baselineRun.metrics.wall_time_ms,
+        tool_calls: baselineRun.metrics.tool_call_count,
+        tool_call_summary: toolCallSummary(baselineRun.toolCalls),
+        input_tokens: baselineRun.metrics.input_tokens,
+        cost_usd: baselineRun.metrics.cost_usd,
+        errors: baselineRun.errors,
+      } : null,
     });
   }
   fs.writeFileSync(
@@ -2302,10 +2297,6 @@ function autoSaveResult(
   const idxPath = path.join(resultsDir, "_index.jsonl");
   const lynxCost = result.summary.with_lynx.cost_usd?.total ?? 0;
   const baselineCost = result.summary.without_lynx.cost_usd?.total ?? 0;
-  const lynxWall = result.summary.with_lynx.wall_time_ms?.median ?? 0;
-  const baselineWall = result.summary.without_lynx.wall_time_ms?.median ?? 0;
-  const lynxSuccess = result.summary.with_lynx.functional_success_rate;
-  const baselineSuccess = result.summary.without_lynx.functional_success_rate;
   const validity = classifyAgentABResultValidity(result);
   const indexEntry = {
     timestamp: now.toISOString(),
@@ -2321,35 +2312,29 @@ function autoSaveResult(
     evaluated_runs: validity.evaluated_runs,
     complete_pairs: validity.complete_pairs,
     lynx: {
-      success_rate: lynxSuccess,
-      median_wall_ms: lynxWall,
+      success_rate: result.summary.with_lynx.functional_success_rate,
+      median_wall_ms: result.summary.with_lynx.wall_time_ms?.median ?? 0,
       total_cost_usd: lynxCost,
     },
     baseline: {
-      success_rate: baselineSuccess,
-      median_wall_ms: baselineWall,
+      success_rate: result.summary.without_lynx.functional_success_rate,
+      median_wall_ms: result.summary.without_lynx.wall_time_ms?.median ?? 0,
       total_cost_usd: baselineCost,
     },
     context_limit_hit: result.tasks.some(
-      (r) =>
-        r.condition === "without_lynx" &&
-        r.errors?.some((e) => e.includes("maximum context length")),
+      (r) => r.condition === "without_lynx" && r.errors?.some((e) => e.includes("maximum context length")),
     ),
   };
   fs.appendFileSync(idxPath, JSON.stringify(indexEntry) + "\n");
 
-  // Log paths
   const stderr = outPath ? ` (also at ${outPath})` : "";
   console.error(`Saved ${baseName}.json${stderr}`);
   console.error(`Index: ${idxPath}`);
 
-  // If there was a stderr file, copy it alongside
   if (stderrPath && fs.existsSync(stderrPath)) {
     try {
       fs.copyFileSync(stderrPath, path.join(resultsDir, `${baseName}.log`));
-    } catch {
-      /* best effort */
-    }
+    } catch { /* best effort */ }
   }
 }
 

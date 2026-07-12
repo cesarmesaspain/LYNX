@@ -22,6 +22,7 @@ import { federatedSearchGraph } from '../../federation/gateway.js';
 import { getFederatedConfig } from '../../federation/handler-bridge.js';
 import type { SearchNode } from '../../federation/types.js';
 import type { LynxDatabase } from '../../store/database.js';
+import { hasCapability } from '../../commercial/gate.js';
 
 // ═══════════════════════════════════════════════════════════════
 // Private helpers
@@ -171,6 +172,8 @@ interface SearchGraphArgs {
   label: string | undefined;
   namePattern: string | undefined;
   qnPattern: string | undefined;
+  nameLike: string | undefined;
+  qnLike: string | undefined;
   filePattern: string | undefined;
   limit: number;
   offset: number;
@@ -193,6 +196,8 @@ function parseSearchGraphArgs(args: Record<string, unknown>): SearchGraphArgs | 
     label: args.label ? String(args.label) : undefined,
     namePattern: args.name_pattern ? String(args.name_pattern) : undefined,
     qnPattern: args.qn_pattern ? String(args.qn_pattern) : undefined,
+    nameLike: args.name_like ? String(args.name_like) : undefined,
+    qnLike: args.qn_like ? String(args.qn_like) : undefined,
     filePattern: args.file_pattern ? String(args.file_pattern) : undefined,
     limit,
     offset: args.offset !== undefined ? Number(args.offset) : 0,
@@ -324,9 +329,14 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
   const parsed = parseSearchGraphArgs(args);
   if ('error' in parsed) return parsed;
 
-  const { project, query, label, namePattern, qnPattern, filePattern,
-          limit, offset, minDegree, maxDegree, excludeEntryPoints,
-          semanticQuery, enableLlm } = parsed;
+  let { project, query, label, namePattern, qnPattern, nameLike, qnLike, filePattern,
+        limit, offset, minDegree, maxDegree, excludeEntryPoints,
+        semanticQuery, enableLlm } = parsed;
+
+  // Free tier: LLM rerank degrades to heuristic silently
+  if (enableLlm && !hasCapability('semantic_rerank')) {
+    enableLlm = false;
+  }
 
   const db = getDb(project);
 
@@ -339,7 +349,7 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
   let provenanceSummary: Record<string, unknown> | undefined;
 
   const searchParams = {
-    project, query, label, namePattern, qnPattern, filePattern,
+    project, query, label, namePattern, qnPattern, nameLike, qnLike, filePattern,
     limit, offset, minDegree, maxDegree, excludeEntryPoints,
     hasSemanticQuery: !!(semanticQuery && semanticQuery.length > 0),
   };
@@ -367,7 +377,7 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
   recordUsageEvent({
     type: 'search_graph',
     project,
-    query: query || namePattern || qnPattern || filePattern || '',
+    query: query || namePattern || qnPattern || nameLike || qnLike || filePattern || '',
     result_count: resultsArray.length,
     unique_files: new Set(resultsArray.map((r) => String(r.file))).size,
     files_avoided: (response.value_metrics as Record<string, unknown>).estimated_files_avoided as number,

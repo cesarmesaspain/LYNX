@@ -322,153 +322,44 @@ function safeReadFileRealistic(fixtureDir: string, requestedPath: string): strin
   }
 }
 
+// ── Tool dispatcher (data-driven) ───────────────────────────────
+
+type ToolHandler = (
+  args: Record<string, unknown>,
+  project: string,
+) => Promise<unknown>;
+
+const TOOL_DISPATCHERS: Record<string, ToolHandler> = {
+  search_graph: (a, p) => handleSearchGraph({ project: p, query: String(a.query || ''), label: a.label ? String(a.label) : undefined, limit: a.limit ? Number(a.limit) : 10, enable_llm: false }),
+  trace_path: (a, p) => handleTracePath({ project: p, function_name: String(a.function_name || ''), direction: (a.direction as string) || 'both', depth: a.depth ? Number(a.depth) : 3, include_tests: false }),
+  explain_symbol: (a, p) => handleExplainSymbol({ project: p, name: String(a.name || ''), qualified_name: a.qualified_name ? String(a.qualified_name) : undefined }),
+  find_tests: (a, p) => handleFindTests({ project: p, name: String(a.name || '') }),
+  get_architecture: (a, p) => handleGetArchitecture({ project: p, aspects: a.aspects as string[] | undefined }),
+  analyze_hotspots: (a, p) => handleAnalyzeHotspots({ project: p, limit: a.limit ? Number(a.limit) : 10 }),
+  find_dead_code: (a, p) => handleFindDeadCode({ project: p, kinds: a.kinds, path: a.path, limit: a.limit }),
+  get_graph_schema: (_a, p) => handleGetGraphSchema({ project: p }),
+  semantic_search: (a, p) => handleSemanticSearch({ project: p, query: String(a.query || ''), kind: a.kind ? String(a.kind) : undefined, limit: a.limit ? Number(a.limit) : 10 }),
+  batch_get_code: (a, p) => handleBatchGetCode({ project: p, qualified_names: (a.qualified_names as string[]) || [] }),
+  get_code_snippet: (a, p) => handleGetCodeSnippet({ project: p, qualified_name: String(a.qualified_name || '') }),
+  search_code: (a, p) => handleSearchCode({ project: p, pattern: String(a.pattern || ''), file_pattern: a.file_pattern ? String(a.file_pattern) : undefined, limit: a.limit ? Number(a.limit) : 10 }),
+  smart_review: (a, p) => handleSmartReview({ project: p, file: a.file ? String(a.file) : undefined, qualified_name: a.qualified_name ? String(a.qualified_name) : undefined }),
+  detect_changes: (a, p) => handleDetectChanges({ project: p, scope: (a.scope as string) || 'files' }),
+  pack_memory: (a, p) => handlePackMemory({ project: p, target_file: a.target_file ? String(a.target_file) : undefined, target_qn: a.target_qn ? String(a.target_qn) : undefined }),
+  query_graph: (a, p) => handleQueryGraph({ project: p, query: String(a.query || '') }),
+  compare_runs: (_a, p) => handleCompareRuns({ project: p }),
+  pack_context: (a, p) => handlePackContext({ task: String(a.task || ''), project: p }),
+};
+
 export async function executeLynxToolRealistic(
   toolName: string,
   args: Record<string, unknown>,
   project: string,
   fixtureDir: string
 ): Promise<string> {
-  switch (toolName) {
-    // Core 5
-    case 'search_graph': {
-      const result = await handleSearchGraph({
-        project,
-        query: String(args.query || ''),
-        label: args.label ? String(args.label) : undefined,
-        limit: args.limit ? Number(args.limit) : 10,
-        enable_llm: false,
-      });
-      return JSON.stringify(result);
-    }
-    case 'trace_path': {
-      const result = await handleTracePath({
-        project,
-        function_name: String(args.function_name || ''),
-        direction: (args.direction as string) || 'both',
-        depth: args.depth ? Number(args.depth) : 3,
-        include_tests: false,
-      });
-      return JSON.stringify(result);
-    }
-    case 'explain_symbol': {
-      const result = await handleExplainSymbol({
-        project,
-        name: String(args.name || ''),
-        qualified_name: args.qualified_name ? String(args.qualified_name) : undefined,
-      });
-      return JSON.stringify(result);
-    }
-    case 'find_tests': {
-      const result = await handleFindTests({ project, name: String(args.name || '') });
-      return JSON.stringify(result);
-    }
-    case 'read_file': {
-      return safeReadFileRealistic(fixtureDir, String(args.path || ''));
-    }
-    // Workflow 13
-    case 'get_architecture': {
-      const result = await handleGetArchitecture({
-        project,
-        aspects: args.aspects as string[] | undefined,
-      });
-      return JSON.stringify(result);
-    }
-    case 'analyze_hotspots': {
-      const result = await handleAnalyzeHotspots({
-        project,
-        limit: args.limit ? Number(args.limit) : 10,
-      });
-      return JSON.stringify(result);
-    }
-    case 'find_dead_code': {
-      const result = await handleFindDeadCode({
-        project,
-        kinds: args.kinds,
-        path: args.path,
-        limit: args.limit,
-      });
-      return JSON.stringify(result);
-    }
-    case 'get_graph_schema': {
-      const result = await handleGetGraphSchema({ project });
-      return JSON.stringify(result);
-    }
-    case 'semantic_search': {
-      const result = await handleSemanticSearch({
-        project,
-        query: String(args.query || ''),
-        kind: args.kind ? String(args.kind) : undefined,
-        limit: args.limit ? Number(args.limit) : 10,
-      });
-      return JSON.stringify(result);
-    }
-    case 'batch_get_code': {
-      const result = await handleBatchGetCode({
-        project,
-        qualified_names: (args.qualified_names as string[]) || [],
-      });
-      return JSON.stringify(result);
-    }
-    case 'get_code_snippet': {
-      const result = await handleGetCodeSnippet({
-        project,
-        qualified_name: String(args.qualified_name || ''),
-      });
-      return JSON.stringify(result);
-    }
-    case 'search_code': {
-      const result = await handleSearchCode({
-        project,
-        pattern: String(args.pattern || ''),
-        file_pattern: args.file_pattern ? String(args.file_pattern) : undefined,
-        limit: args.limit ? Number(args.limit) : 10,
-      });
-      return JSON.stringify(result);
-    }
-    case 'smart_review': {
-      const result = await handleSmartReview({
-        project,
-        file: args.file ? String(args.file) : undefined,
-        qualified_name: args.qualified_name ? String(args.qualified_name) : undefined,
-      });
-      return JSON.stringify(result);
-    }
-    case 'detect_changes': {
-      const result = await handleDetectChanges({
-        project,
-        scope: (args.scope as string) || 'files',
-      });
-      return JSON.stringify(result);
-    }
-    case 'pack_memory': {
-      const result = await handlePackMemory({
-        project,
-        target_file: args.target_file ? String(args.target_file) : undefined,
-        target_qn: args.target_qn ? String(args.target_qn) : undefined,
-      });
-      return JSON.stringify(result);
-    }
-    case 'query_graph': {
-      const result = await handleQueryGraph({
-        project,
-        query: String(args.query || ''),
-      });
-      return JSON.stringify(result);
-    }
-    case 'compare_runs': {
-      const result = await handleCompareRuns({ project });
-      return JSON.stringify(result);
-    }
-    case 'pack_context': {
-      const result = await handlePackContext({
-        task: String(args.task || ''),
-        project,
-      });
-      return JSON.stringify(result);
-    }
-    default:
-      return `Unknown tool: ${toolName}`;
-  }
+  if (toolName === 'read_file') return safeReadFileRealistic(fixtureDir, String(args.path || ''));
+  const handler = TOOL_DISPATCHERS[toolName];
+  if (!handler) return `Unknown tool: ${toolName}`;
+  return JSON.stringify(await handler(args, project));
 }
 
 // ── Baseline executor (realistic — identical to core baseline) ─

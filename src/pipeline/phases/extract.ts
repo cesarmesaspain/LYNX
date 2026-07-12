@@ -165,6 +165,16 @@ async function extractNativeLargeFiles(
     for (const result of parsed) {
       const original = toProcess[result.id];
       if (!original || result.result.hasError) continue;
+      // The native extractor emits compact method nodes. Restore class scope here
+      // so same-named methods in different classes never share a qualified name.
+      const classes = result.result.nodes.filter(node => node.kind === 'Class');
+      for (const node of result.result.nodes) {
+        if (node.kind !== 'Method') continue;
+        const owner = classes.find(candidate =>
+          candidate.startLine <= node.startLine && candidate.endLine >= node.endLine,
+        );
+        if (owner) node.qualifiedName = `${owner.qualifiedName}.${node.name}`;
+      }
       map.set(result.id, {
         file: original.file,
         result: {

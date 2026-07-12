@@ -11,9 +11,10 @@
  */
 
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
 import * as crypto from 'node:crypto';
+import { lynxHome } from '../config/runtime.js';
 
 // ── Public key (embedded at build time) ─────────────
 //
@@ -23,10 +24,14 @@ import * as crypto from 'node:crypto';
 
 const LYNX_PUBLIC_KEY = process.env.LYNX_LICENSE_PUBLIC_KEY || '';
 
+function allowDevLicenseBypass(): boolean {
+  return process.env.NODE_ENV !== 'production' && process.env.LYNX_DEV_LICENSE_BYPASS === '1';
+}
+
 /** Verify JWT signature using the embedded public key. Returns true if
  *  the key is absent (dev mode) or the signature is valid. */
 function verifyJwtSignature(token: string): boolean {
-  if (!LYNX_PUBLIC_KEY) return true; // dev mode — no key embedded
+  if (!LYNX_PUBLIC_KEY) return allowDevLicenseBypass();
 
   try {
     const [headerB64, payloadB64, signatureB64] = token.split('.');
@@ -36,11 +41,8 @@ function verifyJwtSignature(token: string): boolean {
     const signature = Buffer.from(signatureB64, 'base64url');
 
     const header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'));
-    const alg = header.alg || 'EdDSA';
-
-    return alg === 'EdDSA'
-      ? crypto.verify(null, signedData, LYNX_PUBLIC_KEY, signature)
-      : crypto.verify('RSA-SHA256', signedData, LYNX_PUBLIC_KEY, signature);
+    if (header.alg !== 'EdDSA') return false;
+    return crypto.verify(null, signedData, LYNX_PUBLIC_KEY, signature);
   } catch {
     return false;
   }
@@ -49,8 +51,7 @@ function verifyJwtSignature(token: string): boolean {
 // ── License file ────────────────────────────────────
 
 function licensePath(): string {
-  const home = os.homedir();
-  return path.join(home, '.lynx', 'license');
+  return path.join(lynxHome(), 'license');
 }
 
 // ── Types ───────────────────────────────────────────
@@ -131,7 +132,10 @@ export function saveLicense(jwt: string): void {
 
 export function getTier(): Tier {
   const license = readLicense();
-  if (!license || !license.isValid) return 'pro';
+  // Licenses fail closed. Development can opt in to the explicit bypass above.
+  if (!license || !license.isValid) {
+    return allowDevLicenseBypass() ? 'pro' : 'free';
+  }
   return license.tier;
 }
 

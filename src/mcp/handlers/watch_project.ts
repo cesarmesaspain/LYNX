@@ -12,11 +12,7 @@
 
 import * as path from 'node:path';
 import { getDb, setDb } from '../server.js';
-import { FileWatcher } from '../../watcher/file-watcher.js';
-import { LynxDatabase } from '../../store/database.js';
-
-// Watcher registry (session-scoped)
-const watchers = new Map<string, FileWatcher>();
+import { getProjectWatcherStatus, startProjectWatcher, stopProjectWatcher } from '../../watcher/watcher-manager.js';
 
 export async function handleWatchProject(
   args: Record<string, unknown>
@@ -32,30 +28,18 @@ export async function handleWatchProject(
 
   switch (action) {
     case 'start': {
-      if (watchers.has(project)) {
-        const existing = watchers.get(project)!;
-        const status = existing.status();
+      const existing = getProjectWatcherStatus(project);
+      if (existing) {
         return {
           project,
           action: 'start',
           message: 'Watcher already running.',
-          status,
+          status: existing,
         };
       }
 
       const mode = args.mode ? String(args.mode) : 'fast';
-      // Open a fresh DB connection for the watcher (avoids WAL contention with reader)
-      const watcherDb = LynxDatabase.openProject(project);
-
-      const watcher = new FileWatcher(
-        watcherDb,
-        projInfo.rootPath,
-        project,
-        mode as 'full' | 'moderate' | 'fast'
-      );
-      watchers.set(project, watcher);
-
-      const status = watcher.start();
+      const { status } = startProjectWatcher(project, projInfo.rootPath, mode as 'full' | 'moderate' | 'fast');
       return {
         project,
         action: 'start',
@@ -65,8 +49,8 @@ export async function handleWatchProject(
     }
 
     case 'stop': {
-      const watcher = watchers.get(project);
-      if (!watcher) {
+      const status = await stopProjectWatcher(project);
+      if (!status) {
         return {
           project,
           action: 'stop',
@@ -74,19 +58,17 @@ export async function handleWatchProject(
         };
       }
 
-      await watcher.stop();
-      watchers.delete(project);
       return {
         project,
         action: 'stop',
         message: 'Watcher stopped.',
-        status: watcher.status(),
+        status,
       };
     }
 
     case 'status': {
-      const watcher = watchers.get(project);
-      if (!watcher) {
+      const status = getProjectWatcherStatus(project);
+      if (!status) {
         return {
           project,
           action: 'status',
@@ -95,7 +77,6 @@ export async function handleWatchProject(
         };
       }
 
-      const status = watcher.status();
       return {
         project,
         action: 'status',

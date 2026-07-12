@@ -10,10 +10,17 @@
  *   npx lynx serve                  # Start MCP server (same as npx lynx)
  */
 
-import { dispatchCommand } from './cli/commands/index.js';
+import { dispatchCommand, helpText } from './cli/commands/index.js';
 
 const args = process.argv.slice(2);
 const command = args[0];
+
+if (command === '--help' || command === '-h' || command === 'help') {
+  console.log('LYNX — Code Intelligence Graph\n');
+  console.log('Usage: lynx <command> [args]\n');
+  console.log(helpText());
+  process.exit(0);
+}
 
 dispatchCommand(command, args.slice(1)).catch((err) => {
   console.error('Fatal error:', err);

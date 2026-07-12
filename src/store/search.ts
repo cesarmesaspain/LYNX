@@ -59,6 +59,9 @@ interface RawRow {
  *   \.\*test     → %test
  */
 function regexToLike(pattern: string): string {
+  // Fast path: if it doesn't look like a regex, treat it as a raw SQL LIKE pattern
+  if (!/[.^$]|\\[dw]/i.test(pattern)) return pattern;
+
   const ANY = '\x00';  // placeholder for %
   const ONE = '\x01';  // placeholder for _
 
@@ -111,11 +114,19 @@ export function search(db: LynxDatabase, params: LynxSearchParams): {
     conditions.push("n.name LIKE ? ESCAPE '\\'");
     bindings.push(like);
   }
+  if (params.nameLike) {
+    conditions.push("n.name LIKE ? ESCAPE '\\'");
+    bindings.push(params.nameLike);
+  }
 
   if (params.qnPattern) {
     const like = regexToLike(params.qnPattern);
     conditions.push("n.qualified_name LIKE ? ESCAPE '\\'");
     bindings.push(like);
+  }
+  if (params.qnLike) {
+    conditions.push("n.qualified_name LIKE ? ESCAPE '\\'");
+    bindings.push(params.qnLike);
   }
 
   if (params.filePattern) {

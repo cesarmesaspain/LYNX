@@ -205,6 +205,8 @@ export interface LynxSearchParams {
   label?: LynxNodeKind;
   namePattern?: string;
   qnPattern?: string;
+  nameLike?: string;
+  qnLike?: string;
   filePattern?: string;
   relationship?: LynxEdgeType;
   minDegree?: number;

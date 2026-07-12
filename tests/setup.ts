@@ -50,6 +50,8 @@ if (!g[ALREADY_SETUP]) {
   );
 
   process.env.LYNX_HOME = TEST_HOME;
+  // Tests intentionally exercise Pro-only paths; production never receives this bypass.
+  process.env.LYNX_DEV_LICENSE_BYPASS = '1';
 
   g[ALREADY_SETUP] = true;
   g.__LYNX_TEST_HOME__ = TEST_HOME;

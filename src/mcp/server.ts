@@ -42,14 +42,16 @@ import { findNearestProject } from '../discovery/project-scanner.js';
 import { discoverFiles } from '../pipeline/phases/discover.js';
 import { runPipeline } from '../pipeline/orchestrator.js';
 import { lynxHome, readLynxConfig } from '../config/runtime.js';
-import { FileWatcher } from '../watcher/file-watcher.js';
-import { hasCapability } from '../commercial/gate.js';
+import { closeAllProjectWatchers, getProjectWatcherStatus, startProjectWatcher } from '../watcher/watcher-manager.js';
 import { startDashboard } from '../server/dashboard/index.js';
 import { summarizeUsage } from '../usage/metrics.js';
+import { resolveProjectReference } from './project-resolution.js';
 
 // ── Handler registry ──────────────────────────────────────────
 
 type Handler = (args: Record<string, unknown>) => Promise<unknown>;
+
+const STRICT_CANONICAL_PROJECT_TOOLS = new Set(['delete_project']);
 
 const HANDLERS: Record<string, Handler> = {
   pack_context: handlePackContext,
@@ -90,7 +92,6 @@ interface JsonRpcRequest {
 }
 
 const DB_CACHE = new Map<string, LynxDatabase>();
-const AUTO_WATCHERS = new Map<string, { watcher: FileWatcher; db: LynxDatabase }>();
 
 export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' | 'inputSchema'>> {
   return TOOLS.map(withEvidenceDiscipline).map((tool) => ({
@@ -120,6 +121,43 @@ function getDb(project?: string): LynxDatabase {
 
 function setDb(project: string, db: LynxDatabase): void {
   DB_CACHE.set(project, db);
+}
+
+export function normalizeProjectArgs(
+  toolName: string,
+  args: Record<string, unknown>,
+): { args: Record<string, unknown>; resolution?: { input: string; canonical_name: string; matched_by: 'root_path' } } | { error: string; hint: string } {
+  if (typeof args.project !== 'string' || !args.project.trim()) return { args };
+
+  const input = args.project;
+  if (STRICT_CANONICAL_PROJECT_TOOLS.has(toolName) && path.isAbsolute(input)) {
+    return {
+      error: `Tool '${toolName}' requires the canonical project name, not a root path`,
+      hint: 'Use list_projects to obtain the project name before performing this operation.',
+    };
+  }
+
+  const resolved = resolveProjectReference(input);
+  if (!resolved.resolved || resolved.matchedBy === 'name') return { args };
+  return {
+    args: { ...args, project: resolved.project },
+    resolution: { input, canonical_name: resolved.project, matched_by: 'root_path' },
+  };
+}
+
+function buildIndexContext(args: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (typeof args.project !== 'string' || !args.project) return undefined;
+  const meta = getDb(args.project).getProject(args.project);
+  if (!meta) return undefined;
+  const ageSeconds = Math.max(0, Math.floor((Date.now() - new Date(meta.indexedAt).getTime()) / 1000));
+  const watcher = getProjectWatcherStatus(args.project);
+  return {
+    project: meta.name,
+    indexed_at: meta.indexedAt,
+    index_age_seconds: ageSeconds,
+    freshness: meta.status === 'ready' && ageSeconds < 24 * 3600 ? 'fresh' : meta.status,
+    watcher: watcher ? { active: watcher.watching, pending_changes: watcher.pendingChanges } : { active: false },
+  };
 }
 
 async function dispatch(req: JsonRpcRequest): Promise<string> {
@@ -163,10 +201,22 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
     }
 
     try {
-      const result = await HANDLERS[name](args || {});
+      const normalized = normalizeProjectArgs(name, args || {});
+      if ('error' in normalized) {
+        return jsonRpcResult(id, { content: [{ type: 'text', text: JSON.stringify(normalized, null, 2) }] });
+      }
+      const result = await HANDLERS[name](normalized.args);
       decayCounter(); // Any LYNX MCP tool use decays the strict-mode counter by STRICT_DECAY
+      const context = buildIndexContext(normalized.args);
+      const enriched = result && typeof result === 'object' && !Array.isArray(result)
+        ? {
+            ...result as Record<string, unknown>,
+            ...(normalized.resolution ? { project_resolution: normalized.resolution } : {}),
+            ...(context ? { index_context: context } : {}),
+          }
+        : result;
       return jsonRpcResult(id, {
-        content: [{ type: 'text', text: typeof result === 'string' ? result : JSON.stringify(result, null, 2) }],
+        content: [{ type: 'text', text: typeof enriched === 'string' ? enriched : JSON.stringify(enriched, null, 2) }],
       });
     } catch (err) {
       return jsonRpcError(id, -32000, String(err));
@@ -196,10 +246,7 @@ export async function runServer(): Promise<void> {
   const checkDone = () => {
     if (stdinClosed && pending === 0) {
       for (const db of DB_CACHE.values()) db.close();
-      for (const entry of AUTO_WATCHERS.values()) {
-        entry.watcher.stop().catch(() => undefined);
-        entry.db.close();
-      }
+      closeAllProjectWatchers().catch(() => undefined);
       cleanupNativeExtractor();
       // Let stdout drain before exit — else pipe tests lose the response
       setImmediate(() => process.exit(0));
@@ -292,11 +339,7 @@ export async function maybeAutoIndexCurrentProject(): Promise<void> {
     }
 
     if (config.auto_watch) {
-      if (!hasCapability('auto_watch')) {
-        console.error(`[lynx] auto-watch skipped (Free tier). Upgrade to Pro for real-time indexing.`);
-      } else {
-        startAutoWatcher(project, detected.rootPath);
-      }
+      startAutoWatcher(project, detected.rootPath);
     }
 
     // Welcome-back: show accumulated savings from previous sessions
@@ -320,13 +363,9 @@ export async function maybeAutoIndexCurrentProject(): Promise<void> {
 }
 
 function startAutoWatcher(project: string, rootPath: string): void {
-  if (AUTO_WATCHERS.has(project)) return;
   try {
-    const db = LynxDatabase.openProject(project);
-    const watcher = new FileWatcher(db, rootPath, project, 'fast');
-    AUTO_WATCHERS.set(project, { watcher, db });
-    watcher.start();
-    console.error(`[lynx] auto-watch active: ${project}`);
+    const { alreadyRunning } = startProjectWatcher(project, rootPath, 'fast');
+    if (!alreadyRunning) console.error(`[lynx] auto-watch active: ${project}`);
   } catch (err) {
     console.error(`[lynx] auto-watch failed: ${err instanceof Error ? err.message : String(err)}`);
   }

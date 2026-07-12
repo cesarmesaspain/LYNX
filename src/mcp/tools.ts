@@ -27,8 +27,9 @@ const EVIDENCE_TOOLS = new Set([
 ]);
 
 export function withEvidenceDiscipline(tool: LynxToolDef): LynxToolDef {
+  const routing = ' Core workflow: pack_context → search_graph → get_code_snippet/trace_path → find_tests → detect_changes/assess_impact. Project accepts its canonical name or indexed root path.';
   if (!EVIDENCE_TOOLS.has(tool.name)) return tool;
-  return { ...tool, description: tool.description + EVIDENCE_DISCIPLINE };
+  return { ...tool, description: tool.description + EVIDENCE_DISCIPLINE + routing };
 }
 
 export const TOOLS: LynxToolDef[] = [
@@ -58,7 +59,8 @@ export const TOOLS: LynxToolDef[] = [
       'Search the code knowledge graph for functions, classes, routes, and variables. ' +
       'Use for indexed code definitions, implementations, and structural relationships when graph evidence is useful. ' +
       'Three search modes: (1) query for BM25 ranked full-text search with camelCase splitting, ' +
-      '(2) name_pattern for exact regex matching, (3) semantic_query for vector cosine search. ' +
+      '(2) name_pattern/qn_pattern for the supported regex subset, or name_like/qn_like for explicit SQL LIKE matching, ' +
+      '(3) semantic_query for vector cosine search. ' +
       'Results include a 5-line snippet preview when ≤5 results — evaluate relevance from the snippet before calling get_code_snippet.',
     inputSchema: {
       type: 'object',
@@ -68,6 +70,8 @@ export const TOOLS: LynxToolDef[] = [
         label: { type: 'string', description: 'Filter by node kind: Function, Class, Method, Route, etc.' },
         name_pattern: { type: 'string', description: 'Regex on name.' },
         qn_pattern: { type: 'string', description: 'Regex on qualified_name.' },
+        name_like: { type: 'string', description: 'SQL LIKE pattern on name (% and _ wildcards).' },
+        qn_like: { type: 'string', description: 'SQL LIKE pattern on qualified_name (% and _ wildcards).' },
         file_pattern: { type: 'string', description: 'Glob pattern on file_path.' },
         min_degree: { type: 'integer', description: 'Minimum total degree (in+out edges).' },
         max_degree: { type: 'integer', description: 'Maximum total degree.' },

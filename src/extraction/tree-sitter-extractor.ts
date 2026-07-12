@@ -166,6 +166,19 @@ export async function extractWithTreeSitter(
   const throws: TSExtractedThrow[] = [];
   const decorators: TSExtractedDecorator[] = [];
 
+  // Fast path: in pkg binary mode, WASM grammars are external and will fail.
+  // TS/TSX are handled by the C extractor via extractNativeLargeFiles.
+  // For other languages, skip the doomed WASM load and return empty.
+  if (isPkg() && !(config.tsLang === 'typescript' || config.tsLang === 'tsx')) {
+    return {
+      nodes, calls, imports, usages, channels, throws, decorators,
+      hasError: false,
+      errorMsg: `Skipped in binary mode: ${config.tsLang}`,
+      isTestFile: false,
+      language: config.tsLang,
+    };
+  }
+
   try {
     const moduleQn = filePathToModuleQn(filePath);
     const fileLineCount = countLines(source);

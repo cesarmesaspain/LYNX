@@ -13,6 +13,7 @@ import { detectAgents, getLynxCommand } from './agents.js';
 import { hasMcpEntry } from './mcp-config.js';
 import type { AgentInfo } from './agents.js';
 import { lynxConfigPath, lynxHome, readLynxConfig } from '../config/runtime.js';
+import { readLicense } from '../commercial/license.js';
 import { verifyMcpServer } from './mcp-verify.js';
 import { listOrphanedLocks } from '../store/lock.js';
 import { LynxDatabase } from '../store/database.js';
@@ -435,54 +436,27 @@ function checkRuntimeConfig(): DoctorCheck {
 }
 
 function checkLicense(): DoctorCheck {
-  const licenseDir = path.join(lynxHome(), 'license');
-  const jwtPath = path.join(licenseDir, 'jwt');
+  const license = readLicense();
 
-  if (!fs.existsSync(jwtPath)) {
-    // Check if config dir exists with API URL
-    const configPath = path.join(lynxHome(), 'config.json');
-    if (fs.existsSync(configPath)) {
-      return {
-        label: 'Cloud config',
-        ok: true,
-        detail: 'registered (no local license — cloud features unavailable)',
-      };
-    }
+  if (!license) {
     return {
       label: 'License',
       ok: true,
-      detail: 'Free tier (no license). Cloud features require Pro/Team.',
+      detail: 'Free tier (no license). Run: lynx license activate <key> to upgrade.',
     };
   }
 
-  try {
-    const raw = fs.readFileSync(jwtPath, 'utf-8').trim();
-    // Basic JWT decode (no verify — just read payload)
-    const parts = raw.split('.');
-    if (parts.length !== 3) {
-      return {
-        label: 'License',
-        ok: false,
-        detail: 'invalid JWT format',
-        fix: 'Run: lynx login',
-      };
-    }
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'));
-    const exp = payload.exp ? new Date(payload.exp * 1000).toISOString().slice(0, 10) : 'unknown';
-    const tier = payload.tier || 'free';
-    return {
-      label: 'License',
-      ok: true,
-      detail: `${tier} (expires ${exp})`,
-    };
-  } catch (e) {
-    return {
-      label: 'License',
-      ok: false,
-      detail: `failed to read: ${(e as Error).message}`,
-      fix: 'Run: lynx login',
-    };
-  }
+  const exp = license.expiresAt.getTime()
+    ? license.expiresAt.toISOString().slice(0, 10)
+    : 'unknown';
+  const status = license.isValid ? 'active' : 'expired/invalid (degraded to Free)';
+
+  return {
+    label: 'License',
+    ok: license.isValid,
+    detail: `${license.tier.toUpperCase()} — ${status} — expires ${exp}`,
+    fix: !license.isValid ? 'Run: lynx license refresh' : undefined,
+  };
 }
 
 // ── Main ───────────────────────────────────────────────────────────

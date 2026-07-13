@@ -110,19 +110,18 @@ function claudeAutoApproveMcp(command: string, args: string[], dryRun: boolean):
     return;
   }
 
-  // Don't re-register if it is already connected
+  // Claude defaults to `local`, which makes an MCP server disappear as soon
+  // as the user opens a different folder in the VS Code extension. LYNX is a
+  // cross-project service, so only a user-scoped registration is sufficient.
+  const claudeUserConfig = path.join(HOME, '.claude.json');
   try {
-    const listResult = execFileSync(claudeBin, ['mcp', 'list'], {
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 10_000,
-    });
-    if (listResult.includes('lynx') && (listResult.includes('✔ Connected') || listResult.includes('✓ Connected'))) {
-      log('lynx MCP already approved (skipped)');
+    const userConfig = JSON.parse(fs.readFileSync(claudeUserConfig, 'utf-8')) as { mcpServers?: Record<string, unknown> };
+    if (userConfig.mcpServers?.lynx) {
+      log('lynx MCP already registered for every Claude project (skipped)');
       return;
     }
   } catch {
-    /* proceed — list may fail if mcp list is unsupported in this version */
+    /* no user-scoped config yet */
   }
 
   if (dryRun) {
@@ -137,15 +136,16 @@ function claudeAutoApproveMcp(command: string, args: string[], dryRun: boolean):
     if (val) envFlags.push('-e', `${key}=${val}`);
   }
 
-  // Remove any stale project-scoped registry first (ignore "not found" errors)
+  // Remove the old local registration from the install workspace. It is not
+  // used as the source of truth, but keeping it would mask this regression.
   try {
-    execFileSync(claudeBin, ['mcp', 'remove', 'lynx'], { stdio: 'ignore', timeout: 5_000 });
+    execFileSync(claudeBin, ['mcp', 'remove', '-s', 'local', 'lynx'], { stdio: 'ignore', timeout: 5_000 });
   } catch {
     /* ok */
   }
 
   try {
-    execFileSync(claudeBin, ['mcp', 'add', 'lynx', ...envFlags, '--', command, ...args], {
+    execFileSync(claudeBin, ['mcp', 'add', '-s', 'user', 'lynx', ...envFlags, '--', command, ...args], {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 15_000,
@@ -558,6 +558,11 @@ function skillMarkdown(): string {
     '',
     'Criterio: elige la consulta mas pequena y el conjunto minimo de herramientas que aporten evidencia suficiente.',
     'Reutiliza resultados previos y amplia el alcance solo cuando falte evidencia.',
+    '',
+    '## Disponibilidad global',
+    'LYNX es global: no depende de la carpeta abierta. No concluyas que no esta disponible solo porque sus tools no aparezcan inicialmente.',
+    'Antes de usar un fallback local, busca/carga las tools MCP bajo demanda con `tool_search` para `lynx pack_context search_graph trace_path get_code_snippet query_graph index_status`.',
+    'Despues consulta `index_status`; si el proyecto no existe o esta desactualizado, indexalo. Falta de indice no equivale a falta de LYNX.',
     '',
     '## Herramientas segun la necesidad',
     '',

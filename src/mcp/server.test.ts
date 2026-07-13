@@ -19,6 +19,14 @@ describe('MCP tool registry', () => {
       .properties.max_lines).toBeDefined();
     expect((listed.find((tool) => tool.name === 'detect_changes')?.inputSchema as { properties: Record<string, unknown> })
       .properties.include_committed).toBeDefined();
+    expect(listed.find((tool) => tool.name === 'list_projects')?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+    });
+    expect(listed.find((tool) => tool.name === 'delete_project')?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+    });
   });
 
   it('offers the compact profile only when explicitly requested', () => {

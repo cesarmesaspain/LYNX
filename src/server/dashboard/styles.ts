@@ -11,6 +11,12 @@ export function renderStyles(): string {
     header h1 { font-size: 17px; font-weight: 760; letter-spacing: -.035em; color: #f8fbff; }
     .header-controls { display: flex; align-items: center; gap: 10px; min-width: 0; }
     header .badge { background: rgba(56,189,248,.09); border: 1px solid rgba(103,232,249,.16); color: #b9e8f5; padding: 6px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .lynx-enabled-toggle { display:inline-flex; align-items:center; gap:7px; border:1px solid; border-radius:999px; padding:6px 11px; background:transparent; color:#dbeafe; font:inherit; font-size:11px; font-weight:700; cursor:pointer; transition:all .2s; }
+    .lynx-enabled-toggle.is-enabled { border-color:rgba(74,222,128,.42); background:rgba(34,197,94,.10); color:#86efac; }
+    .lynx-enabled-toggle.is-disabled { border-color:rgba(148,163,184,.32); background:rgba(71,85,105,.22); color:#cbd5e1; }
+    .lynx-enabled-toggle:hover { filter:brightness(1.15); }
+    .lynx-enabled-toggle:disabled { opacity:.55; cursor:wait; }
+    .lynx-enabled-dot { width:7px; height:7px; border-radius:50%; background:currentColor; box-shadow:0 0 10px currentColor; }
     #localeSelect { background: rgba(15,30,48,.9) !important; border-color: rgba(148,163,184,.26) !important; border-radius: 999px !important; padding: 6px 10px !important; }
     .tab-bar { position: sticky; top: 47px; z-index: 19; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; background: rgba(8,17,31,.7); border-bottom: 1px solid rgba(148,163,184,.12); padding: 7px clamp(14px,3vw,38px); backdrop-filter: blur(16px); }
     .tab-bar::-webkit-scrollbar { display: none; }

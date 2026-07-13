@@ -5,7 +5,7 @@
  * writes responses to stdout. Uses the official MCP protocol format.
  */
 
-import { TOOLS, withEvidenceDiscipline } from './tools.js';
+import { TOOLS, withEvidenceDiscipline, withSafetyAnnotations } from './tools.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { LynxToolDef } from './tools.js';
@@ -157,16 +157,18 @@ interface JsonRpcRequest {
 
 const DB_CACHE = new Map<string, LynxDatabase>();
 
-export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' | 'inputSchema'>> {
+export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' | 'inputSchema' | 'annotations'>> {
+  if (!readLynxConfig().enabled) return [];
   // A configured MCP server must expose the full public contract by default.
   // An environment value takes precedence for managed deployments.
   const requestedProfile = process.env.LYNX_TOOL_PROFILE || readLynxConfig().mcp_tool_profile || 'full';
   const profile = requestedProfile === 'core' ? 'core' : 'full';
   const visible = profile === 'core' ? TOOLS.filter(tool => CORE_TOOL_NAMES.has(tool.name)) : TOOLS;
-  return visible.map(withEvidenceDiscipline).map((tool) => ({
+  return visible.map(withEvidenceDiscipline).map(withSafetyAnnotations).map((tool) => ({
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
+    annotations: tool.annotations,
   }));
 }
 
@@ -298,6 +300,9 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
     if (!name || !HANDLERS[name]) {
       return jsonRpcError(id, -32601, `Tool not found: ${name}`);
     }
+    if (!readLynxConfig().enabled) {
+      return jsonRpcError(id, -32001, 'LYNX is disabled globally. Re-enable it from the LYNX Dashboard and restart this MCP client to restore its tool catalog.');
+    }
 
     try {
       const normalized = normalizeProjectArgs(name, args || {});
@@ -403,7 +408,7 @@ export async function runServer(): Promise<void> {
 
 export async function maybeAutoIndexCurrentProject(): Promise<void> {
   const config = readLynxConfig();
-  if (!config.auto_index) return;
+  if (!config.enabled || !config.auto_index) return;
 
   const detected = findNearestProject(process.cwd());
   if (!detected) return;

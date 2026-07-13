@@ -9,6 +9,15 @@ export interface LynxToolDef {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /**
+   * MCP tool safety metadata. Hosts that support MCP annotations can use this
+   * to approve discovery calls without treating them as filesystem writes.
+   */
+  annotations?: {
+    readOnlyHint?: boolean;
+    destructiveHint?: boolean;
+    idempotentHint?: boolean;
+  };
 }
 
 export const EVIDENCE_DISCIPLINE =
@@ -21,6 +30,31 @@ const EVIDENCE_TOOLS = new Set([
   'find_dead_code', 'compare_runs', 'explain_symbol', 'smart_review',
   'semantic_search', 'find_tests', 'batch_get_code',
 ]);
+
+/** Tools which only inspect an already indexed project or its working tree. */
+export const READ_ONLY_TOOL_NAMES = new Set([
+  'tool_catalog', 'pack_context', 'search_graph', 'trace_path',
+  'get_code_snippet', 'get_architecture', 'query_graph', 'index_status',
+  'list_projects', 'get_graph_schema', 'search_code', 'detect_changes',
+  'assess_impact', 'pack_memory', 'analyze_hotspots', 'find_dead_code',
+  'compare_runs', 'explain_symbol', 'smart_review', 'semantic_search',
+  'find_tests', 'batch_get_code',
+]);
+
+const DESTRUCTIVE_TOOL_NAMES = new Set(['delete_project']);
+
+export function withSafetyAnnotations(tool: LynxToolDef): LynxToolDef {
+  const readOnlyHint = READ_ONLY_TOOL_NAMES.has(tool.name);
+  return {
+    ...tool,
+    annotations: {
+      readOnlyHint,
+      destructiveHint: DESTRUCTIVE_TOOL_NAMES.has(tool.name),
+      idempotentHint: readOnlyHint,
+      ...tool.annotations,
+    },
+  };
+}
 
 export function withEvidenceDiscipline(tool: LynxToolDef): LynxToolDef {
   const routing = ' Workflow: context → search → snippet/trace → tests → impact.';

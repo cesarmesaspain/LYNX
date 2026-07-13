@@ -45,7 +45,9 @@ function renderFullscreenProject(c: ProjectCard, isSpanish: boolean): string {
 }
 
 export function renderDashboard(cards: ProjectCard[]): string {
-  const isSpanish = readLynxConfig().locale === 'es';
+  const runtimeConfig = readLynxConfig();
+  const isSpanish = runtimeConfig.locale === 'es';
+  const lynxEnabled = runtimeConfig.enabled;
   const totalTokens = cards.reduce((s, c) => s + c.tokensSaved, 0);
   const totalFiles = cards.reduce((s, c) => s + c.filesAvoided, 0);
   const totalNodes = cards.reduce((s, c) => s + c.nodes, 0);
@@ -145,7 +147,7 @@ export function renderDashboard(cards: ProjectCard[]): string {
 <body>
   <header>
     <h1>${labels.panelTitle}</h1>
-    <div style="display:flex;gap:10px;align-items:center"><select id="localeSelect" aria-label="Language" style="background:#0f172a;color:#e2e8f0;border:1px solid #475569;border-radius:6px;padding:4px 7px;font-size:12px"><option value="es"${isSpanish ? ' selected' : ''}>ES</option><option value="en"${!isSpanish ? ' selected' : ''}>EN</option></select><span class="badge">${labels.localOnly}</span></div>
+    <div class="header-controls"><button id="lynxEnabledToggle" class="lynx-enabled-toggle ${lynxEnabled ? 'is-enabled' : 'is-disabled'}" type="button" aria-pressed="${lynxEnabled}" title="${isSpanish ? 'Activar o desactivar LYNX globalmente' : 'Enable or disable LYNX globally'}"><span class="lynx-enabled-dot"></span><span id="lynxEnabledLabel">${lynxEnabled ? (isSpanish ? 'LYNX activo' : 'LYNX active') : (isSpanish ? 'LYNX desactivado' : 'LYNX disabled')}</span></button><select id="localeSelect" aria-label="Language"><option value="es"${isSpanish ? ' selected' : ''}>ES</option><option value="en"${!isSpanish ? ' selected' : ''}>EN</option></select><span class="badge">${labels.localOnly}</span></div>
   </header>
   <nav class="tab-bar">
     <button class="tab-btn active" data-tab="overview"><span class="tab-icon">&#9670;</span>${labels.overview}</button>
@@ -407,6 +409,22 @@ ${totalLlmCalls > 0 ? `
   <script id="metricsTabScript" type="text/javascript">${metricsTabScript(isSpanish, cards, totalTokens, totalFiles)}</script>
   <script>${mainInitScript(isSpanish, cards, graphProject, briefPayload, primaryBrief)}</script>
   <script>${settingsTabScript(isSpanish, labels)}</script>
+  <script>
+  (function(){
+    var toggle=document.getElementById('lynxEnabledToggle');
+    if(!toggle)return;
+    toggle.addEventListener('click',function(){
+      var enabled=toggle.getAttribute('aria-pressed')!=='true';
+      var question=enabled ? ${JSON.stringify(isSpanish ? '¿Activar LYNX? Sus herramientas volverán a estar disponibles tras reiniciar el cliente MCP.' : 'Enable LYNX? Its tools will be available again after restarting the MCP client.')} : ${JSON.stringify(isSpanish ? '¿Desactivar LYNX? Se detendrán el autoindexado, la vigilancia y las nuevas operaciones MCP.' : 'Disable LYNX? Auto-indexing, watching, and new MCP operations will stop.')};
+      if(!window.confirm(question))return;
+      toggle.disabled=true;
+      fetch('/api/lynx-enabled',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:enabled})})
+        .then(function(r){if(!r.ok)throw new Error('toggle failed');return r.json();})
+        .then(function(){location.reload();})
+        .catch(function(){toggle.disabled=false;});
+    });
+  })();
+  </script>
 </body>
 </html>`;
 }

@@ -15,6 +15,7 @@ import { renderDashboard } from './html.js';
 import { readRequestBody, pickFolderNative, RequestBodyTooLargeError } from './utils.js';
 import { getTimeWindows, type TimeWindow } from '../../usage/aggregation.js';
 import { getCachedMetrics } from '../../usage/cache.js';
+import { closeAllProjectWatchers } from '../../watcher/watcher-manager.js';
 
 const PORT = parseInt(process.env.LYNX_DASHBOARD_PORT || '9191', 10);
 let _server: http.Server | null = null;
@@ -280,6 +281,19 @@ async function routeRequest(
 }
 
 async function handleMutationRoute(req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<boolean> {
+  if (url.pathname === '/api/lynx-enabled' && req.method === 'POST') {
+    const body = await readRequestBody(req);
+    try {
+      const value = JSON.parse(body) as { enabled?: unknown };
+      if (typeof value.enabled !== 'boolean') throw new Error('enabled must be boolean');
+      upsertLynxConfig({ enabled: value.enabled });
+      if (!value.enabled) await closeAllProjectWatchers();
+      writeJson(res, 200, { ok: true, enabled: value.enabled, restart_required: true });
+    } catch {
+      writeJson(res, 400, { error: 'Invalid enabled value' });
+    }
+    return true;
+  }
   if (url.pathname === '/api/projects/add' && req.method === 'POST') {
     await handleApiProjectsAdd(req, res);
     return true;

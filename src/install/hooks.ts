@@ -7,6 +7,18 @@ import * as os from 'node:os';
 const HOME = os.homedir();
 const STRICT_THRESHOLD = 4;
 
+// These operations are strictly read/discovery/analysis. Keep write-capable
+// tools (indexing, watching, ADR/traces management and deletion) outside this
+// list so the host can still request confirmation for a state change.
+const CLAUDE_READ_ONLY_LYNX_TOOLS = [
+  'tool_catalog', 'pack_context', 'search_graph', 'trace_path',
+  'get_code_snippet', 'get_architecture', 'query_graph', 'index_status',
+  'list_projects', 'get_graph_schema', 'search_code', 'detect_changes',
+  'assess_impact', 'pack_memory', 'analyze_hotspots', 'find_dead_code',
+  'compare_runs', 'explain_symbol', 'smart_review', 'semantic_search',
+  'find_tests', 'batch_get_code',
+] as const;
+
 function log(msg: string): void { console.log(`  ${msg}`); }
 function ensureDir(dir: string): void { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
 function lynxDiscoveryReminder(): string {
@@ -95,6 +107,7 @@ export function installClaudeHooks(command: string, args: string[], dryRun: bool
   fs.chmodSync(augmentHookPath, 0o755);
   log(`created ${augmentHookPath}`);
 
+  registerClaudeReadOnlyLynxPermissions(settingsPath);
   registerSessionStartHook(settingsPath, sessionHookPath);
   registerPreToolUseAugmentHook(settingsPath, augmentHookPath, strict);
 }
@@ -423,6 +436,38 @@ function registerSessionStartHook(settingsPath: string, hookPath: string): void 
   fs.renameSync(tmp, settingsPath);
 }
 
+/**
+ * Claude's permission matcher is host-specific, so we register each safe
+ * operation explicitly rather than relying only on a wildcard. This applies
+ * at the user level (~/.claude/settings.json), independent of the folder or
+ * chat that happens to be open.
+ */
+function registerClaudeReadOnlyLynxPermissions(settingsPath: string): void {
+  let settings: Record<string, unknown> = {};
+  if (fs.existsSync(settingsPath)) {
+    try {
+      settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+    } catch {
+      return;
+    }
+  }
+
+  const permissions = (settings.permissions as Record<string, unknown>) || {};
+  const allow = Array.isArray(permissions.allow)
+    ? permissions.allow.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+  const required = CLAUDE_READ_ONLY_LYNX_TOOLS.map((name) => `mcp__lynx__${name}`);
+  const missing = required.filter((entry) => !allow.includes(entry));
+  if (missing.length === 0) return;
+
+  permissions.allow = [...allow, ...missing];
+  settings.permissions = permissions;
+  const tmp = settingsPath + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(settings, null, 2) + '\n');
+  fs.renameSync(tmp, settingsPath);
+  log(`approved ${missing.length} read-only LYNX tools globally for Claude`);
+}
+
 function registerPreToolUseAugmentHook(settingsPath: string, hookPath: string, strict: boolean): void {
   let settings: Record<string, unknown> = {};
   if (fs.existsSync(settingsPath)) {
@@ -598,4 +643,3 @@ function removeCodexHooksJson(hooksPath: string, dryRun: boolean): void {
   fs.renameSync(tmp, hooksPath);
   log(`removed Codex SessionStart hook from ${hooksPath}`);
 }
-

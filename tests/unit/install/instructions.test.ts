@@ -25,6 +25,7 @@ describe('managed LYNX instruction blocks', () => {
       expect(block).not.toContain('has violado esta regla');
       expect(block).toContain('consulta mas pequena');
       expect(block).toContain('cuando');
+      expect(block).toContain('tool_search');
     }
   });
 

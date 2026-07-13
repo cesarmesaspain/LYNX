@@ -11,6 +11,8 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { type PricingConfig, defaultPricingConfig } from '../usage/provenance.js';
 
 export interface LynxRuntimeConfig {
+  /** Master switch: when false, LYNX does not serve MCP operations or background work. */
+  enabled: boolean;
   auto_index: boolean;
   auto_index_limit: number;
   auto_watch: boolean;
@@ -69,6 +71,7 @@ export function detectSystemLocale(): 'es' | 'en' {
 }
 
 const DEFAULT_CONFIG: LynxRuntimeConfig = {
+  enabled: true,
   auto_index: true,
   auto_index_limit: 50_000,
   auto_watch: true,
@@ -112,6 +115,7 @@ export function readLynxConfig(): LynxRuntimeConfig {
   try {
     const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
     return {
+      enabled: raw.enabled !== false,
       auto_index: typeof raw.auto_index === 'boolean' ? raw.auto_index : DEFAULT_CONFIG.auto_index,
       auto_index_limit: typeof raw.auto_index_limit === 'number'
         ? raw.auto_index_limit

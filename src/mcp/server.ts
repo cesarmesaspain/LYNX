@@ -55,6 +55,7 @@ type Handler = (args: Record<string, unknown>) => Promise<unknown>;
 let lastAgentResponseReminderAt = 0;
 let compactResponsesSent = 0;
 let compactResponseBytesSaved = 0;
+let autoIndexForSession: Promise<void> | null = null;
 
 /** Measured transport savings for the current MCP process (not an estimate). */
 export function getResponseOptimizationMetrics(): {
@@ -330,6 +331,12 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
     }
 
     try {
+      // A stdio MCP process can be created speculatively by an editor or can
+      // outlive its visible chat.  Index only after the client makes its first
+      // real tool request, never merely because the process was spawned.
+      // This keeps an idle, stale client from indexing an unrelated cwd.
+      if (!autoIndexForSession) autoIndexForSession = maybeAutoIndexCurrentProject();
+      await autoIndexForSession;
       const startedAt = Date.now();
       const normalized = normalizeProjectArgs(name, args || {});
       if ('error' in normalized) {
@@ -362,9 +369,6 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
 // ── Run server ──────────────────────────────────────────────
 
 export async function runServer(): Promise<void> {
-  const verificationMode = process.env.LYNX_VERIFY === '1';
-  if (!verificationMode) void maybeAutoIndexCurrentProject();
-
   let pending = 0;
   let stdinClosed = false;
 

@@ -15,7 +15,7 @@ import * as fs from 'node:fs';
 import type { LynxDatabase } from '../store/database.js';
 import { upsertNode, upsertNodesBatch, deleteNodesByFile, deleteNodesByProject } from '../store/nodes.js';
 import { deleteEdgesByProject, deleteEdgesForNodesInFile } from '../store/edges.js';
-import { getAllFileHashes, upsertFileHash, insertIndexRun, deleteFileHash, deleteFindingsByFile } from '../store/memory.js';
+import { getAllFileHashes, upsertFileHash, insertIndexRun, deleteFileHash, deleteFindingsByFile, getCachedLlmSummary, upsertCachedLlmSummary } from '../store/memory.js';
 import { discoverFiles } from './phases/discover.js';
 import { extractAll } from './phases/extract.js';
 import { resolveAll } from './phases/resolve/index.js';
@@ -66,6 +66,11 @@ export interface PipelineResult {
   narrative: Narrative;
   filesProcessed: number;
   filesSkipped: number;
+  llmSummaryCache: {
+    hits: number;
+    misses: number;
+    contextTokensAvoided: number;
+  };
   incremental: IncrementalUpdateMetrics;
 }
 
@@ -84,6 +89,7 @@ export async function runPipeline(
   const mode = opts.mode || 'moderate';
   const requestedIncremental = opts.incremental === true && (opts.incrementalFeatureFlag === true || process.env.LYNX_INCREMENTAL_INDEX === '1');
   const llmEnrichment = opts.llmEnrichment === true || process.env.LYNX_INDEX_LLM === '1';
+  const llmSummaryCache = { hits: 0, misses: 0, contextTokensAvoided: 0 };
 
   // Save project metadata
   db.upsertProject(project, repoPath);
@@ -125,13 +131,27 @@ export async function runPipeline(
       try {
         const source = fs.readFileSync(batch.file.absPath, 'utf-8');
         const hash = batch.sha256 || createHash('sha256').update(source).digest('hex');
+        const cachedSummary = getCachedLlmSummary(db, project, hash);
+        if (cachedSummary) {
+          llmSummaryCache.hits++;
+          llmSummaryCache.contextTokensAvoided += Math.max(0, cachedSummary.sourceTokensEst - cachedSummary.summaryTokensEst);
+        } else {
+          llmSummaryCache.misses++;
+        }
         const { metadata } = await enrichFile(
           source,
           hash,
           batch.file.relPath,
           batch.result.language,
-          batch.result.nodes
+          batch.result.nodes,
+          cachedSummary ? { cachedSummary: cachedSummary.summary } : undefined,
         );
+        if (!cachedSummary && metadata.summary) {
+          upsertCachedLlmSummary(
+            db, project, hash, metadata.summary,
+            estimateTokens(source), estimateTokens(metadata.summary),
+          );
+        }
         batch.result.llmMetadata = metadata;
 
         for (const node of batch.result.nodes) {
@@ -299,7 +319,7 @@ export async function runPipeline(
   db.checkpoint();
 
   return {
-    status, architecture, narrative, filesProcessed, filesSkipped,
+    status, architecture, narrative, filesProcessed, filesSkipped, llmSummaryCache,
     incremental: {
       updateMode: incremental ? 'incremental' : (requestedIncremental ? 'full_fallback' : 'full'),
       filesInspected: discovery.files.length,
@@ -321,6 +341,10 @@ export async function runPipeline(
 
 function hashFile(filePath: string): string | null {
   try { return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex'); } catch { return null; }
+}
+
+function estimateTokens(value: string): number {
+  return Math.ceil(value.length / 4);
 }
 
 function failIfRequested(opts: PipelineOptions, stage: NonNullable<PipelineOptions['testFailAt']>): void {

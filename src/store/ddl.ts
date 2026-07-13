@@ -7,7 +7,7 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 
-/** Full core schema: projects, nodes, edges, file_hashes, findings, index_runs, project_briefs. */
+/** Full core schema: projects, graph data, file hashes, persistent LLM summaries, and metrics. */
 export const CORE_SCHEMA = `
   CREATE TABLE IF NOT EXISTS projects (
     name TEXT PRIMARY KEY,
@@ -60,6 +60,18 @@ export const CORE_SCHEMA = `
     size INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (project, rel_path)
   );
+
+  CREATE TABLE IF NOT EXISTS llm_summary_cache (
+    project TEXT NOT NULL,
+    source_hash TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    source_tokens_est INTEGER NOT NULL DEFAULT 0,
+    summary_tokens_est INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (project, source_hash)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_llm_summary_cache_project ON llm_summary_cache(project);
 
   CREATE TABLE IF NOT EXISTS findings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

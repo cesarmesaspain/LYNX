@@ -41,6 +41,7 @@ function hasVps(): boolean {
 }
 
 function hasDeepSeek(): boolean {
+  if (process.env.LYNX_NO_LLM === '1') return false;
   if (isPkg()) return false;
   return !!(process.env.LYNX_DEEPSEEK_KEY || getConfiguredApiKey('deepseek'));
 }
@@ -82,7 +83,8 @@ export async function enrichFile(
   hash: string,
   relPath: string,
   language: string,
-  nodes: LynxNode[]
+  nodes: LynxNode[],
+  options: { cachedSummary?: string } = {},
 ): Promise<LlmEnrichResult> {
   const exports = nodes.filter(n => n.isExported).map(n => n.name);
   const metadata: LlmFileMetadata = { source: 'heuristic' };
@@ -90,9 +92,10 @@ export async function enrichFile(
   const ds = !vps && hasDeepSeek();
 
   // Summarize
-  const cachedSummary = llmCache.get<string>(hash, 'summarize_module');
+  const cachedSummary = options.cachedSummary ?? llmCache.get<string>(hash, 'summarize_module');
   if (cachedSummary !== undefined) {
     metadata.summary = cachedSummary;
+    if (options.cachedSummary !== undefined) metadata.source = 'cache';
   } else {
     // Try VPS first
     if (vps) {

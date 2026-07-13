@@ -66,6 +66,36 @@ describe('Pipeline integration', () => {
     expect(afterNodes).toBe(beforeNodes);
     expect(afterEdges).toBe(beforeEdges);
   }, 30000);
+
+  it('reuses persistent summaries and measures avoided context tokens', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-summary-cache-'));
+    const cacheDb = LynxDatabase.openMemory();
+    const previousNoLlm = process.env.LYNX_NO_LLM;
+    process.env.LYNX_NO_LLM = '1';
+    try {
+      fs.writeFileSync(path.join(root, 'cache.ts'), 'export function cacheableValue(input: string): string { return input.trim().toLowerCase(); }');
+      const first = await runPipeline(cacheDb, root, 'summary-cache', {
+        mode: 'fast', llmEnrichment: true, testSkipProjectBrief: true,
+      });
+      const second = await runPipeline(cacheDb, root, 'summary-cache', {
+        mode: 'fast', llmEnrichment: true, testSkipProjectBrief: true,
+      });
+      expect(first.llmSummaryCache.misses).toBe(1);
+      expect(second.llmSummaryCache.hits).toBe(1);
+      expect(second.llmSummaryCache.contextTokensAvoided).toBeGreaterThan(0);
+      fs.writeFileSync(path.join(root, 'cache.ts'), 'export function changedCacheableValue(input: string): string { return input.trim().toUpperCase(); }');
+      const changed = await runPipeline(cacheDb, root, 'summary-cache', {
+        mode: 'fast', llmEnrichment: true, testSkipProjectBrief: true,
+      });
+      expect(changed.llmSummaryCache.hits).toBe(0);
+      expect(changed.llmSummaryCache.misses).toBe(1);
+    } finally {
+      if (previousNoLlm === undefined) delete process.env.LYNX_NO_LLM;
+      else process.env.LYNX_NO_LLM = previousNoLlm;
+      cacheDb.close();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }, 30000);
 });
 
 describe('incremental pipeline safety', () => {

@@ -143,6 +143,7 @@ export class LynxDatabase {
     this.db.prepare('DELETE FROM edges WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM nodes WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM file_hashes WHERE project = ?').run(name);
+    this.db.prepare('DELETE FROM llm_summary_cache WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM findings WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM project_briefs WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM projects WHERE name = ?').run(name);

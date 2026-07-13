@@ -335,8 +335,9 @@ ${totalLlmCalls > 0 ? `
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Llamadas LLM' : 'LLM calls'}</div><div class="metric-value" id="mtLlmCalls">—</div><div class="metric-sub">${isSpanish ? 'Llamadas reales al proveedor' : 'Real provider calls'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Coste / 1.000 tokens evitados' : 'Cost / 1,000 tokens avoided'}</div><div class="metric-value" id="mtLlmEfficiency">—</div><div class="metric-sub">${isSpanish ? 'Menos es mejor' : 'Lower is better'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Eventos' : 'Events'}</div><div class="metric-value" id="mtEvents">—</div><div class="metric-sub" id="mtEventsProv">${isSpanish ? 'Medido' : 'Measured'}</div></div>
-        <div class="metric-card"><div class="metric-label">${isSpanish ? 'Sesiones' : 'Sessions'}</div><div class="metric-value" id="mtSessions">—</div><div class="metric-sub" id="mtSessionsProv">${isSpanish ? 'Medido' : 'Measured'}</div></div>
-        <div class="metric-card"><div class="metric-label">${isSpanish ? 'Tareas' : 'Tasks'}</div><div class="metric-value" id="mtTasks">—</div><div class="metric-sub" id="mtTasksProv">${isSpanish ? 'Medido' : 'Measured'}</div></div>
+      </section>
+      <section class="metrics-coverage" style="margin-top:12px">
+        <div class="coverage-text" id="mtLlmInsight">${isSpanish ? 'Calculando eficiencia LLM…' : 'Calculating LLM efficiency…'}</div>
       </section>
       <section class="metrics-bars" id="metricsBars">
         <div class="bars-placeholder">${isSpanish ? 'Selecciona un proyecto y ventana para ver el desglose por categoría.' : 'Select a project and window to see category breakdown.'}</div>

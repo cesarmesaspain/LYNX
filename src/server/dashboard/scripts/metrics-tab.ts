@@ -63,10 +63,26 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
   function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
   function fmtUsd(n) {
     var value = Number(n || 0);
+    if (value > 0 && value < 0.000001) return '< $0.000001';
     return new Intl.NumberFormat(isSpanish ? 'es-ES' : 'en-US', {
       style: 'currency', currency: 'USD', minimumFractionDigits: value > 0 && value < 0.01 ? 4 : 2,
       maximumFractionDigits: value > 0 && value < 0.01 ? 6 : 2,
     }).format(value);
+  }
+
+  function llmInsight(t) {
+    var tokens = Number(t.tokens_saved || 0);
+    var calls = Number(t.llm_events || 0);
+    var spend = Number(t.llm_cost_usd || 0);
+    if (calls === 0) return isSpanish
+      ? 'Aún no hay llamadas LLM en esta ventana; LYNX sigue funcionando en modo determinista.'
+      : 'No LLM calls in this window; LYNX is still operating deterministically.';
+    if (tokens === 0) return isSpanish
+      ? 'Se registraron ' + fmt(calls) + ' llamadas LLM por ' + fmtUsd(spend) + '. No hay todavía ahorro de contexto atribuible en esta ventana.'
+      : fmt(calls) + ' LLM calls cost ' + fmtUsd(spend) + '. No attributable context savings are recorded in this window yet.';
+    return isSpanish
+      ? 'Has gastado ' + fmtUsd(spend) + ' en ' + fmt(calls) + ' llamadas LLM para evitar ' + fmt(tokens) + ' tokens de contexto.'
+      : 'You spent ' + fmtUsd(spend) + ' on ' + fmt(calls) + ' LLM calls to avoid ' + fmt(tokens) + ' context tokens.';
   }
 
   function loadMetrics() {
@@ -93,6 +109,8 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
             ? fmtUsd((Number(t.llm_cost_usd || 0) / Number(t.tokens_saved)) * 1000)
             : '—';
         }
+        var insight = document.getElementById('mtLlmInsight');
+        if (insight) insight.textContent = llmInsight(t);
 
         var metaByKey = {};
         (d.metrics || []).forEach(function(m) { metaByKey[m.key] = m.provenance; });

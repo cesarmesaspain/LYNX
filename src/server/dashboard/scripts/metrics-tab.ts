@@ -13,6 +13,9 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     events: document.getElementById('mtEvents'),
     sessions: document.getElementById('mtSessions'),
     tasks: document.getElementById('mtTasks'),
+    llmSpend: document.getElementById('mtLlmSpend'),
+    llmCalls: document.getElementById('mtLlmCalls'),
+    llmEfficiency: document.getElementById('mtLlmEfficiency'),
     tokensProv: document.getElementById('mtTokensProv'),
     filesProv: document.getElementById('mtFilesProv'),
     eventsProv: document.getElementById('mtEventsProv'),
@@ -58,6 +61,13 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
   }
 
   function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+  function fmtUsd(n) {
+    var value = Number(n || 0);
+    return new Intl.NumberFormat(isSpanish ? 'es-ES' : 'en-US', {
+      style: 'currency', currency: 'USD', minimumFractionDigits: value > 0 && value < 0.01 ? 4 : 2,
+      maximumFractionDigits: value > 0 && value < 0.01 ? 6 : 2,
+    }).format(value);
+  }
 
   function loadMetrics() {
     var project = document.getElementById('metricsProject').value;
@@ -76,6 +86,13 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
         if (metricEls.events) metricEls.events.textContent = fmt(t.events);
         if (metricEls.sessions) metricEls.sessions.textContent = fmt(t.sessions);
         if (metricEls.tasks) metricEls.tasks.textContent = fmt(t.tasks);
+        if (metricEls.llmSpend) metricEls.llmSpend.textContent = fmtUsd(t.llm_cost_usd);
+        if (metricEls.llmCalls) metricEls.llmCalls.textContent = fmt(t.llm_events);
+        if (metricEls.llmEfficiency) {
+          metricEls.llmEfficiency.textContent = t.tokens_saved > 0
+            ? fmtUsd((Number(t.llm_cost_usd || 0) / Number(t.tokens_saved)) * 1000)
+            : '—';
+        }
 
         var metaByKey = {};
         (d.metrics || []).forEach(function(m) { metaByKey[m.key] = m.provenance; });

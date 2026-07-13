@@ -182,8 +182,8 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     metricsTabBtn.addEventListener('click', function() { setTimeout(loadMetrics, 50); });
   }
 
-  if (window.location.hash === '#metrics' || (metricsTabBtn && metricsTabBtn.classList.contains('active'))) {
-    setTimeout(loadMetrics, 100);
-  }
+  // Tab restoration runs in mainInitScript after this script. Load unconditionally
+  // so a refreshed page cannot leave the active Metrics tab with placeholders.
+  setTimeout(loadMetrics, 100);
 })();`;
 }

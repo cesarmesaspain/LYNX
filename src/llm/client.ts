@@ -30,9 +30,10 @@ import {
 
 import * as deepseekProvider from './provider-deepseek.js';
 import { isPkg } from '../paths.js';
+import { getConfiguredApiKey } from '../config/runtime.js';
 
-const VPS_URL = process.env.LYNX_API_URL || '';
-const VPS_KEY = process.env.LYNX_API_KEY || '';
+const VPS_URL = process.env.LYNX_API_URL || getConfiguredApiKey('vps_url') || '';
+const VPS_KEY = process.env.LYNX_API_KEY || getConfiguredApiKey('vps_key') || '';
 
 function hasVps(): boolean {
   if (isPkg()) return false;
@@ -41,7 +42,7 @@ function hasVps(): boolean {
 
 function hasDeepSeek(): boolean {
   if (isPkg()) return false;
-  return !!process.env.LYNX_DEEPSEEK_KEY;
+  return !!(process.env.LYNX_DEEPSEEK_KEY || getConfiguredApiKey('deepseek'));
 }
 
 export function getRerankProviderMode(): 'api' | 'deepseek' | 'heuristic' {

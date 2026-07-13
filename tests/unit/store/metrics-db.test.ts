@@ -177,6 +177,68 @@ describe('rebuildDailySnapshots', () => {
   });
 });
 
+describe('rebuildDailySnapshots historical dates', () => {
+  const project = 'test-rebuild-historical-days';
+
+  beforeEach(() => cleanupTestProject(project));
+  afterEach(() => {
+    closeMetricsDb();
+    cleanupTestProject(project);
+  });
+
+  it('preserves one snapshot per event day instead of moving history to today', () => {
+    archiveEvent({
+      ts: '2025-01-03T12:00:00.000Z', type: 'search_graph', project,
+      tokens_saved: 10, files_avoided: 1, confidence: 'high', event_id: 'historical-day-1',
+    });
+    archiveEvent({
+      ts: '2025-01-04T12:00:00.000Z', type: 'search_graph', project,
+      tokens_saved: 20, files_avoided: 2, confidence: 'high', event_id: 'historical-day-2',
+    });
+
+    const result = rebuildDailySnapshots();
+    expect(result.projects_rebuilt).toBeGreaterThanOrEqual(1);
+
+    closeMetricsDb();
+    const db = new Database(path.join(lynxHome(), 'metrics.db'));
+    try {
+      const snapshots = db.prepare(
+        'SELECT date, tokens_saved FROM daily_snapshots WHERE project = ? ORDER BY date'
+      ).all(project) as Array<{ date: string; tokens_saved: number }>;
+      expect(snapshots).toEqual([
+        { date: '2025-01-03', tokens_saved: 10 },
+        { date: '2025-01-04', tokens_saved: 20 },
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+});
+
+describe('event archive idempotency', () => {
+  const project = 'test-metrics-event-idempotency';
+
+  beforeEach(() => cleanupTestProject(project));
+  afterEach(() => {
+    closeMetricsDb();
+    cleanupTestProject(project);
+  });
+
+  it('keeps a retried event_id from inflating the daily snapshot', () => {
+    const event: UsageEvent = {
+      ts: new Date().toISOString(), type: 'search_graph', project,
+      tokens_saved: 42, files_avoided: 2, confidence: 'high', event_id: 'retry-safe-event',
+    };
+    archiveEvent(event);
+    archiveEvent(event);
+    flushTodayEvents(project);
+
+    const history = summarizeHistory(project, 1);
+    expect(history.total_events).toBe(1);
+    expect(history.total_tokens_saved).toBe(42);
+  });
+});
+
 describe('historical_unclassified', () => {
   afterEach(() => {
     closeMetricsDb();

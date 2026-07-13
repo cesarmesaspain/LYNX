@@ -241,7 +241,7 @@ Restart Claude Code after editing `.mcp.json`.
 
 ## Verification Checklist
 
-- [ ] `lynx doctor` shows 10/10
+- [ ] `lynx doctor` shows 11/11
 - [ ] `search_graph` returns real results for your project
 - [ ] `index_status` shows `freshness: "ready"`
 - [ ] `detect_changes` works after a code edit

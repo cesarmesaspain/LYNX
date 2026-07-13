@@ -52,6 +52,10 @@ export class LynxDatabase {
   // ── Configuration ────────────────────────────────────────────
 
   private configure(): void {
+    // Let a concurrent writer finish a short transaction instead of failing
+    // immediately with SQLITE_BUSY. Project locks still prevent concurrent
+    // indexing; this only protects normal cross-process read/write overlap.
+    this.db.pragma('busy_timeout = 5000');
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this.db.pragma('foreign_keys = ON');

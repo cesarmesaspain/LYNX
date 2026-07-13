@@ -1,6 +1,8 @@
 import type Stripe from 'stripe';
 import { afterEach, describe, expect, it } from 'vitest';
-import { parseJsonWithRawBody } from '../src/app.js';
+import { createApp, parseJsonWithRawBody } from '../src/app.js';
+import { licensesDb } from '../src/db.js';
+import { signLicense } from '../src/jwt.js';
 import { tierFromMetadata } from '../src/routes/license.js';
 import { tierFromPriceIds } from '../src/routes/stripe.js';
 
@@ -38,5 +40,28 @@ describe('billing security boundaries', () => {
 
     expect(tierFromPriceIds(['price_team'])).toBe('team');
     expect(tierFromPriceIds(['untrusted-price'])).toBeNull();
+  });
+
+  it('rejects a signed license after its billing entitlement is canceled', async () => {
+    const userId = 'canceled-license-user';
+    const token = signLicense({ sub: userId, email: 'canceled@example.test', tier: 'pro', machines: [] });
+    licensesDb.prepare(
+      'INSERT OR REPLACE INTO users (id, email, tier, billing_status) VALUES (?, ?, ?, ?)'
+    ).run(userId, 'canceled@example.test', 'pro', 'canceled');
+    const app = createApp();
+    await app.ready();
+
+    try {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/v1/license/validate',
+        payload: { license_jwt: token },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ valid: false, tier: 'free' });
+    } finally {
+      await app.close();
+      licensesDb.prepare('DELETE FROM users WHERE id = ?').run(userId);
+    }
   });
 });

@@ -158,13 +158,15 @@ describe('discover exclusion rules', () => {
     writeFile(path.join(testDir, 'src/index.ts'), 'export const x = 1;');
     writeFile(path.join(testDir, 'src/lib/math.ts'), 'export function add() {}');
     writeFile(path.join(testDir, 'tests/index.test.ts'), 'import { x } from "../src/index";');
+    writeFile(path.join(testDir, 'tests/integration/runtime.test.ts'), 'import { x } from "../../src/index";');
     writeFile(path.join(testDir, 'components/Button.tsx'), 'export const Button = () => null;');
 
-    const result = discoverFiles(testDir, 'moderate');
+    const result = discoverFiles(testDir, 'fast');
     const files = relFiles(result);
     expect(files).toContain('src/index.ts');
     expect(files).toContain('src/lib/math.ts');
     expect(files).toContain('tests/index.test.ts');
+    expect(files).toContain('tests/integration/runtime.test.ts');
     expect(files).toContain('components/Button.tsx');
   });
 });

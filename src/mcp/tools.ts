@@ -12,11 +12,7 @@ export interface LynxToolDef {
 }
 
 export const EVIDENCE_DISCIPLINE =
-  ' Evidence discipline: use the smallest focused call that can resolve the question. ' +
-  'Start with narrow filters, scope, and result limits; broaden only when the returned evidence is insufficient. ' +
-  'Reuse earlier results as evidence: do not repeat the same tool with overlapping scope, re-read a symbol or file already returned, or retry equivalent no-match searches unless the prior result was truncated or materially incomplete. ' +
-  'After the returned evidence is sufficient to answer or act, consolidate it and stop investigating; ' +
-  'do not broaden the search, repeat equivalent calls, or fetch additional source merely for completeness.';
+  ' Use the smallest focused call; broaden only if evidence is insufficient. Reuse prior evidence and stop once the answer is supported.';
 
 const EVIDENCE_TOOLS = new Set([
   'pack_context', 'search_graph', 'trace_path', 'get_code_snippet',
@@ -27,7 +23,7 @@ const EVIDENCE_TOOLS = new Set([
 ]);
 
 export function withEvidenceDiscipline(tool: LynxToolDef): LynxToolDef {
-  const routing = ' Core workflow: pack_context → search_graph → get_code_snippet/trace_path → find_tests → detect_changes/assess_impact. Project accepts its canonical name or indexed root path.';
+  const routing = ' Workflow: context → search → snippet/trace → tests → impact.';
   if (!EVIDENCE_TOOLS.has(tool.name)) return tool;
   return { ...tool, description: tool.description + EVIDENCE_DISCIPLINE + routing };
 }
@@ -51,9 +47,10 @@ export const TOOLS: LynxToolDef[] = [
         project: { type: 'string', description: 'Indexed project name. Optional.' },
         mode: {
           type: 'string',
-          enum: ['compact', 'full'],
-          description: 'compact: minimal guidance. full: include extra rationale.',
+          enum: ['compact', 'full', 'decision'],
+          description: 'compact: minimal guidance. full: include extra rationale. decision: include a change-risk summary for an indexed project.',
         },
+        enable_llm: { type: 'boolean', description: 'Opt in to LLM re-ranking for ambiguous candidate ordering. Default false.' },
       },
       required: ['task'],
     },
@@ -66,7 +63,7 @@ export const TOOLS: LynxToolDef[] = [
       'Three search modes: (1) query for BM25 ranked full-text search with camelCase splitting, ' +
       '(2) name_pattern/qn_pattern for the supported regex subset, or name_like/qn_like for explicit SQL LIKE matching, ' +
       '(3) semantic_query for vector cosine search. ' +
-      'Results include a 5-line snippet preview when ≤5 results — evaluate relevance from the snippet before calling get_code_snippet.',
+      'Request include_snippets when source previews would help choose the next symbol.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -82,15 +79,15 @@ export const TOOLS: LynxToolDef[] = [
         max_degree: { type: 'integer', description: 'Maximum total degree.' },
         exclude_entry_points: { type: 'boolean', description: 'Exclude entry points (CLI commands, HTTP handlers).' },
         include_connected: { type: 'boolean', description: 'Include nodes connected to matches.' },
-        limit: { type: 'integer', description: 'Max results (default 10).' },
+        limit: { type: 'integer', description: 'Max results (compact default in maximum-savings mode).' },
         offset: { type: 'integer', description: 'Pagination offset.' },
         semantic_query: {
           type: 'array',
           items: { type: 'string' },
           description: 'Array of keywords for semantic search.',
         },
-        enable_llm: { type: 'boolean', description: 'Enable LLM re-rank (default true). Set false for deterministic BM25-only results.' },
-        include_snippets: { type: 'boolean', description: 'Include first 5 source lines per result (auto-enabled when limit ≤5). Eliminates follow-up get_code_snippet calls.' },
+        enable_llm: { type: 'boolean', description: 'Opt in to LLM re-ranking for ambiguous searches. Default false.' },
+        include_snippets: { type: 'boolean', description: 'Include source previews. In maximum-savings mode this is opt-in.' },
       },
       required: ['project'],
     },
@@ -125,6 +122,7 @@ export const TOOLS: LynxToolDef[] = [
         qualified_name: { type: 'string', description: 'Full qualified_name from search_graph.' },
         project: { type: 'string' },
         include_neighbors: { type: 'boolean', description: 'Include caller/callee names.' },
+        max_lines: { type: 'integer', description: 'Expand source beyond the compact default when needed.' },
       },
       required: ['qualified_name', 'project'],
     },
@@ -157,6 +155,7 @@ export const TOOLS: LynxToolDef[] = [
       properties: {
         query: { type: 'string', description: 'Cypher query.' },
         project: { type: 'string' },
+        max_rows: { type: 'integer', description: 'Maximum rows. Default is compact in maximum-savings mode.' },
       },
       required: ['query', 'project'],
     },
@@ -267,8 +266,8 @@ export const TOOLS: LynxToolDef[] = [
         scope: { type: 'string', enum: ['files', 'symbols'], description: 'files: just paths, symbols: paths + impacted functions.' },
         depth: { type: 'integer', description: 'Call depth for impact analysis (default 2).' },
         files: { type: 'array', items: { type: 'string' }, description: 'Comma-separated or array of file paths to scope analysis. Only these files appear in primary results; dependencies outside scope go in related_dependencies.' },
-        include_diff: { type: 'boolean', description: 'Include git diff content (default true).' },
-        enable_llm: { type: 'boolean', description: 'Enable LLM risk assessment (default true).' },
+        include_diff: { type: 'boolean', description: 'Include git diff content. Omitted in maximum-savings mode unless requested.' },
+        enable_llm: { type: 'boolean', description: 'Opt in to LLM risk assessment. Default false.' },
       },
       required: ['project'],
     },

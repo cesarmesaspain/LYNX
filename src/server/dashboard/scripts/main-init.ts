@@ -22,11 +22,13 @@ ${actionGraphScript()}
 ${webSocketScript()}
 ${tabScript()}
 (function(){
+  var addProjectLabel = ${JSON.stringify(isSpanish ? 'Añadir proyecto' : 'Add project')};
+  var indexingLabel = ${JSON.stringify(isSpanish ? 'Indexando...' : 'Indexing...')};
   function addProject(){
     var btn=document.getElementById('addProjectBtn');
     if(btn){btn.disabled=true;btn.textContent='...';}
     var btnTab=document.getElementById('addProjectBtnTab');
-    if(btnTab){btnTab.disabled=true;btnTab.innerHTML='<span class="plus-circle">...</span> Indexando...';}
+    if(btnTab){btnTab.disabled=true;btnTab.innerHTML='<span class="plus-circle">...</span> '+indexingLabel;}
     fetch('/api/pick-folder')
       .then(function(r){return r.json();})
       .then(function(d){
@@ -41,13 +43,25 @@ ${tabScript()}
       .catch(function(){resetButtons();});
     function resetButtons(){
       if(btn){btn.disabled=false;btn.textContent='+';}
-      if(btnTab){btnTab.disabled=false;btnTab.innerHTML='<span class="plus-circle">+</span> Proyecto';}
+      if(btnTab){btnTab.disabled=false;btnTab.innerHTML='<span class="plus-circle">+</span> '+addProjectLabel;}
     }
   }
   var projectsBtn=document.getElementById('addProjectBtn');
   var tabBtn=document.getElementById('addProjectBtnTab');
   if(projectsBtn)projectsBtn.addEventListener('click',addProject);
   if(tabBtn)tabBtn.addEventListener('click',addProject);
+
+  var localeSelect = document.getElementById('localeSelect');
+  if (localeSelect) localeSelect.addEventListener('change', function() {
+    var locale = localeSelect.value;
+    localeSelect.disabled = true;
+    fetch('/api/locale?locale=' + encodeURIComponent(locale), { method: 'POST' })
+      .then(function(response) {
+        if (!response.ok) throw new Error('locale update failed');
+        location.reload();
+      })
+      .catch(function() { localeSelect.disabled = false; });
+  });
 
   // Delete project
   var deleteModal=document.getElementById('deleteProjectModal');

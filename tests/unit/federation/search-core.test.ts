@@ -96,6 +96,8 @@ describe('search_graph core — result parity with handler', () => {
       label: undefined as string | undefined,
       namePattern: undefined as string | undefined,
       qnPattern: undefined as string | undefined,
+      nameLike: undefined as string | undefined,
+      qnLike: undefined as string | undefined,
       filePattern: undefined as string | undefined,
       limit: 10,
       offset: 0,
@@ -162,6 +164,16 @@ describe('search_graph core — result parity with handler', () => {
     for (const r of core.results) {
       expect(r.name).toMatch(/^handle/);
     }
+  });
+
+  it('name_like filter is forwarded to the local store instead of returning the whole graph', async () => {
+    const handler = await handlerSearch({ name_like: 'handle%' });
+    const core = coreSearch(undefined, { nameLike: 'handle%', limit: 50 });
+
+    const hResults = handler.results as Array<Record<string, unknown>>;
+    expect(core.results.length).toBe(hResults.length);
+    expect(core.results.length).toBeGreaterThan(0);
+    for (const result of core.results) expect(result.name).toMatch(/^handle/i);
   });
 
   it('min_degree filter: core matches handler', async () => {

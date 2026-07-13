@@ -282,7 +282,7 @@ describe('renderDashboard HTML contract', () => {
     expect(html).toMatch(/3 (errores|errors)/);
   });
 
-  it('renders ops-row with DB size and hours', async () => {
+  it('renders ops-row with age but not database size', async () => {
     const renderDashboard = await getRenderDashboard();
     const card: ProjectCard = {
       name: 'ops', displayName: 'Ops', dbPath: '/tmp/o.db',
@@ -298,7 +298,7 @@ describe('renderDashboard HTML contract', () => {
     };
     const html = renderDashboard([card]);
     expect(html).toContain('ops-row');
-    expect(html).toContain('5.0 MB');
+    expect(html).not.toContain('5.0 MB');
     expect(html).toContain('3h');
   });
 
@@ -322,7 +322,7 @@ describe('renderDashboard HTML contract', () => {
     expect(html).toContain('$0.0012');
   });
 
-  it('summary includes Phase 6 metrics when present', async () => {
+  it('does not surface database size in the dashboard', async () => {
     const renderDashboard = await getRenderDashboard();
     const card: ProjectCard = {
       name: 'big', displayName: 'Big', dbPath: '/tmp/big.db',
@@ -337,7 +337,8 @@ describe('renderDashboard HTML contract', () => {
       errorCount: 0, brief: null,
     };
     const html = renderDashboard([card]);
-    expect(html).toContain('10 MB');
+    expect(html).not.toContain('10 MB');
+    expect(html).not.toContain('10.0 MB');
     expect(html).toMatch(/Llamadas|LLM Calls/);
   });
 

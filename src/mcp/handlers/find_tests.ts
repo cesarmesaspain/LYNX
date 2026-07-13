@@ -12,6 +12,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
 import { projectNotIndexed } from '../diagnostics.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 export async function handleFindTests(
   args: Record<string, unknown>
@@ -20,6 +21,8 @@ export async function handleFindTests(
   const project = String(args.project || '');
   const qualifiedName = args.qualified_name ? String(args.qualified_name) : undefined;
   const name = args.name ? String(args.name) : undefined;
+  const savingsMode = Boolean(readLynxConfig().agent_response?.enabled
+    && readLynxConfig().agent_response?.budget === 'max_savings');
 
   if (!project) return { error: 'project is required' };
   if (!qualifiedName && !name) return { error: 'qualified_name or name is required' };
@@ -51,9 +54,56 @@ export async function handleFindTests(
 
   // Find tests: TESTS edges go test_function → prod_function.
   // So tests are source_ids where target_id = our node.
-  const testIdRows = db.db
+  let testIdRows = db.db
     .prepare('SELECT source_id FROM edges WHERE project = ? AND target_id = ? AND type = ?')
     .all(project, node.id, 'TESTS') as { source_id: number }[];
+
+  // Function-level TESTS edges are preferred. When the resolver only has
+  // file-level evidence, return that evidence instead of claiming no tests.
+  // This makes find_tests useful for handlers whose test calls are indirect.
+  let coverageLevel: 'symbol' | 'file' | 'text' = 'symbol';
+  if (testIdRows.length === 0 && node.file_path) {
+    testIdRows = db.db.prepare(`
+      SELECT DISTINCT e.source_id
+      FROM edges e
+      JOIN nodes target_file ON target_file.id = e.target_id AND target_file.project = e.project
+      JOIN nodes test_file ON test_file.id = e.source_id AND test_file.project = e.project
+      WHERE e.project = ?
+        AND e.type = 'TESTS_FILE'
+        AND target_file.kind = 'File'
+        AND target_file.file_path = ?
+        AND (test_file.is_test = 1 OR test_file.file_path LIKE '%test%' OR test_file.file_path LIKE '%spec%')
+    `).all(project, node.file_path) as { source_id: number }[];
+    coverageLevel = 'file';
+  }
+
+  // Dynamic imports and factory helpers can hide a real test dependency from
+  // the static resolver. As a final, explicitly lower-confidence fallback,
+  // look for the requested symbol name in indexed test files. Do not present
+  // this as graph-confirmed coverage: the response labels it as text evidence.
+  if (testIdRows.length === 0 && node.name) {
+    const escapedName = node.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const symbolPattern = new RegExp(`\\b${escapedName}\\b`);
+    const testFiles = db.db.prepare(`
+      SELECT id, file_path
+      FROM nodes
+      WHERE project = ?
+        AND kind = 'File'
+        AND (is_test = 1 OR file_path LIKE '%test%' OR file_path LIKE '%spec%')
+      LIMIT 500
+    `).all(project) as { id: number; file_path: string }[];
+    const projectMeta = db.getProject(project);
+    const rootPath = projectMeta?.rootPath || process.cwd();
+    testIdRows = testFiles.flatMap((testFile) => {
+      try {
+        const content = fs.readFileSync(path.join(rootPath, testFile.file_path), 'utf-8');
+        return symbolPattern.test(content) ? [{ source_id: testFile.id }] : [];
+      } catch {
+        return [];
+      }
+    });
+    if (testIdRows.length > 0) coverageLevel = 'text';
+  }
 
   if (testIdRows.length === 0) {
     return {
@@ -72,7 +122,7 @@ export async function handleFindTests(
     .prepare(
       `SELECT id, name, qualified_name, kind, file_path, start_line, end_line, is_exported
        FROM nodes WHERE project = ? AND id IN (${placeholders})
-       LIMIT 30`
+       LIMIT ${savingsMode ? 10 : 30}`
     )
     .all(project, ...testIds) as any[];
 
@@ -88,10 +138,11 @@ export async function handleFindTests(
       const lines = content.split('\n');
       const start = Math.max(0, tn.start_line - 1);
       const end = Math.min(lines.length, tn.end_line);
-      // Show function signature + first few body lines (max 12 lines)
+      // Show function signature + first few body lines.
       const bodyLines = lines.slice(start, end);
-      snippet = bodyLines.slice(0, 12).join('\n');
-      if (bodyLines.length > 12) snippet += '\n  // ...';
+      const snippetLines = savingsMode ? 6 : 12;
+      snippet = bodyLines.slice(0, snippetLines).join('\n');
+      if (bodyLines.length > snippetLines) snippet += '\n  // ...';
     } catch {
       // file not readable
     }
@@ -127,6 +178,10 @@ export async function handleFindTests(
     },
     tests,
     count: tests.length,
+    coverage_level: coverageLevel,
+    coverage_note: coverageLevel === 'text'
+      ? 'Text evidence only: verify the test call before treating this as confirmed coverage.'
+      : undefined,
     found: true,
     value_metrics: {
       estimated_files_avoided: tests.length > 0 ? tests.length * 2 : 1,

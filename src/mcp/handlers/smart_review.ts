@@ -47,9 +47,12 @@ export async function handleSmartReview(
 ): Promise<unknown> {
   const started = Date.now();
   const project = String(args.project || '');
-  const filePath = args.file ? String(args.file) : undefined;
+  // `target` is used by assess_impact and is a natural handoff from a review
+  // queue. Keep `file` as the canonical smart_review argument.
+  const filePath = args.file ? String(args.file) : args.target ? String(args.target) : undefined;
   const qualifiedName = args.qualified_name ? String(args.qualified_name) : undefined;
-  const limit = args.limit !== undefined ? Number(args.limit) : 20;
+  const requestedLimit = args.limit !== undefined ? Number(args.limit) : 20;
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 100)) : 20;
 
   if (!project) return { error: 'project is required' };
   if (!filePath && !qualifiedName) return { error: 'file or qualified_name is required' };

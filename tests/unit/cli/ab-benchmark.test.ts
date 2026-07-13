@@ -14,6 +14,7 @@ import * as os from 'node:os';
 import {
   generateFixture,
   runABBenchmark,
+  cmdABBenchmark,
   resultToJSON,
   resultToCSV,
   resultToHTML,
@@ -318,31 +319,60 @@ describe('A/B benchmark — zero writes to ~/.lynx', () => {
   it('does not write to ~/.lynx', async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-ab-zerowrite-'));
     const originalLynxHome = process.env.LYNX_HOME;
-
-    const homeBefore = process.env.HOME || os.homedir();
-    const lynxDir = path.join(homeBefore, '.lynx');
-    const usageFile = path.join(lynxDir, 'usage.jsonl');
-
-    let mtimeBefore = 0;
-    let existed = false;
-    try {
-      mtimeBefore = fs.statSync(usageFile).mtimeMs;
-      existed = true;
-    } catch { /* doesn't exist */ }
+    const callerHome = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-ab-caller-home-'));
+    const usageFile = path.join(callerHome, 'usage.jsonl');
+    const sentinel = 'caller-owned usage data\n';
+    fs.writeFileSync(usageFile, sentinel);
+    process.env.LYNX_HOME = callerHome;
 
     try {
       await runABBenchmark({
         seed: 42, measuredRounds: 1, fixtureDir: tmpDir,
       });
 
-      if (existed) {
-        const stat = fs.statSync(usageFile);
-        // Compare with tolerance (file could have been modified by other tests)
-        expect(Math.abs(stat.mtimeMs - mtimeBefore)).toBeLessThanOrEqual(1000);
-      } else {
-        expect(fs.existsSync(usageFile)).toBe(false);
-      }
+      expect(process.env.LYNX_HOME).toBe(callerHome);
+      expect(fs.readFileSync(usageFile, 'utf8')).toBe(sentinel);
     } finally {
+      if (originalLynxHome !== undefined) {
+        process.env.LYNX_HOME = originalLynxHome;
+      } else {
+        delete process.env.LYNX_HOME;
+      }
+      try { fs.rmSync(callerHome, { recursive: true, force: true }); } catch { /* ignore */ }
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
+  }, 30000);
+});
+
+describe('A/B benchmark — CLI command', () => {
+  it('parses arguments, filters tasks, and writes JSON output', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-ab-cli-'));
+    const outBase = path.join(tmpDir, 'result');
+    const originalLynxHome = process.env.LYNX_HOME;
+    const originalError = console.error;
+    console.error = () => undefined;
+
+    try {
+      await cmdABBenchmark([
+        '--seed', '77',
+        '--rounds', '1',
+        '--warmup', '0',
+        '--tasks', 'find_definition',
+        '--json',
+        '--out', outBase,
+      ]);
+
+      const outPath = `${outBase}.json`;
+      expect(fs.existsSync(outPath)).toBe(true);
+      const parsed = JSON.parse(fs.readFileSync(outPath, 'utf8')) as ABBenchmarkResult;
+      expect(parsed.config.seed).toBe(77);
+      expect(parsed.config.measuredRounds).toBe(1);
+      expect(parsed.config.warmupRounds).toBe(0);
+      expect(parsed.config.taskIds).toEqual(['find_definition']);
+      expect(parsed.tasks).toHaveLength(2);
+      expect(new Set(parsed.tasks.map(run => run.task_id))).toEqual(new Set(['find_definition']));
+    } finally {
+      console.error = originalError;
       if (originalLynxHome !== undefined) {
         process.env.LYNX_HOME = originalLynxHome;
       } else {

@@ -82,6 +82,16 @@ describe('passSemanticLight', () => {
     expect(emitEdges[0].properties.channelName).toBe('user.created');
     expect(emitEdges[0].properties.transport).toBe('rabbitmq');
     expect(emitEdges[0].properties.direction).toBe('emit');
+    const channel = db.db.prepare("SELECT is_entry_point FROM nodes WHERE kind = 'Channel'")
+      .get() as { is_entry_point: number };
+    expect(channel.is_entry_point).toBe(0);
+
+    // Existing synthetic rows must also be repaired on subsequent resolver passes.
+    db.db.prepare("UPDATE nodes SET is_entry_point = 1 WHERE kind = 'Channel'").run();
+    passSemanticLight(db, [batch], idx, []);
+    const repaired = db.db.prepare("SELECT is_entry_point FROM nodes WHERE kind = 'Channel'")
+      .get() as { is_entry_point: number };
+    expect(repaired.is_entry_point).toBe(0);
   });
 
   it('creates LISTENS_ON edge for channel with listen direction', () => {

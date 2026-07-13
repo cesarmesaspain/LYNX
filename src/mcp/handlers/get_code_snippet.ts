@@ -1,11 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getDb } from '../server.js';
+import { projectNotIndexed } from '../diagnostics.js';
 import { findNodeByQn } from '../../store/nodes.js';
 import { getNeighborNames } from '../../store/traverse.js';
 import { searchFullText } from '../../store/search.js';
 import { narrateSnippet } from '../../intelligence/narrative.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 function enrichNeighbors(
   db: ReturnType<typeof getDb>,
@@ -59,6 +61,7 @@ export async function handleGetCodeSnippet(
   const includeNeighbors = args.include_neighbors === true;
 
   const db = getDb(project);
+  if (!db.getProject(project)) return { ...projectNotIndexed(project) };
 
   // Find node
   let node = findNodeByQn(db, project, qualifiedName);
@@ -100,6 +103,13 @@ export async function handleGetCodeSnippet(
   if (end - start <= 1 && start < lines.length) {
     end = Math.min(lines.length, start + 20);
   }
+  const savingsMode = readLynxConfig().agent_response?.enabled && readLynxConfig().agent_response?.budget === 'max_savings';
+  const requestedMaxLines = Number(args.max_lines);
+  const maxLines = Number.isFinite(requestedMaxLines) && requestedMaxLines > 0
+    ? Math.floor(requestedMaxLines)
+    : (savingsMode ? 120 : Number.POSITIVE_INFINITY);
+  const truncated = end - start > maxLines;
+  if (truncated) end = start + maxLines;
   const snippet = lines.slice(start, end).join('\n');
 
   const result: Record<string, unknown> = {
@@ -111,6 +121,7 @@ export async function handleGetCodeSnippet(
     kind: node.kind,
     is_exported: node.is_exported === 1,
     source: snippet,
+    ...(truncated ? { source_truncated: true, next_step: 'Request max_lines to expand this snippet.' } : {}),
   };
 
   let callers: string[] = [];

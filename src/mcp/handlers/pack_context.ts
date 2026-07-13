@@ -24,6 +24,8 @@ import {
 import { computeRealSavings } from '../../usage/session.js';
 import * as child_process from 'node:child_process';
 import * as path from 'node:path';
+import { storedTimestampMs } from '../../store/time.js';
+import { rerankSearchWithMeta, type RerankMeta } from '../../llm/client.js';
 
 interface GraphCandidate {
   name: string;
@@ -69,6 +71,15 @@ interface PackContextResult {
     session_unique_files_avoided?: number;
   };
   memory_enriched?: number;
+  llm_usage?: {
+    enabled: boolean;
+    used: boolean;
+    provider: string | null;
+    model: string | null;
+    latency_ms: number;
+    fallback_used: boolean;
+    fallback_reason: string | null;
+  };
   token_budget: {
     estimated_pack_tokens: number;
     confidence: string;
@@ -86,6 +97,10 @@ export async function handlePackContext(
   const task = String(args.task || '');
   const project = String(args.project || '');
   const mode = String(args.mode || 'compact');
+  // Deterministic graph ranking is the default: it is immediate, private, and
+  // avoids spending provider tokens for ordinary discovery. Callers can opt in
+  // to reranking only when the task is genuinely ambiguous or high-risk.
+  const enableLlm = args.enable_llm === true;
 
   const constraints = buildConstraints(task);
 
@@ -99,7 +114,7 @@ export async function handlePackContext(
 
   // Standard mode with indexed project
   if (project) {
-    return buildProjectPackContext(project, task, mode, constraints);
+    return await buildProjectPackContext(project, task, mode, constraints, enableLlm);
   }
 
   return {
@@ -108,9 +123,9 @@ export async function handlePackContext(
     graph_candidates: [],
     recent_findings: [],
     recommended_next_calls: [
-      { tool: 'search_graph', why: 'Find relevant symbols (no project indexed)' },
+      { tool: 'list_projects', why: 'Choose an indexed project before requesting graph evidence.' },
     ],
-    token_budget: { estimated_pack_tokens: 100, confidence: 'low_no_index' },
+    token_budget: { estimated_pack_tokens: 100, confidence: 'low_no_project' },
   };
 }
 
@@ -133,12 +148,13 @@ function buildConstraints(task: string): string[] {
 
 // ── Main project context builder ───────────────────────
 
-function buildProjectPackContext(
+async function buildProjectPackContext(
   project: string,
   task: string,
   mode: string,
   constraints: string[],
-): PackContextResult {
+  enableLlm: boolean,
+): Promise<PackContextResult> {
   const db = getDb(project);
   const isSpanish = /[áéíóúñ]/.test(task);
   const maxCandidates = mode === 'full' ? MAX_CANDIDATES_FULL : MAX_CANDIDATES_COMPACT;
@@ -168,6 +184,57 @@ function buildProjectPackContext(
   const dedupedCandidates = dedupeCandidates(candidates).slice(0, maxCandidates);
   let confidence = 'medium';
   if (dedupedCandidates.length === 0) confidence = 'low_no_index';
+
+  // ── LLM rerank ──────────────────────────────────────────
+  let llmReranked = false;
+  const llmUsage = {
+    enabled: enableLlm,
+    used: false,
+    provider: null as string | null,
+    model: null as string | null,
+    latency_ms: 0,
+    fallback_used: false,
+    fallback_reason: null as string | null,
+  };
+
+  if (enableLlm && dedupedCandidates.length >= 3) {
+    try {
+      const rerankStart = Date.now();
+      const rerankInput = dedupedCandidates.map((c, i) => ({
+        index: i,
+        name: c.name,
+        kind: c.kind || 'Function',
+        snippet: c.why,
+      }));
+      const rerank = await rerankSearchWithMeta(task, rerankInput);
+      llmUsage.used = rerank.provider !== 'heuristic' || !rerank.fallback;
+      llmUsage.provider = rerank.provider;
+      llmUsage.model = rerank.model || null;
+      llmUsage.latency_ms = Date.now() - rerankStart;
+      llmUsage.fallback_used = rerank.fallback;
+      llmUsage.fallback_reason = rerank.fallback
+        ? 'rerank fell back to heuristic — kept BM25 order'
+        : null;
+
+      if (rerank.items.length === dedupedCandidates.length && rerank.provider !== 'heuristic') {
+        const reordered = rerank.items
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          .map(r => dedupedCandidates[r.index])
+          .filter(Boolean);
+        if (reordered.length === dedupedCandidates.length) {
+          // Replace in-place
+          dedupedCandidates.length = 0;
+          dedupedCandidates.push(...reordered);
+          llmReranked = true;
+        }
+      }
+    } catch {
+      llmUsage.fallback_used = true;
+      llmUsage.fallback_reason = 'rerank exception, kept BM25 order';
+    }
+  } else if (!enableLlm) {
+    llmUsage.fallback_reason = 'enable_llm=false, skipped rerank';
+  }
 
   // Enrich with memory findings
   let memoryEnriched = 0;
@@ -235,6 +302,7 @@ function buildProjectPackContext(
     recommended_next_calls: nextCalls,
     index_health: indexHealth,
     memory_enriched: memoryEnriched,
+    llm_usage: llmUsage,
     value_metrics: {
       estimated_files_avoided: value.filesAvoided,
       estimated_tokens_saved: value.tokensSaved,
@@ -335,6 +403,9 @@ function extractTerms(text: string, _isSpanish: boolean): string[] {
     'un', 'para', 'con', 'como', 'más', 'pero', 'sus', 'le', 'ya',
     'este', 'esta', 'entre', 'al', 'del', 'todo', 'muy', 'hay', 'ese',
     'analiza', 'analizar', 'proyecto', 'código', 'archivo', 'carpeta',
+    // Generic dev verbs — too common to be useful search terms
+    'add', 'new', 'make', 'use', 'get', 'set', 'put', 'the', 'not',
+    'its', 'also', 'just', 'will', 'need', 'want', 'into', 'our',
   ]);
 
   const tokens = text
@@ -359,11 +430,11 @@ function getIndexHealth(
       .prepare('SELECT indexed_at FROM projects WHERE name = ?')
       .get(project) as { indexed_at?: string } | undefined);
     const indexedAt = projectMeta?.indexed_at
-      ? new Date(projectMeta.indexed_at).getTime()
+      ? storedTimestampMs(projectMeta.indexed_at)
       : null;
     const now = Date.now();
     const hoursSinceIndex = indexedAt ? Math.round((now - indexedAt) / (1000 * 60 * 60)) : null;
-    const isFresh = hoursSinceIndex !== null && hoursSinceIndex < 24;
+    const isFresh = nodeCount > 0 && hoursSinceIndex !== null && hoursSinceIndex < 24;
 
     return { total_nodes: nodeCount, total_edges: edgeCount, hours_since_index: hoursSinceIndex, is_fresh: isFresh };
   } catch {

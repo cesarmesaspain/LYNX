@@ -24,6 +24,33 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
   var isSpanish = ${isSpanish};
   var CAT_COLORS = ['#38bdf8','#22d3ee','#a78bfa','#f59e0b','#f472b6','#4ade80','#94a3b8'];
 
+  function escapeHtml(value) {
+    var span = document.createElement('span');
+    span.textContent = String(value == null ? '' : value);
+    return span.innerHTML;
+  }
+
+  function categoryLabel(category, fallback) {
+    var labels = isSpanish ? {
+      direct_discovery: 'Descubrimiento directo', smart_navigation: 'Navegación inteligente',
+      context_packing: 'Empaquetado de contexto', llm_rerank: 'Reordenamiento semántico',
+    } : {
+      direct_discovery: 'Direct discovery', smart_navigation: 'Smart navigation',
+      context_packing: 'Context packing', llm_rerank: 'Semantic reranking',
+    };
+    return labels[category] || fallback;
+  }
+
+  function coverageSummary(coverage) {
+    if (!coverage) return '';
+    if (isSpanish) return coverage.summary || '';
+    var sessions = coverage.sessions_tracked ? coverage.sessions_tracked + ' sessions' : 'sessions: unavailable';
+    var tasks = coverage.tasks_tracked ? coverage.tasks_tracked + ' tasks' : 'tasks: unavailable';
+    if (coverage.deterministic_mode) return 'Deterministic mode active (' + sessions + ').';
+    if (!coverage.llm_tracking_active) return 'Events recorded without LLM (' + sessions + ', ' + tasks + '). Configure LYNX_DEEPSEEK_KEY or LYNX_API_KEY to enable semantic reranking.';
+    return 'Telemetry active (' + sessions + ', ' + tasks + ').';
+  }
+
   function provBadge(kind) {
     if (kind === 'measured') return '<span class="metrics-badge prov-measured">' + (isSpanish ? 'Medido' : 'Measured') + '</span>';
     if (kind === 'estimated') return '<span class="metrics-badge prov-estimated">' + (isSpanish ? 'Estimado' : 'Estimated') + '</span>';
@@ -74,16 +101,18 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
           cats.forEach(function(c, i) {
             var pct = Math.round((c.tokens_saved / maxTokens) * 100);
             var color = CAT_COLORS[i % CAT_COLORS.length];
+            var label = categoryLabel(c.category, c.label);
+            var eventLabel = isSpanish ? 'eventos' : 'events';
             html += '<div class="bar-row">' +
-              '<div class="bar-label">' + c.label + '</div>' +
-              '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '" title="' + fmt(c.tokens_saved) + ' tokens, ' + c.events + ' events"></div></div>' +
+              '<div class="bar-label">' + escapeHtml(label) + '</div>' +
+              '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '" title="' + fmt(c.tokens_saved) + ' tokens, ' + c.events + ' ' + eventLabel + '"></div></div>' +
               '<div class="bar-value">' + fmt(c.tokens_saved) + ' <span style="color:#64748b;font-size:11px">' + c.events + ' ev</span></div>' +
               '</div>';
           });
           if (metricEls.bars) metricEls.bars.innerHTML = html;
         }
 
-        if (metricEls.coverage) metricEls.coverage.textContent = d.coverage ? d.coverage.summary : '';
+        if (metricEls.coverage) metricEls.coverage.textContent = coverageSummary(d.coverage);
 
         if (d.historical_unclassified && d.historical_unclassified.tokens_saved > 0) {
           if (metricEls.bars) {

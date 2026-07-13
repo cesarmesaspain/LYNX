@@ -2380,18 +2380,14 @@ describe("suite contract", () => {
     expect(names).toContain("pack_context");
   });
 
-  it("realistic agent tools require evidence consolidation and stopping", () => {
+  it("realistic agent tools require compact evidence consolidation and stopping", () => {
     const tools = makeLynxToolsRealistic();
     for (const tool of tools) {
       const description = tool.function.description || "";
-      expect(description).toContain("Start with narrow filters, scope, and result limits");
-      expect(description).toContain("Reuse earlier results as evidence");
-      expect(description).toContain("re-read a symbol or file already returned");
-      expect(description).toContain("retry equivalent no-match searches");
-      expect(description).toContain("After the returned evidence is sufficient");
-      expect(description).toContain("consolidate it and stop investigating");
-      expect(description).toContain("do not broaden the search");
-      expect(description).toContain("repeat equivalent calls");
+      expect(description).toContain("Use the smallest focused call");
+      expect(description).toContain("broaden only if evidence is insufficient");
+      expect(description).toContain("Reuse prior evidence");
+      expect(description).toContain("stop once the answer is supported");
       expect(description).not.toMatch(/\bUse FIRST\b/);
       expect(description).not.toMatch(/\bALWAYS use\b/i);
     }

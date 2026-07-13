@@ -6,7 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { LynxDatabase } from '../store/database.js';
 import { lynxHome } from '../config/runtime.js';
-
+import { storedTimestampMs } from '../store/time.js';
 export interface IndexedProject {
   name: string;
   rootPath: string;
@@ -46,5 +46,5 @@ export function scanIndexedProjects(): IndexedProject[] {
     }
   }
 
-  return results.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
+  return results.sort((a, b) => storedTimestampMs(b.indexedAt) - storedTimestampMs(a.indexedAt));
 }

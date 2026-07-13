@@ -19,6 +19,7 @@ import * as path from 'node:path';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
 import { projectNotIndexed } from '../diagnostics.js';
 import type { LynxFinding } from '../../types.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
   const seen = new Set<string>();
@@ -61,8 +62,10 @@ export async function handleExplainSymbol(
     };
   }
 
-  const metrics = assessSymbolMetrics(db, project, node, projectMeta.rootPath);
-  const result = buildExplainResponse(node, metrics, project, qualifiedName || name || '', started);
+  const savingsMode = Boolean(readLynxConfig().agent_response?.enabled
+    && readLynxConfig().agent_response?.budget === 'max_savings');
+  const metrics = assessSymbolMetrics(db, project, node, projectMeta.rootPath, savingsMode);
+  const result = buildExplainResponse(node, metrics, project, qualifiedName || name || '', started, savingsMode);
 
   recordUsageEvent({
     type: 'search_graph', project,
@@ -122,6 +125,7 @@ function assessSymbolMetrics(
   project: string,
   node: any,
   rootPath: string,
+  savingsMode: boolean,
 ): SymbolMetrics {
   const props = JSON.parse(node.properties || '{}');
   const cyclomaticComplexity = props.cyclomaticComplexity || 0;
@@ -130,10 +134,10 @@ function assessSymbolMetrics(
   const transitiveLoopDepth = props.transitiveLoopDepth || 0;
 
   const fanIn = db.db
-    .prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND target_id = ?')
+    .prepare("SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND target_id = ? AND type IN ('CALLS', 'USAGE', 'TESTS')")
     .get(project, node.id) as { cnt: number };
   const fanOut = db.db
-    .prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND source_id = ?')
+    .prepare("SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND source_id = ? AND type IN ('CALLS', 'USAGE', 'IMPORTS')")
     .get(project, node.id) as { cnt: number };
 
   // Source code
@@ -141,7 +145,7 @@ function assessSymbolMetrics(
   try {
     const content = fs.readFileSync(path.join(rootPath, node.file_path), 'utf-8');
     const lines = content.split('\n');
-    source = lines.slice(node.start_line - 1, node.end_line).join('\n').substring(0, 4000);
+    source = lines.slice(node.start_line - 1, node.end_line).join('\n').substring(0, savingsMode ? 1600 : 4000);
   } catch { /* source unavailable */ }
 
   // Callers (inbound)
@@ -149,8 +153,8 @@ function assessSymbolMetrics(
     .prepare(
       `SELECT e.type, n.name, n.qualified_name, n.kind, n.file_path
        FROM edges e JOIN nodes n ON e.source_id = n.id
-       WHERE e.project = ? AND e.target_id = ? AND e.type IN ('CALLS', 'USAGE')
-       LIMIT 20`
+       WHERE e.project = ? AND e.target_id = ? AND e.type IN ('CALLS', 'USAGE', 'TESTS')
+       LIMIT ${savingsMode ? 8 : 20}`
     )
     .all(project, node.id) as Array<{ type: string; name: string; qualified_name: string; kind: string; file_path: string }>;
   const callers = callerRows.map(r => ({ type: r.type, name: r.name, qualified_name: r.qualified_name, kind: r.kind, file: r.file_path }));
@@ -161,7 +165,7 @@ function assessSymbolMetrics(
       `SELECT e.type, n.name, n.qualified_name, n.kind, n.file_path
        FROM edges e JOIN nodes n ON e.target_id = n.id
        WHERE e.project = ? AND e.source_id = ? AND e.type IN ('CALLS', 'USAGE', 'IMPORTS')
-       LIMIT 20`
+       LIMIT ${savingsMode ? 8 : 20}`
     )
     .all(project, node.id) as Array<{ type: string; name: string; qualified_name: string; kind: string; file_path: string }>;
   const callees = calleeRows.map(r => ({ type: r.type, name: r.name, qualified_name: r.qualified_name, kind: r.kind, file: r.file_path }));
@@ -215,6 +219,7 @@ function buildExplainResponse(
   project: string,
   query: string,
   started: number,
+  savingsMode: boolean,
 ): unknown {
   const narrative = [
     `${node.kind} \`${node.name}\` in ${node.file_path}:${node.start_line}-${node.end_line}.`,
@@ -262,7 +267,7 @@ function buildExplainResponse(
       related_issues: m.related.length,
     },
     source: m.source,
-    narrative,
+    ...(!savingsMode ? { narrative } : {}),
     value_metrics: {
       estimated_files_avoided: 5,
       estimated_tokens_saved: 2250,

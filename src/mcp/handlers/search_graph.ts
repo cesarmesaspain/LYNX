@@ -23,6 +23,7 @@ import { getFederatedConfig } from '../../federation/handler-bridge.js';
 import type { SearchNode } from '../../federation/types.js';
 import type { LynxDatabase } from '../../store/database.js';
 import { hasCapability } from '../../commercial/gate.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 // ═══════════════════════════════════════════════════════════════
 // Private helpers
@@ -189,7 +190,12 @@ interface SearchGraphArgs {
 function parseSearchGraphArgs(args: Record<string, unknown>): SearchGraphArgs | { error: string } {
   const query = args.query ? String(args.query) : undefined;
   if (query === '') return { error: 'query must not be empty. Provide at least one search term, or use name_pattern/qn_pattern for structural queries.' };
-  const limit = args.limit !== undefined ? Number(args.limit) : 10;
+  const savingsMode = readLynxConfig().agent_response?.enabled && readLynxConfig().agent_response?.budget === 'max_savings';
+  const defaultLimit = savingsMode ? 5 : 10;
+  const requestedLimit = args.limit !== undefined ? Number(args.limit) : defaultLimit;
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 1000)) : defaultLimit;
+  const requestedOffset = args.offset !== undefined ? Number(args.offset) : 0;
+  const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.floor(requestedOffset)) : 0;
   const unsupportedPattern = [args.name_pattern, args.qn_pattern]
     .map(value => value === undefined ? '' : String(value))
     .find(value => /[\[\](){}|?]/.test(value));
@@ -204,14 +210,18 @@ function parseSearchGraphArgs(args: Record<string, unknown>): SearchGraphArgs | 
     qnLike: args.qn_like ? String(args.qn_like) : undefined,
     filePattern: args.file_pattern ? String(args.file_pattern) : undefined,
     limit,
-    offset: args.offset !== undefined ? Number(args.offset) : 0,
+    offset,
     minDegree: args.min_degree !== undefined ? Number(args.min_degree) : undefined,
     maxDegree: args.max_degree !== undefined ? Number(args.max_degree) : undefined,
     excludeEntryPoints: args.exclude_entry_points === true,
-    includeNarrative: args.narrative !== false,
+    // The structured results are the primary evidence. Narrative, snippets,
+    // and reranking remain opt-in in the token-saving profile.
+    includeNarrative: savingsMode ? args.narrative === true : args.narrative !== false,
     semanticQuery: args.semantic_query as string[] | undefined,
-    enableLlm: args.enable_llm !== false,
-    includeSnippets: args.include_snippets === true || (args.include_snippets !== false && limit <= 5),
+    enableLlm: args.enable_llm === true,
+    includeSnippets: savingsMode
+      ? args.include_snippets === true
+      : args.include_snippets === true || (args.include_snippets !== false && limit <= 5),
   };
 }
 

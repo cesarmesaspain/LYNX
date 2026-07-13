@@ -10,7 +10,9 @@
  */
 
 import { getDb } from '../server.js';
+import { projectNotIndexed } from '../diagnostics.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 export async function handleQueryGraph(
   args: Record<string, unknown>
@@ -18,9 +20,16 @@ export async function handleQueryGraph(
   const started = Date.now();
   const query = String(args.query || '');
   const project = String(args.project || '');
-  const maxRows = args.max_rows !== undefined ? Number(args.max_rows) : 100;
+  const savingsMode = Boolean(readLynxConfig().agent_response?.enabled
+    && readLynxConfig().agent_response?.budget === 'max_savings');
+  const defaultRows = savingsMode ? 20 : 100;
+  const requestedRows = args.max_rows !== undefined ? Number(args.max_rows) : defaultRows;
+  const maxRows = Number.isFinite(requestedRows)
+    ? Math.max(1, Math.min(Math.floor(requestedRows), 1000))
+    : defaultRows;
 
   const db = getDb(project);
+  if (!db.getProject(project)) return { ...projectNotIndexed(project) };
 
   if (!/^\s*(SELECT|MATCH|WITH)\s/i.test(query)) {
     return { error: 'Unrecognized query format. Use MATCH ... RETURN ... or SELECT.', query };
@@ -148,7 +157,8 @@ function columnSql(expr: string, varName: string): string {
     (_, fn) => `${fn}(*)`
   );
   return aggFixed.replace(new RegExp(`${varName}\\.(\\w+)`, 'g'), (_, prop) => {
-    if (['name', 'qualified_name', 'file_path', 'kind', 'id', 'start_line', 'end_line'].includes(prop)) {
+    if (['name', 'qualified_name', 'file_path', 'kind', 'id', 'start_line', 'end_line',
+      'is_exported', 'is_entry_point', 'is_test'].includes(prop)) {
       return `${varName}.${prop}`;
     }
     return `json_extract(${varName}.properties, '$.${prop}')`;
@@ -166,12 +176,13 @@ function conditionSql(clause: string, varName: string): string {
       return `json_extract(${varName}.properties, '$.${prop}') = '${sqlVal}'`;
     })
     .replace(new RegExp(`${varName}\\.(\\w+)\\s*(>=|<=|>|<|<>)\\s*(\\d+)`, 'g'), (_, prop, op, val) => {
-      const col = ['name', 'qualified_name', 'file_path', 'kind', 'start_line', 'end_line']
+      const col = ['name', 'qualified_name', 'file_path', 'kind', 'start_line', 'end_line',
+        'is_exported', 'is_entry_point', 'is_test']
         .includes(prop) ? `${varName}.${prop}` : `json_extract(${varName}.properties, '$.${prop}')`;
       return `${col} ${op} ${val}`;
     })
     .replace(new RegExp(`${varName}\\.(\\w+)\\s*=\\s*(\\w+)`, 'g'), (_, prop, val) => {
-      if (['name', 'qualified_name', 'file_path', 'kind'].includes(prop)) {
+      if (['name', 'qualified_name', 'file_path', 'kind', 'is_exported', 'is_entry_point', 'is_test'].includes(prop)) {
         return `${varName}.${prop} = '${val}'`;
       }
       return `json_extract(${varName}.properties, '$.${prop}') = ${val}`;
@@ -213,6 +224,29 @@ function appendOrderBy(sql: string, query: string, varName: string): string {
     return translated + dir;
   });
   return sql + ` ORDER BY ${orderParts.join(', ')}`;
+}
+
+function appendGroupBy(
+  sql: string,
+  query: string,
+  returnExpr: string,
+  column: (expr: string) => string,
+): string {
+  const groupMatch = query.match(/GROUP\s+BY\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
+  if (groupMatch) {
+    return `${sql} GROUP BY ${groupMatch[1].trim().split(',').map(group => column(group.trim())).join(', ')}`;
+  }
+
+  // Cypher groups non-aggregate RETURN expressions implicitly. SQLite does
+  // not, and otherwise returns one arbitrary row alongside the total count.
+  if (/\b(COUNT|SUM|AVG|MIN|MAX)\s*\(/i.test(returnExpr)) {
+    const inferred = returnExpr.split(',')
+      .filter(expr => !/\b(COUNT|SUM|AVG|MIN|MAX)\s*\(/i.test(expr))
+      .map(expr => expr.replace(/\s+AS\s+\w+\s*$/i, '').trim())
+      .filter(Boolean);
+    if (inferred.length > 0) return `${sql} GROUP BY ${inferred.map(column).join(', ')}`;
+  }
+  return sql;
 }
 
 // ── MATCH (a:Label)-[r:TYPE]->(b:Label) ────────────────────
@@ -335,12 +369,7 @@ function translateSingleMatch(
     sql += ` AND (${cond})`;
   }
 
-  // GROUP BY
-  const groupMatch = query.match(/GROUP\s+BY\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
-  if (groupMatch) {
-    const groupExpr = groupMatch[1].trim().split(',').map(g => columnSql(g.trim(), varName)).join(', ');
-    sql += ` GROUP BY ${groupExpr}`;
-  }
+  sql = appendGroupBy(sql, query, returnExpr, expr => columnSql(expr, varName));
 
   // ORDER BY — quote bare identifiers to protect reserved words
   sql = appendOrderBy(sql, query, varName);
@@ -372,12 +401,7 @@ function translateAllMatch(
     sql += ` AND (${cond})`;
   }
 
-  // GROUP BY
-  const groupMatch = query.match(/GROUP\s+BY\s+(.+?)(?:\s+LIMIT|\s+ORDER|\s+SKIP|\s*$)/i);
-  if (groupMatch) {
-    const groupExpr = groupMatch[1].trim().split(',').map(g => columnSql(g.trim(), varName)).join(', ');
-    sql += ` GROUP BY ${groupExpr}`;
-  }
+  sql = appendGroupBy(sql, query, returnExpr, expr => columnSql(expr, varName));
 
   // ORDER BY — quote bare identifiers to protect reserved words
   sql = appendOrderBy(sql, query, varName);

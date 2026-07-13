@@ -1,6 +1,7 @@
-import { getDb } from '../server.js';
+import { getDb, getResponseOptimizationMetrics } from '../server.js';
 import { readLynxConfig } from '../../config/runtime.js';
 import { isProjectLocked, listOrphanedLocks } from '../../store/lock.js';
+import { storedTimestampMs } from '../../store/time.js';
 
 type IndexFreshness = 'ready' | 'stale' | 'updating' | 'failed' | 'unknown';
 
@@ -58,7 +59,7 @@ export async function handleIndexStatus(
     } else if (locked || meta.status === 'updating') {
       freshness = 'updating';
     } else if (nodeCount.cnt > 0) {
-      const indexedMs = new Date(meta.indexedAt).getTime();
+      const indexedMs = storedTimestampMs(meta.indexedAt);
       const ageHours = (Date.now() - indexedMs) / (1000 * 60 * 60);
       freshness = ageHours > cfg.stale_threshold_hours ? 'stale' : 'ready';
     }
@@ -76,7 +77,7 @@ export async function handleIndexStatus(
 
   const indexedAt = meta?.indexedAt || null;
   const hoursSinceIndex = indexedAt
-    ? Math.round((Date.now() - new Date(indexedAt).getTime()) / (1000 * 60 * 60))
+    ? Math.round((Date.now() - storedTimestampMs(indexedAt)) / (1000 * 60 * 60))
     : null;
 
   return {
@@ -95,6 +96,7 @@ export async function handleIndexStatus(
     findings: findings.cnt,
     node_labels: Object.fromEntries(nodeLabels.map((r) => [r.kind, r.cnt])),
     edge_types: Object.fromEntries(edgeTypes.map((r) => [r.type, r.cnt])),
+    response_optimization: getResponseOptimizationMetrics(),
     last_run: lastRun ? {
       at: lastRun.run_at,
       mode: lastRun.mode,

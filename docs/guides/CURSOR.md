@@ -250,7 +250,7 @@ blocks from instruction files. Backups are saved as `.lynx-bak`.
 
 ## Verification Checklist
 
-- [ ] `lynx doctor` shows 10/10
+- [ ] `lynx doctor` shows 11/11
 - [ ] `~/.cursor/.mcp.json` has `lynx` entry
 - [ ] `search_graph` returns results for your project
 - [ ] `index_status` shows `freshness: "ready"`

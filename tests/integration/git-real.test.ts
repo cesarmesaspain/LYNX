@@ -287,6 +287,16 @@ describe('unsetDb', () => {
     // Second call should not throw
     expect(() => unsetDb(project, { close: false })).not.toThrow();
   });
+
+  it('keeps unknown-project reads in memory instead of creating a catalog database', () => {
+    const project = `unknown-read-${crypto.randomUUID().slice(0, 8)}`;
+    const db = getDb(project);
+
+    expect(db.dbPath).toBe(':memory:');
+    expect(db.getProject(project)).toBeNull();
+
+    unsetDb(project, { close: true });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════

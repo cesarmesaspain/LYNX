@@ -16,6 +16,7 @@ import { runPipeline } from "../../pipeline/orchestrator.js";
 import { setDb } from "../../mcp/server.js";
 import { clearFederatedConfig } from "../../federation/handler-bridge.js";
 import { clearSessionDedup } from "../../usage/metrics.js";
+import { withLynxHome } from "../../config/runtime.js";
 import {
   chatCompletion,
   computeCost,
@@ -118,11 +119,10 @@ export async function runAgentABBenchmark(
   // The benchmark always owns baseDir. projectDir is read-only input and must
   // never be placed under a directory cleaned up by this runner.
   const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "lynx-agent-ab-"));
-  const originalLynxHome = process.env.LYNX_HOME;
   const tempLynxHome = path.join(baseDir, "lynx-home");
-  process.env.LYNX_HOME = tempLynxHome;
   fs.mkdirSync(tempLynxHome, { recursive: true });
 
+  return withLynxHome(tempLynxHome, async () => {
   let db: LynxDatabase | null = null;
   const project = config.projectDir
     ? `agent-ab-external-${sha256Hash(path.resolve(config.projectDir))}`
@@ -520,17 +520,13 @@ export async function runAgentABBenchmark(
     }
     clearFederatedConfig();
     clearSessionDedup(project);
-    if (originalLynxHome !== undefined) {
-      process.env.LYNX_HOME = originalLynxHome;
-    } else {
-      delete process.env.LYNX_HOME;
-    }
     try {
       fs.rmSync(baseDir, { recursive: true, force: true });
     } catch {
       /* ignore */
     }
   }
+  });
 }
 
 // ── Single task runner ────────────────────────────────────────

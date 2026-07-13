@@ -100,6 +100,24 @@ export function clearSessionDedup(project?: string): void {
   }
 }
 
+function adjustEventForSessionDedup(event: Omit<UsageEvent, 'ts'>): Omit<UsageEvent, 'ts'> {
+  const adjustedEvent = { ...event, files: event.files ? [...event.files] : event.files };
+  if (!adjustedEvent.files || adjustedEvent.files.length === 0 || !adjustedEvent.project) return adjustedEvent;
+
+  if (!sessionFileSet.has(adjustedEvent.project)) sessionFileSet.set(adjustedEvent.project, new Set());
+  const seen = sessionFileSet.get(adjustedEvent.project)!;
+  const newFiles = adjustedEvent.files.filter((file) => !seen.has(file));
+  for (const file of newFiles) seen.add(file);
+
+  if (!adjustedEvent.files_avoided) return adjustedEvent;
+  const dedupRatio = newFiles.length / adjustedEvent.files.length;
+  adjustedEvent.files_avoided = Math.max(1, Math.round(adjustedEvent.files_avoided * dedupRatio));
+  if (adjustedEvent.tokens_saved) {
+    adjustedEvent.tokens_saved = Math.max(1, Math.round(adjustedEvent.tokens_saved * dedupRatio));
+  }
+  return adjustedEvent;
+}
+
 export function usageLogPath(): string {
   return path.join(lynxHome(), 'usage.jsonl');
 }
@@ -175,36 +193,19 @@ export function estimateRerankCostUsd(candidateCount: number): number {
 
 export function recordUsageEvent(event: Omit<UsageEvent, 'ts'>): void {
   try {
+    const adjustedEvent = adjustEventForSessionDedup(event);
     const dir = lynxHome();
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     rotateLogIfNeeded();
 
-    // Session-level dedup: track unique files per project
-    if (event.files && event.files.length > 0 && event.project) {
-      if (!sessionFileSet.has(event.project)) {
-        sessionFileSet.set(event.project, new Set());
-      }
-      const seen = sessionFileSet.get(event.project)!;
-      const newFiles = event.files.filter((f) => !seen.has(f));
-      for (const f of newFiles) seen.add(f);
-      // Adjust files_avoided to count only new files
-      if (event.files_avoided && event.files) {
-        const dedupRatio = event.files.length > 0 ? newFiles.length / event.files.length : 1;
-        event.files_avoided = Math.max(1, Math.round(event.files_avoided * dedupRatio));
-        event.tokens_saved = event.tokens_saved
-          ? Math.max(1, Math.round(event.tokens_saved * dedupRatio))
-          : event.tokens_saved;
-      }
-    }
-
-    const safeQuery = sanitizeQuery(event.query);
+    const safeQuery = sanitizeQuery(adjustedEvent.query);
     const row: UsageEvent = {
       ts: new Date().toISOString(),
-      ...event,
+      ...adjustedEvent,
       query: safeQuery,
-      query_hash: event.query ? hashString(event.query) : undefined,
-      event_id: event.event_id || generateEventId(),
-      deterministic_mode: event.deterministic_mode ?? (process.env.LYNX_NO_LLM === '1'),
+      query_hash: adjustedEvent.query ? hashString(adjustedEvent.query) : undefined,
+      event_id: adjustedEvent.event_id || generateEventId(),
+      deterministic_mode: adjustedEvent.deterministic_mode ?? (process.env.LYNX_NO_LLM === '1'),
     };
     fs.appendFileSync(usageLogPath(), JSON.stringify(row) + '\n');
     // Also archive to metrics.db for long-term history

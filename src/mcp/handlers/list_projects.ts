@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import { readLynxConfig } from '../../config/runtime.js';
 import { listOrphanedLocks } from '../../store/lock.js';
+import { storedTimestampMs } from '../../store/time.js';
 import { scanIndexedProjects } from '../project-catalog.js';
 
 type IndexFreshness = 'ready' | 'stale' | 'updating' | 'failed' | 'unknown';
@@ -10,7 +11,7 @@ function computeFreshness(meta: { status: string; indexedAt: string }, nodeCount
   if (meta.status === 'failed') return 'failed';
   if (meta.status === 'updating') return 'updating';
   if (nodeCount > 0) {
-    const ageHours = (Date.now() - new Date(meta.indexedAt).getTime()) / (1000 * 60 * 60);
+    const ageHours = (Date.now() - storedTimestampMs(meta.indexedAt)) / (1000 * 60 * 60);
     return ageHours > cfg.stale_threshold_hours ? 'stale' : 'ready';
   }
   return 'unknown';

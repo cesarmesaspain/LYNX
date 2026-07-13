@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TOOLS } from './tools.js';
-import { listMcpTools } from './server.js';
+import { buildIndexContext, listMcpTools, setDb, unsetDb } from './server.js';
+import { LynxDatabase } from '../store/database.js';
 
 describe('MCP tool registry', () => {
   it('returns the complete registry in one tools/list response', () => {
@@ -12,8 +13,10 @@ describe('MCP tool registry', () => {
     expect(listed.map(tool => tool.name)).toContain('pack_context');
     expect(listed.map(tool => tool.name)).toContain('delete_project');
     expect(listed.find((tool) => tool.name === 'search_graph')?.description).toContain(
-      'consolidate it and stop investigating',
+      'Use the smallest focused call',
     );
+    expect((listed.find((tool) => tool.name === 'get_code_snippet')?.inputSchema as { properties: Record<string, unknown> })
+      .properties.max_lines).toBeDefined();
   });
 
   it('offers the compact profile only when explicitly requested', () => {
@@ -24,6 +27,33 @@ describe('MCP tool registry', () => {
     } finally {
       if (previous === undefined) delete process.env.LYNX_TOOL_PROFILE;
       else process.env.LYNX_TOOL_PROFILE = previous;
+    }
+  });
+
+  it('keeps the legacy advanced environment profile compatible with Full', () => {
+    const previous = process.env.LYNX_TOOL_PROFILE;
+    process.env.LYNX_TOOL_PROFILE = 'advanced';
+    try {
+      expect(listMcpTools()).toHaveLength(TOOLS.length);
+    } finally {
+      if (previous === undefined) delete process.env.LYNX_TOOL_PROFILE;
+      else process.env.LYNX_TOOL_PROFILE = previous;
+    }
+  });
+});
+
+describe('MCP index context', () => {
+  it('does not label an empty project database as fresh', () => {
+    const project = 'empty-index-context';
+    const db = LynxDatabase.openMemory();
+    try {
+      db.upsertProject(project, process.cwd());
+      setDb(project, db);
+
+      expect(buildIndexContext({ project })).toMatchObject({ freshness: 'unknown' });
+    } finally {
+      unsetDb(project, { close: false });
+      db.close();
     }
   });
 });

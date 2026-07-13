@@ -50,7 +50,10 @@ export async function handlePackMemory(
   const qualifiedName = args.target_qn ? String(args.target_qn) : undefined;
   const targetFile = args.target_file ? String(args.target_file) : undefined;
   const category = args.category ? String(args.category) : undefined;
-  const limit = args.limit !== undefined ? Number(args.limit) : 20;
+  const textQuery = args.query ?? args.search ?? args.text;
+  const queryText = typeof textQuery === 'string' ? textQuery.trim() : undefined;
+  const requestedLimit = args.limit !== undefined ? Number(args.limit) : 20;
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 100)) : 20;
 
   const db = getDb(project);
 
@@ -68,6 +71,7 @@ export async function handlePackMemory(
 
   // Dedup before slicing so limit controls unique findings
   findings = dedupeFindings(findings).slice(0, limit);
+  if (queryText) findings = filterFindingsByText(findings, queryText);
 
   // Complexity trend for specific QN
   let complexityTrend: ComplexityTrend | null = null;
@@ -84,7 +88,7 @@ export async function handlePackMemory(
 
   // Index run comparison
   let runComparison: RunComparison | null = null;
-  if (!qualifiedName && !targetFile && !category) {
+  if (!qualifiedName && !targetFile && !category && !queryText) {
     // Only for broad queries (project overview)
     runComparison = compareRuns(db, project);
   }
@@ -92,7 +96,7 @@ export async function handlePackMemory(
   // Build response
   const result: Record<string, unknown> = {
     project,
-    query: { qualified_name: qualifiedName, file: targetFile, category },
+    query: { qualified_name: qualifiedName, file: targetFile, category, text: queryText },
     total_findings: findings.length,
     findings: findings.map((f) => ({
       title: f.title,
@@ -170,4 +174,14 @@ export async function handlePackMemory(
           : '');
 
   return result;
+}
+
+export function filterFindingsByText(findings: LynxFinding[], query: string): LynxFinding[] {
+  const tokens = query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter(token => token.length >= 3);
+  if (tokens.length === 0) return findings;
+  return findings.filter(finding => {
+    const haystack = [finding.title, finding.description, finding.targetFile, finding.category]
+      .join(' ').toLowerCase();
+    return tokens.some(token => haystack.includes(token));
+  });
 }

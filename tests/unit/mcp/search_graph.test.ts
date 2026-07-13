@@ -277,16 +277,16 @@ describe('search_graph LLM boundary', () => {
     expect(usage.provider).toBeNull();
   });
 
-  it('enable_llm=true defaults to enabled', async () => {
+  it('uses deterministic ranking by default', async () => {
     const result = await handleSearchGraph({ project: LLM_PROJECT, query: 'auth' }) as Record<string, unknown>;
     const usage = result.llm_usage as { enabled: boolean };
-    expect(usage.enabled).toBe(true);
+    expect(usage.enabled).toBe(false);
   });
 
   it('no query skips rerank (llm_usage.used=false)', async () => {
     const result = await handleSearchGraph({ project: LLM_PROJECT, name_pattern: 'auth' }) as Record<string, unknown>;
     const usage = result.llm_usage as { enabled: boolean; used: boolean; calls: number };
-    expect(usage.enabled).toBe(true);
+    expect(usage.enabled).toBe(false);
     expect(usage.used).toBe(false);
     expect(usage.calls).toBe(0);
   });
@@ -295,18 +295,18 @@ describe('search_graph LLM boundary', () => {
     // "User" only matches the Class node (1 result), < 3
     const result = await handleSearchGraph({ project: LLM_PROJECT, query: 'User' }) as Record<string, unknown>;
     const usage = result.llm_usage as { enabled: boolean; used: boolean; calls: number };
-    expect(usage.enabled).toBe(true);
+    expect(usage.enabled).toBe(false);
     expect(usage.used).toBe(false);
   });
 
-  it('3+ candidates with query triggers LLM call', async () => {
+  it('3+ candidates with query stays deterministic unless LLM is requested', async () => {
     // "auth" matches 3 functions (authenticateUser, validatePassword, hashPassword)
     const result = await handleSearchGraph({ project: LLM_PROJECT, query: 'auth' }) as Record<string, unknown>;
     const usage = result.llm_usage as { enabled: boolean; used: boolean; calls: number; provider: string | null; latency_ms: number };
-    expect(usage.enabled).toBe(true);
-    expect(usage.used).toBe(true);
-    expect(usage.calls).toBe(1);
-    expect(usage.provider).toBeDefined();
+    expect(usage.enabled).toBe(false);
+    expect(usage.used).toBe(false);
+    expect(usage.calls).toBe(0);
+    expect(usage.provider).toBeNull();
     expect(usage.latency_ms).toBeGreaterThanOrEqual(0);
   });
 

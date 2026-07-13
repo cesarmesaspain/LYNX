@@ -7,6 +7,7 @@ import { escapeHtml, savingsLabScript, measuredImpactScript } from './utils.js';
 import { renderStyles } from './styles.js';
 import { metricsTabScript } from './scripts/metrics-tab.js';
 import { mainInitScript } from './scripts/main-init.js';
+import { settingsTabScript } from './scripts/settings-tab.js';
 import { projectHealth, type ProjectCard } from './data.js';
 
 function renderProjectCard(c: ProjectCard, isSpanish: boolean): string {
@@ -28,7 +29,7 @@ function renderProjectCard(c: ProjectCard, isSpanish: boolean): string {
       <div class="project-impact">${isSpanish ? 'Tokens ahorrados' : 'Tokens saved'}: <b>${c.tokensSaved.toLocaleString()}</b> · ${isSpanish ? 'Archivos evitados' : 'Files avoided'}: <b>${c.filesAvoided.toLocaleString()}</b></div>
       ${c.semanticEvents > 0 ? `<div class="semantic-note">${isSpanish ? 'Mejora semántica' : 'Semantic lift'}: ${c.semanticTopChanged}/${c.semanticEvents} ${isSpanish ? 'resultados principales mejorados' : 'top-results improved'}</div>` : ''}
       ${c.lastIndexed ? `<div class="muted-text">${isSpanish ? 'Indexado' : 'Indexed'}: ${c.lastIndexed} · ${c.edgeTypes} ${isSpanish ? 'tipos de arista' : 'edge types'}</div>` : ''}
-      <div class="ops-row">${c.dbSizeBytes > 0 ? `<span>${(c.dbSizeBytes / (1024 * 1024)).toFixed(1)} MB</span>` : ''}${c.hoursSinceIndex !== null ? `<span>${c.hoursSinceIndex}h</span>` : ''}${c.llmCalls > 0 ? `<span>${c.llmProvider || 'LLM'}: ${c.llmCalls} calls${c.llmCostUsd > 0 ? ' · $' + c.llmCostUsd.toFixed(4) : ''}</span>` : ''}${c.errorCount > 0 ? `<span style="color:#fca5a5">${c.errorCount} ${isSpanish ? 'errores' : 'errors'}</span>` : ''}</div>
+      <div class="ops-row">${c.hoursSinceIndex !== null ? `<span>${c.hoursSinceIndex}h</span>` : ''}${c.llmCalls > 0 ? `<span>${c.llmProvider || 'LLM'}: ${c.llmCalls} calls${c.llmCostUsd > 0 ? ' · $' + c.llmCostUsd.toFixed(4) : ''}</span>` : ''}${c.errorCount > 0 ? `<span style="color:#fca5a5">${c.errorCount} ${isSpanish ? 'errores' : 'errors'}</span>` : ''}</div>
       <div class="open-graph">${isSpanish ? 'Abrir grafo' : 'Open graph'}</div>
     </button>`;
 }
@@ -51,7 +52,6 @@ export function renderDashboard(cards: ProjectCard[]): string {
   const totalEdges = cards.reduce((s, c) => s + c.edges, 0);
   const totalIndexedFiles = cards.reduce((s, c) => s + c.filesIndexed, 0);
   const totalHotspots = cards.reduce((s, c) => s + c.hotspots, 0);
-  const totalDbSizeMb = Math.round(cards.reduce((s, c) => s + c.dbSizeBytes, 0) / (1024 * 1024));
   const totalLlmCalls = cards.reduce((s, c) => s + c.llmCalls, 0);
   const totalLlmCost = cards.reduce((s, c) => s + c.llmCostUsd, 0);
   const totalErrors = cards.reduce((s, c) => s + c.errorCount, 0);
@@ -76,32 +76,60 @@ export function renderDashboard(cards: ProjectCard[]): string {
   const labels = isSpanish ? {
     projects: 'Proyectos', totalNodes: 'Nodos totales', totalEdges: 'Aristas totales',
     indexedFiles: 'Archivos indexados', tokensSaved: 'Tokens ahorrados', filesAvoided: 'Archivos evitados',
-    dbSize: 'Tamaño BD', llmCalls: 'LLM llamadas', errors: 'Errores',
-    whyTitle: 'Por qué LYNX importa', whyBody: `${totalHotspots.toLocaleString()} puntos críticos detectados en ${totalIndexedFiles.toLocaleString()} archivos. La exploración inicial evitó aproximadamente ${totalTokens.toLocaleString()} tokens en local.`,
+    llmCalls: 'LLM llamadas', errors: 'Errores',
     actionGraph: 'Grafo de acción', force: 'Fuerza', ring: 'Anillo', value: 'Valor', risk: 'Riesgo',
     entry: 'Entrada', hotspots: 'Críticos', graphTitle: 'Mapa de arquitectura accionable',
     graphDesc: 'LYNX muestra el grafo por valor operativo: ahorro de contexto, riesgo, puntos de entrada y puntos críticos. Haz clic en un nodo para inspeccionarlo.',
     dragToRotate: 'arrastrar para rotar', wheelToZoom: 'rueda para ampliar',
-    overview: 'Resumen', projectsTab: 'Proyectos', savings: 'Ahorros', metrics: 'Métricas',
-    localOnly: 'solo local — sin nube', briefLoad: 'Scanning indexed data',
+    overview: 'Resumen', projectsTab: 'Proyectos', savings: 'Ahorros', metrics: 'Métricas', settings: 'Configuración',
+    localOnly: 'solo local — sin nube', briefLoad: 'Analizando datos indexados',
     savedProjects: 'Proyectos', addProject: 'Añadir proyecto',
+    fullscreen: 'Pantalla completa', fullscreenControls: 'Controles del grafo a pantalla completa',
+    briefTitle: 'Resumen de arquitectura', briefCached: 'en caché',
+    legendValue: 'valor', legendRisk: 'edición arriesgada', legendEntry: 'punto de entrada', legendHotspot: 'punto crítico',
     deleteTitle: '¿Eliminar', deleteBody: 'Se eliminarán el proyecto y todos sus datos indexados. Esta acción no se puede deshacer.',
-    cancel: 'Cancelar', delete: 'Eliminar', footer: 'LYNX Code Intelligence · Todas las métricas son locales y privadas',
+    apiKeysSection: 'Claves API', preferencesSection: 'Preferencias',
+    agentResponseSection: 'Respuestas de agentes',
+    agentResponseHelp: 'Indica a Codex, Claude y otros clientes MCP cómo de concisas deben ser sus respuestas tras usar LYNX. No recorta el código ni pierde evidencia.',
+    agentResponseEnable: 'Optimizar respuestas', agentResponseLength: 'Extensión', agentResponseStyle: 'Estilo', agentResponseBudget: 'Presupuesto', agentResponseInterval: 'Recordatorio',
+    agentResponseMaxSavings: 'Máximo ahorro', agentResponseBalancedBudget: 'Equilibrado', agentResponseThorough: 'Completo',
+    agentResponseShort: 'Corta', agentResponseMedium: 'Media', agentResponseLong: 'Detallada',
+    agentResponseConcise: 'Directo', agentResponseBalanced: 'Equilibrado', agentResponseDetailed: 'Explicativo',
+    agentResponseEvery: 'Cada', agentResponseMinutes: 'minutos', agentResponseSaved: 'Preferencia guardada',
+    deepseekKey: 'DeepSeek API Key', vpsUrl: 'URL VPS', vpsKey: 'VPS API Key',
+    save: 'Guardar', saved: 'Guardado', saving: 'Guardando...', loaded: '(configurada)',
+    autoIndex: 'Auto-index', autoWatch: 'Auto-watch',
+    autoDashboard: 'Dashboard automático', indexLimit: 'Límite de indexación', staleHours: 'Índice desactualizado', lockMinutes: 'Bloqueo caducado',
+    cancel: 'Cancelar', delete: 'Eliminar',
     panelTitle: 'Panel de LYNX',
   } : {
     projects: 'Projects', totalNodes: 'Total Nodes', totalEdges: 'Total Edges',
     indexedFiles: 'Indexed Files', tokensSaved: 'Tokens Saved', filesAvoided: 'Files Avoided',
-    dbSize: 'DB Size', llmCalls: 'LLM Calls', errors: 'Errors',
-    whyTitle: 'Why LYNX matters', whyBody: `${totalHotspots.toLocaleString()} hotspots detected across ${totalIndexedFiles.toLocaleString()} files. First-pass exploration avoided roughly ${totalTokens.toLocaleString()} tokens locally.`,
+    llmCalls: 'LLM Calls', errors: 'Errors',
     actionGraph: 'Action Graph', force: 'Force', ring: 'Ring', value: 'Value', risk: 'Risk',
     entry: 'Entry', hotspots: 'Hotspots', graphTitle: 'Actionable architecture map',
     graphDesc: 'LYNX shows the graph by operational value: context savings, risk, entry points and hotspots. Click a node to inspect it.',
     dragToRotate: 'drag to rotate', wheelToZoom: 'wheel to zoom',
-    overview: 'Overview', projectsTab: 'Projects', savings: 'Savings', metrics: 'Metrics',
+    overview: 'Overview', projectsTab: 'Projects', savings: 'Savings', metrics: 'Metrics', settings: 'Settings',
     localOnly: 'local only — no cloud', briefLoad: 'Scanning indexed data',
     savedProjects: 'Projects', addProject: 'Add project',
+    fullscreen: 'Fullscreen', fullscreenControls: 'Fullscreen graph controls',
+    briefTitle: 'Architecture Brief', briefCached: 'cached',
+    legendValue: 'value', legendRisk: 'risky edit', legendEntry: 'entry point', legendHotspot: 'hotspot',
     deleteTitle: 'Delete', deleteBody: 'This will remove the project and all its indexed data. This action cannot be undone.',
-    cancel: 'Cancel', delete: 'Delete', footer: 'LYNX Code Intelligence · All metrics are local and private',
+    apiKeysSection: 'API Keys', preferencesSection: 'Preferences',
+    agentResponseSection: 'Agent responses',
+    agentResponseHelp: 'Tells Codex, Claude, and other MCP clients how concise their responses should be after using LYNX. It never trims code or removes evidence.',
+    agentResponseEnable: 'Optimize responses', agentResponseLength: 'Length', agentResponseStyle: 'Style', agentResponseBudget: 'Budget', agentResponseInterval: 'Reminder',
+    agentResponseMaxSavings: 'Maximum savings', agentResponseBalancedBudget: 'Balanced', agentResponseThorough: 'Thorough',
+    agentResponseShort: 'Short', agentResponseMedium: 'Medium', agentResponseLong: 'Detailed',
+    agentResponseConcise: 'Direct', agentResponseBalanced: 'Balanced', agentResponseDetailed: 'Explanatory',
+    agentResponseEvery: 'Every', agentResponseMinutes: 'minutes', agentResponseSaved: 'Preference saved',
+    deepseekKey: 'DeepSeek API Key', vpsUrl: 'VPS URL', vpsKey: 'VPS API Key',
+    save: 'Save', saved: 'Saved', saving: 'Saving...', loaded: '(configured)',
+    autoIndex: 'Auto-index', autoWatch: 'Auto-watch',
+    autoDashboard: 'Auto dashboard', indexLimit: 'Indexing limit', staleHours: 'Stale index', lockMinutes: 'Expired lock',
+    cancel: 'Cancel', delete: 'Delete',
     panelTitle: 'LYNX Dashboard',
   };
 
@@ -124,7 +152,8 @@ export function renderDashboard(cards: ProjectCard[]): string {
     <button class="tab-btn" data-tab="projects"><span class="tab-icon">&#9776;</span>${labels.projectsTab}</button>
     <button class="tab-btn" data-tab="savings"><span class="tab-icon">&#9733;</span>${labels.savings}</button>
     <button class="tab-btn" data-tab="metrics"><span class="tab-icon">&#9776;</span>${labels.metrics}</button>
-    <button class="add-project-btn-tab" id="addProjectBtnTab" type="button"><span class="plus-circle">+</span> Proyecto</button>
+    <button class="tab-btn" data-tab="settings"><span class="tab-icon">&#9881;</span>${labels.settings}</button>
+    <button class="add-project-btn-tab" id="addProjectBtnTab" type="button"><span class="plus-circle">+</span> ${labels.addProject}</button>
   </nav>
   <main>
     <!-- Overview tab -->
@@ -135,16 +164,12 @@ export function renderDashboard(cards: ProjectCard[]): string {
         <div class="summary-card"><div class="label"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:-2px;margin-right:5px"><line x1="3" y1="3" x2="17" y2="17" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round"/><line x1="17" y1="3" x2="3" y2="17" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round"/><circle cx="10" cy="4" r="2" stroke="#f59e0b" stroke-width="1.5"/><circle cx="4" cy="10" r="2" stroke="#f59e0b" stroke-width="1.5"/><circle cx="16" cy="10" r="2" stroke="#f59e0b" stroke-width="1.5"/><circle cx="10" cy="16" r="2" stroke="#f59e0b" stroke-width="1.5"/></svg>${labels.totalEdges}</div><div class="value">${totalEdges.toLocaleString()}</div></div>
         <div class="summary-card"><div class="label"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="M4 3h6l3 3h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="#38bdf8" stroke-width="1.5" stroke-linejoin="round"/></svg>${labels.indexedFiles}</div><div class="value">${totalIndexedFiles.toLocaleString()}</div></div>
         <div class="summary-card"><div class="label"><span class="token-label-dollar">$</span>${labels.tokensSaved}</div><div class="value token-value">${totalTokens.toLocaleString()}</div></div>
-        <div class="summary-card"><div class="label"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="M5 3h10a2 2 0 0 1 2 2v5l-7 3-7-3V5a2 2 0 0 1 2-2z" stroke="#f472b6" stroke-width="1.5" stroke-linejoin="round"/><path d="M3 10v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="#f472b6" stroke-width="1.5" stroke-linejoin="round"/><line x1="10" y1="3" x2="10" y2="13" stroke="#f472b6" stroke-width="1.5"/></svg>${labels.filesAvoided}</div><div class="value">${totalFiles.toLocaleString()}</div></div>${totalDbSizeMb > 0 ? `
-        <div class="summary-card"><div class="label"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:-2px;margin-right:5px"><rect x="3" y="2" width="14" height="16" rx="2" stroke="#22d3ee" stroke-width="1.5"/><line x1="7" y1="8" x2="13" y2="8" stroke="#22d3ee" stroke-width="1.5"/><line x1="7" y1="12" x2="11" y2="12" stroke="#22d3ee" stroke-width="1.5"/></svg>${labels.dbSize}</div><div class="value">${totalDbSizeMb} MB</div></div>` : ''}${totalLlmCalls > 0 ? `
+        <div class="summary-card"><div class="label"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:-2px;margin-right:5px"><path d="M5 3h10a2 2 0 0 1 2 2v5l-7 3-7-3V5a2 2 0 0 1 2-2z" stroke="#f472b6" stroke-width="1.5" stroke-linejoin="round"/><path d="M3 10v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="#f472b6" stroke-width="1.5" stroke-linejoin="round"/><line x1="10" y1="3" x2="10" y2="13" stroke="#f472b6" stroke-width="1.5"/></svg>${labels.filesAvoided}</div><div class="value">${totalFiles.toLocaleString()}</div></div>
+${totalLlmCalls > 0 ? `
         <div class="summary-card"><div class="label"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:-2px;margin-right:5px"><circle cx="10" cy="10" r="7" stroke="#a78bfa" stroke-width="1.5"/><path d="M7 10h6M10 7v6" stroke="#a78bfa" stroke-width="1.5" stroke-linecap="round"/></svg>${labels.llmCalls}</div><div class="value">${totalLlmCalls.toLocaleString()}</div></div>` : ''}${totalErrors > 0 ? `
         <div class="summary-card"><div class="label"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" style="vertical-align:-2px;margin-right:5px"><circle cx="10" cy="10" r="7" stroke="#ef4444" stroke-width="1.5"/><line x1="7" y1="7" x2="13" y2="13" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/><line x1="13" y1="7" x2="7" y2="13" stroke="#ef4444" stroke-width="1.5" stroke-linecap="round"/></svg>${labels.errors}</div><div class="value" style="color:#ef4444">${totalErrors}</div></div>` : ''}
       </section>
 
-      <section class="value-strip">
-        <b>${labels.whyTitle}</b>
-        <span>${labels.whyBody}</span>
-      </section>
 
       <div class="graph-toolbar">
         <h2 style="margin:0 8px 0 0">${labels.actionGraph}</h2>
@@ -152,8 +177,6 @@ export function renderDashboard(cards: ProjectCard[]): string {
           ${cards.map((c) => `<option value="${escapeHtml(c.name)}"${c.name === graphProject ? ' selected' : ''}>${escapeHtml(c.displayName)}</option>`).join('')}
         </select>
         <span style="color:#475569;margin:0 4px">|</span>
-        <button data-layout="force" class="active">${labels.force}</button>
-        <button data-layout="ring">${labels.ring}</button>
         <button data-mode="value" class="active">${labels.value}</button>
         <button data-mode="risk">${labels.risk}</button>
         <button data-mode="entry">${labels.entry}</button>
@@ -161,16 +184,16 @@ export function renderDashboard(cards: ProjectCard[]): string {
       </div>
       <section class="action-graph">
         <div class="card graph-shell">
-          <button class="fullscreen-btn" id="graphFullscreen" type="button" title="Pantalla completa" aria-label="Pantalla completa">⛶</button>
-          <div class="fullscreen-left" aria-label="Fullscreen graph controls">
+          <button class="fullscreen-btn" id="graphFullscreen" type="button" title="${labels.fullscreen}" aria-label="${labels.fullscreen}">⛶</button>
+          <div class="fullscreen-left" aria-label="${labels.fullscreenControls}">
             <div class="fs-mode-bar">
-              <button data-fs-layout="force" class="active" type="button">Force</button>
-              <button data-fs-layout="ring" type="button">Ring</button>
+              <button data-fs-layout="force" class="active" type="button">${labels.force}</button>
+              <button data-fs-layout="ring" type="button">${labels.ring}</button>
               <span style="color:#475569;margin:0 2px">|</span>
-              <button data-fs-mode="value" class="active" type="button">Value</button>
-              <button data-fs-mode="risk" type="button">Risk</button>
-              <button data-fs-mode="entry" type="button">Entry</button>
-              <button data-fs-mode="hotspot" type="button">Hotspots</button>
+              <button data-fs-mode="value" class="active" type="button">${labels.value}</button>
+              <button data-fs-mode="risk" type="button">${labels.risk}</button>
+              <button data-fs-mode="entry" type="button">${labels.entry}</button>
+              <button data-fs-mode="hotspot" type="button">${labels.hotspots}</button>
             </div>
             <div class="fs-project-list">
               ${fullscreenProjects}
@@ -178,11 +201,15 @@ export function renderDashboard(cards: ProjectCard[]): string {
           </div>
           <canvas id="actionGraph" width="960" height="520" aria-label="LYNX 3D action graph"></canvas>
           <aside class="card detail-panel fullscreen-detail" id="graphFullscreenDetail"></aside>
+          <div class="graph-layout-controls">
+            <button data-layout="force" class="active" type="button">${labels.force}</button>
+            <button data-layout="ring" type="button">${labels.ring}</button>
+          </div>
           <div class="graph-legend">
-            <span><i class="legend-dot" style="background:#22c55e"></i>value</span>
-            <span><i class="legend-dot" style="background:#ef4444"></i>risky edit</span>
-            <span><i class="legend-dot" style="background:#38bdf8"></i>entry point</span>
-            <span><i class="legend-dot" style="background:#f59e0b"></i>hotspot</span>
+            <span><i class="legend-dot" style="background:#22c55e"></i>${labels.legendValue}</span>
+            <span><i class="legend-dot" style="background:#ef4444"></i>${labels.legendRisk}</span>
+            <span><i class="legend-dot" style="background:#38bdf8"></i>${labels.legendEntry}</span>
+            <span><i class="legend-dot" style="background:#f59e0b"></i>${labels.legendHotspot}</span>
           </div>
         </div>
         <aside class="card detail-panel" id="graphDetail">
@@ -194,12 +221,12 @@ export function renderDashboard(cards: ProjectCard[]): string {
       </section>
 
       <section class="brief-card" id="projectBriefCard">
-        <h2>Architecture Brief</h2>
+        <h2>${labels.briefTitle}</h2>
         <div id="projectBriefLive" ${primaryBrief ? '' : 'style="display:none"'}>
           <div class="brief-meta">
             <span class="detail-pill" id="projectBriefProject">${escapeHtml(cards.find((c) => c.brief)?.displayName || '')}</span>
             <span class="detail-pill" id="projectBriefDate">${primaryBrief ? `generated ${escapeHtml(primaryBrief.generated_at)}` : ''}</span>
-            <span class="detail-pill">cached</span>
+            <span class="detail-pill">${labels.briefCached}</span>
           </div>
           <div class="brief-carousel" id="projectBriefCarousel">
             <button class="brief-nav prev" id="briefPrev" type="button" aria-label="Previous">&lsaquo;</button>
@@ -315,6 +342,47 @@ export function renderDashboard(cards: ProjectCard[]): string {
         <div class="coverage-text" id="mtCoverageText">${isSpanish ? 'Cargando métricas...' : 'Loading metrics...'}</div>
       </section>
     </section>
+
+    <!-- Settings tab -->
+    <section class="tab-panel" id="tab-settings">
+      <div class="settings-section settings-agent-response">
+        <h3><span class="tab-icon">&#10022;</span>${labels.agentResponseSection}</h3>
+        <p class="settings-help">${labels.agentResponseHelp}</p>
+        <div class="settings-toggle-row"><label>${labels.agentResponseEnable}</label><label class="settings-toggle"><input type="checkbox" id="cfgAgentResponseEnabled"><span class="toggle-slider"></span></label></div>
+        <div class="settings-field"><label>${labels.agentResponseLength}</label><select class="settings-input" id="cfgAgentResponseLength" style="max-width:220px"><option value="short">${labels.agentResponseShort}</option><option value="medium">${labels.agentResponseMedium}</option><option value="long">${labels.agentResponseLong}</option></select></div>
+        <div class="settings-field"><label>${labels.agentResponseStyle}</label><select class="settings-input" id="cfgAgentResponseStyle" style="max-width:220px"><option value="concise">${labels.agentResponseConcise}</option><option value="balanced">${labels.agentResponseBalanced}</option><option value="detailed">${labels.agentResponseDetailed}</option></select></div>
+        <div class="settings-field"><label>${labels.agentResponseBudget}</label><select class="settings-input" id="cfgAgentResponseBudget" style="max-width:220px"><option value="max_savings">${labels.agentResponseMaxSavings}</option><option value="balanced">${labels.agentResponseBalancedBudget}</option><option value="thorough">${labels.agentResponseThorough}</option></select></div>
+        <div class="settings-field"><label>${labels.agentResponseInterval}</label><div class="settings-inline"><span>${labels.agentResponseEvery}</span><select class="settings-input" id="cfgAgentResponseInterval" style="max-width:110px"><option value="5">5</option><option value="15">15</option><option value="30">30</option><option value="60">60</option></select><span>${labels.agentResponseMinutes}</span></div></div>
+        <button class="settings-save-btn" id="saveAgentResponseBtn" type="button">${labels.save}</button><span class="settings-flash" id="flashAgentResponse" style="display:none"></span>
+      </div>
+      <div class="settings-grid">
+      <div class="settings-section">
+        <h3><span class="tab-icon">&#9881;</span>${labels.apiKeysSection}</h3>
+        <div class="settings-field"><label>${labels.deepseekKey}</label><input type="password" class="settings-input" id="cfgDeepseekKey" placeholder="sk-..." autocomplete="off"><span class="settings-flash" id="flashDeepseek" style="display:none"></span></div>
+        <button class="settings-save-btn" id="saveDeepseekBtn" type="button">${labels.save}</button>
+        <hr class="settings-separator">
+        <div class="settings-field"><label>${labels.vpsUrl}</label><input type="text" class="settings-input" id="cfgVpsUrl" placeholder="https://..." autocomplete="off"><span class="settings-flash" id="flashVpsUrl" style="display:none"></span></div>
+        <div class="settings-field"><label>${labels.vpsKey}</label><input type="password" class="settings-input" id="cfgVpsKey" placeholder="sk-..." autocomplete="off"><span class="settings-flash" id="flashVpsKey" style="display:none"></span></div>
+        <button class="settings-save-btn" id="saveVpsBtn" type="button">${labels.save}</button>
+      </div>
+      <div class="settings-section">
+        <h3><span class="tab-icon">&#9881;</span>${labels.preferencesSection}</h3>
+        <div class="settings-field"><label>${isSpanish ? 'Idioma' : 'Language'}</label><select class="settings-input" id="cfgLocale" style="max-width:200px"><option value="es"${isSpanish ? ' selected' : ''}>Español</option><option value="en"${!isSpanish ? ' selected' : ''}>English</option></select><span class="settings-flash" id="flashLocale" style="display:none"></span></div>
+        <div class="settings-toggle-row"><label>${labels.autoIndex}</label><label class="settings-toggle"><input type="checkbox" id="cfgAutoIndex"><span class="toggle-slider"></span></label><span class="settings-flash" id="flashAutoIndex" style="display:none"></span></div>
+        <div class="settings-toggle-row"><label>${labels.autoWatch}</label><label class="settings-toggle"><input type="checkbox" id="cfgAutoWatch"><span class="toggle-slider"></span></label><span class="settings-flash" id="flashAutoWatch" style="display:none"></span></div>
+        <div class="settings-toggle-row"><label>${labels.autoDashboard}</label><label class="settings-toggle"><input type="checkbox" id="cfgAutoDashboard"><span class="toggle-slider"></span></label></div>
+        <div class="settings-toggle-row"><label>${isSpanish ? 'Resumen con LLM' : 'LLM architecture brief'}</label><label class="settings-toggle"><input type="checkbox" id="cfgBriefLlm"><span class="toggle-slider"></span></label></div>
+        <p class="settings-help" style="margin:0 0 14px">${isSpanish ? 'Desactivado por defecto: el resumen se genera localmente tras indexar. Actívalo solo si quieres enriquecer las nuevas versiones con LLM.' : 'Off by default: the brief is generated locally after indexing. Enable only to enrich new versions with an LLM.'}</p>
+        <div class="settings-field"><label>${isSpanish ? 'Catálogo MCP' : 'MCP catalog'}</label><select class="settings-input" id="cfgMcpToolProfile" style="max-width:260px"><option value="full">${isSpanish ? 'Completo (todas las herramientas)' : 'Full (all tools)'}</option><option value="core">${isSpanish ? 'Esencial (ahorro máximo)' : 'Core (maximum savings)'}</option></select></div>
+        <p class="settings-help" style="margin:0 0 14px">${isSpanish ? 'El perfil esencial reduce el contexto inicial del cliente. Requiere reiniciar el cliente MCP y oculta herramientas avanzadas hasta volver al perfil completo.' : 'Core reduces the client startup context. Restart the MCP client to apply it; advanced tools stay hidden until you switch back to Full.'}</p>
+        <div class="settings-field"><label>${labels.indexLimit}</label><input type="number" class="settings-input" id="cfgAutoIndexLimit" min="0" step="1000" style="max-width:180px"></div>
+        <div class="settings-field"><label>${labels.staleHours}</label><input type="number" class="settings-input" id="cfgStaleHours" min="1" max="720" style="max-width:180px"></div>
+        <div class="settings-field"><label>${labels.lockMinutes}</label><input type="number" class="settings-input" id="cfgLockMinutes" min="1" max="120" style="max-width:180px"></div>
+        <p style="color:#64748b;font-size:12px;margin-bottom:14px">${isSpanish ? 'Los cambios aplican en nuevas operaciones; reinicia el servidor MCP si un cliente conserva la configuración.' : 'Changes apply to new operations; restart the MCP server if a client keeps cached configuration.'}</p>
+        <button class="settings-save-btn" id="savePrefsBtn" type="button">${labels.save}</button>
+      </div>
+      </div>
+    </section>
   </main>
   <div class="delete-modal-overlay" id="deleteProjectModal">
     <div class="delete-modal-box">
@@ -326,9 +394,9 @@ export function renderDashboard(cards: ProjectCard[]): string {
       </div>
     </div>
   </div>
-  <footer>${labels.footer}</footer>
   <script id="metricsTabScript" type="text/javascript">${metricsTabScript(isSpanish, cards, totalTokens, totalFiles)}</script>
   <script>${mainInitScript(isSpanish, cards, graphProject, briefPayload, primaryBrief)}</script>
+  <script>${settingsTabScript(isSpanish, labels)}</script>
 </body>
 </html>`;
 }

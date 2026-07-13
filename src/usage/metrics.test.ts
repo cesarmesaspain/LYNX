@@ -116,6 +116,27 @@ describe('session dedup', () => {
     expect(summary.tokens_saved).toBeLessThan(16_000);
   });
 
+  it('does not mutate the caller event during deduplication', () => {
+    const event = {
+      type: 'search_graph' as const,
+      project: 'dedup-immutable',
+      files: ['src/a.ts', 'src/b.ts'],
+      files_avoided: 8,
+      tokens_saved: 6000,
+    };
+
+    recordUsageEvent(event);
+    recordUsageEvent(event);
+
+    expect(event).toEqual({
+      type: 'search_graph',
+      project: 'dedup-immutable',
+      files: ['src/a.ts', 'src/b.ts'],
+      files_avoided: 8,
+      tokens_saved: 6000,
+    });
+  });
+
   it('unique_files_avoided is less than or equal to files_avoided', () => {
     recordUsageEvent({
       type: 'hook_augment',

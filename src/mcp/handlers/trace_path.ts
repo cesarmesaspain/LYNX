@@ -20,21 +20,34 @@ import { executeLocalTracePath } from '../../federation/trace-core.js';
 import { federatedTracePath } from '../../federation/gateway.js';
 import { getFederatedConfig } from '../../federation/handler-bridge.js';
 import type { TraceEntry, TraceEdge } from '../../federation/types.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 export async function handleTracePath(args: Record<string, unknown>): Promise<unknown> {
   const started = Date.now();
-  const functionName = String(args.function_name || '');
+  // `function_name` is canonical, but accept the identifier names exposed by
+  // other discovery tools so a user can pass their result through directly.
+  const functionName = String(
+    args.function_name || args.qualified_name || args.symbol || args.name || '',
+  );
   const project = String(args.project || '');
   const direction = (args.direction as string) || 'both';
-  const depth = args.depth !== undefined ? Number(args.depth) : 3;
+  const savingsMode = readLynxConfig().agent_response?.enabled && readLynxConfig().agent_response?.budget === 'max_savings';
+  const defaultDepth = savingsMode && args.risk_labels !== true ? 2 : 3;
+  const rawDepth = args.depth !== undefined ? Number(args.depth) : defaultDepth;
+  const depth = Number.isFinite(rawDepth) ? Math.max(1, Math.min(Math.floor(rawDepth), 10)) : defaultDepth;
   const mode = (args.mode as string) || 'calls';
   const riskLabels = args.risk_labels === true;
   const includeTests = args.include_tests === true;
   const parameterName = args.parameter_name ? String(args.parameter_name) : undefined;
   const customEdgeTypes = args.edge_types as string[] | undefined;
-  const maxResults = args.max_results !== undefined ? Number(args.max_results) : 30;
-  const page = args.page !== undefined ? Number(args.page) : 0;
-  const pageSize = args.page_size !== undefined ? Number(args.page_size) : Math.min(maxResults, 12);
+  const defaultMaxResults = savingsMode && args.risk_labels !== true ? 15 : 30;
+  const rawMaxResults = args.max_results !== undefined ? Number(args.max_results) : defaultMaxResults;
+  const maxResults = Number.isFinite(rawMaxResults) ? Math.max(1, Math.min(Math.floor(rawMaxResults), 100)) : defaultMaxResults;
+  const rawPage = args.page !== undefined ? Number(args.page) : 0;
+  const page = Number.isFinite(rawPage) ? Math.max(0, Math.floor(rawPage)) : 0;
+  const defaultPageSize = savingsMode && args.risk_labels !== true ? 8 : 12;
+  const rawPageSize = args.page_size !== undefined ? Number(args.page_size) : Math.min(maxResults, defaultPageSize);
+  const pageSize = Number.isFinite(rawPageSize) ? Math.max(1, Math.min(Math.floor(rawPageSize), maxResults, 100)) : Math.min(maxResults, defaultPageSize);
   const includeEdges = args.include_edges === true;
 
   const db = getDb(project);
@@ -56,14 +69,33 @@ export async function handleTracePath(args: Record<string, unknown>): Promise<un
 
   // Enrich entries with 1-line signatures
   const sigMap = enrichSignatures(db, project, rootPath(db, project), allCallers, allCallees);
+  const callers = allCallers.filter(entry => isLikelyCallableSignature(sigMap.get(entry.qualified_name)));
+  const callees = allCallees.filter(entry => isLikelyCallableSignature(sigMap.get(entry.qualified_name)));
+  const traceNames = new Set([root.name, ...callers.map(entry => entry.name), ...callees.map(entry => entry.name)]);
+  const edges = allEdges.filter(edge => traceNames.has(edge.fromName) && traceNames.has(edge.toName));
 
   return buildTraceResponse({
-    root, allCallers, allCallees, allEdges, sigMap,
-    direction, mode, filteredCount, maxHop,
-    totalCallers, totalCallees, provenanceSummary,
+    root, allCallers: callers, allCallees: callees, allEdges: edges, sigMap,
+    direction, mode, filteredCount: callers.length + callees.length, maxHop,
+    totalCallers: callers.length, totalCallees: callees.length, provenanceSummary,
     page, pageSize, maxResults, includeEdges, parameterName,
     project, functionName, started,
   });
+}
+
+/**
+ * Graph extraction can occasionally classify a local value as a function.
+ * When the source line is available, do not expose it as a call-path node
+ * unless it has an invocable declaration shape. Missing source remains
+ * permissive so traces for generated or unavailable files are unaffected.
+ */
+export function isLikelyCallableSignature(signature: string | undefined): boolean {
+  if (!signature) return true;
+  const source = signature.trim();
+  return /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function|class)\b/.test(source)
+    || /\bfunction\b/.test(source)
+    || /=>/.test(source)
+    || /^(?:async\s+)?(?:get\s+|set\s+)?[A-Za-z_$][\w$]*\s*\(/.test(source);
 }
 
 // ── Data retrieval ─────────────────────────────────────

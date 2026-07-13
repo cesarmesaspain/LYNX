@@ -43,6 +43,8 @@ export function actionGraphScript(): string {
   let selectedId = null;
   let lastFrame = performance.now();
   let drawQueued = false;
+  let animationFrame = null;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
   let loading = false;
   let cameraFit = null;
   let lastCanvasWidth = 0;
@@ -152,22 +154,27 @@ export function actionGraphScript(): string {
     if (projectBriefLive) projectBriefLive.style.display = '';
     projectBriefCard.style.display = '';
     projectBriefProject.textContent = project === 'lynx' ? 'LYNX' : project;
-    projectBriefDate.textContent = item.generated_at ? 'generated ' + item.generated_at : 'cached';
+    projectBriefDate.textContent = item.generated_at
+      ? (isSpanish ? 'generado ' : 'generated ') + item.generated_at
+      : (isSpanish ? 'en caché' : 'cached');
 
     // Normalize brand name in brief text (LLM output varies casing)
     function normBrand(text) {
       return String(text || '').replace(/\blynx\b/gi, 'LYNX');
     }
 
+    // Briefs created by older indexers can be JSON encoded twice. Unwrap the
+    // payload before reading sections so raw JSON can never reach the UI.
     let sections = [];
-    try {
-      const parsed = JSON.parse(item.brief);
-      sections = parsed.sections || [];
-      // Normalize brief text in-place
-      sections = sections.map(function(s) {
-        return { title: normBrand(s.title), content: normBrand(s.content) };
-      });
-    } catch {}
+    let parsed = item.brief;
+    for (let depth = 0; depth < 2 && typeof parsed === 'string'; depth++) {
+      try { parsed = JSON.parse(parsed); } catch { break; }
+    }
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.sections)) {
+      sections = parsed.sections
+        .filter(function(s) { return s && typeof s.title === 'string' && typeof s.content === 'string'; })
+        .map(function(s) { return { title: normBrand(s.title), content: normBrand(s.content) }; });
+    }
 
     // Fallback: parse old markdown brief into sections
     if (!sections.length) {
@@ -179,7 +186,13 @@ export function actionGraphScript(): string {
         if (title && content) sections.push({ title: title, content: content });
       }
       if (sections.length < 3) {
-        sections = [{ title: 'Resumen', content: item.brief.slice(0, 800) || 'Sin contenido.' }];
+        const looksLikeJson = /^\s*[{[]/.test(item.brief);
+        sections = [{
+          title: isSpanish ? 'Resumen' : 'Summary',
+          content: looksLikeJson
+            ? (isSpanish ? 'El resumen está disponible, pero su formato necesita regenerarse.' : 'The brief is available, but its format needs to be regenerated.')
+            : (item.brief.slice(0, 800) || (isSpanish ? 'Sin contenido.' : 'No content.')),
+        }];
       }
       // Normalize fallback sections too
       sections = sections.map(function(s) {
@@ -341,14 +354,7 @@ export function actionGraphScript(): string {
     // Clamp dt to avoid explosion on tab switch
     const step = Math.min(dt, 40) * 0.06;
 
-    // Build edge adjacency for spring forces
-    const neighbors = new Map();
-    for (const e of graph.edges) {
-      if (!neighbors.has(e.source)) neighbors.set(e.source, []);
-      if (!neighbors.has(e.target)) neighbors.set(e.target, []);
-      neighbors.get(e.source).push(e.target);
-      neighbors.get(e.target).push(e.source);
-    }
+    const nodesById = new Map(nodes.map(node => [node.id, node]));
 
     // Compute forces
     const forces = new Map();
@@ -374,7 +380,7 @@ export function actionGraphScript(): string {
     const kSpring = 0.004;
     const restLen = 95;
     for (const e of graph.edges) {
-      const a = nodes.find(nd => nd.id === e.source), b = nodes.find(nd => nd.id === e.target);
+      const a = nodesById.get(e.source), b = nodesById.get(e.target);
       if (!a || !b) continue;
       let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
@@ -545,7 +551,14 @@ export function actionGraphScript(): string {
     ctx.closePath();
   }
 
+  function scheduleAnimation() {
+    if (reduceMotion || document.visibilityState !== 'visible' || animationFrame !== null) return;
+    animationFrame = requestAnimationFrame(animate);
+  }
+
   function animate(now) {
+    animationFrame = null;
+    if (document.visibilityState !== 'visible') return;
     const dt = Math.min(50, now - lastFrame);
     lastFrame = now;
     if (layout === 'force' && !dragging && !forceSettled) {
@@ -557,7 +570,7 @@ export function actionGraphScript(): string {
       rotX += Math.sin(now * 0.00018) * 0.000018;
       requestDraw();
     }
-    requestAnimationFrame(animate);
+    scheduleAnimation();
   }
 
   function edgeColor(type) {
@@ -732,6 +745,12 @@ export function actionGraphScript(): string {
     });
   }
   window.addEventListener('resize', requestDraw);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    lastFrame = performance.now();
+    requestDraw();
+    scheduleAnimation();
+  });
   fullscreenBtn?.addEventListener('click', async () => {
     if (!document.fullscreenElement) {
       await graphShell?.requestFullscreen?.();
@@ -752,7 +771,10 @@ export function actionGraphScript(): string {
       load({ preserveCamera: true, preserveSelection: true });
     }
   }, 30000);
-  load().then(() => requestAnimationFrame(animate));
+  load().then(() => {
+    requestDraw();
+    scheduleAnimation();
+  });
 })();
 `;
 }

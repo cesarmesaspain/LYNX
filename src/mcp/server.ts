@@ -39,6 +39,7 @@ import { handleToolCatalog } from './handlers/tool_catalog.js';
 import { decayCounter } from '../cli/hook-augment.js';
 import { cleanupNativeExtractor } from '../paths.js';
 import { LynxDatabase } from '../store/database.js';
+import { storedTimestampMs } from '../store/time.js';
 import { findNearestProject } from '../discovery/project-scanner.js';
 import { discoverFiles } from '../pipeline/phases/discover.js';
 import { runPipeline } from '../pipeline/orchestrator.js';
@@ -51,6 +52,61 @@ import { resolveProjectReference } from './project-resolution.js';
 // ── Handler registry ──────────────────────────────────────────
 
 type Handler = (args: Record<string, unknown>) => Promise<unknown>;
+
+let lastAgentResponseReminderAt = 0;
+let compactResponsesSent = 0;
+let compactResponseBytesSaved = 0;
+
+/** Measured transport savings for the current MCP process (not an estimate). */
+export function getResponseOptimizationMetrics(): {
+  compact_responses: number;
+  bytes_saved: number;
+  estimated_tokens_saved: number;
+} {
+  return {
+    compact_responses: compactResponsesSent,
+    bytes_saved: compactResponseBytesSaved,
+    estimated_tokens_saved: Math.round(compactResponseBytesSaved / 4),
+  };
+}
+
+function getAgentResponsePreference(): Record<string, unknown> | undefined {
+  const preference = readLynxConfig().agent_response;
+  if (!preference?.enabled) return undefined;
+
+  const intervalMs = Math.max(1, Math.min(120, preference.reminder_interval_minutes || 30)) * 60_000;
+  const now = Date.now();
+  if (now - lastAgentResponseReminderAt < intervalMs) return undefined;
+  lastAgentResponseReminderAt = now;
+
+  const length = preference.length === 'long' ? 'detailed' : preference.length;
+  const style = preference.style === 'concise' ? 'direct' : preference.style;
+  const budget = preference.budget || 'balanced';
+  const budgetInstruction = budget === 'max_savings'
+    ? 'Lead with the result; include only actionable evidence, risk, and next step. Do not restate, narrate routine work, or repeat tool data.'
+    : budget === 'thorough'
+      ? 'Be complete only when evidence, risk, or a decision requires it; otherwise stay concise.'
+      : 'Stay concise; expand only for material evidence, risk, or a decision.';
+  return {
+    length,
+    style,
+    budget,
+    instruction: `Final answer: ${length} and ${style}. ${budgetInstruction}`,
+  };
+}
+
+function serializeToolResponse(value: unknown): string {
+  if (typeof value === 'string') return value;
+  const preference = readLynxConfig().agent_response;
+  if (preference?.enabled && preference.budget === 'max_savings') {
+    const compact = JSON.stringify(value);
+    const expanded = JSON.stringify(value, null, 2);
+    compactResponsesSent++;
+    compactResponseBytesSaved += Math.max(0, Buffer.byteLength(expanded) - Buffer.byteLength(compact));
+    return compact;
+  }
+  return JSON.stringify(value, null, 2);
+}
 
 const STRICT_CANONICAL_PROJECT_TOOLS = new Set(['delete_project']);
 
@@ -103,8 +159,9 @@ const DB_CACHE = new Map<string, LynxDatabase>();
 
 export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' | 'inputSchema'>> {
   // A configured MCP server must expose the full public contract by default.
-  // Clients that need a compact registry can explicitly opt into `core`.
-  const profile = process.env.LYNX_TOOL_PROFILE || 'advanced';
+  // An environment value takes precedence for managed deployments.
+  const requestedProfile = process.env.LYNX_TOOL_PROFILE || readLynxConfig().mcp_tool_profile || 'full';
+  const profile = requestedProfile === 'core' ? 'core' : 'full';
   const visible = profile === 'core' ? TOOLS.filter(tool => CORE_TOOL_NAMES.has(tool.name)) : TOOLS;
   return visible.map(withEvidenceDiscipline).map((tool) => ({
     name: tool.name,
@@ -113,11 +170,28 @@ export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' |
   }));
 }
 
-function getDb(project?: string): LynxDatabase {
+function getDb(project?: string, options: { createPersistent?: boolean } = {}): LynxDatabase {
   const key = project || '_memory';
+  const cached = DB_CACHE.get(key);
+  if (cached) {
+    // A prior read of an unknown project is intentionally isolated in memory.
+    // Promote that cache entry only when an indexing operation explicitly needs
+    // to create the on-disk project database.
+    if (!(project && options.createPersistent && cached.dbPath === ':memory:')) return cached;
+    cached.close();
+    DB_CACHE.delete(key);
+  }
+
   if (!DB_CACHE.has(key)) {
     if (project) {
-      // Try persistent project DB first
+      const dbPath = path.join(lynxHome(), 'dbs', `${project}.db`);
+      // Read-only tools must not turn a typo into a persistent empty project.
+      // Indexing is the only flow that opts into creating a project database.
+      if (!options.createPersistent && !fs.existsSync(dbPath)) {
+        const db = LynxDatabase.openMemory();
+        DB_CACHE.set(key, db);
+        return db;
+      }
       try {
         const db = LynxDatabase.openProject(project);
         DB_CACHE.set(key, db);
@@ -157,19 +231,32 @@ export function normalizeProjectArgs(
   };
 }
 
-function buildIndexContext(args: Record<string, unknown>): Record<string, unknown> | undefined {
+export function buildIndexContext(args: Record<string, unknown>): Record<string, unknown> | undefined {
   if (typeof args.project !== 'string' || !args.project) return undefined;
-  const meta = getDb(args.project).getProject(args.project);
+  const db = getDb(args.project);
+  const meta = db.getProject(args.project);
   if (!meta) return undefined;
-  const ageSeconds = Math.max(0, Math.floor((Date.now() - new Date(meta.indexedAt).getTime()) / 1000));
+  const nodeCount = (db.db.prepare('SELECT COUNT(*) AS cnt FROM nodes WHERE project = ?')
+    .get(args.project) as { cnt: number }).cnt;
+  const ageSeconds = Math.max(0, Math.floor((Date.now() - storedTimestampMs(meta.indexedAt)) / 1000));
   const watcher = getProjectWatcherStatus(args.project);
-  return {
+  const freshness = nodeCount === 0 ? 'unknown' : meta.status === 'ready' && ageSeconds < 24 * 3600 ? 'fresh' : meta.status;
+  const pendingChanges = watcher?.pendingChanges || 0;
+  const context = {
     project: meta.name,
     indexed_at: meta.indexedAt,
     index_age_seconds: ageSeconds,
-    freshness: meta.status === 'ready' && ageSeconds < 24 * 3600 ? 'fresh' : meta.status,
-    watcher: watcher ? { active: watcher.watching, pending_changes: watcher.pendingChanges } : { active: false },
+    freshness,
+    watcher: watcher ? { active: watcher.watching, pending_changes: pendingChanges } : { active: false },
   };
+  const savingsMode = readLynxConfig().agent_response?.enabled
+    && readLynxConfig().agent_response?.budget === 'max_savings';
+  // A healthy, settled index needs only a compact assurance. Keep the full
+  // diagnostics whenever the caller might need to act on them.
+  if (savingsMode && freshness === 'fresh' && pendingChanges === 0) {
+    return { project: meta.name, freshness };
+  }
+  return context;
 }
 
 async function dispatch(req: JsonRpcRequest): Promise<string> {
@@ -220,15 +307,17 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
       const result = await HANDLERS[name](normalized.args);
       decayCounter(); // Any LYNX MCP tool use decays the strict-mode counter by STRICT_DECAY
       const context = buildIndexContext(normalized.args);
+      const agentResponsePreference = getAgentResponsePreference();
       const enriched = result && typeof result === 'object' && !Array.isArray(result)
         ? {
             ...result as Record<string, unknown>,
             ...(normalized.resolution ? { project_resolution: normalized.resolution } : {}),
             ...(context ? { index_context: context } : {}),
+            ...(agentResponsePreference ? { agent_response_preference: agentResponsePreference } : {}),
           }
         : result;
       return jsonRpcResult(id, {
-        content: [{ type: 'text', text: typeof enriched === 'string' ? enriched : JSON.stringify(enriched, null, 2) }],
+        content: [{ type: 'text', text: serializeToolResponse(enriched) }],
       });
     } catch (err) {
       return jsonRpcError(id, -32000, String(err));

@@ -6,6 +6,7 @@ export function webSocketScript(): string {
   return String.raw`
 ;(() => {
   var isSpanish = document.documentElement.lang === 'es';
+  function fmt(n) { return Number(n || 0).toLocaleString(isSpanish ? 'es-ES' : 'en-US'); }
   var wsReconnectDelay = 1000;
   var wsMaxDelay = 30000;
   var wsTimer = null;
@@ -61,15 +62,15 @@ export function webSocketScript(): string {
     html += '<span class="card-delete-btn" role="button" tabindex="0" data-delete-project="' + esc(c.name) + '" data-delete-name="' + esc(c.displayName) + '" aria-label="' + (isSpanish ? 'Eliminar ' : 'Delete ') + esc(c.displayName) + '" title="' + (isSpanish ? 'Eliminar proyecto' : 'Delete project') + '">&#x2715;</span>';
     html += '<div class="project-topline"><div class="card-title">' + esc(c.displayName) + '</div><span class="health-pill ' + h.className + '">' + h.label + '</span></div>';
     html += '<div class="card-stats">';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Nodos' : 'Nodes') + '</span><span class="stat-value">' + c.nodes.toLocaleString() + '</span></div>';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Aristas' : 'Edges') + '</span><span class="stat-value">' + c.edges.toLocaleString() + '</span></div>';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Archivos' : 'Files') + '</span><span class="stat-value">' + c.filesIndexed.toLocaleString() + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Nodos' : 'Nodes') + '</span><span class="stat-value">' + fmt(c.nodes) + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Aristas' : 'Edges') + '</span><span class="stat-value">' + fmt(c.edges) + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Archivos' : 'Files') + '</span><span class="stat-value">' + fmt(c.filesIndexed) + '</span></div>';
     html += '</div><div class="card-stats">';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Críticos' : 'Hotspots') + '</span><span class="stat-value">' + c.hotspots.toLocaleString() + '</span></div>';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Riesgo' : 'Risky') + '</span><span class="stat-value">' + c.riskyNodes.toLocaleString() + '</span></div>';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Entrada' : 'Entry') + '</span><span class="stat-value">' + c.entryPoints.toLocaleString() + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Críticos' : 'Hotspots') + '</span><span class="stat-value">' + fmt(c.hotspots) + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Riesgo' : 'Risky') + '</span><span class="stat-value">' + fmt(c.riskyNodes) + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Entrada' : 'Entry') + '</span><span class="stat-value">' + fmt(c.entryPoints) + '</span></div>';
     html += '</div>';
-    html += '<div class="project-impact">' + (isSpanish ? 'Tokens ahorrados' : 'Tokens saved') + ': <b>' + c.tokensSaved.toLocaleString() + '</b> · ' + (isSpanish ? 'Archivos evitados' : 'Files avoided') + ': <b>' + c.filesAvoided.toLocaleString() + '</b></div>';
+    html += '<div class="project-impact">' + (isSpanish ? 'Tokens ahorrados' : 'Tokens saved') + ': <b>' + fmt(c.tokensSaved) + '</b> · ' + (isSpanish ? 'Archivos evitados' : 'Files avoided') + ': <b>' + fmt(c.filesAvoided) + '</b></div>';
     if (c.semanticEvents > 0) {
       html += '<div class="semantic-note">' + (isSpanish ? 'Mejora semántica' : 'Semantic lift') + ': ' + c.semanticTopChanged + '/' + c.semanticEvents + ' ' + (isSpanish ? 'resultados principales mejorados' : 'top-results improved') + '</div>';
     }
@@ -110,7 +111,7 @@ export function webSocketScript(): string {
     }
 
     var summaryCards = document.querySelectorAll('.summary-card .value');
-    var vals = [String(cards.length), totalNodes.toLocaleString(), totalEdges.toLocaleString(), totalIndexedFiles.toLocaleString(), totalTokens.toLocaleString(), totalFiles.toLocaleString()];
+    var vals = [String(cards.length), fmt(totalNodes), fmt(totalEdges), fmt(totalIndexedFiles), fmt(totalTokens), fmt(totalFiles)];
     for (var i = 0; i < summaryCards.length && i < vals.length; i++) {
       summaryCards[i].innerHTML = vals[i];
     }

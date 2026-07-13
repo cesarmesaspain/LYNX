@@ -23,6 +23,7 @@ import { handleTracePath } from '../mcp/handlers/trace_path.js';
 import { handleFindTests } from '../mcp/handlers/find_tests.js';
 import { handleExplainSymbol } from '../mcp/handlers/explain_symbol.js';
 import { clearSessionDedup } from '../usage/metrics.js';
+import { withLynxHome } from '../config/runtime.js';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -678,11 +679,10 @@ export async function runABBenchmark(configOverrides: Partial<ABBenchmarkConfig>
 
   // ── Setup isolated environment ──────────────────────────────
   const baseDir = config.fixtureDir || fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-ab-'));
-  const originalLynxHome = process.env.LYNX_HOME;
   const tempLynxHome = path.join(baseDir, 'lynx-home');
-  process.env.LYNX_HOME = tempLynxHome;
   fs.mkdirSync(tempLynxHome, { recursive: true });
 
+  return withLynxHome(tempLynxHome, async () => {
   let db: LynxDatabase | null = null;
   const project = 'ab-bench-fixture';
   const allTasks = makeTasks();
@@ -759,14 +759,10 @@ export async function runABBenchmark(configOverrides: Partial<ABBenchmarkConfig>
     }
     clearFederatedConfig();
     clearSessionDedup(project);
-    if (originalLynxHome !== undefined) {
-      process.env.LYNX_HOME = originalLynxHome;
-    } else {
-      delete process.env.LYNX_HOME;
-    }
     // Clean temp dirs
     try { fs.rmSync(baseDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
+  });
 }
 
 async function runSingleTask(

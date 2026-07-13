@@ -10,6 +10,7 @@ import type { FastifyInstance } from 'fastify';
 import { v4 as uuid } from 'uuid';
 import Stripe from 'stripe';
 import { signLicense, verifyLicense } from '../jwt.js';
+import { resolveLicenseAccess } from '../license-access.js';
 import { licensesDb } from '../db.js';
 import type { LicenseActivateRequest, LicenseValidateRequest } from '../types.js';
 
@@ -133,10 +134,11 @@ export function licenseRoutes(app: FastifyInstance): void {
   app.post('/v1/license/validate', async (request, reply) => {
     const { license_jwt, machine_fingerprint } = request.body as LicenseValidateRequest;
 
-    const license = verifyLicense(license_jwt);
-    if (!license) {
+    const access = resolveLicenseAccess(license_jwt);
+    if (!access.license) {
       return reply.send({ valid: false, tier: 'free', reason: 'Licencia invalida o expirada.' });
     }
+    const license = access.license;
 
     // Check if this specific JWT was revoked
     const revoked = licensesDb.prepare(

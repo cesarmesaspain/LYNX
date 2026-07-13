@@ -6,10 +6,11 @@
  * correctly with the search path.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { LynxDatabase } from '../../../src/store/database.js';
 import { handlePackContext } from '../../../src/mcp/handlers/pack_context.js';
 import { setDb } from '../../../src/mcp/server.js';
+import { TOOLS } from '../../../src/mcp/tools.js';
 
 const PROJECT = 'test-pack-decision';
 
@@ -88,6 +89,13 @@ describe('pack_context decision mode', () => {
     expect(result.decision_summary!.length).toBeGreaterThan(0);
   });
 
+  it('publishes decision mode in the MCP schema', () => {
+    const tool = TOOLS.find(candidate => candidate.name === 'pack_context');
+    const mode = tool?.inputSchema.properties.mode as { enum?: string[] } | undefined;
+
+    expect(mode?.enum).toContain('decision');
+  });
+
   it('reports no changes when git diff is empty (no repo)', async () => {
     // Use a path that definitely isn't a git repo
     seedDb(db, PROJECT, '/tmp/nonexistent-git-repo-' + Date.now());
@@ -113,6 +121,53 @@ describe('pack_context decision mode', () => {
 
     expect(result.decision_summary).toBeDefined();
     expect(result.decision_summary).toContain('not indexed');
+  });
+
+  it('directs callers to select a project when it was intentionally omitted', async () => {
+    const result = await handlePackContext({ task: 'review changes' });
+
+    expect(result.project).toBe('');
+    expect(result.recommended_next_calls).toEqual([
+      expect.objectContaining({ tool: 'list_projects' }),
+    ]);
+    expect(result.token_budget.confidence).toBe('low_no_project');
+  });
+
+  it('does not present an empty index as fresh', async () => {
+    db.db.prepare(
+      `INSERT INTO projects (name, root_path, indexed_at) VALUES (?, ?, ?)`
+    ).run(PROJECT, process.cwd(), new Date().toISOString());
+    setDb(PROJECT, db);
+
+    const result = await handlePackContext({
+      project: PROJECT,
+      task: 'inspect the architecture',
+      mode: 'compact',
+    });
+
+    expect(result.index_health.total_nodes).toBe(0);
+    expect(result.index_health.is_fresh).toBe(false);
+    expect(result.recommended_next_calls.some(call => call.tool === 'index_repository')).toBe(true);
+  });
+
+  it('treats SQLite timestamps without a timezone as UTC', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-12T13:10:48.000Z'));
+    try {
+      db.db.prepare(
+        `INSERT INTO projects (name, root_path, indexed_at) VALUES (?, ?, ?)`
+      ).run(PROJECT, process.cwd(), '2026-07-12 13:10:48');
+      setDb(PROJECT, db);
+
+      const result = await handlePackContext({
+        project: PROJECT,
+        task: 'inspect the architecture',
+      });
+
+      expect(result.index_health?.hours_since_index).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('decision mode includes constraints', async () => {

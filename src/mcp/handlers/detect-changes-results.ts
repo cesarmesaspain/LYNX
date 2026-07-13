@@ -5,7 +5,7 @@ import type { CategorisedChanges, DetectChangesResult } from './detect_changes.j
 
 export const DETECT_CHANGES_CONTRACT_VERSION = 2;
 
-export function buildEmptyResult(project: string, baseBranch: string, since: string | undefined, scope: 'files' | 'symbols', depth: number, enableLlm = true): DetectChangesResult {
+export function buildEmptyResult(project: string, baseBranch: string, since: string | undefined, scope: 'files' | 'symbols', depth: number, enableLlm = false): DetectChangesResult {
   return {
     contract_version: DETECT_CHANGES_CONTRACT_VERSION,
     project,
@@ -29,7 +29,20 @@ export function buildEmptyResult(project: string, baseBranch: string, since: str
   };
 }
 
-export function buildFilesOnlyResult(project: string, baseBranch: string, since: string | undefined, categories: CategorisedChanges, total: number, enableLlm = true): DetectChangesResult {
+export function buildFilesOnlyResult(project: string, baseBranch: string, since: string | undefined, categories: CategorisedChanges, total: number, enableLlm = false): DetectChangesResult {
+  const toCompatFile = (file: string, status: string, oldPath?: string) => (
+    oldPath ? { file, status, old_path: oldPath } : { file, status }
+  );
+  const changedFiles = [
+    ...categories.tracked_changes.map(c => toCompatFile(c.file, c.hasMixedState ? 'MM' : 'M', c.oldPath)),
+    ...categories.unstaged_changes
+      .filter(c => !c.hasMixedState)
+      .map(c => toCompatFile(c.file, 'M (unstaged)', c.oldPath)),
+    ...categories.untracked_files.map(c => toCompatFile(c.file, '?')),
+    ...categories.deleted_files.map(c => toCompatFile(c.file, 'D')),
+    ...categories.renamed_files.map(c => toCompatFile(c.file, 'R', c.oldPath)),
+  ];
+
   return {
     contract_version: DETECT_CHANGES_CONTRACT_VERSION,
     project,
@@ -55,7 +68,7 @@ export function buildFilesOnlyResult(project: string, baseBranch: string, since:
     impact_assessment: { confirmed_count: 0, probable_count: 0, nominal_count: 0, confirmed: [], probable: [], nominal: [] },
     related_dependencies: [],
     related_dependencies_count: 0,
-    changed_files: [],
+    changed_files: changedFiles,
     changed_nodes: [],
     total_changed_files: total,
     total_affected_nodes: 0,
@@ -65,4 +78,3 @@ export function buildFilesOnlyResult(project: string, baseBranch: string, since:
     llm_usage: { enabled: enableLlm, used: false, provider: null, model: null, calls: 0, latency_ms: 0, fallback_used: false, fallback_reason: 'scope=files, skipped risk assessment' },
   };
 }
-

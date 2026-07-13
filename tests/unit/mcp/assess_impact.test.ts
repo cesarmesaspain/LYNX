@@ -6,7 +6,11 @@
  * unindexed files are classified correctly, and evidence strengths are correct.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { LynxDatabase } from '../../../src/store/database.js';
 import {
   queryTestsCoveringChanges,
@@ -16,6 +20,9 @@ import {
   queryUnindexedModified,
   stableSort,
   fairTruncate,
+  collectGitDiffFiles,
+  normalizeFileArg,
+  resolveRequestedFiles,
 } from '../../../src/mcp/handlers/assess_impact.js';
 import type { ImpactFinding } from '../../../src/mcp/handlers/assess_impact.js';
 
@@ -54,7 +61,7 @@ function seedDb(db: LynxDatabase, project: string) {
     const qn = `${fn.file.replace(/\.[^.]+$/, '').replace(/\//g, '.')}.${fn.name}`;
     db.db.prepare(
       `INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
-       VALUES (?, ?, 'Function', ?, ?, ?, 1, 10, ?, ?, ?, '{}')`
+       VALUES (?, ?, 'Function', ?, ?, ?, 1, 10, ?, ?, ?, '{"signature":"function"}')`
     ).run(id, project, fn.name, qn, fn.file, fn.isExported, fn.isTest, fn.isEntry);
     funcIds[qn] = id;
     id++;
@@ -106,6 +113,10 @@ describe('assess_impact queries', () => {
   // ── Query 1: tests covering changes ──────────────────────────
 
   describe('queryTestsCoveringChanges', () => {
+    it('does not request coverage for modified test files', () => {
+      expect(queryTestsCoveringChanges(db, PROJECT, ['tests/index.test.ts'])).toEqual([]);
+    });
+
     it('finds tests covering modified symbols via TESTS edges', () => {
       const findings = queryTestsCoveringChanges(db, PROJECT, ['src/index.ts']);
       const covering = findings.filter(f => f.category === 'tests_covering_changes');
@@ -134,11 +145,39 @@ describe('assess_impact queries', () => {
   // ── Query 2: untested files ─────────────────────────────────
 
   describe('queryUntestedFiles', () => {
+    it('does not classify modified test files as untested production code', () => {
+      expect(queryUntestedFiles(db, PROJECT, ['tests/index.test.ts'])).toEqual([]);
+    });
+
     it('identifies indexed files without TESTS_FILE edges', () => {
       const findings = queryUntestedFiles(db, PROJECT, ['src/uncovered.ts']);
       expect(findings.length).toBeGreaterThanOrEqual(1);
       expect(findings[0].category).toBe('untested_changes');
       expect(findings[0].evidence.some(e => e.strength === 'searched_not_found')).toBe(true);
+    });
+
+    it('does not flag a file when its symbols are covered through TESTS edges alone', () => {
+      db.db.prepare(
+        `DELETE FROM edges
+         WHERE project = ? AND type = 'TESTS_FILE'
+           AND target_id = (SELECT id FROM nodes WHERE project = ? AND file_path = ? AND kind = 'File')`
+      ).run(PROJECT, PROJECT, 'src/utils.ts');
+
+      expect(queryUntestedFiles(db, PROJECT, ['src/utils.ts'])).toEqual([]);
+    });
+
+    it('deduplicates convention-based test file suggestions', () => {
+      const insert = db.db.prepare(
+        `INSERT INTO nodes (project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
+         VALUES (?, 'Function', ?, ?, 'tests/uncovered.test.ts', 1, 1, 0, 1, 0, '{}')`,
+      );
+      insert.run(PROJECT, 'uncoveredCaseA', 'tests.uncovered.caseA');
+      insert.run(PROJECT, 'uncoveredCaseB', 'tests.uncovered.caseB');
+
+      const finding = queryUntestedFiles(db, PROJECT, ['src/uncovered.ts'])[0];
+      const convention = finding.evidence.find(e => e.source === 'name convention');
+
+      expect(convention?.detail).toBe('Possible related test files: tests/uncovered.test.ts');
     });
 
     it('skips unindexed files silently (they belong in queryUnindexedModified)', () => {
@@ -179,6 +218,13 @@ describe('assess_impact queries', () => {
       const findings = queryNewSymbolsNoCallers(db, PROJECT);
       const main = findings.filter(f => f.symbol === 'main');
       expect(main.length).toBe(0);
+    });
+
+    it('does not classify conventional main entry points as removable', () => {
+      db.db.prepare(`INSERT INTO nodes (project, name, qualified_name, kind, file_path, start_line, end_line, is_exported, is_entry_point, is_test, properties)
+        VALUES (?, 'main', 'native.main', 'Function', 'native/tool.c', 1, 4, 0, 0, 0, '{"signature":"int main(void)"}')`).run(PROJECT);
+
+      expect(queryNewSymbolsNoCallers(db, PROJECT).some(f => f.qualified_name === 'native.main')).toBe(false);
     });
 
     it('reports medium confidence when USAGE edges exist', () => {
@@ -288,6 +334,46 @@ describe('assess_impact queries', () => {
       expect(findings[0].category).toBe('untested_changes');
       expect(findings[0].evidence.some(e => e.strength === 'searched_not_found')).toBe(true);
     });
+  });
+});
+
+describe('assess_impact input compatibility', () => {
+  it('normalizes detect_changes changed_files entries into a file scope', () => {
+    expect(normalizeFileArg([
+      { file: 'src/auth.ts', status: 'M' },
+      { file: 'src/session.ts', status: '?' },
+    ])).toEqual(['src/auth.ts', 'src/session.ts']);
+  });
+
+  it('accepts target and file aliases without broadening to the full diff', () => {
+    expect(resolveRequestedFiles({ target: 'src/auth.ts' })).toEqual(['src/auth.ts']);
+    expect(resolveRequestedFiles({ file: 'src/session.ts' })).toEqual(['src/session.ts']);
+    expect(resolveRequestedFiles({ changed_files: [{ file: 'src/auth.ts' }] })).toEqual(['src/auth.ts']);
+  });
+});
+
+describe('collectGitDiffFiles', () => {
+  const tempDirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('does not execute a malicious base branch', () => {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-assess-impact-'));
+    tempDirs.push(repo);
+    const marker = path.join(repo, 'injected');
+    execFileSync('git', ['init'], { cwd: repo });
+    execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: repo });
+    execFileSync('git', ['config', 'user.name', 'Test User'], { cwd: repo });
+    fs.writeFileSync(path.join(repo, 'sample.ts'), 'export const value = 1;\n');
+    execFileSync('git', ['add', 'sample.ts'], { cwd: repo });
+    execFileSync('git', ['commit', '-m', 'initial'], { cwd: repo });
+
+    const files = collectGitDiffFiles(repo, `main; touch ${marker}`);
+
+    expect(files).toEqual([]);
+    expect(fs.existsSync(marker)).toBe(false);
   });
 });
 

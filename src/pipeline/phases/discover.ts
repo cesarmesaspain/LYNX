@@ -89,7 +89,6 @@ const FAST_EXCLUDE_DIRS = new Set([
   'migrations',
   'seeds',
   'e2e',
-  'integration',
   'locale',
   'locales',
   'i18n',

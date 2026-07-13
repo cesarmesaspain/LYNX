@@ -9,7 +9,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { routeIntelligence } from '../intelligence/router.js';
-import { verifyLicense } from '../jwt.js';
+import { resolveLicenseAccess } from '../license-access.js';
 import { licensesDb } from '../db.js';
 import type { IntelligenceRequest } from '../types.js';
 
@@ -45,23 +45,24 @@ export function intelligenceRoutes(app: FastifyInstance): void {
     }
 
     // Validate JWT
-    const license = verifyLicense(body.license_jwt);
-    if (!license) {
+    const access = resolveLicenseAccess(body.license_jwt);
+    if (!access.license) {
       return reply.status(401).send({ error: 'invalid_license', reason: 'Licencia invalida o expirada.' });
     }
-
-    // Check rate limit
-    if (!checkRateLimit(license.sub, license.tier)) {
-      return reply.status(429).send({
-        error: 'rate_limited',
-        reason: 'Limite diario de inteligencia alcanzado. Actualiza a Team para mas capacidad.',
-      });
-    }
+    const license = access.license;
 
     // Validate task
     const validTasks = ['summarize_module', 'rerank_search', 'assess_change_risk', 'detect_entry_point', 'classify_code_smell', 'detect_test'];
     if (!validTasks.includes(body.task)) {
       return reply.status(400).send({ error: 'invalid_task', reason: `Tarea desconocida: ${body.task}` });
+    }
+
+    // A rejected request must not consume the customer's daily allowance.
+    if (!checkRateLimit(license.sub, license.tier)) {
+      return reply.status(429).send({
+        error: 'rate_limited',
+        reason: 'Limite diario de inteligencia alcanzado. Actualiza a Team para mas capacidad.',
+      });
     }
 
     const response = await routeIntelligence(body, license.sub);

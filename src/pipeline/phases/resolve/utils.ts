@@ -252,7 +252,10 @@ export function upsertChannelNode(
     endLine: 0,
     isExported: false,
     isTest: false,
-    isEntryPoint: true,
+    // A channel is an integration surface, not an executable application entry point.
+    // Marking it as one inflates architecture and dashboard entry-point metrics with
+    // internal events such as `error`, `close`, or `SIGTERM`.
+    isEntryPoint: false,
     channelName,
     transport,
   } satisfies LynxChannel);
@@ -260,9 +263,12 @@ export function upsertChannelNode(
 
 export function upsertSyntheticNode(db: LynxDatabase, idx: ResolverIndexes, node: LynxNode): number {
   const existingId = idx.qnToId.get(node.qualifiedName);
-  if (existingId) return existingId;
-
   const id = upsertNode(db, node);
+  // Synthetic nodes are cached in resolver indexes. Still persist their current
+  // metadata on every pass: otherwise a semantic correction (for example a
+  // channel no longer being an entry point) can never repair existing indexes.
+  if (existingId) return id;
+
   const properties = syntheticProperties(node);
   const row: NodeRef = {
     id,

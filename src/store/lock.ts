@@ -16,7 +16,9 @@ function locksDir(): string {
 }
 
 function lockPath(project: string): string {
-  return path.join(locksDir(), `${project}.lock`);
+  // Project names may originate from CLI/MCP input. Encode separators so a
+  // project cannot address files outside LYNX_HOME/locks.
+  return path.join(locksDir(), `${encodeURIComponent(project)}.lock`);
 }
 
 export interface LockInfo {
@@ -25,13 +27,17 @@ export interface LockInfo {
   project: string;
 }
 
-function readLockInfo(project: string): LockInfo | null {
+function readLockInfoAt(filePath: string): LockInfo | null {
   try {
-    const raw = fs.readFileSync(lockPath(project), 'utf-8');
+    const raw = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(raw) as LockInfo;
   } catch {
     return null;
   }
+}
+
+function readLockInfo(project: string): LockInfo | null {
+  return readLockInfoAt(lockPath(project));
 }
 
 function isProcessAlive(pid: number): boolean {
@@ -48,6 +54,15 @@ export function acquireProjectLock(project: string): { acquired: boolean; reason
   const ttlMs = cfg.lock_ttl_minutes * 60 * 1000;
   const existing = readLockInfo(project);
 
+  if (!existing && fs.existsSync(lockPath(project))) {
+    const age = Date.now() - fs.statSync(lockPath(project)).mtimeMs;
+    if (age >= ttlMs) {
+      releaseProjectLock(project);
+    } else {
+      return { acquired: false, reason: `Project ${project} has an incomplete lock file; retry after lock TTL.` };
+    }
+  }
+
   if (existing) {
     // Check if the owning process is still alive
     if (isProcessAlive(existing.pid)) {
@@ -63,8 +78,17 @@ export function acquireProjectLock(project: string): { acquired: boolean; reason
   }
 
   const info: LockInfo = { pid: process.pid, timestamp: Date.now(), project };
-  fs.writeFileSync(lockPath(project), JSON.stringify(info));
-  return { acquired: true };
+  try {
+    // `wx` makes the check-and-create operation atomic across indexer
+    // processes. A second process must never overwrite a fresh lock.
+    fs.writeFileSync(lockPath(project), JSON.stringify(info), { flag: 'wx' });
+    return { acquired: true };
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+      return { acquired: false, reason: `Project ${project} is already being indexed` };
+    }
+    return { acquired: false, reason: `Unable to create index lock for ${project}` };
+  }
 }
 
 export function releaseProjectLock(project: string): void {
@@ -88,12 +112,11 @@ export function listOrphanedLocks(): StaleLockInfo[] {
   const results: StaleLockInfo[] = [];
   for (const file of fs.readdirSync(dir)) {
     if (!file.endsWith('.lock')) continue;
-    const project = file.replace(/\.lock$/, '');
-    const info = readLockInfo(project);
+    const info = readLockInfoAt(path.join(dir, file));
     if (!info) continue;
     const alive = isProcessAlive(info.pid);
     if (!alive) {
-      results.push({ project, pid: info.pid, ageMs: Date.now() - info.timestamp, processAlive: false });
+      results.push({ project: info.project, pid: info.pid, ageMs: Date.now() - info.timestamp, processAlive: false });
     }
   }
   return results;

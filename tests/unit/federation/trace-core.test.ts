@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { LynxDatabase } from '../../../src/store/database.js';
 import { executeLocalTracePath } from '../../../src/federation/trace-core.js';
-import { handleTracePath } from '../../../src/mcp/handlers/trace_path.js';
+import { handleTracePath, isLikelyCallableSignature } from '../../../src/mcp/handlers/trace_path.js';
 import { setDb, unsetDb } from '../../../src/mcp/server.js';
 
 const PROJECT = 'test-trace-core';
@@ -267,6 +267,17 @@ describe('trace_path core — result parity with handler', () => {
     expect(core).toBeNull();
   });
 
+  it('accepts qualified_name and symbol aliases used by other discovery tools', async () => {
+    const qualified = await handlerTrace({
+      qualified_name: 'src.cli.index.main',
+      direction: 'outbound',
+    });
+    const symbol = await handlerTrace({ symbol: 'main', direction: 'outbound' });
+
+    expect(qualified.function).toMatchObject({ name: 'main' });
+    expect(symbol.function).toMatchObject({ name: 'main' });
+  });
+
   // ── All entries have provenance='local' ──
 
   it('all entries have provenance=local in core output', async () => {
@@ -326,5 +337,18 @@ describe('trace_path core — result parity with handler', () => {
     expect(handler.path_summary).toBeDefined();
     expect(handler.value_metrics).toBeDefined();
     expect(handler.pagination).toBeDefined();
+  });
+});
+
+describe('isLikelyCallableSignature', () => {
+  it('filters local values that were incorrectly extracted as call targets', () => {
+    expect(isLikelyCallableSignature('const json = (await response.json()) as Payload;')).toBe(false);
+  });
+
+  it('keeps function, method, arrow, and unavailable-source entries', () => {
+    expect(isLikelyCallableSignature('export async function exchangeCode() {')).toBe(true);
+    expect(isLikelyCallableSignature('const exchange = async () => {')).toBe(true);
+    expect(isLikelyCallableSignature('handleRequest(input: Request) {')).toBe(true);
+    expect(isLikelyCallableSignature(undefined)).toBe(true);
   });
 });

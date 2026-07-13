@@ -8,7 +8,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { detectAgents, detectProjectInstructionPaths, getLynxCommand } from './agents.js';
 import { writeMcpEntry, removeMcpEntry } from './mcp-config.js';
 import {
@@ -20,7 +20,7 @@ import {
 } from './instructions.js';
 import { LynxDatabase } from '../store/database.js';
 import { findNearestProject } from '../discovery/project-scanner.js';
-import { lynxConfigPath, detectSystemLocale, upsertLynxConfig } from '../config/runtime.js';
+import { lynxConfigPath, detectSystemLocale, readLynxConfig, upsertLynxConfig } from '../config/runtime.js';
 import { verifyMcpServer } from './mcp-verify.js';
 import {
   installAntigravityHooks, installClaudeHooks, installCodexHook, installGeminiHooks,
@@ -56,11 +56,6 @@ function lynxDiscoveryReminder(): string {
   ].join(' ');
 }
 
-function shellQuote(value: string): string {
-  if (/^[A-Za-z0-9_./:=@%+-]+$/.test(value)) return value;
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
-
 // ── Claude Code MCP auto-approval ──────────────────────────────────
 
 /**
@@ -91,7 +86,7 @@ function findClaudeBinary(): string | null {
 
   // 2. CLI installs: npm / homebrew / direct download on PATH
   try {
-    const result = execSync('which claude', { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    const result = execFileSync('which', ['claude'], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
     if (result && fs.existsSync(result)) return result;
   } catch {
     /* not on PATH */
@@ -117,7 +112,7 @@ function claudeAutoApproveMcp(command: string, args: string[], dryRun: boolean):
 
   // Don't re-register if it is already connected
   try {
-    const listResult = execSync(`"${claudeBin}" mcp list`, {
+    const listResult = execFileSync(claudeBin, ['mcp', 'list'], {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 10_000,
@@ -144,14 +139,13 @@ function claudeAutoApproveMcp(command: string, args: string[], dryRun: boolean):
 
   // Remove any stale project-scoped registry first (ignore "not found" errors)
   try {
-    execSync(`"${claudeBin}" mcp remove lynx`, { stdio: 'ignore', timeout: 5_000 });
+    execFileSync(claudeBin, ['mcp', 'remove', 'lynx'], { stdio: 'ignore', timeout: 5_000 });
   } catch {
     /* ok */
   }
 
-  const cmdParts = [claudeBin, 'mcp', 'add', 'lynx', ...envFlags, '--', command, ...args];
   try {
-    execSync(cmdParts.map(shellQuote).join(' '), {
+    execFileSync(claudeBin, ['mcp', 'add', 'lynx', ...envFlags, '--', command, ...args], {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 15_000,
@@ -174,7 +168,7 @@ function claudeRemoveMcpApproval(dryRun: boolean): void {
   }
 
   try {
-    execSync(`"${claudeBin}" mcp remove lynx`, { stdio: 'ignore', timeout: 5_000 });
+    execFileSync(claudeBin, ['mcp', 'remove', 'lynx'], { stdio: 'ignore', timeout: 5_000 });
     log('removed lynx from claude mcp registry');
   } catch {
     /* already gone */
@@ -292,13 +286,16 @@ export async function runInstall(options: boolean | InstallOptions): Promise<voi
 
   // Phase 5: Runtime config for safe automatic project discovery.
   console.log('\nRuntime config:');
+  // Installation must preserve an explicit user choice to disable the watcher.
+  // Fresh installs still inherit the runtime default (true).
+  const autoWatch = readLynxConfig().auto_watch;
   if (dryRun) {
-    log(`would write ${lynxConfigPath()} (auto_index=${autoIndex}, auto_index_limit=50000, auto_watch=true, auto_dashboard=true)`);
+    log(`would write ${lynxConfigPath()} (auto_index=${autoIndex}, auto_index_limit=50000, auto_watch=${autoWatch}, auto_dashboard=true)`);
   } else {
     const cfg = upsertLynxConfig({
       auto_index: autoIndex,
       auto_index_limit: 50_000,
-      auto_watch: true,
+      auto_watch: autoWatch,
       auto_dashboard: true,
       locale: detectSystemLocale(),
     });
@@ -365,7 +362,7 @@ function buildInstallPlan(
       file: lynxConfigPath(),
       auto_index: autoIndex,
       auto_index_limit: 50_000,
-      auto_watch: true,
+      auto_watch: readLynxConfig().auto_watch,
       auto_dashboard: true,
     },
     mcp_command: { command, args },

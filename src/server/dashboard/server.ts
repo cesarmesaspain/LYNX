@@ -7,7 +7,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { URL } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { lynxHome, readLynxConfig, upsertLynxConfig } from '../../config/runtime.js';
+import { lynxHome, readLynxConfig, readLynxConfigSafe, upsertLynxConfig } from '../../config/runtime.js';
 import { LynxDatabase } from '../../store/database.js';
 import { runPipeline } from '../../pipeline/orchestrator.js';
 import { collectProjectCards, collectActionGraph, getSavingsLabScenarios } from './data.js';
@@ -262,6 +262,11 @@ async function routeRequest(
     return;
   }
 
+  if (url.pathname === '/api/config' && req.method === 'GET') {
+    writeJson(res, 200, readLynxConfigSafe());
+    return;
+  }
+
   // Fallback: render dashboard HTML
   writeHtml(res, renderDashboard(collectProjectCards()));
 }
@@ -273,6 +278,32 @@ async function handleMutationRoute(req: http.IncomingMessage, res: http.ServerRe
   }
   if (url.pathname === '/api/projects/delete' && req.method === 'POST') {
     await handleApiProjectsDelete(req, res);
+    return true;
+  }
+  if (url.pathname === '/api/agent-response' && req.method === 'GET') {
+    writeJson(res, 200, readLynxConfig().agent_response || null);
+    return true;
+  }
+  if (url.pathname === '/api/agent-response' && req.method === 'POST') {
+    const body = await readRequestBody(req);
+    try {
+      const value = JSON.parse(body);
+      upsertLynxConfig({ agent_response: value });
+      writeJson(res, 200, { ok: true, agent_response: value });
+    } catch {
+      writeJson(res, 400, { error: 'Invalid JSON body' });
+    }
+    return true;
+  }
+  if (url.pathname === '/api/config' && req.method === 'POST') {
+    const body = await readRequestBody(req);
+    try {
+      const values = JSON.parse(body);
+      upsertLynxConfig(values);
+      writeJson(res, 200, { ok: true });
+    } catch {
+      writeJson(res, 400, { error: 'Invalid JSON body' });
+    }
     return true;
   }
   if (url.pathname === '/api/locale' && req.method === 'POST') {

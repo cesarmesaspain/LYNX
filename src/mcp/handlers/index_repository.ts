@@ -1,6 +1,5 @@
 import * as path from 'node:path';
-import { getDb, setDb } from '../server.js';
-import { LynxDatabase } from '../../store/database.js';
+import { getDb } from '../server.js';
 import { runPipeline } from '../../pipeline/orchestrator.js';
 import { acquireProjectLock, releaseProjectLock } from '../../store/lock.js';
 import { projectLocked } from '../diagnostics.js';
@@ -21,12 +20,7 @@ export async function handleIndexRepository(
   const projectName = name || path.basename(resolvedPath);
 
   // Initialize DB for this project if not cached
-  let db = getDb(projectName);
-  if (!db) {
-    db = LynxDatabase.openProject(projectName);
-    db.upsertProject(projectName, resolvedPath);
-    setDb(projectName, db);
-  }
+  const db = getDb(projectName, { createPersistent: true });
 
   // ── Lock acquisition ──────────────────────────────────────
   if (!forceLock) {

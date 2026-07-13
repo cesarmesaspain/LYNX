@@ -165,6 +165,7 @@ async function extractNativeLargeFiles(
     for (const result of parsed) {
       const original = toProcess[result.id];
       if (!original || result.result.hasError) continue;
+      restoreNativeEntryPointFlags(result.result.nodes, original.file.relPath);
       // The native extractor emits compact method nodes. Restore class scope here
       // so same-named methods in different classes never share a qualified name.
       const classes = result.result.nodes.filter(node => node.kind === 'Class');
@@ -190,6 +191,15 @@ async function extractNativeLargeFiles(
   } catch (err) {
     console.error('[lynx] Native extractor failed:', (err as Error).message || String(err));
     return new Map();
+  }
+}
+
+/** Keep native C extractor output aligned with the tree-sitter extractor. */
+export function restoreNativeEntryPointFlags(nodes: ExtractionResult['nodes'], relPath: string): void {
+  const conventionalIndex = relPath.endsWith('index.ts') || relPath.endsWith('index.tsx');
+  if (!conventionalIndex) return;
+  for (const node of nodes) {
+    if (node.kind === 'Module') node.isEntryPoint = true;
   }
 }
 

@@ -22,6 +22,26 @@ let _server: http.Server | null = null;
 let _wss: WebSocketServer | null = null;
 let _watchFs: fs.FSWatcher | null = null;
 let _watchHome: fs.FSWatcher | null = null;
+let _dashboardRetry: ReturnType<typeof setTimeout> | null = null;
+
+// A short, bounded recovery window covers the common case where an agent is
+// restarting while an older dashboard process is still releasing the port.
+// It deliberately is not an infinite loop: another application may own 9191.
+const DASHBOARD_RETRY_DELAYS_MS = [500, 1_000, 2_000, 5_000];
+
+function retryDashboard(port: number, attempt: number): void {
+  if (_server || _dashboardRetry) return;
+  const delay = DASHBOARD_RETRY_DELAYS_MS[attempt];
+  if (delay === undefined) {
+    console.error(`[lynx] Dashboard port ${port} remained unavailable after ${attempt} retries.`);
+    return;
+  }
+  _dashboardRetry = setTimeout(() => {
+    _dashboardRetry = null;
+    if (!_server) startDashboard(port, attempt + 1);
+  }, delay);
+  _dashboardRetry.unref();
+}
 
 // ── Rate limiter: max 1 req/sec per IP for /api/projects ──────────
 const _rateMap = new Map<string, number>();
@@ -340,7 +360,7 @@ async function handleMutationRoute(req: http.IncomingMessage, res: http.ServerRe
   return false;
 }
 
-export function startDashboard(port = PORT): http.Server {
+export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
   if (_server) return _server;
 
   const server = http.createServer(handleRequest);
@@ -400,8 +420,9 @@ export function startDashboard(port = PORT): http.Server {
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(`[lynx] Dashboard port ${port} in use — skipping.`);
+      console.error(`[lynx] Dashboard port ${port} in use — retrying when it is released.`);
       _server = null;
+      retryDashboard(port, retryAttempt);
       return;
     }
     console.error(`[lynx] Dashboard error:`, err.message);

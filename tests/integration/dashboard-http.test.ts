@@ -26,6 +26,22 @@ function request(port: number, path: string, body?: string): Promise<{ status: n
   });
 }
 
+function listen(server: http.Server, port: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '127.0.0.1', () => resolve());
+  });
+}
+
+async function waitForRequest(port: number, attempts = 30): Promise<{ status: number; headers: http.IncomingHttpHeaders; body: string }> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try { return await request(port, '/api/health'); } catch (error) { lastError = error; }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw lastError || new Error('Dashboard did not recover');
+}
+
 describe('local dashboard HTTP boundary', () => {
   let server: http.Server | undefined;
   afterEach(async () => {
@@ -41,5 +57,19 @@ describe('local dashboard HTTP boundary', () => {
 
     const tooLarge = await request(port, '/api/projects/add', 'x'.repeat(1_048_577));
     expect(tooLarge.status).toBe(413);
+  });
+
+  it('recovers when a temporary port conflict is released', async () => {
+    const blocker = http.createServer();
+    await listen(blocker, 0);
+    const address = blocker.address();
+    if (!address || typeof address === 'string') throw new Error('Blocker did not expose a TCP port');
+
+    startDashboard(address.port);
+    await new Promise<void>(resolve => blocker.close(() => resolve()));
+
+    const health = await waitForRequest(address.port);
+    expect(health.status).toBe(200);
+    server = startDashboard(address.port);
   });
 });

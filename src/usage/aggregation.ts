@@ -156,6 +156,26 @@ export interface CategoryBreakdown {
   latency_ms: number;
 }
 
+/**
+ * Explains exactly which recorded tool activity contributed to the displayed
+ * savings.  Operational observations stay out of this object: they are real
+ * events, but are not presented as savings.
+ */
+export interface SavingsAttribution {
+  /** Events with a non-zero token or file saving estimate. */
+  saving_events: number;
+  /** Remaining recorded activity, deliberately excluded from the estimate. */
+  operational_events: number;
+  /** Confidence of the largest saving contribution. */
+  confidence: 'low' | 'medium' | 'high';
+  by_tool: Array<{
+    type: string;
+    events: number;
+    tokens_saved: number;
+    files_avoided: number;
+  }>;
+}
+
 export interface WindowedMetrics {
   window: TimeWindow;
   since: string;
@@ -175,6 +195,8 @@ export interface WindowedMetrics {
   };
   /** Mutually exclusive. CONTRACT: sum(categories.tokens_saved) === totals.tokens_saved */
   categories: CategoryBreakdown[];
+  /** Human-readable attribution for the savings total shown in the UI. */
+  savings_attribution: SavingsAttribution;
   metrics: MetricPoint[];
   coverage: TelemetryCoverage;
   /** Historical aggregate data that cannot be broken into per-event categories. */
@@ -335,8 +357,38 @@ function buildFromEvents(
     computed_at: now,
     totals,
     categories,
+    savings_attribution: buildSavingsAttribution(events),
     metrics: buildMetricPoints(totals, categories, now, win),
     coverage,
+  };
+}
+
+function buildSavingsAttribution(events: UsageEvent[]): SavingsAttribution {
+  const savings = events.filter((event) =>
+    Number(event.tokens_saved || 0) > 0 || Number(event.files_avoided || 0) > 0
+  );
+  const byTool = new Map<string, { events: number; tokens_saved: number; files_avoided: number }>();
+
+  for (const event of savings) {
+    const type = event.type || 'other';
+    const entry = byTool.get(type) || { events: 0, tokens_saved: 0, files_avoided: 0 };
+    entry.events++;
+    entry.tokens_saved += Number(event.tokens_saved || 0);
+    entry.files_avoided += Number(event.files_avoided || 0);
+    byTool.set(type, entry);
+  }
+
+  const leading = [...savings].sort((a, b) =>
+    Number(b.tokens_saved || 0) - Number(a.tokens_saved || 0)
+  )[0];
+
+  return {
+    saving_events: savings.length,
+    operational_events: Math.max(0, events.length - savings.length),
+    confidence: leading?.confidence || 'medium',
+    by_tool: [...byTool.entries()]
+      .map(([type, value]) => ({ type, ...value }))
+      .sort((a, b) => b.tokens_saved - a.tokens_saved),
   };
 }
 

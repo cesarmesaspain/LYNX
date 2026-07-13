@@ -98,6 +98,15 @@ describe('aggregation invariants', () => {
     expect(catSum).toBe(result.totals.tokens_saved);
   });
 
+  it('separates events that created savings from operational telemetry', () => {
+    const result = aggregateByWindow('test', 'total', '2026-07-10T12:00:00Z');
+    const attributedEvents = result.savings_attribution.by_tool
+      .reduce((sum, tool) => sum + tool.events, 0);
+    expect(result.savings_attribution.saving_events + result.savings_attribution.operational_events)
+      .toBe(result.totals.events);
+    expect(attributedEvents).toBe(result.savings_attribution.saving_events);
+  });
+
   it('sum(categories.files_avoided) === totals.files_avoided', () => {
     const result = aggregateByWindow('test', 'total', '2026-07-10T12:00:00Z');
     const catSum = result.categories.reduce((s, c) => s + c.files_avoided, 0);

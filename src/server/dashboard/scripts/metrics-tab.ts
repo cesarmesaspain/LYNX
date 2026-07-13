@@ -91,6 +91,46 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
       : ' At ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1M configured, estimated net savings are ' + fmtUsd(monetary.net_savings_usd) + '.');
   }
 
+  function savingsInsight(t, attribution, monetary) {
+    var tokens = Number(t.tokens_saved || 0);
+    if (tokens === 0) return llmInsight(t, monetary);
+
+    var source = attribution && attribution.by_tool && attribution.by_tool[0];
+    var savingEvents = Number(attribution && attribution.saving_events || 0);
+    var operationalEvents = Number(attribution && attribution.operational_events || 0);
+    var confidence = attribution && attribution.confidence || 'medium';
+    var toolLabels = isSpanish ? {
+      search_graph: 'consulta de descubrimiento', search_code: 'consulta de código',
+      semantic_search: 'búsqueda semántica', trace_path: 'trazado de flujo',
+      get_code_snippet: 'fragmento dirigido', batch_get_code: 'lectura dirigida',
+      pack_context: 'empaquetado de contexto', find_tests: 'búsqueda de pruebas',
+    } : {
+      search_graph: 'discovery query', search_code: 'code query',
+      semantic_search: 'semantic search', trace_path: 'flow trace',
+      get_code_snippet: 'targeted snippet', batch_get_code: 'targeted read',
+      pack_context: 'context pack', find_tests: 'test lookup',
+    };
+    var sourceLabel = source ? (toolLabels[source.type] || source.type) : (isSpanish ? 'operación LYNX' : 'LYNX operation');
+    var confidenceLabel = isSpanish
+      ? ({ low: 'baja', medium: 'media', high: 'alta' }[confidence] || 'media')
+      : confidence;
+    var text = isSpanish
+      ? fmt(tokens) + ' tokens estimados proceden de ' + fmt(savingEvents) + ' ' + sourceLabel + (savingEvents === 1 ? '' : 's') + ' (confianza ' + confidenceLabel + ').'
+      : fmt(tokens) + ' estimated tokens come from ' + fmt(savingEvents) + ' ' + sourceLabel + (savingEvents === 1 ? '' : 's') + ' (' + confidenceLabel + ' confidence).';
+    if (operationalEvents > 0) {
+      text += isSpanish
+        ? ' Otros ' + fmt(operationalEvents) + ' eventos operativos se registran por separado y no suman ahorro.'
+        : ' ' + fmt(operationalEvents) + ' other operational events are recorded separately and do not add savings.';
+    }
+    if (Number(t.llm_events || 0) > 0) text += ' ' + llmInsight(t, monetary);
+    else if (monetary && Number(monetary.avoided_input_usd_per_1m || 0)) {
+      text += isSpanish
+        ? ' Con ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1 M configurado, el ahorro neto estimado es ' + fmtUsd(monetary.net_savings_usd) + '.'
+        : ' At ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1M configured, estimated net savings are ' + fmtUsd(monetary.net_savings_usd) + '.';
+    }
+    return text;
+  }
+
   function loadMetrics() {
     var project = document.getElementById('metricsProject').value;
     var win = document.querySelector('.win-btn.active') ? document.querySelector('.win-btn.active').dataset.win : 'total';
@@ -121,7 +161,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
           ? 'Evita ' + fmtUsd(monetary.avoided_cost_usd) + ' · a ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1 M'
           : 'Avoids ' + fmtUsd(monetary.avoided_cost_usd) + ' · at ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1M';
         var insight = document.getElementById('mtLlmInsight');
-        if (insight) insight.textContent = llmInsight(t, monetary);
+        if (insight) insight.textContent = savingsInsight(t, d.savings_attribution, monetary);
 
         var metaByKey = {};
         (d.metrics || []).forEach(function(m) { metaByKey[m.key] = m.provenance; });

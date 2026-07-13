@@ -12,6 +12,8 @@ describe('dashboard metrics interaction', () => {
     expect(script).toContain('Events recorded without LLM');
     expect(script).toContain('mtNetSavings');
     expect(script).toContain('estimated net savings');
+    expect(script).toContain('savings_attribution');
+    expect(script).toContain('operational events are recorded separately');
   });
 
   it('restores the metrics tab after a reload', () => {

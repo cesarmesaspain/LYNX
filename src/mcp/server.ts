@@ -46,7 +46,7 @@ import { runPipeline } from '../pipeline/orchestrator.js';
 import { lynxHome, readLynxConfig } from '../config/runtime.js';
 import { closeAllProjectWatchers, getProjectWatcherStatus, startProjectWatcher } from '../watcher/watcher-manager.js';
 import { startDashboard } from '../server/dashboard/index.js';
-import { summarizeUsage } from '../usage/metrics.js';
+import { recordUsageEvent, summarizeUsage } from '../usage/metrics.js';
 import { resolveProjectReference } from './project-resolution.js';
 
 // ── Handler registry ──────────────────────────────────────────
@@ -145,6 +145,32 @@ const CORE_TOOL_NAMES = new Set([
   'find_tests', 'detect_changes', 'assess_impact', 'list_projects',
   'tool_catalog',
 ]);
+
+// These handlers already record a tool-specific event with a defensible
+// savings estimate. Every other project-scoped call still gets a measured
+// completion event below, but never an invented token-savings figure.
+const TOOLS_WITH_OWN_USAGE_EVENTS = new Set([
+  'pack_context', 'search_graph', 'trace_path', 'get_code_snippet',
+  'query_graph', 'search_code', 'explain_symbol', 'smart_review',
+  'semantic_search', 'find_tests', 'batch_get_code',
+]);
+
+function recordToolObservation(toolName: string, args: Record<string, unknown>, startedAt: number): void {
+  if (TOOLS_WITH_OWN_USAGE_EVENTS.has(toolName)) return;
+  const project = typeof args.project === 'string' ? args.project.trim() : '';
+  if (!project) return;
+  recordUsageEvent({
+    type: 'tool_observation',
+    project,
+    query: toolName,
+    result_count: 1,
+    files_avoided: 0,
+    tokens_saved: 0,
+    confidence: 'low',
+    latency_ms: Math.max(0, Date.now() - startedAt),
+    tool_hint: toolName,
+  });
+}
 
 // ── JSON-RPC dispatch ─────────────────────────────────────────
 
@@ -305,11 +331,13 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
     }
 
     try {
+      const startedAt = Date.now();
       const normalized = normalizeProjectArgs(name, args || {});
       if ('error' in normalized) {
         return jsonRpcResult(id, { content: [{ type: 'text', text: JSON.stringify(normalized, null, 2) }] });
       }
       const result = await HANDLERS[name](normalized.args);
+      recordToolObservation(name, normalized.args, startedAt);
       decayCounter(); // Any LYNX MCP tool use decays the strict-mode counter by STRICT_DECAY
       const context = buildIndexContext(normalized.args);
       const agentResponsePreference = getAgentResponsePreference();

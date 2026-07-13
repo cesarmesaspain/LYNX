@@ -79,6 +79,7 @@ const CATEGORY_BY_TYPE: Record<string, string> = {
   find_tests: 'impact_analysis',
   llm_rerank: 'llm_rerank',
   hook_augment: 'hook_augment',
+  tool_observation: 'other',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {

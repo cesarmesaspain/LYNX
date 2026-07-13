@@ -23,7 +23,9 @@ export type UsageEventType =
   | 'llm_rerank'
   | 'hook_augment'
   | 'benchmark'
-  | 'real_savings';
+  | 'real_savings'
+  /** A completed LYNX tool call with no tool-specific savings estimator. */
+  | 'tool_observation';
 
 export interface UsageEvent {
   ts: string;

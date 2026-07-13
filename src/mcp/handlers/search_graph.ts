@@ -27,11 +27,30 @@ import { readLynxConfig } from '../../config/runtime.js';
 
 const decisionLlmCalls = new Map<string, number>();
 
-function mayAutoRerank(candidateCount: number): boolean {
+export function hasAmbiguousDeterministicRanking(
+  candidates: readonly Pick<SearchNode, 'deterministic_score'>[],
+  mode: 'conservative' | 'adaptive',
+): boolean {
+  if (candidates.length < 2) return false;
+  const scores = candidates
+    .map(candidate => candidate.deterministic_score)
+    .filter((score): score is number => Number.isFinite(score))
+    .sort((a, b) => b - a);
+  if (scores.length < 2) return false;
+
+  const [top, runnerUp] = scores;
+  const margin = top - runnerUp;
+  const relativeMargin = top > 0 ? margin / top : 1;
+  const maxRelativeMargin = mode === 'conservative' ? 0.05 : 0.15;
+  return margin <= 1 || relativeMargin <= maxRelativeMargin;
+}
+
+function mayAutoRerank(candidates: readonly SearchNode[]): boolean {
   const policy = readLynxConfig().decision_llm;
   if (!policy || policy.mode === 'off') return false;
   const minimum = policy.mode === 'conservative' ? 6 : 3;
-  if (candidateCount < minimum || policy.max_calls_per_hour < 1) return false;
+  if (candidates.length < minimum || policy.max_calls_per_hour < 1) return false;
+  if (!hasAmbiguousDeterministicRanking(candidates, policy.mode)) return false;
   const hour = new Date().toISOString().slice(0, 13);
   return (decisionLlmCalls.get(hour) || 0) < policy.max_calls_per_hour;
 }
@@ -368,6 +387,7 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
   let { project, query, label, namePattern, qnPattern, nameLike, qnLike, filePattern,
         limit, offset, minDegree, maxDegree, excludeEntryPoints,
         semanticQuery, enableLlm } = parsed;
+  const llmWasExplicitlySet = Object.prototype.hasOwnProperty.call(args, 'enable_llm');
 
   // Free tier: LLM rerank degrades to heuristic silently
   if (enableLlm && !hasCapability('semantic_rerank')) {
@@ -402,8 +422,8 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
   }
 
   // Explicit requests always win. Otherwise an opt-in policy can resolve only
-  // ambiguous candidate sets, with a strict hourly cap.
-  if (!enableLlm && mayAutoRerank(deduped.length) && hasCapability('semantic_rerank')) {
+  // close deterministic rankings, with a strict hourly cap.
+  if (!llmWasExplicitlySet && !enableLlm && mayAutoRerank(deduped) && hasCapability('semantic_rerank')) {
     enableLlm = true;
   }
 

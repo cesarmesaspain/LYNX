@@ -49,6 +49,7 @@ export function executeLocalSearchGraph(
       is_test: r.node.isTest,
       provenance: 'local' as const,
       provider_count: 1,
+      deterministic_score: r.score + r.tokenScore,
     }));
     total = results.length;
   } else {
@@ -86,6 +87,7 @@ export function executeLocalSearchGraph(
       is_test: r.node.isTest,
       provenance: 'local' as const,
       provider_count: 1,
+      deterministic_score: r.score + r.tokenScore,
     }));
     total = results.total;
   }

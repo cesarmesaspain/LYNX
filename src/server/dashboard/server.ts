@@ -364,6 +364,9 @@ export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
   if (_server) return _server;
 
   const server = http.createServer(handleRequest);
+  // Claim startup immediately so concurrent callers (for example a retry and
+  // the service health loop) cannot create competing HTTP servers.
+  _server = server;
 
   function setupRealtime() {
     // WebSocket server sharing the same HTTP server.
@@ -421,7 +424,7 @@ export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
       console.error(`[lynx] Dashboard port ${port} in use — retrying when it is released.`);
-      _server = null;
+      if (_server === server) _server = null;
       retryDashboard(port, retryAttempt);
       return;
     }
@@ -435,16 +438,29 @@ export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
     _watchFs = null;
     _watchHome?.close();
     _watchHome = null;
-    _server = null;
+    if (_server === server) _server = null;
   });
 
   server.listen(port, '127.0.0.1', () => {
     console.error(`[lynx] Dashboard: http://localhost:${port}  ws://localhost:${port}/ws`);
-    _server = server;
     setupRealtime();
   });
 
   return server;
+}
+
+export function isDashboardListening(): boolean {
+  return _server?.listening === true;
+}
+
+export function stopDashboard(): void {
+  if (_dashboardRetry) {
+    clearTimeout(_dashboardRetry);
+    _dashboardRetry = null;
+  }
+  const server = _server;
+  _server = null;
+  if (server?.listening) server.close();
 }
 
 // ── CSV export ─────────────────────────────────────────────────

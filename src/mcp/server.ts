@@ -45,7 +45,6 @@ import { discoverFiles } from '../pipeline/phases/discover.js';
 import { runPipeline } from '../pipeline/orchestrator.js';
 import { lynxHome, readLynxConfig } from '../config/runtime.js';
 import { closeAllProjectWatchers, getProjectWatcherStatus, startProjectWatcher } from '../watcher/watcher-manager.js';
-import { startDashboard } from '../server/dashboard/index.js';
 import { recordUsageEvent, summarizeUsage } from '../usage/metrics.js';
 import { resolveProjectReference } from './project-resolution.js';
 
@@ -363,15 +362,7 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
 // ── Run server ──────────────────────────────────────────────
 
 export async function runServer(): Promise<void> {
-  const config = readLynxConfig();
   const verificationMode = process.env.LYNX_VERIFY === '1';
-  if (!verificationMode && config.auto_dashboard) {
-    try {
-      startDashboard();
-    } catch (err) {
-      console.error('[lynx] Dashboard failed to start:', String(err));
-    }
-  }
   if (!verificationMode) void maybeAutoIndexCurrentProject();
 
   let pending = 0;

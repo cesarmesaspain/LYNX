@@ -22,6 +22,7 @@ import { LynxDatabase } from '../store/database.js';
 import { findNearestProject } from '../discovery/project-scanner.js';
 import { lynxConfigPath, detectSystemLocale, readLynxConfig, upsertLynxConfig } from '../config/runtime.js';
 import { verifyMcpServer } from './mcp-verify.js';
+import { startDashboardService, stopDashboardService } from '../server/dashboard/service.js';
 import {
   installAntigravityHooks, installClaudeHooks, installCodexHook, installGeminiHooks,
   removeAntigravityHooks, removeClaudeHooks, removeCodexHook, removeGeminiHooks,
@@ -302,6 +303,11 @@ export async function runInstall(options: boolean | InstallOptions): Promise<voi
     log(`wrote ${lynxConfigPath()} (auto_index=${cfg.auto_index}, limit=${cfg.auto_index_limit}, locale=${cfg.locale})`);
   }
 
+  // The dashboard is a user-level local service. It must survive agent and
+  // MCP process exits, so it is deliberately started outside the MCP server.
+  console.log('\nDashboard service:');
+  log(startDashboardService(command, args, dryRun));
+
   if (dryRun) {
     console.log('\nDry run complete. Run without --dry-run to apply changes.');
   } else {
@@ -533,6 +539,9 @@ export function runUninstall(dryRun: boolean): void {
       }
     }
   }
+
+  console.log('\nDashboard service:');
+  log(stopDashboardService(dryRun));
 
   if (dryRun) {
     console.log('\nDry run complete. Run without --dry-run to remove files.');

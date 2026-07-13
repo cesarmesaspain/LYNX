@@ -75,9 +75,13 @@ export async function runHookAugment(): Promise<void> {
     if (strict) {
       // Bash: only count exploratory commands (grep, find, cat, etc.), not build/infra
       const shouldCount = tool !== 'bash' || isExploratoryBash(String(toolInput.command || ''), String(toolInput.file_path || ''));
-      const blocked = shouldCount ? touchCounter() : false;
+      const counter = shouldCount ? touchCounter() : readCounter();
+      // The first code-discovery action of a chat must be LYNX. Once a LYNX
+      // call succeeds, normal strict-mode tolerance resumes for targeted
+      // filesystem work. This prevents the expensive `ls/find/read` prelude
+      // seen in fresh Claude sessions without blocking legitimate later work.
+      const blocked = shouldCount && (!counter.lynxUsed || counter.count > STRICT_THRESHOLD);
       if (blocked) {
-        const counter = readCounter();
         process.stdout.write(
           JSON.stringify({
             hookSpecificOutput: {
@@ -109,6 +113,8 @@ interface SessionCounter {
   count: number;
   lastTouch: number; // Date.now()
   strictMode: boolean;
+  /** Set by the MCP server after the session has made a LYNX call. */
+  lynxUsed: boolean;
 }
 
 function counterPath(): string {
@@ -120,7 +126,7 @@ function readCounter(): SessionCounter {
     const raw = fs.readFileSync(counterPath(), 'utf-8');
     return JSON.parse(raw) as SessionCounter;
   } catch {
-    return { count: 0, lastTouch: Date.now(), strictMode: false };
+    return { count: 0, lastTouch: Date.now(), strictMode: false, lynxUsed: false };
   }
 }
 
@@ -136,8 +142,8 @@ function isStrictMode(): boolean {
   return process.env.LYNX_STRICT === '1';
 }
 
-/** Called every time the hook fires. Returns true if the tool should be DENIED. */
-function touchCounter(): boolean {
+/** Called every time the hook fires. Returns the updated session state. */
+function touchCounter(): SessionCounter {
   const now = Date.now();
   const c = readCounter();
 
@@ -151,7 +157,7 @@ function touchCounter(): boolean {
   c.strictMode = isStrictMode();
   writeCounter(c);
 
-  return c.strictMode && c.count > STRICT_THRESHOLD;
+  return c;
 }
 
 /** Called when the agent uses a LYNX MCP tool — decays the counter by STRICT_DECAY. */
@@ -160,6 +166,7 @@ export function decayCounter(): void {
   c.count = Math.max(0, c.count - STRICT_DECAY);
   c.lastTouch = Date.now();
   c.strictMode = isStrictMode();
+  c.lynxUsed = true;
   writeCounter(c);
 }
 
@@ -176,7 +183,7 @@ export function readCounterState(): SessionCounter {
   const c = readCounter();
   const now = Date.now();
   if (now - c.lastTouch > COUNTER_RESET_MS) {
-    return { count: 0, lastTouch: now, strictMode: isStrictMode() };
+    return { count: 0, lastTouch: now, strictMode: isStrictMode(), lynxUsed: false };
   }
   return c;
 }
@@ -480,8 +487,7 @@ function formatBlockMessage(tool: string, project: string, count: number): strin
     '- trace_path cuando callers, callees o flujo sean relevantes',
     '- query_graph para metricas o relaciones cruzadas',
     '',
-    'Para resetear el contador: usa CUALQUIER tool de LYNX o ejecuta `lynx reset-counter`.',
-    'Para desactivar strict mode: `lynx config set strict false`.',
+    'Una llamada MCP de LYNX desbloquea la exploracion local dirigida para este chat.',
   ].join('\n');
 }
 

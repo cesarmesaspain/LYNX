@@ -6,6 +6,8 @@ import * as os from 'node:os';
 
 const HOME = os.homedir();
 const STRICT_THRESHOLD = 4;
+const CLAUDE_GUIDANCE_START = '<!-- lynx:global:start -->';
+const CLAUDE_GUIDANCE_END = '<!-- lynx:global:end -->';
 
 // These operations are strictly read/discovery/analysis. Keep write-capable
 // tools (indexing, watching, ADR/traces management and deletion) outside this
@@ -63,6 +65,8 @@ export function installClaudeHooks(command: string, args: string[], dryRun: bool
     '#!/bin/bash',
     '# lynx-session-start — SessionStart hook for LYNX MCP awareness.',
     '# Installed by: lynx install',
+    '# New chats must establish LYNX context before exploratory file tools.',
+    'rm -f "$HOME/.lynx/session-counter.json"',
     'cat << \'REMINDER\'',
     'LYNX Code Intelligence is active.',
     '',
@@ -84,13 +88,15 @@ export function installClaudeHooks(command: string, args: string[], dryRun: bool
   ].join('\n');
 
   const hookCommandLine = shellCommand(command, hookArgs(args, 'hook-augment'));
-  const strictEnv = strict ? 'LYNX_STRICT=1' : '';
+  // Enforce LYNX-first only for the initial discovery step. The hook releases
+  // normal targeted filesystem work as soon as a LYNX tool has been used.
+  const strictEnv = 'LYNX_STRICT=1';
   const augmentHookScript = [
     '#!/bin/bash',
     '# lynx-code-discovery-augment — Claude PreToolUse context augmenter.',
     '# Installed by: lynx install' + (strict ? ' --strict' : ''),
-    strict ? '# STRICT MODE: blocks non-LYNX tools after ' + STRICT_THRESHOLD + ' consecutive uses.' : '# Non-blocking by design: failures must never stop Grep/Glob.',
-    strict ? `${strictEnv} ${hookCommandLine} 2>/dev/null` : `${hookCommandLine} 2>/dev/null`,
+    '# LYNX-first: blocks exploratory filesystem tools until this chat uses LYNX.',
+    `${strictEnv} ${hookCommandLine} 2>/dev/null`,
     'exit 0',
   ].join('\n');
 
@@ -108,8 +114,40 @@ export function installClaudeHooks(command: string, args: string[], dryRun: bool
   log(`created ${augmentHookPath}`);
 
   registerClaudeReadOnlyLynxPermissions(settingsPath);
+  installClaudeGlobalGuidance();
   registerSessionStartHook(settingsPath, sessionHookPath);
   registerPreToolUseAugmentHook(settingsPath, augmentHookPath, strict);
+}
+
+/** Keep Claude's global guidance as strong as the enforced PreToolUse guard. */
+function installClaudeGlobalGuidance(): void {
+  const guidancePath = path.join(HOME, '.claude', 'CLAUDE.md');
+  const block = [
+    CLAUDE_GUIDANCE_START,
+    '## LYNX-first code discovery',
+    '',
+    'For any request to analyze, review, explore, or understand code, use a LYNX MCP tool before Bash, Read, Grep, or Glob.',
+    'For broad work, call `pack_context(task)` first. If no project is resolved, use `list_projects`, then `index_status`; index the active project locally if missing or stale.',
+    'Do not enumerate directories or read source as a prelude to discovery. Use filesystem tools only after LYNX evidence, or for a precise configuration/documentation/literal check.',
+    CLAUDE_GUIDANCE_END,
+    '',
+  ].join('\n');
+  let current = '';
+  try {
+    current = fs.existsSync(guidancePath) ? fs.readFileSync(guidancePath, 'utf-8') : '';
+  } catch {
+    return;
+  }
+  const start = current.indexOf(CLAUDE_GUIDANCE_START);
+  const end = current.indexOf(CLAUDE_GUIDANCE_END);
+  const next = start >= 0 && end >= start
+    ? current.slice(0, start) + block + current.slice(end + CLAUDE_GUIDANCE_END.length).replace(/^\s*/, '')
+    : current.trimEnd() + (current.trim() ? '\n\n' : '') + block;
+  if (next === current) return;
+  const tmp = guidancePath + '.tmp';
+  fs.writeFileSync(tmp, next);
+  fs.renameSync(tmp, guidancePath);
+  log(`updated global LYNX-first guidance → ${guidancePath}`);
 }
 
 function hookArgs(args: string[], commandName: string): string[] {
@@ -489,7 +527,7 @@ function registerPreToolUseAugmentHook(settingsPath: string, hookPath: string, s
   });
 
   // Strict mode: also intercept Bash to catch grep/find inside bash commands
-  const matcher = strict ? 'Grep|Glob|Read|Bash' : 'Grep|Glob|Read';
+  const matcher = 'Grep|Glob|Read|Bash';
   const hookEntry: Record<string, unknown> = {
     matcher,
     hooks: [{ type: 'command', command: hookPath, timeout: 5 }],

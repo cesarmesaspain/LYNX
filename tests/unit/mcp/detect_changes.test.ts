@@ -25,6 +25,7 @@ import {
   isGitWorkTree,
   collectFileDiffs,
   collectGitEntries,
+  buildChangeSetAssessmentInput,
 } from '../../../src/mcp/handlers/detect_changes.js';
 import { buildFilesOnlyResult } from '../../../src/mcp/handlers/detect-changes-results.js';
 import type { GitStatusEntry, CanonicalChange, RelatedDependency } from '../../../src/mcp/handlers/detect_changes.js';
@@ -32,6 +33,18 @@ import type { GitStatusEntry, CanonicalChange, RelatedDependency } from '../../.
 const tempDirs: string[] = [];
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+});
+
+describe('grouped LLM change assessment', () => {
+  it('builds a compact structural summary instead of source payloads per symbol', () => {
+    const summary = buildChangeSetAssessmentInput([
+      { name: 'saveConfig', file_path: 'src/config.ts', caller_count: 12, impact_tier: 'confirmed' },
+      { name: 'readConfig', file_path: 'src/config.ts', caller_count: 9, impact_tier: 'probable' },
+    ]);
+    expect(summary).toContain('src/config.ts :: saveConfig :: confirmed impact :: 12 callers');
+    expect(summary).toContain('src/config.ts :: readConfig :: probable impact :: 9 callers');
+    expect(summary.length).toBeLessThan(200);
+  });
 });
 
 describe('buildFilesOnlyResult', () => {

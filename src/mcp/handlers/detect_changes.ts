@@ -423,6 +423,10 @@ interface LlmRiskAssessment {
   latency_ms: number;
 }
 
+export function buildChangeSetAssessmentInput(nodes: readonly Pick<InternalChangedNode, 'name' | 'file_path' | 'caller_count' | 'impact_tier'>[]): string {
+  return nodes.map(node => `${node.file_path} :: ${node.name} :: ${node.impact_tier} impact :: ${node.caller_count} callers`).join('\n');
+}
+
 interface InternalChangedNode {
   name: string;
   qualified_name: string;
@@ -686,6 +690,37 @@ async function runLlmRiskAssessment(
   const llmCandidates = changedNodes.filter(n => n.severity === 'critical' || n.severity === 'high').slice(0, 5);
   let llmTotalLatency = 0;
   let attemptedProvider = '';
+
+  // Large change sets get one compact decision instead of one paid request per
+  // symbol. The graph still determines the candidate set and impact evidence.
+  if (llmCandidates.length >= 3) {
+    const compactChangeSet = buildChangeSetAssessmentInput(llmCandidates);
+    const callers = [...new Set(llmCandidates.flatMap(node => node.callers))].slice(0, 12);
+    try {
+      const callStart = Date.now();
+      const result = await assessRiskWithMeta(
+        'change set', compactChangeSet, callers,
+        Math.max(...llmCandidates.map(node => node.caller_count)),
+        `Changed symbols (${llmCandidates.length}):\n${compactChangeSet}`,
+      );
+      const latency = Date.now() - callStart;
+      llmUsage.calls = 1;
+      llmUsage.used = true;
+      llmUsage.provider = result.provider;
+      llmUsage.model = result.model || null;
+      llmUsage.latency_ms = latency;
+      llmUsage.fallback_used = result.fallback;
+      for (const node of llmCandidates) {
+        node.llm_risk = { risk: result.risk, reason: result.reason, fan_in: node.caller_count, source: `${result.provider}_group`, latency_ms: latency };
+      }
+      if (result.fallback) llmUsage.fallback_reason = `${result.provider} grouped assessment fell back to deterministic evidence`;
+      return { llmUsage };
+    } catch {
+      llmUsage.fallback_used = true;
+      llmUsage.fallback_reason = 'grouped risk assessment failed; kept deterministic evidence';
+      return { llmUsage };
+    }
+  }
 
   for (const node of llmCandidates) {
     const fullPath = path.join(rootPath, node.file_path);

@@ -28,6 +28,9 @@ export function webSocketScript(): string {
         var msg = JSON.parse(ev.data);
         if (msg.type === 'cards_updated') {
           updateDashboardUI(msg.cards, msg.briefs);
+          // Metrics are aggregated independently from project cards. Refresh the
+          // currently selected project/window when the server detects new usage.
+          if (typeof loadMetrics === 'function') loadMetrics();
         }
       } catch (e) {}
     };

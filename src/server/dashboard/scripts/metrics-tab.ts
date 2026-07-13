@@ -185,5 +185,13 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
   // Tab restoration runs in mainInitScript after this script. Load unconditionally
   // so a refreshed page cannot leave the active Metrics tab with placeholders.
   setTimeout(loadMetrics, 100);
+
+  // Usage may be written by an MCP process outside this dashboard process. Keep
+  // the Metrics view live even on platforms where filesystem watch events are
+  // coalesced or not delivered to the WebSocket broadcaster.
+  setInterval(function() {
+    var panel = document.getElementById('metricsTab');
+    if (panel && panel.classList.contains('active') && !document.hidden) loadMetrics();
+  }, 2000);
 })();`;
 }

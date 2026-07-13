@@ -215,6 +215,7 @@ async function buildProjectPackContext(
     hasCapability('semantic_rerank');
   const shouldSelectWithLlm = enableLlm || autoSelect;
   const selectionLimit = mode === 'full' ? MAX_CANDIDATES_COMPACT : SELECTED_CANDIDATES_COMPACT;
+  llmUsage.enabled = shouldSelectWithLlm;
 
   if (shouldSelectWithLlm && candidatePool.length >= 3) {
     try {

@@ -17,6 +17,8 @@ describe('MCP tool registry', () => {
     );
     expect((listed.find((tool) => tool.name === 'get_code_snippet')?.inputSchema as { properties: Record<string, unknown> })
       .properties.max_lines).toBeDefined();
+    expect((listed.find((tool) => tool.name === 'detect_changes')?.inputSchema as { properties: Record<string, unknown> })
+      .properties.include_committed).toBeDefined();
   });
 
   it('offers the compact profile only when explicitly requested', () => {

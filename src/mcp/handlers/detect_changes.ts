@@ -457,35 +457,37 @@ export function isGitWorkTree(rootPath: string): boolean {
 }
 
 /** Collect raw GitStatusEntry list from git porcelain + diff commands. */
-export function collectGitEntries(rootPath: string, baseBranch: string, since?: string): {
+export function collectGitEntries(rootPath: string, baseBranch: string, since?: string, includeCommitted = true): {
   rawEntries: GitStatusEntry[];
   committedRef: string | null;
 } {
   const rawEntries: GitStatusEntry[] = [];
   let committedRef: string | null = null;
 
-  committedRef = since || `${baseBranch}...HEAD`;
-  try {
-    const out = child_process.execFileSync(
-      'git', ['diff', '--name-status', committedRef],
-      { cwd: rootPath, encoding: 'utf-8', timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] }
-    );
-    for (const line of out.trim().split('\n')) {
-      const parsed = parseGitDiffStatus(line);
-      if (parsed) rawEntries.push(parsed);
-    }
-  } catch {
+  if (includeCommitted) {
+    committedRef = since || `${baseBranch}...HEAD`;
     try {
       const out = child_process.execFileSync(
-        'git', ['diff', '--name-status', 'HEAD~1'],
-        { cwd: rootPath, encoding: 'utf-8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] }
+        'git', ['diff', '--name-status', committedRef],
+        { cwd: rootPath, encoding: 'utf-8', timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] }
       );
       for (const line of out.trim().split('\n')) {
         const parsed = parseGitDiffStatus(line);
         if (parsed) rawEntries.push(parsed);
       }
-      committedRef = 'HEAD~1';
-    } catch { /* no commits */ }
+    } catch {
+      try {
+        const out = child_process.execFileSync(
+          'git', ['diff', '--name-status', 'HEAD~1'],
+          { cwd: rootPath, encoding: 'utf-8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] }
+        );
+        for (const line of out.trim().split('\n')) {
+          const parsed = parseGitDiffStatus(line);
+          if (parsed) rawEntries.push(parsed);
+        }
+        committedRef = 'HEAD~1';
+      } catch { /* no commits */ }
+    }
   }
 
   try {
@@ -768,6 +770,12 @@ export async function handleDetectChanges(
   const includeDiff = args.include_diff !== undefined
     ? args.include_diff === true
     : !savingsMode;
+  // During an active session, local worktree changes are the useful default.
+  // Branch history can be large, so in maximum-savings mode it is opt-in.
+  const includeCommitted = args.include_committed === true
+    || args.since !== undefined
+    || args.base_branch !== undefined
+    || !savingsMode;
   const requestedFiles = normalizeRequestedFiles(args.files);
   const compiledPathFilter = compilePathFilter(args.path_filter);
   const pathFilterRegex = compiledPathFilter.regex;
@@ -821,7 +829,7 @@ export async function handleDetectChanges(
   let rawEntries: GitStatusEntry[];
   let committedRef: string | null;
   try {
-    const collected = collectGitEntries(rootPath, baseBranch, since);
+    const collected = collectGitEntries(rootPath, baseBranch, since, includeCommitted);
     rawEntries = collected.rawEntries;
     committedRef = collected.committedRef;
   } catch {

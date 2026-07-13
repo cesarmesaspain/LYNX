@@ -139,6 +139,9 @@ describe('collectGitEntries shell safety', () => {
       kind: 'committed', file: 'sample.ts', status: 'M', isRename: false,
     });
     expect(result.rawEntries.some(entry => entry.kind === 'staged')).toBe(false);
+
+    const localOnly = collectGitEntries(root, 'main', undefined, false);
+    expect(localOnly.rawEntries).toEqual([]);
   });
 });
 

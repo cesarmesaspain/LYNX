@@ -263,6 +263,7 @@ export const TOOLS: LynxToolDef[] = [
         project: { type: 'string' },
         base_branch: { type: 'string', description: 'Base branch for diff (default main).' },
         since: { type: 'string', description: 'Git ref or tag to compare from (e.g. HEAD~5, v0.5.0).' },
+        include_committed: { type: 'boolean', description: 'Include changes already committed relative to the base. In maximum-savings mode, local worktree changes are the default unless a ref is supplied.' },
         scope: { type: 'string', enum: ['files', 'symbols'], description: 'files: just paths, symbols: paths + impacted functions.' },
         depth: { type: 'integer', description: 'Call depth for impact analysis (default 2).' },
         files: { type: 'array', items: { type: 'string' }, description: 'Comma-separated or array of file paths to scope analysis. Only these files appear in primary results; dependencies outside scope go in related_dependencies.' },

@@ -69,14 +69,14 @@ export function findHotspots(
 export function findGodComponents(
   db: LynxDatabase,
   project: string,
-  minLines = 1000
+  minLines = 300
 ): LynxHotspot[] {
   const rows = db.db
     .prepare(
       `SELECT n.name, n.qualified_name, n.file_path, n.properties,
               json_extract(n.properties, '$.lineCount') as line_count
        FROM nodes n
-       WHERE n.project = ? AND n.kind IN ('Function', 'Class', 'Method')
+       WHERE n.project = ? AND n.kind IN ('Class', 'Module')
          AND CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) >= ?
        ORDER BY CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) DESC
        LIMIT 20`

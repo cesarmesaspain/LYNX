@@ -12,7 +12,9 @@ const ALL_ASPECTS: Aspect[] = [
   'languages', 'hotspots', 'clusters', 'file_tree',
   'entry_points', 'brief', 'narrative', 'node_labels', 'edge_types',
 ];
-const DEFAULT_ASPECTS: Aspect[] = ['brief', 'narrative', 'languages'];
+// A first overview must be cheap enough to guide the next call, not replace
+// it with a large cached essay. Ask for `brief` explicitly when needed.
+const DEFAULT_ASPECTS: Aspect[] = ['languages', 'narrative'];
 
 export async function handleGetArchitecture(
   args: Record<string, unknown>

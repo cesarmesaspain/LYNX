@@ -127,8 +127,8 @@ function installClaudeGlobalGuidance(): void {
     '## LYNX-first code discovery',
     '',
     'For any request to analyze, review, explore, or understand code, use a LYNX MCP tool before Bash, Read, Grep, or Glob.',
-    'For broad work, call `pack_context(task)` first. If no project is resolved, use `list_projects`, then `index_status`; index the active project locally if missing or stale.',
-    'Do not enumerate directories or read source as a prelude to discovery. Use filesystem tools only after LYNX evidence, or for a precise configuration/documentation/literal check.',
+    'For broad work, call `pack_context(task)` first. If no project is resolved, use `list_projects`, then call `pack_context(task, project)`; index the active project locally if missing or stale.',
+    'Do not enumerate directories or read every source file as a prelude to discovery. After a compact overview, use get_code_snippet only for the one or two symbols that need verification.',
     CLAUDE_GUIDANCE_END,
     '',
   ].join('\n');

@@ -165,7 +165,7 @@ export const TOOLS: LynxToolDef[] = [
     name: 'get_architecture',
     description:
       'Get high-level architecture overview: languages, hotspots, clusters, file tree, node/edge counts. ' +
-      'Use aspects to filter what sections are returned and control token cost. Treat returned sections as reusable evidence; do not call again for an aspect already included unless the prior section was truncated or a narrower path is materially required.',
+      'For a first overview, use the compact default, then request only a missing aspect. Treat returned sections as reusable evidence; do not read every source file after an overview—use get_code_snippet only for the one or two symbols that need verification.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -365,12 +365,13 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'analyze_hotspots',
     description:
-      'Get a complete scalability snapshot in one call: largest files by line count, most complex functions, tightest coupling by fan-in, hotspots, project averages, and god components. Prefer this over manual query_graph loops for size, complexity, coupling, or components doing too much.',
+      'Get a complete scalability snapshot: largest files, complexity, coupling, hotspots, project averages, and genuinely large components. Use only when the task is specifically about quality, complexity, scalability, or risk—not as the first general project overview. For small projects, prefer get_architecture plus targeted get_code_snippet.',
     inputSchema: {
       type: 'object',
       properties: {
         project: { type: 'string' },
         limit: { type: 'integer', description: 'Max results (default 10).' },
+        include_god_components: { type: 'boolean', description: 'Include only classes/modules of at least 300 lines. Default true.' },
       },
       required: ['project'],
     },

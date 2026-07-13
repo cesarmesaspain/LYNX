@@ -28,7 +28,9 @@ export async function handleAnalyzeHotspots(
   if (!projectMeta) return { ...projectNotIndexed(project) };
 
   const hotspots = findHotspots(db, project, topN, includeTests);
-  const godComponents = includeGod ? findGodComponents(db, project, 5) : [];
+  // A god component must be materially large. Passing 5 here previously
+  // classified ordinary six-line functions as architectural risks.
+  const godComponents = includeGod ? findGodComponents(db, project) : [];
   const largestFiles = db.db.prepare(`
     SELECT n.file_path AS file,
            CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) AS lines

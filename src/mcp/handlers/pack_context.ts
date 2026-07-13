@@ -26,6 +26,8 @@ import * as child_process from 'node:child_process';
 import * as path from 'node:path';
 import { storedTimestampMs } from '../../store/time.js';
 import { rerankSearchWithMeta, type RerankMeta } from '../../llm/client.js';
+import { readLynxConfig } from '../../config/runtime.js';
+import { hasCapability } from '../../commercial/gate.js';
 
 interface GraphCandidate {
   name: string;
@@ -80,6 +82,12 @@ interface PackContextResult {
     fallback_used: boolean;
     fallback_reason: string | null;
   };
+  context_selection?: {
+    original_candidates: number;
+    selected_candidates: number;
+    estimated_tokens_avoided: number;
+    applied: boolean;
+  };
   token_budget: {
     estimated_pack_tokens: number;
     confidence: string;
@@ -90,6 +98,7 @@ interface PackContextResult {
 const MAX_CANDIDATES_COMPACT = 5;
 const MAX_CANDIDATES_FULL = 7;
 const MAX_TERMS = 4;
+const SELECTED_CANDIDATES_COMPACT = 3;
 
 export async function handlePackContext(
   args: Record<string, unknown>
@@ -101,6 +110,7 @@ export async function handlePackContext(
   // avoids spending provider tokens for ordinary discovery. Callers can opt in
   // to reranking only when the task is genuinely ambiguous or high-risk.
   const enableLlm = args.enable_llm === true;
+  const llmWasExplicitlySet = Object.prototype.hasOwnProperty.call(args, 'enable_llm');
 
   const constraints = buildConstraints(task);
 
@@ -114,7 +124,7 @@ export async function handlePackContext(
 
   // Standard mode with indexed project
   if (project) {
-    return await buildProjectPackContext(project, task, mode, constraints, enableLlm);
+    return await buildProjectPackContext(project, task, mode, constraints, enableLlm, llmWasExplicitlySet);
   }
 
   return {
@@ -154,6 +164,7 @@ async function buildProjectPackContext(
   mode: string,
   constraints: string[],
   enableLlm: boolean,
+  llmWasExplicitlySet: boolean,
 ): Promise<PackContextResult> {
   const db = getDb(project);
   const isSpanish = /[áéíóúñ]/.test(task);
@@ -174,14 +185,15 @@ async function buildProjectPackContext(
         kind: r.node.kind,
         flow_area: area,
         why: explainCandidate(r.node.kind, r.node.filePath, taskLower, term, fanIn),
-        score: r.score,
+        score: r.score + r.tokenScore,
         change_risk: assessChangeRisk(fanIn, r.node.filePath),
         fan_in: fanIn,
       });
     }
   }
 
-  const dedupedCandidates = dedupeCandidates(candidates).slice(0, maxCandidates);
+  const candidatePool = dedupeCandidates(candidates);
+  const dedupedCandidates = candidatePool.slice(0, maxCandidates);
   let confidence = 'medium';
   if (dedupedCandidates.length === 0) confidence = 'low_no_index';
 
@@ -197,10 +209,17 @@ async function buildProjectPackContext(
     fallback_reason: null as string | null,
   };
 
-  if (enableLlm && dedupedCandidates.length >= 3) {
+  const policy = readLynxConfig().decision_llm;
+  const autoSelect = !llmWasExplicitlySet && policy?.mode === 'adaptive' &&
+    candidatePool.length > maxCandidates && hasAmbiguousCandidatePool(candidatePool) &&
+    hasCapability('semantic_rerank');
+  const shouldSelectWithLlm = enableLlm || autoSelect;
+  const selectionLimit = mode === 'full' ? MAX_CANDIDATES_COMPACT : SELECTED_CANDIDATES_COMPACT;
+
+  if (shouldSelectWithLlm && candidatePool.length >= 3) {
     try {
       const rerankStart = Date.now();
-      const rerankInput = dedupedCandidates.map((c, i) => ({
+      const rerankInput = candidatePool.slice(0, maxCandidates + 3).map((c, i) => ({
         index: i,
         name: c.name,
         kind: c.kind || 'Function',
@@ -216,15 +235,15 @@ async function buildProjectPackContext(
         ? 'rerank fell back to heuristic — kept BM25 order'
         : null;
 
-      if (rerank.items.length === dedupedCandidates.length && rerank.provider !== 'heuristic') {
+      if (rerank.items.length === rerankInput.length && rerank.provider !== 'heuristic') {
         const reordered = rerank.items
           .sort((a, b) => b.relevanceScore - a.relevanceScore)
-          .map(r => dedupedCandidates[r.index])
+          .map(r => candidatePool[r.index])
           .filter(Boolean);
-        if (reordered.length === dedupedCandidates.length) {
+        if (reordered.length === rerankInput.length) {
           // Replace in-place
           dedupedCandidates.length = 0;
-          dedupedCandidates.push(...reordered);
+          dedupedCandidates.push(...reordered.slice(0, selectionLimit));
           llmReranked = true;
         }
       }
@@ -232,7 +251,7 @@ async function buildProjectPackContext(
       llmUsage.fallback_used = true;
       llmUsage.fallback_reason = 'rerank exception, kept BM25 order';
     }
-  } else if (!enableLlm) {
+  } else if (!shouldSelectWithLlm) {
     llmUsage.fallback_reason = 'enable_llm=false, skipped rerank';
   }
 
@@ -303,6 +322,14 @@ async function buildProjectPackContext(
     index_health: indexHealth,
     memory_enriched: memoryEnriched,
     llm_usage: llmUsage,
+    context_selection: {
+      original_candidates: Math.min(candidatePool.length, maxCandidates),
+      selected_candidates: dedupedCandidates.length,
+      estimated_tokens_avoided: llmReranked
+        ? estimateCandidateTokens(candidatePool.slice(0, maxCandidates)) - estimateCandidateTokens(dedupedCandidates)
+        : 0,
+      applied: llmReranked,
+    },
     value_metrics: {
       estimated_files_avoided: value.filesAvoided,
       estimated_tokens_saved: value.tokensSaved,
@@ -335,6 +362,17 @@ function dedupeCandidates(candidates: GraphCandidate[]): GraphCandidate[] {
     seen.add(candidate.qualified_name);
     return true;
   });
+}
+
+export function hasAmbiguousCandidatePool(candidates: readonly Pick<GraphCandidate, 'score'>[]): boolean {
+  if (candidates.length < 2) return false;
+  const scores = candidates.map(candidate => candidate.score).sort((a, b) => b - a);
+  const [top, runnerUp] = scores;
+  return top - runnerUp <= 1 || (top > 0 && (top - runnerUp) / top <= 0.15);
+}
+
+function estimateCandidateTokens(candidates: readonly GraphCandidate[]): number {
+  return Math.ceil(JSON.stringify(candidates).length / 4);
 }
 
 function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {

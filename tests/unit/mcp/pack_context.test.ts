@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { LynxDatabase } from '../../../src/store/database.js';
-import { handlePackContext } from '../../../src/mcp/handlers/pack_context.js';
+import { handlePackContext, hasAmbiguousCandidatePool } from '../../../src/mcp/handlers/pack_context.js';
 import { setDb } from '../../../src/mcp/server.js';
 import { TOOLS } from '../../../src/mcp/tools.js';
 
@@ -211,5 +211,12 @@ describe('pack_context decision mode', () => {
     const tools = result.recommended_next_calls.map(c => c.tool);
     expect(tools).toContain('trace_path');
     expect(tools).toContain('assess_impact');
+  });
+});
+
+describe('pack_context context selection', () => {
+  it('detects only close deterministic candidate scores as ambiguous', () => {
+    expect(hasAmbiguousCandidatePool([{ score: 10 }, { score: 9 }, { score: 2 }])).toBe(true);
+    expect(hasAmbiguousCandidatePool([{ score: 10 }, { score: 7 }, { score: 2 }])).toBe(false);
   });
 });

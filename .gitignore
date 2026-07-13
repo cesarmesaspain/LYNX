@@ -11,6 +11,9 @@ data/*.db-shm
 .env
 .env.*
 .DS_Store
+.playwright-cli/
+dashboard-en-localized.png
+premium-baseline.png
 native/lynx_ts_extractor_darwin-*
 native/lynx_ts_extractor_linux-*
 native/lynx_ts_extractor_win-*

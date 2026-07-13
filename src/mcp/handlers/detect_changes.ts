@@ -492,21 +492,12 @@ export function collectGitEntries(rootPath: string, baseBranch: string, since?: 
 
   try {
     const out = child_process.execFileSync(
-      'git', ['diff', '--name-only'],
-      { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
-    );
-    for (const rawLine of out.trim().split('\n')) {
-      const file = rawLine.trim();
-      if (file) rawEntries.push({ kind: 'unstaged', file, status: 'M' });
-    }
-  } catch { /* ignore */ }
-
-  try {
-    const out = child_process.execFileSync(
       'git', ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=normal'],
       { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
     );
-    for (const line of out.trim().split('\n')) {
+    // Do not trim the whole output: the leading space in porcelain status is
+    // semantic (` M` means unstaged). A final empty line is harmless.
+    for (const line of out.split(/\r?\n/)) {
       const parsed = parseGitStatus(line);
       if (parsed) rawEntries.push(parsed);
     }

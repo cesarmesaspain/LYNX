@@ -143,6 +143,21 @@ describe('collectGitEntries shell safety', () => {
     const localOnly = collectGitEntries(root, 'main', undefined, false);
     expect(localOnly.rawEntries).toEqual([]);
   });
+
+  it('preserves an unstaged hidden filename from porcelain output', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-git-dotfile-'));
+    tempDirs.push(root);
+    fs.writeFileSync(path.join(root, '.sample'), 'one\n');
+    for (const args of [
+      ['init'], ['config', 'user.email', 'test@lynx.local'], ['config', 'user.name', 'LYNX Test'],
+      ['add', '.'], ['commit', '-m', 'baseline'],
+    ]) execFileSync('git', args, { cwd: root });
+    fs.writeFileSync(path.join(root, '.sample'), 'two\n');
+
+    expect(collectGitEntries(root, 'main', undefined, false).rawEntries).toContainEqual({
+      kind: 'unstaged', file: '.sample', status: 'M',
+    });
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════

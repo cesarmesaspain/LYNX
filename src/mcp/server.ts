@@ -152,7 +152,7 @@ const CORE_TOOL_NAMES = new Set([
 const TOOLS_WITH_OWN_USAGE_EVENTS = new Set([
   'pack_context', 'search_graph', 'trace_path', 'get_code_snippet',
   'query_graph', 'search_code', 'explain_symbol', 'smart_review',
-  'semantic_search', 'find_tests', 'batch_get_code',
+  'semantic_search', 'find_tests', 'batch_get_code', 'index_repository',
 ]);
 
 function recordToolObservation(toolName: string, args: Record<string, unknown>, startedAt: number): void {
@@ -458,8 +458,9 @@ export async function maybeAutoIndexCurrentProject(): Promise<void> {
   const project = resolveProjectNameByRoot(detected.name, detected.rootPath);
   try {
     const db = LynxDatabase.openProject(project);
+    let result: Awaited<ReturnType<typeof runPipeline>>;
     try {
-      const result = await runPipeline(db, detected.rootPath, project, {
+      result = await runPipeline(db, detected.rootPath, project, {
         mode: 'fast',
         incremental: true,
       });
@@ -474,6 +475,24 @@ export async function maybeAutoIndexCurrentProject(): Promise<void> {
 
     if (config.auto_watch) {
       startAutoWatcher(project, detected.rootPath);
+    }
+
+    // A background refresh is still observable local work. Only record it
+    // when something was actually processed, so opening a new MCP session
+    // does not manufacture activity from an unchanged index.
+    if (result.filesProcessed > 0) {
+      recordUsageEvent({
+        type: 'tool_observation',
+        project,
+        query: detected.rootPath,
+        result_count: result.filesProcessed,
+        unique_files: result.filesProcessed,
+        files_avoided: 0,
+        tokens_saved: 0,
+        confidence: 'low',
+        latency_ms: result.incremental.durationMs,
+        tool_hint: 'auto_index',
+      });
     }
 
     // Welcome-back: show accumulated savings from previous sessions

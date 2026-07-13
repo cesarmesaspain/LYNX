@@ -3,6 +3,7 @@ import { getDb } from '../server.js';
 import { runPipeline } from '../../pipeline/orchestrator.js';
 import { acquireProjectLock, releaseProjectLock } from '../../store/lock.js';
 import { projectLocked } from '../diagnostics.js';
+import { recordUsageEvent } from '../../usage/metrics.js';
 
 export async function handleIndexRepository(
   args: Record<string, unknown>
@@ -66,6 +67,21 @@ export async function handleIndexRepository(
 
   const elapsed = Date.now() - startTime;
   const { status, filesProcessed, filesSkipped, incremental: update } = result;
+
+  // Indexing is measurable local work and must be visible in telemetry, but it
+  // is preparation for future savings—not a token saving by itself.
+  recordUsageEvent({
+    type: 'tool_observation',
+    project: projectName,
+    query: resolvedPath,
+    result_count: filesProcessed,
+    unique_files: filesProcessed,
+    files_avoided: 0,
+    tokens_saved: 0,
+    confidence: 'low',
+    latency_ms: elapsed,
+    tool_hint: 'index_repository',
+  });
 
   return {
     project: projectName,

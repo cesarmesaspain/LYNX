@@ -18,6 +18,7 @@ import { searchFullText } from '../../store/search.js';
 import { getRecentFindings, getFindingsByQn } from '../../store/memory.js';
 import {
   estimateTokensSaved,
+  estimateRerankCostUsd,
   recordUsageEvent,
   summarizeUsage,
 } from '../../usage/metrics.js';
@@ -246,6 +247,15 @@ async function buildProjectPackContext(
           dedupedCandidates.length = 0;
           dedupedCandidates.push(...reordered.slice(0, selectionLimit));
           llmReranked = true;
+          recordUsageEvent({
+            type: 'llm_rerank', project, query: task.slice(0, 240),
+            result_count: rerankInput.length, unique_files: new Set(reordered.map(c => c.file_path)).size,
+            files_avoided: 0, tokens_saved: 0, confidence: 'low',
+            llm_provider: rerank.provider, llm_latency_ms: llmUsage.latency_ms,
+            estimated_llm_cost_usd: estimateRerankCostUsd(rerankInput.length),
+            rank_changed: true, top_changed: reordered[0]?.qualified_name !== candidatePool[0]?.qualified_name,
+            tool_hint: 'pack_context selection', files: reordered.slice(0, selectionLimit).map(c => c.file_path),
+          });
         }
       }
     } catch {

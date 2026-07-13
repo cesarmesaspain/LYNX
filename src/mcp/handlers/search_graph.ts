@@ -25,6 +25,22 @@ import type { LynxDatabase } from '../../store/database.js';
 import { hasCapability } from '../../commercial/gate.js';
 import { readLynxConfig } from '../../config/runtime.js';
 
+const decisionLlmCalls = new Map<string, number>();
+
+function mayAutoRerank(candidateCount: number): boolean {
+  const policy = readLynxConfig().decision_llm;
+  if (!policy || policy.mode === 'off') return false;
+  const minimum = policy.mode === 'conservative' ? 6 : 3;
+  if (candidateCount < minimum || policy.max_calls_per_hour < 1) return false;
+  const hour = new Date().toISOString().slice(0, 13);
+  return (decisionLlmCalls.get(hour) || 0) < policy.max_calls_per_hour;
+}
+
+function recordAutoRerankCall(): void {
+  const hour = new Date().toISOString().slice(0, 13);
+  decisionLlmCalls.set(hour, (decisionLlmCalls.get(hour) || 0) + 1);
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Private helpers
 // ═══════════════════════════════════════════════════════════════
@@ -83,6 +99,7 @@ async function applyLlmRerank(
     });
 
     const { items: ranked, provider, model, fallback } = await rerankSearchWithMeta(query, candidates);
+    if (provider !== 'heuristic') recordAutoRerankCall();
     const llmLatency = Date.now() - llmStart;
 
     llmUsage.used = true;
@@ -382,6 +399,12 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
     const localResult = executeLocalSearchGraph(db, searchParams);
     deduped = localResult.results;
     total = localResult.total;
+  }
+
+  // Explicit requests always win. Otherwise an opt-in policy can resolve only
+  // ambiguous candidate sets, with a strict hourly cap.
+  if (!enableLlm && mayAutoRerank(deduped.length) && hasCapability('semantic_rerank')) {
+    enableLlm = true;
   }
 
   const { deduped: reRanked, llmReranked, llmMetrics, llmUsage } =

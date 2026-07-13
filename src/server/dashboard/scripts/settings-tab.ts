@@ -31,6 +31,8 @@ function loadConfig(){
     var aw=document.getElementById("cfgAutoWatch");if(aw)aw.checked=!!cfg.auto_watch;
     var ad=document.getElementById("cfgAutoDashboard");if(ad)ad.checked=!!cfg.auto_dashboard;
     var bl=document.getElementById("cfgBriefLlm");if(bl)bl.checked=!!(cfg.project_brief&&cfg.project_brief.llm_enrichment);
+    var dl=document.getElementById("cfgDecisionLlm");if(dl)dl.value=(cfg.decision_llm&&cfg.decision_llm.mode)||'off';
+    var dc=document.getElementById("cfgDecisionLlmCap");if(dc)dc.value=String((cfg.decision_llm&&cfg.decision_llm.max_calls_per_hour)||10);
     var mp=document.getElementById("cfgMcpToolProfile");if(mp)mp.value=cfg.mcp_tool_profile||'full';
     var limit=document.getElementById("cfgAutoIndexLimit");if(limit)limit.value=String(cfg.auto_index_limit||0);
     var stale=document.getElementById("cfgStaleHours");if(stale)stale.value=String(cfg.stale_threshold_hours||24);
@@ -84,9 +86,9 @@ if(loc)loc.addEventListener("change",function(){
 // Preferences save
 var psb=document.getElementById("savePrefsBtn"),psl="${labels.save}";
 if(psb)psb.addEventListener("click",function(){
-  var ai=document.getElementById("cfgAutoIndex"),aw=document.getElementById("cfgAutoWatch"),ad=document.getElementById("cfgAutoDashboard"),bl=document.getElementById("cfgBriefLlm"),mp=document.getElementById("cfgMcpToolProfile"),limit=document.getElementById("cfgAutoIndexLimit"),stale=document.getElementById("cfgStaleHours"),lock=document.getElementById("cfgLockMinutes");
+  var ai=document.getElementById("cfgAutoIndex"),aw=document.getElementById("cfgAutoWatch"),ad=document.getElementById("cfgAutoDashboard"),bl=document.getElementById("cfgBriefLlm"),dl=document.getElementById("cfgDecisionLlm"),dc=document.getElementById("cfgDecisionLlmCap"),mp=document.getElementById("cfgMcpToolProfile"),limit=document.getElementById("cfgAutoIndexLimit"),stale=document.getElementById("cfgStaleHours"),lock=document.getElementById("cfgLockMinutes");
   disableBtn("savePrefsBtn");
-  fetch('/api/config',{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({auto_index:ai?ai.checked:true,auto_watch:aw?aw.checked:true,auto_dashboard:ad?ad.checked:true,project_brief:{llm_enrichment:!!(bl&&bl.checked)},mcp_tool_profile:mp&&mp.value==='core'?'core':'full',auto_index_limit:Math.max(0,Number(limit&&limit.value||0)),stale_threshold_hours:Math.max(1,Number(stale&&stale.value||24)),lock_ttl_minutes:Math.max(1,Number(lock&&lock.value||5))})})
+  fetch('/api/config',{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({auto_index:ai?ai.checked:true,auto_watch:aw?aw.checked:true,auto_dashboard:ad?ad.checked:true,project_brief:{llm_enrichment:!!(bl&&bl.checked)},decision_llm:{mode:dl&&['off','conservative','adaptive'].indexOf(dl.value)>=0?dl.value:'off',max_calls_per_hour:Math.max(0,Math.min(1000,Number(dc&&dc.value||10)))},mcp_tool_profile:mp&&mp.value==='core'?'core':'full',auto_index_limit:Math.max(0,Number(limit&&limit.value||0)),stale_threshold_hours:Math.max(1,Number(stale&&stale.value||24)),lock_ttl_minutes:Math.max(1,Number(lock&&lock.value||5))})})
     .then(function(r){if(!r.ok)throw new Error("fail");
       flash("flashAutoIndex","${saved}",true);enableBtn("savePrefsBtn",psl);
     }).catch(function(){flash("flashAutoIndex","Error",false);enableBtn("savePrefsBtn",psl);});

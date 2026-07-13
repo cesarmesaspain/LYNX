@@ -30,10 +30,11 @@ describe('runtime configuration updates', () => {
     try {
       withLynxHome(home, () => {
         upsertLynxConfig({ api_keys: { deepseek: 'first-key' } });
-        upsertLynxConfig({ api_keys: { vps_key: 'second-key' }, project_brief: { llm_enrichment: true }, mcp_tool_profile: 'core' });
+        upsertLynxConfig({ api_keys: { vps_key: 'second-key' }, project_brief: { llm_enrichment: true }, decision_llm: { mode: 'adaptive', max_calls_per_hour: 7 }, mcp_tool_profile: 'core' });
 
         expect(readLynxConfig().api_keys).toEqual({ deepseek: 'first-key', vps_key: 'second-key' });
         expect(readLynxConfig().project_brief?.llm_enrichment).toBe(true);
+        expect(readLynxConfig().decision_llm).toEqual({ mode: 'adaptive', max_calls_per_hour: 7 });
         expect(readLynxConfig().mcp_tool_profile).toBe('core');
       });
     } finally {

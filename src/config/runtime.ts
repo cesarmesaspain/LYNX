@@ -34,6 +34,11 @@ export interface LynxRuntimeConfig {
   project_brief?: {
     llm_enrichment: boolean;
   };
+  /** Optional low-cost LLM arbitration for genuinely ambiguous tool results. */
+  decision_llm?: {
+    mode: 'off' | 'conservative' | 'adaptive';
+    max_calls_per_hour: number;
+  };
   /** MCP registry breadth. Core reduces client startup context; full keeps every tool visible. */
   mcp_tool_profile?: 'full' | 'core';
   agent_policy?: Record<string, unknown>;
@@ -69,6 +74,7 @@ const DEFAULT_CONFIG: LynxRuntimeConfig = {
   locale: detectSystemLocale(),
   agent_response: { enabled: false, length: 'short', style: 'concise', budget: 'balanced', reminder_interval_minutes: 30 },
   project_brief: { llm_enrichment: false },
+  decision_llm: { mode: 'off', max_calls_per_hour: 10 },
   mcp_tool_profile: 'full',
 };
 
@@ -117,6 +123,12 @@ export function readLynxConfig(): LynxRuntimeConfig {
       project_brief: raw.project_brief && typeof raw.project_brief === 'object' ? {
         llm_enrichment: (raw.project_brief as Record<string, unknown>).llm_enrichment === true,
       } : DEFAULT_CONFIG.project_brief,
+      decision_llm: raw.decision_llm && typeof raw.decision_llm === 'object' ? {
+        mode: ['off', 'conservative', 'adaptive'].includes(String((raw.decision_llm as Record<string, unknown>).mode))
+          ? (raw.decision_llm as { mode: 'off' | 'conservative' | 'adaptive' }).mode
+          : 'off',
+        max_calls_per_hour: Math.max(0, Math.min(1000, Number((raw.decision_llm as Record<string, unknown>).max_calls_per_hour) || 10)),
+      } : DEFAULT_CONFIG.decision_llm,
       mcp_tool_profile: raw.mcp_tool_profile === 'core' || raw.mcp_tool_profile === 'full'
         ? raw.mcp_tool_profile
         : DEFAULT_CONFIG.mcp_tool_profile,
@@ -184,6 +196,7 @@ export function upsertLynxConfig(values: Partial<LynxRuntimeConfig>): LynxRuntim
     ...values,
     ...(values.agent_response ? { agent_response: { ...current.agent_response, ...values.agent_response } } : {}),
     ...(values.project_brief ? { project_brief: { ...current.project_brief, ...values.project_brief } } : {}),
+    ...(values.decision_llm ? { decision_llm: { ...current.decision_llm, ...values.decision_llm } } : {}),
     ...(values.api_keys ? { api_keys: { ...current.api_keys, ...values.api_keys } } : {}),
   };
   writeLynxConfig(next);

@@ -61,8 +61,7 @@ export function webSocketScript(): string {
 
   function renderCardHtml(c) {
     var h = projectHealth(c);
-    var html = '<button class="card project-card" type="button" data-project-card="' + esc(c.name) + '" aria-label="Show ' + esc(c.displayName) + ' graph">';
-    html += '<span class="card-delete-btn" role="button" tabindex="0" data-delete-project="' + esc(c.name) + '" data-delete-name="' + esc(c.displayName) + '" aria-label="' + (isSpanish ? 'Eliminar ' : 'Delete ') + esc(c.displayName) + '" title="' + (isSpanish ? 'Eliminar proyecto' : 'Delete project') + '">&#x2715;</span>';
+    var html = '<div class="project-card-wrap"><button class="card project-card" type="button" data-project-card="' + esc(c.name) + '" aria-label="Show ' + esc(c.displayName) + ' graph">';
     html += '<div class="project-topline"><div class="card-title">' + esc(c.displayName) + '</div><span class="health-pill ' + h.className + '">' + h.label + '</span></div>';
     html += '<div class="card-stats">';
     html += '<div><span class="stat-label">' + (isSpanish ? 'Nodos' : 'Nodes') + '</span><span class="stat-value">' + fmt(c.nodes) + '</span></div>';
@@ -81,6 +80,7 @@ export function webSocketScript(): string {
       html += '<div class="muted-text">' + (isSpanish ? 'Indexado' : 'Indexed') + ': ' + esc(c.lastIndexed) + ' · ' + c.edgeTypes + ' ' + (isSpanish ? 'tipos de arista' : 'edge types') + '</div>';
     }
     html += '<div class="open-graph">' + (isSpanish ? 'Abrir grafo' : 'Open graph') + '</div></button>';
+    html += '<button class="card-delete-btn" type="button" data-delete-project="' + esc(c.name) + '" data-delete-name="' + esc(c.displayName) + '" aria-label="' + (isSpanish ? 'Eliminar ' : 'Delete ') + esc(c.displayName) + '" title="' + (isSpanish ? 'Eliminar proyecto' : 'Delete project') + '">&#x2715;</button></div>';
     return html;
   }
 
@@ -111,6 +111,21 @@ export function webSocketScript(): string {
       if (!cards.some(function(c) { return c.name === currentVal; })) {
         sel.value = cards[0].name;
       }
+    }
+
+    // Keep Metrics in sync with project indexes created after the page loaded.
+    // Unlike the graph selector, it has an "All projects" option that must
+    // remain selected unless the user had chosen a project that was removed.
+    var metricsSel = document.getElementById('metricsProject');
+    if (metricsSel) {
+      var currentMetricsProject = metricsSel.value;
+      var allProjectsLabel = isSpanish ? 'Todos los proyectos' : 'All projects';
+      metricsSel.innerHTML = '<option value="">' + allProjectsLabel + '</option>' + cards.map(function(c) {
+        return '<option value="' + esc(c.name) + '">' + esc(c.displayName) + '</option>';
+      }).join('');
+      metricsSel.value = cards.some(function(c) { return c.name === currentMetricsProject; })
+        ? currentMetricsProject
+        : '';
     }
 
     var summaryCards = document.querySelectorAll('.summary-card .value');

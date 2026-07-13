@@ -239,6 +239,29 @@ describe('event archive idempotency', () => {
   });
 });
 
+describe('LLM model telemetry', () => {
+  const project = 'test-metrics-llm-model';
+
+  beforeEach(() => cleanupTestProject(project));
+  afterEach(() => {
+    closeMetricsDb();
+    cleanupTestProject(project);
+  });
+
+  it('preserves the provider and model for archived usage events', () => {
+    archiveEvent({
+      ts: new Date().toISOString(), type: 'llm_rerank', project,
+      llm_provider: 'deepseek', llm_model: 'deepseek-v4-flash',
+      llm_latency_ms: 321, estimated_llm_cost_usd: 0.000123,
+      event_id: 'llm-model-event',
+    });
+
+    const [event] = readArchivedEvents(project);
+    expect(event.llm_provider).toBe('deepseek');
+    expect(event.llm_model).toBe('deepseek-v4-flash');
+  });
+});
+
 describe('historical_unclassified', () => {
   afterEach(() => {
     closeMetricsDb();

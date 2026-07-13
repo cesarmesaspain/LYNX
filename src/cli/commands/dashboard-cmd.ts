@@ -1,5 +1,3 @@
-import { findNearestProject } from '../../discovery/project-scanner.js';
-import { runBenchmark } from '../benchmark.js';
 import { isDashboardListening, startDashboard, stopDashboard } from '../../server/dashboard/index.js';
 
 export function cmdDashboard(args: string[] = []): void {
@@ -7,10 +5,6 @@ export function cmdDashboard(args: string[] = []): void {
   startDashboard();
   if (!serviceMode) {
     console.error(`Dashboard: http://localhost:9191`);
-    const detected = findNearestProject(process.cwd());
-    if (detected) {
-      runBenchmark([detected.rootPath, '--name', detected.name]).catch(() => {});
-    }
   }
   // In service mode this keeps the dashboard available after temporary port
   // conflicts, without depending on an MCP client's stdin lifecycle.

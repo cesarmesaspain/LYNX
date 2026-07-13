@@ -9,4 +9,12 @@ describe('webSocketScript', () => {
     expect(script).toContain('fmt(totalTokens)');
     expect(script).toContain('fmt(c.nodes)');
   });
+
+  it('adds newly indexed projects to the Metrics selector without discarding its filter', () => {
+    const script = webSocketScript();
+
+    expect(script).toContain("document.getElementById('metricsProject')");
+    expect(script).toContain("'Todos los proyectos' : 'All projects'");
+    expect(script).toContain('currentMetricsProject');
+  });
 });

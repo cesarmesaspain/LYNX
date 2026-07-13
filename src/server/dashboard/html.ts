@@ -13,8 +13,8 @@ import { projectHealth, type ProjectCard } from './data.js';
 function renderProjectCard(c: ProjectCard, isSpanish: boolean): string {
   const health = projectHealth(c, isSpanish);
   return `
+    <div class="project-card-wrap">
     <button class="card project-card" type="button" data-project-card="${escapeHtml(c.name)}" aria-label="Show ${escapeHtml(c.displayName)} graph">
-      <span class="card-delete-btn" role="button" tabindex="0" data-delete-project="${escapeHtml(c.name)}" data-delete-name="${escapeHtml(c.displayName)}" aria-label="${isSpanish ? 'Eliminar' : 'Delete'} ${escapeHtml(c.displayName)}" title="${isSpanish ? 'Eliminar proyecto' : 'Delete project'}">&#x2715;</span>
       <div class="project-topline"><div class="card-title">${escapeHtml(c.displayName)}</div><span class="health-pill ${health.className}">${health.label}</span>${c.freshness !== 'ready' ? `<span class="freshness-pill freshness-${c.freshness}">${c.freshness}</span>` : ''}</div>
       <div class="card-stats">
         <div><span class="stat-label">${isSpanish ? 'Nodos' : 'Nodes'}</span><span class="stat-value">${c.nodes.toLocaleString()}</span></div>
@@ -31,7 +31,9 @@ function renderProjectCard(c: ProjectCard, isSpanish: boolean): string {
       ${c.lastIndexed ? `<div class="muted-text">${isSpanish ? 'Indexado' : 'Indexed'}: ${c.lastIndexed} · ${c.edgeTypes} ${isSpanish ? 'tipos de arista' : 'edge types'}</div>` : ''}
       <div class="ops-row">${c.hoursSinceIndex !== null ? `<span>${c.hoursSinceIndex}h</span>` : ''}${c.llmCalls > 0 ? `<span>${c.llmProvider || 'LLM'}: ${c.llmCalls} calls${c.llmCostUsd > 0 ? ' · $' + c.llmCostUsd.toFixed(4) : ''}</span>` : ''}${c.errorCount > 0 ? `<span style="color:#fca5a5">${c.errorCount} ${isSpanish ? 'errores' : 'errors'}</span>` : ''}</div>
       <div class="open-graph">${isSpanish ? 'Abrir grafo' : 'Open graph'}</div>
-    </button>`;
+    </button>
+    <button class="card-delete-btn" type="button" data-delete-project="${escapeHtml(c.name)}" data-delete-name="${escapeHtml(c.displayName)}" aria-label="${isSpanish ? 'Eliminar' : 'Delete'} ${escapeHtml(c.displayName)}" title="${isSpanish ? 'Eliminar proyecto' : 'Delete project'}">&#x2715;</button>
+    </div>`;
 }
 
 function renderFullscreenProject(c: ProjectCard, isSpanish: boolean): string {
@@ -318,34 +320,41 @@ ${totalLlmCalls > 0 ? `
     <!-- Metrics tab -->
     <section class="tab-panel" id="tab-metrics">
       <section class="metrics-toolbar">
-        <h2 style="margin:0 16px 0 0">${labels.metrics}</h2>
-        <select id="metricsProject" aria-label="${isSpanish ? 'Proyecto' : 'Project'}" style="background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:8px;padding:8px 10px;font-size:13px">
-          <option value="">${isSpanish ? 'Todos los proyectos' : 'All projects'}</option>
-          ${cards.map((c) => `<option value="${escapeHtml(c.name)}"${c.name === graphProject ? ' selected' : ''}>${escapeHtml(c.displayName)}</option>`).join('')}
-        </select>
-        <span style="color:#475569;margin:0 6px">|</span>
-        <button class="win-btn" data-win="24h">24h</button>
-        <button class="win-btn" data-win="7d">7d</button>
-        <button class="win-btn" data-win="30d">30d</button>
-        <button class="win-btn active" data-win="total">${isSpanish ? 'Total' : 'Total'}</button>
-        <span class="metrics-badge" id="metricsProvenance" style="margin-left:auto;color:#64748b;font-size:12px"></span>
+        <div class="metrics-heading"><h2>${labels.metrics}</h2><span>${isSpanish ? 'Impacto y eficiencia medidos' : 'Measured impact and efficiency'}</span></div>
+        <div class="metrics-controls">
+          <label class="metrics-project-control"><span>${isSpanish ? 'Proyecto' : 'Project'}</span><select id="metricsProject" aria-label="${isSpanish ? 'Proyecto' : 'Project'}">
+            <option value="">${isSpanish ? 'Todos los proyectos' : 'All projects'}</option>
+            ${cards.map((c) => `<option value="${escapeHtml(c.name)}"${c.name === graphProject ? ' selected' : ''}>${escapeHtml(c.displayName)}</option>`).join('')}
+          </select></label>
+          <div class="metrics-window" aria-label="${isSpanish ? 'Periodo' : 'Time window'}">
+            <button class="win-btn" data-win="24h">24h</button>
+            <button class="win-btn" data-win="7d">7d</button>
+            <button class="win-btn" data-win="30d">30d</button>
+            <button class="win-btn active" data-win="total">${isSpanish ? 'Total' : 'Total'}</button>
+          </div>
+        </div>
+        <span class="metrics-badge" id="metricsProvenance"></span>
       </section>
       <section class="metrics-summary" id="metricsSummary">
-        <div class="metric-card"><div class="metric-label">${labels.tokensSaved}</div><div class="metric-value" id="mtTokens">${totalTokens.toLocaleString()}</div><div class="metric-sub" id="mtTokensProv">${isSpanish ? 'Estimado' : 'Estimated'}</div></div>
-        <div class="metric-card"><div class="metric-label">${labels.filesAvoided}</div><div class="metric-value" id="mtFiles">${totalFiles.toLocaleString()}</div><div class="metric-sub" id="mtFilesProv">${isSpanish ? 'Estimado' : 'Estimated'}</div></div>
-        <div class="metric-card"><div class="metric-label">${isSpanish ? 'Gasto LLM' : 'LLM spend'}</div><div class="metric-value" id="mtLlmSpend">—</div><div class="metric-sub">${isSpanish ? 'Coste estimado medido' : 'Measured estimated cost'}</div></div>
+        <div class="metric-card metric-card-primary"><div class="metric-label">${labels.tokensSaved}</div><div class="metric-value" id="mtTokens">${totalTokens.toLocaleString()}</div><div class="metric-sub" id="mtTokensProv">${isSpanish ? 'Estimado' : 'Estimated'}</div></div>
+        <div class="metric-card metric-card-primary"><div class="metric-label">${labels.filesAvoided}</div><div class="metric-value" id="mtFiles">${totalFiles.toLocaleString()}</div><div class="metric-sub" id="mtFilesProv">${isSpanish ? 'Estimado' : 'Estimated'}</div></div>
+        <div class="metric-card"><div class="metric-label">${isSpanish ? 'Gasto LLM' : 'LLM spend'}</div><div class="metric-value" id="mtLlmSpend">—</div><div class="metric-sub">${isSpanish ? 'Coste LLM estimado' : 'Estimated LLM cost'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Llamadas LLM' : 'LLM calls'}</div><div class="metric-value" id="mtLlmCalls">—</div><div class="metric-sub">${isSpanish ? 'Llamadas reales al proveedor' : 'Real provider calls'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Coste LLM / 1.000 tokens LYNX' : 'LLM cost / 1,000 LYNX tokens'}</div><div class="metric-value" id="mtLlmEfficiency">—</div><div class="metric-sub">${isSpanish ? 'Eficiencia del flujo' : 'Flow efficiency'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Ahorro neto estimado' : 'Estimated net savings'}</div><div class="metric-value" id="mtNetSavings">—</div><div class="metric-sub" id="mtNetSavingsSub">${isSpanish ? 'Configura el precio evitado' : 'Configure avoided price'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Eventos' : 'Events'}</div><div class="metric-value" id="mtEvents">—</div><div class="metric-sub" id="mtEventsProv">${isSpanish ? 'Medido' : 'Measured'}</div></div>
+        <div class="metric-card"><div class="metric-label">${isSpanish ? 'Sesiones' : 'Sessions'}</div><div class="metric-value" id="mtSessions">—</div><div class="metric-sub" id="mtSessionsProv">${isSpanish ? 'Medido' : 'Measured'}</div></div>
+        <div class="metric-card"><div class="metric-label">${isSpanish ? 'Tareas' : 'Tasks'}</div><div class="metric-value" id="mtTasks">—</div><div class="metric-sub" id="mtTasksProv">${isSpanish ? 'Medido' : 'Measured'}</div></div>
       </section>
-      <section class="metrics-coverage" style="margin-top:12px">
+      <section class="metrics-coverage metrics-insight">
         <div class="coverage-text" id="mtLlmInsight">${isSpanish ? 'Calculando eficiencia LLM…' : 'Calculating LLM efficiency…'}</div>
       </section>
-      <section class="metrics-bars" id="metricsBars">
-        <div class="bars-placeholder">${isSpanish ? 'Selecciona un proyecto y ventana para ver el desglose por categoría.' : 'Select a project and window to see category breakdown.'}</div>
+      <section class="metrics-coverage llm-breakdown" id="llmBreakdown" style="display:none"></section>
+      <section class="metrics-bars">
+        <div class="metrics-section-heading"><div><span>${isSpanish ? 'Desglose de actividad' : 'Activity breakdown'}</span><small>${isSpanish ? 'Ahorro estimado por tipo de operación' : 'Estimated savings by operation type'}</small></div></div>
+        <div id="metricsBars"><div class="bars-placeholder">${isSpanish ? 'Selecciona un proyecto y ventana para ver el desglose por categoría.' : 'Select a project and window to see category breakdown.'}</div></div>
       </section>
-      <section class="metrics-coverage" id="metricsCoverage">
+      <section class="metrics-coverage metrics-status" id="metricsCoverage">
         <div class="coverage-text" id="mtCoverageText">${isSpanish ? 'Cargando métricas...' : 'Loading metrics...'}</div>
       </section>
     </section>
@@ -365,13 +374,16 @@ ${totalLlmCalls > 0 ? `
       <div class="settings-grid">
       <div class="settings-section">
         <h3><span class="tab-icon">&#9881;</span>${labels.apiKeysSection}</h3>
+        <form onsubmit="return false;">
         <div class="settings-field"><label>${labels.deepseekKey}</label><input type="password" class="settings-input" id="cfgDeepseekKey" placeholder="sk-..." autocomplete="off"><span class="settings-flash" id="flashDeepseek" style="display:none"></span></div>
         <button class="settings-save-btn" id="saveDeepseekBtn" type="button">${labels.save}</button>
+        </form>
         <hr class="settings-separator">
+        <form onsubmit="return false;">
         <div class="settings-field"><label>${labels.vpsUrl}</label><input type="text" class="settings-input" id="cfgVpsUrl" placeholder="https://..." autocomplete="off"><span class="settings-flash" id="flashVpsUrl" style="display:none"></span></div>
         <div class="settings-field"><label>${labels.vpsKey}</label><input type="password" class="settings-input" id="cfgVpsKey" placeholder="sk-..." autocomplete="off"><span class="settings-flash" id="flashVpsKey" style="display:none"></span></div>
         <button class="settings-save-btn" id="saveVpsBtn" type="button">${labels.save}</button>
-      </div>
+        </form>
       <div class="settings-section">
         <h3><span class="tab-icon">&#9881;</span>${labels.preferencesSection}</h3>
         <div class="settings-field"><label>${isSpanish ? 'Idioma' : 'Language'}</label><select class="settings-input" id="cfgLocale" style="max-width:200px"><option value="es"${isSpanish ? ' selected' : ''}>Español</option><option value="en"${!isSpanish ? ' selected' : ''}>English</option></select><span class="settings-flash" id="flashLocale" style="display:none"></span></div>

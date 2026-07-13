@@ -18,6 +18,14 @@ describe('dashboard locale contract', () => {
     expect(html).toContain('>Force</button>');
     expect(html).toContain('id="cfgBriefLlm"');
     expect(html).toContain('id="cfgMcpToolProfile"');
+    expect(html).toContain('>Sessions</div>');
+    expect(html).toContain('>Tasks</div>');
+    expect(html).toContain('>Estimated LLM cost</div>');
+    expect(html).not.toContain('Measured estimated cost');
+    expect(html).toContain('id="mtSessions"');
+    expect(html).toContain('id="mtTasks"');
+    expect(html).toContain('Measured impact and efficiency');
+    expect(html).toContain('Activity breakdown');
     expect(html).toContain('> Add project</button>');
     expect(html).not.toContain('LOCAL CODE INTELLIGENCE');
     expect(html).not.toContain('> Proyecto</button>');

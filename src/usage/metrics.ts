@@ -40,6 +40,8 @@ export interface UsageEvent {
   confidence?: 'low' | 'medium' | 'high';
   latency_ms?: number;
   llm_provider?: string;
+  /** Concrete model used for the LLM call, when the provider reports it. */
+  llm_model?: string;
   llm_latency_ms?: number;
   estimated_llm_cost_usd?: number;
   rank_changed?: boolean;

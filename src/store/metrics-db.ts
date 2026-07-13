@@ -9,7 +9,7 @@
  *     unique_files, llm_events, llm_top_changed, llm_cost, events_count)
  *   events_archive(id INTEGER PK, ts, type, project, query, query_hash,
  *     result_count, unique_files, files_avoided, tokens_saved, confidence,
- *     llm_provider, llm_latency_ms, estimated_llm_cost_usd, rank_changed,
+ *     llm_provider, llm_model, llm_latency_ms, estimated_llm_cost_usd, rank_changed,
  *     top_changed, tool_hint, files_json)
  */
 
@@ -63,6 +63,7 @@ function open(): Database.Database {
       tokens_saved INTEGER,
       confidence TEXT,
       llm_provider TEXT,
+      llm_model TEXT,
       llm_latency_ms INTEGER,
       estimated_llm_cost_usd REAL,
       rank_changed INTEGER,
@@ -92,6 +93,7 @@ function migrateV3(db: Database.Database): void {
   if (!names.has('task_id')) additions.push('ALTER TABLE events_archive ADD COLUMN task_id TEXT');
   if (!names.has('event_id')) additions.push('ALTER TABLE events_archive ADD COLUMN event_id TEXT');
   if (!names.has('deterministic_mode')) additions.push('ALTER TABLE events_archive ADD COLUMN deterministic_mode INTEGER');
+  if (!names.has('llm_model')) additions.push('ALTER TABLE events_archive ADD COLUMN llm_model TEXT');
 
   // Also add to daily_snapshots
   const dCols = db.prepare("PRAGMA table_info('daily_snapshots')").all() as { name: string }[];
@@ -259,12 +261,12 @@ export function archiveEvent(event: UsageEvent): void {
     db.prepare(`
       INSERT OR IGNORE INTO events_archive
         (ts, type, project, query, query_hash, result_count, unique_files,
-         files_avoided, tokens_saved, confidence, llm_provider,
+         files_avoided, tokens_saved, confidence, llm_provider, llm_model,
          llm_latency_ms, estimated_llm_cost_usd, rank_changed, top_changed,
          tool_hint, files_json, session_id, task_id, event_id, deterministic_mode)
       VALUES
         (@ts, @type, @project, @query, @query_hash, @result_count, @unique_files,
-         @files_avoided, @tokens_saved, @confidence, @llm_provider,
+         @files_avoided, @tokens_saved, @confidence, @llm_provider, @llm_model,
          @llm_latency_ms, @estimated_llm_cost_usd, @rank_changed, @top_changed,
          @tool_hint, @files_json, @session_id, @task_id, @event_id, @deterministic_mode)
     `).run({
@@ -279,6 +281,7 @@ export function archiveEvent(event: UsageEvent): void {
       tokens_saved: event.tokens_saved ?? null,
       confidence: event.confidence || null,
       llm_provider: event.llm_provider || null,
+      llm_model: event.llm_model || null,
       llm_latency_ms: event.llm_latency_ms ?? null,
       estimated_llm_cost_usd: event.estimated_llm_cost_usd ?? null,
       rank_changed: event.rank_changed === undefined ? null : (event.rank_changed ? 1 : 0),
@@ -498,6 +501,7 @@ export function readArchivedEvents(
       confidence: string | null;
       latency_ms: number | null;
       llm_provider: string | null;
+      llm_model: string | null;
       llm_latency_ms: number | null;
       estimated_llm_cost_usd: number | null;
       rank_changed: number | null;
@@ -513,7 +517,7 @@ export function readArchivedEvents(
     const stmt = db.prepare(`
       SELECT ts, type, project, query, query_hash, result_count, unique_files,
              files_avoided, tokens_saved, confidence,
-             llm_provider, llm_latency_ms, estimated_llm_cost_usd,
+             llm_provider, llm_model, llm_latency_ms, estimated_llm_cost_usd,
              rank_changed, top_changed, tool_hint, files_json,
              session_id, task_id, event_id, deterministic_mode
       FROM events_archive
@@ -537,6 +541,7 @@ export function readArchivedEvents(
       confidence: (r.confidence as 'low' | 'medium' | 'high') || undefined,
       latency_ms: r.latency_ms ?? undefined,
       llm_provider: r.llm_provider || undefined,
+      llm_model: r.llm_model || undefined,
       llm_latency_ms: r.llm_latency_ms ?? undefined,
       estimated_llm_cost_usd: r.estimated_llm_cost_usd ?? undefined,
       rank_changed: r.rank_changed === null ? undefined : r.rank_changed === 1,

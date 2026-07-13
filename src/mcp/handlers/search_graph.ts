@@ -155,7 +155,7 @@ async function applyLlmRerank(
         };
         recordUsageEvent({
           type: 'llm_rerank', project, query, result_count: candidates.length,
-          latency_ms: llmLatency, llm_provider: provider, llm_latency_ms: llmLatency,
+          latency_ms: llmLatency, llm_provider: provider, llm_model: model || undefined, llm_latency_ms: llmLatency,
           estimated_llm_cost_usd: provider === 'heuristic' ? 0 : estimateRerankCostUsd(candidates.length),
           rank_changed: rankChanged, top_changed: topChanged, tool_hint: 'search_graph rerank',
         });

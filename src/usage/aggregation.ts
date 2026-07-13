@@ -176,6 +176,14 @@ export interface SavingsAttribution {
   }>;
 }
 
+export interface LlmBreakdown {
+  provider: string;
+  model: string | null;
+  calls: number;
+  estimated_cost_usd: number;
+  latency_ms: number;
+}
+
 export interface WindowedMetrics {
   window: TimeWindow;
   since: string;
@@ -197,6 +205,8 @@ export interface WindowedMetrics {
   categories: CategoryBreakdown[];
   /** Human-readable attribution for the savings total shown in the UI. */
   savings_attribution: SavingsAttribution;
+  /** Real LLM calls grouped by the provider and model captured at event time. */
+  llm_breakdown: LlmBreakdown[];
   metrics: MetricPoint[];
   coverage: TelemetryCoverage;
   /** Historical aggregate data that cannot be broken into per-event categories. */
@@ -309,6 +319,7 @@ function buildFromEvents(
   let llmEvents = 0;
   let llmCost = 0;
   let llmLatency = 0;
+  const llmBreakdown = new Map<string, LlmBreakdown>();
   const sessions = new Set<string>();
   const tasks = new Set<string>();
   let deterministicEvents = 0;
@@ -321,6 +332,19 @@ function buildFromEvents(
       llmEvents++;
       llmCost += e.estimated_llm_cost_usd || 0;
       llmLatency += e.llm_latency_ms || 0;
+      const model = e.llm_model || null;
+      const key = `${e.llm_provider}:${model || '__unknown__'}`;
+      const entry = llmBreakdown.get(key) || {
+        provider: e.llm_provider,
+        model,
+        calls: 0,
+        estimated_cost_usd: 0,
+        latency_ms: 0,
+      };
+      entry.calls++;
+      entry.estimated_cost_usd += e.estimated_llm_cost_usd || 0;
+      entry.latency_ms += e.llm_latency_ms || 0;
+      llmBreakdown.set(key, entry);
     }
     if (e.session_id) sessions.add(e.session_id);
     if (e.task_id) tasks.add(e.task_id);
@@ -358,6 +382,9 @@ function buildFromEvents(
     totals,
     categories,
     savings_attribution: buildSavingsAttribution(events),
+    llm_breakdown: [...llmBreakdown.values()]
+      .map((entry) => ({ ...entry, estimated_cost_usd: Number(entry.estimated_cost_usd.toFixed(6)) }))
+      .sort((a, b) => b.estimated_cost_usd - a.estimated_cost_usd),
     metrics: buildMetricPoints(totals, categories, now, win),
     coverage,
   };

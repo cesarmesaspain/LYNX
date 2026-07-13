@@ -25,6 +25,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     tasksProv: document.getElementById('mtTasksProv'),
     bars: document.getElementById('metricsBars'),
     coverage: document.getElementById('mtCoverageText'),
+    llmBreakdown: document.getElementById('llmBreakdown'),
   };
   var isSpanish = ${isSpanish};
   var CAT_COLORS = ['#38bdf8','#22d3ee','#a78bfa','#f59e0b','#f472b6','#4ade80','#94a3b8'];
@@ -91,6 +92,24 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
       : ' At ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1M configured, estimated net savings are ' + fmtUsd(monetary.net_savings_usd) + '.');
   }
 
+  function renderLlmBreakdown(rows) {
+    if (!metricEls.llmBreakdown) return;
+    if (!rows || rows.length === 0) {
+      metricEls.llmBreakdown.style.display = 'none';
+      metricEls.llmBreakdown.innerHTML = '';
+      return;
+    }
+    var heading = isSpanish ? 'Uso por modelo LLM' : 'LLM usage by model';
+    var calls = isSpanish ? 'llamadas' : 'calls';
+    var latency = isSpanish ? 'latencia' : 'latency';
+    var legacy = isSpanish ? 'Modelo no registrado' : 'Model not recorded';
+    metricEls.llmBreakdown.style.display = '';
+    metricEls.llmBreakdown.innerHTML = '<div class="llm-model-heading"><div><span>' + heading + '</span><small>' + (isSpanish ? 'Llamadas reales y coste estimado' : 'Real calls and estimated cost') + '</small></div></div><div class="llm-model-list">' + rows.map(function(row) {
+      var name = escapeHtml(row.provider + ' · ' + (row.model || legacy));
+      return '<div class="llm-model-row"><div class="llm-model-name"><span class="llm-model-dot"></span><strong>' + name + '</strong></div><div class="llm-model-stat"><b>' + fmt(row.calls) + '</b><span>' + calls + '</span></div><div class="llm-model-stat"><b>' + fmtUsd(row.estimated_cost_usd) + '</b><span>' + (isSpanish ? 'coste estimado' : 'estimated cost') + '</span></div><div class="llm-model-stat"><b>' + fmt(row.latency_ms) + ' ms</b><span>' + latency + '</span></div></div>';
+    }).join('') + '</div>';
+  }
+
   function savingsInsight(t, attribution, monetary) {
     var tokens = Number(t.tokens_saved || 0);
     if (tokens === 0) return llmInsight(t, monetary);
@@ -116,7 +135,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
       : confidence;
     var text = isSpanish
       ? fmt(tokens) + ' tokens estimados proceden de ' + fmt(savingEvents) + ' ' + sourceLabel + (savingEvents === 1 ? '' : 's') + ' (confianza ' + confidenceLabel + ').'
-      : fmt(tokens) + ' estimated tokens come from ' + fmt(savingEvents) + ' ' + sourceLabel + (savingEvents === 1 ? '' : 's') + ' (' + confidenceLabel + ' confidence).';
+      : fmt(tokens) + ' estimated tokens come from ' + fmt(savingEvents) + ' ' + (savingEvents === 1 ? sourceLabel : (sourceLabel.endsWith('query') ? sourceLabel.slice(0, -1) + 'ies' : sourceLabel + 's')) + ' (' + confidenceLabel + ' confidence).';
     if (operationalEvents > 0) {
       text += isSpanish
         ? ' Otros ' + fmt(operationalEvents) + ' eventos operativos se registran por separado y no suman ahorro.'
@@ -199,6 +218,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
         }
 
         if (metricEls.coverage) metricEls.coverage.textContent = coverageSummary(d.coverage);
+        renderLlmBreakdown(d.llm_breakdown || []);
 
         if (d.historical_unclassified && d.historical_unclassified.tokens_saved > 0) {
           if (metricEls.bars) {

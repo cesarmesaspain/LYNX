@@ -11,6 +11,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import type { AgentInfo } from './agents.js';
+import { READ_ONLY_TOOL_NAMES } from '../mcp/tools.js';
 
 const LYNX_ENTRY_KEY = 'lynx';
 const ALLOWED_ROOTS = [path.join(os.homedir(), '.claude'), path.join(os.homedir(), '.codex'), path.join(os.homedir(), '.cursor'), path.join(os.homedir(), '.gemini'), path.join(os.homedir(), '.config'), path.join(os.homedir(), 'Library'), path.join(os.homedir(), '.vscode'), path.join(os.homedir(), '.zed'), path.join(os.homedir(), '.aider'), path.join(os.homedir(), '.kilocode'), path.join(os.homedir(), '.openclaw'), path.join(os.homedir(), '.antigravity')];
@@ -144,7 +145,8 @@ function writeTomlMcp(agent: AgentInfo, command: string, args: string[], dryRun:
     }
 
     backupFile(configPath);
-    const newContent = refreshTomlSection(content, sectionHeader, command, args);
+    const refreshed = refreshTomlSection(content, sectionHeader, command, args);
+    const newContent = ensureCodexReadOnlyToolApprovals(refreshed);
     validatePath(configPath);
     ensureDir(path.dirname(configPath));
     const tmp = configPath + '.tmp';
@@ -165,13 +167,29 @@ function writeTomlMcp(agent: AgentInfo, command: string, args: string[], dryRun:
   }
 
   backupFile(configPath);
-  const newContent = content.trimEnd() + '\n' + lines.join('');
+  const newContent = ensureCodexReadOnlyToolApprovals(content.trimEnd() + '\n' + lines.join(''));
   validatePath(configPath);
   ensureDir(path.dirname(configPath));
   const tmp = configPath + '.tmp';
   fs.writeFileSync(tmp, newContent);
   fs.renameSync(tmp, configPath);
   return `added lynx → ${configPath}`;
+}
+
+/**
+ * Codex supports a per-MCP-tool approval policy. Populate every LYNX
+ * discovery/read operation explicitly, rather than assuming a client-wide
+ * default or a short hand-maintained subset. Write-capable tools remain
+ * absent, so they retain Codex's normal confirmation flow.
+ */
+function ensureCodexReadOnlyToolApprovals(content: string): string {
+  let next = content.trimEnd() + '\n';
+  for (const toolName of READ_ONLY_TOOL_NAMES) {
+    const section = `[mcp_servers.${LYNX_ENTRY_KEY}.tools.${toolName}]`;
+    if (next.includes(section)) continue;
+    next += `\n${section}\napproval_mode = "approve"\n`;
+  }
+  return next;
 }
 
 function refreshTomlSection(content: string, sectionHeader: string, command: string, args: string[]): string {

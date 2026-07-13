@@ -18,25 +18,25 @@ describe('managed LYNX instruction blocks', () => {
     }),
   ];
 
-  it('recommends proportional tool selection instead of absolute sequencing', () => {
+  it('requires LYNX first for broad code discovery while keeping later calls proportional', () => {
     for (const block of blocks) {
-      expect(block).not.toContain('SIEMPRE primero');
       expect(block).not.toContain('NO USES grep');
       expect(block).not.toContain('has violado esta regla');
       expect(block).toContain('consulta mas pequena');
+      expect(block).toContain('primera accion');
       expect(block).toContain('cuando');
       expect(block).toContain('tool_search');
     }
   });
 
-  it('keeps installation reminders and generated skills proportional', () => {
+  it('makes the fresh-session discovery policy explicit in reminders and skills', () => {
     const source = fs.readFileSync('src/install/index.ts', 'utf8');
-    expect(source).not.toContain('always first for non-trivial tasks');
     expect(source).not.toContain('Before editing any function');
     expect(source).not.toContain('REGLA OBLIGATORIA');
-    expect(source).not.toContain('SIEMPRE primero');
-    expect(source).toContain('smallest relevant tool set');
+    expect(source).toContain('use LYNX before shell/file tools');
+    expect(source).toContain('Start broad work with pack_context(task)');
+    expect(source).toContain('index_repository automatically');
     expect(source).toContain('consulta mas pequena');
-    expect(source).toContain('stop when it is sufficient');
+    expect(source).toContain('Reuse evidence');
   });
 });

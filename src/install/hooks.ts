@@ -24,9 +24,9 @@ function ensureDir(dir: string): void { if (!fs.existsSync(dir)) fs.mkdirSync(di
 function lynxDiscoveryReminder(): string {
   return [
     'LYNX code discovery guidance:',
-    '1. Choose the smallest relevant tool set that can provide sufficient evidence.',
+    '1. For any analyze, review, explore, or understand-code request, use LYNX before shell/file tools. Start broad work with pack_context(task).',
     '2. If tools are not visible, run tool_search for: lynx pack_context search_graph trace_path get_code_snippet query_graph index_repository.',
-    '3. Establish the project with list_projects/index_status; run index_repository if missing or stale.',
+    '3. Establish the project with list_projects/index_status; run index_repository automatically if the active project is missing or stale.',
     '4. Use pack_context for broad multi-symbol tasks, search_graph for relationships, trace_path for callers/callees, get_code_snippet for exact source, and query_graph for metrics.',
     '5. Use find_tests when coverage is material to the intended change; use batch_get_code when comparing multiple candidates.',
     '6. Use shell search/read when it is more direct for docs, configs, literals, or when LYNX has no useful result. Reuse evidence and stop when it is sufficient.',

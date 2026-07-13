@@ -80,6 +80,17 @@ const MAX_LOG_BYTES = 5 * 1024 * 1024;
 const RERANK_INPUT_TOKENS_PER_CANDIDATE = 90;
 const RERANK_OUTPUT_TOKENS = 80;
 const FLASH_COST_PER_1K_TOKENS_USD = 0.00014;
+const RUNTIME_SESSION_ID = `runtime-${process.pid}-${Date.now().toString(36)}`;
+
+/**
+ * MCP does not expose a portable task identifier on every client. Keep a
+ * stable local fallback per process and project so related tool calls can be
+ * measured together without sending any identifier outside the machine.
+ */
+export function defaultUsageContext(project: string): { session_id: string; task_id: string } {
+  const task = process.env.LYNX_TASK_ID || process.env.CODEX_THREAD_ID || `${RUNTIME_SESSION_ID}:${project || 'global'}`;
+  return { session_id: RUNTIME_SESSION_ID, task_id: task };
+}
 
 // ── Session-level dedup ─────────────────────────────────────
 
@@ -199,12 +210,15 @@ export function recordUsageEvent(event: Omit<UsageEvent, 'ts'>): void {
     rotateLogIfNeeded();
 
     const safeQuery = sanitizeQuery(adjustedEvent.query);
+    const context = defaultUsageContext(adjustedEvent.project);
     const row: UsageEvent = {
       ts: new Date().toISOString(),
       ...adjustedEvent,
       query: safeQuery,
       query_hash: adjustedEvent.query ? hashString(adjustedEvent.query) : undefined,
       event_id: adjustedEvent.event_id || generateEventId(),
+      session_id: adjustedEvent.session_id || context.session_id,
+      task_id: adjustedEvent.task_id || context.task_id,
       deterministic_mode: adjustedEvent.deterministic_mode ?? (process.env.LYNX_NO_LLM === '1'),
     };
     fs.appendFileSync(usageLogPath(), JSON.stringify(row) + '\n');

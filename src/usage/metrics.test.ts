@@ -6,6 +6,7 @@ import {
   clearSessionDedup,
   clearUsageEvents,
   computeSemanticROI,
+  defaultUsageContext,
   estimateRerankCostUsd,
   estimateTokensFromFiles,
   estimateTokensSaved,
@@ -68,6 +69,9 @@ describe('usage metrics', () => {
     expect(summary.events).toBe(1);
     expect(summary.tokens_saved).toBeGreaterThan(0);
     expect(summary.high_confidence_tokens_saved).toBeGreaterThan(0);
+    const event = JSON.parse(raw) as { session_id?: string; task_id?: string };
+    expect(event.session_id).toBe(defaultUsageContext('demo').session_id);
+    expect(event.task_id).toBe(defaultUsageContext('demo').task_id);
   });
 
   it('exports and clears events', () => {

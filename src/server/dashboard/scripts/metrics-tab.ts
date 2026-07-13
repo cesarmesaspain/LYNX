@@ -182,7 +182,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     metricsTabBtn.addEventListener('click', function() { setTimeout(loadMetrics, 50); });
   }
 
-  if (window.location.hash === '#metrics') {
+  if (window.location.hash === '#metrics' || (metricsTabBtn && metricsTabBtn.classList.contains('active'))) {
     setTimeout(loadMetrics, 100);
   }
 })();`;

@@ -297,10 +297,11 @@ export class FileWatcher {
 
   private buildWatchConfig(): { ignored: RegExp[] } {
     const names = [
-      'node_modules', '.git', 'dist', 'build', '.next', '.next-build',
+      'node_modules', '.git', 'dist', 'build', '.build', '.next', '.next-build',
       '__pycache__', '.venv', 'venv', 'vendor', 'target', 'tmp', 'tmp_build',
       '.backups', 'backups', '.turbo', '.cache',
       'coverage', '.nyc_output', 'logs', 'public', 'workspace',
+      '.swiftpm', 'DerivedData', '.gradle',
     ];
     const patterns = names.map((n) => new RegExp(`(^|[/\\\\])${n}($|[/\\\\])`));
     // Also ignore binary/media files

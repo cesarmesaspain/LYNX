@@ -190,7 +190,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
   // the Metrics view live even on platforms where filesystem watch events are
   // coalesced or not delivered to the WebSocket broadcaster.
   setInterval(function() {
-    var panel = document.getElementById('metricsTab');
+    var panel = document.getElementById('tab-metrics');
     if (panel && panel.classList.contains('active') && !document.hidden) loadMetrics();
   }, 2000);
 })();`;

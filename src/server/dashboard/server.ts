@@ -127,6 +127,13 @@ async function handleApiMetrics(res: http.ServerResponse, url: URL): Promise<voi
 
   try {
     const data = getCachedMetrics(project, window);
+    const avoidedInputUsdPer1m = readLynxConfig().savings_pricing?.avoided_input_usd_per_1m || 0;
+    const avoidedCostUsd = (Number(data.totals.tokens_saved || 0) / 1_000_000) * avoidedInputUsdPer1m;
+    const monetary = {
+      avoided_input_usd_per_1m: avoidedInputUsdPer1m,
+      avoided_cost_usd: avoidedCostUsd,
+      net_savings_usd: avoidedCostUsd - Number(data.totals.llm_cost_usd || 0),
+    };
 
     if (format === 'csv') {
       const csv = metricsToCsv(data);
@@ -145,6 +152,7 @@ async function handleApiMetrics(res: http.ServerResponse, url: URL): Promise<voi
 
     writeJson(res, 200, {
       ...data,
+      monetary,
       categories: pagedCategories,
       pagination: {
         page,

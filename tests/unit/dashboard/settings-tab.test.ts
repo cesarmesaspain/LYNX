@@ -12,5 +12,6 @@ describe('settings secret hydration', () => {
     expect(script).not.toContain('d.value=k.deepseek');
     expect(script).not.toContain('p.value=k.vps_key');
     expect(script).toContain('cfgMcpToolProfile');
+    expect(script).toContain('cfgAvoidedInputPrice');
   });
 });

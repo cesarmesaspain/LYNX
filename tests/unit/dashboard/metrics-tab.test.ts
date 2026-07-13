@@ -10,6 +10,8 @@ describe('dashboard metrics interaction', () => {
     expect(script).toContain("llm_rerank: 'Semantic reranking'");
     expect(script).toContain('escapeHtml(label)');
     expect(script).toContain('Events recorded without LLM');
+    expect(script).toContain('mtNetSavings');
+    expect(script).toContain('estimated net savings');
   });
 
   it('restores the metrics tab after a reload', () => {

@@ -16,6 +16,8 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     llmSpend: document.getElementById('mtLlmSpend'),
     llmCalls: document.getElementById('mtLlmCalls'),
     llmEfficiency: document.getElementById('mtLlmEfficiency'),
+    netSavings: document.getElementById('mtNetSavings'),
+    netSavingsSub: document.getElementById('mtNetSavingsSub'),
     tokensProv: document.getElementById('mtTokensProv'),
     filesProv: document.getElementById('mtFilesProv'),
     eventsProv: document.getElementById('mtEventsProv'),
@@ -70,7 +72,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     }).format(value);
   }
 
-  function llmInsight(t) {
+  function llmInsight(t, monetary) {
     var tokens = Number(t.tokens_saved || 0);
     var calls = Number(t.llm_events || 0);
     var spend = Number(t.llm_cost_usd || 0);
@@ -80,9 +82,13 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     if (tokens === 0) return isSpanish
       ? 'Se registraron ' + fmt(calls) + ' llamadas LLM por ' + fmtUsd(spend) + '. No hay todavía ahorro de contexto atribuible en esta ventana.'
       : fmt(calls) + ' LLM calls cost ' + fmtUsd(spend) + '. No attributable context savings are recorded in this window yet.';
-    return isSpanish
+    var base = isSpanish
       ? 'En este flujo, LYNX registró ' + fmt(tokens) + ' tokens de contexto evitados; ' + fmt(calls) + ' decisión(es) LLM costaron ' + fmtUsd(spend) + '.'
       : 'In this flow, LYNX recorded ' + fmt(tokens) + ' context tokens avoided; ' + fmt(calls) + ' LLM decision(s) cost ' + fmtUsd(spend) + '.';
+    if (!monetary || !Number(monetary.avoided_input_usd_per_1m || 0)) return base;
+    return base + (isSpanish
+      ? ' Con ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1 M configurado, el ahorro neto estimado es ' + fmtUsd(monetary.net_savings_usd) + '.'
+      : ' At ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1M configured, estimated net savings are ' + fmtUsd(monetary.net_savings_usd) + '.');
   }
 
   function loadMetrics() {
@@ -109,8 +115,13 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
             ? fmtUsd((Number(t.llm_cost_usd || 0) / Number(t.tokens_saved)) * 1000)
             : '—';
         }
+        var monetary = d.monetary || null;
+        if (metricEls.netSavings) metricEls.netSavings.textContent = monetary ? fmtUsd(monetary.net_savings_usd) : '—';
+        if (metricEls.netSavingsSub && monetary) metricEls.netSavingsSub.textContent = isSpanish
+          ? 'Evita ' + fmtUsd(monetary.avoided_cost_usd) + ' · a ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1 M'
+          : 'Avoids ' + fmtUsd(monetary.avoided_cost_usd) + ' · at ' + fmtUsd(monetary.avoided_input_usd_per_1m) + ' / 1M';
         var insight = document.getElementById('mtLlmInsight');
-        if (insight) insight.textContent = llmInsight(t);
+        if (insight) insight.textContent = llmInsight(t, monetary);
 
         var metaByKey = {};
         (d.metrics || []).forEach(function(m) { metaByKey[m.key] = m.provenance; });

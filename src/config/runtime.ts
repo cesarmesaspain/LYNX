@@ -39,6 +39,10 @@ export interface LynxRuntimeConfig {
     mode: 'off' | 'conservative' | 'adaptive';
     max_calls_per_hour: number;
   };
+  /** Estimated input-token price of the primary agent model LYNX helps avoid. */
+  savings_pricing?: {
+    avoided_input_usd_per_1m: number;
+  };
   /** MCP registry breadth. Core reduces client startup context; full keeps every tool visible. */
   mcp_tool_profile?: 'full' | 'core';
   agent_policy?: Record<string, unknown>;
@@ -75,6 +79,8 @@ const DEFAULT_CONFIG: LynxRuntimeConfig = {
   agent_response: { enabled: false, length: 'short', style: 'concise', budget: 'balanced', reminder_interval_minutes: 30 },
   project_brief: { llm_enrichment: false },
   decision_llm: { mode: 'off', max_calls_per_hour: 10 },
+  // A visible, editable baseline. It is an estimate, never a provider invoice.
+  savings_pricing: { avoided_input_usd_per_1m: 10 },
   mcp_tool_profile: 'full',
 };
 
@@ -129,6 +135,9 @@ export function readLynxConfig(): LynxRuntimeConfig {
           : 'off',
         max_calls_per_hour: Math.max(0, Math.min(1000, Number((raw.decision_llm as Record<string, unknown>).max_calls_per_hour) || 10)),
       } : DEFAULT_CONFIG.decision_llm,
+      savings_pricing: raw.savings_pricing && typeof raw.savings_pricing === 'object' ? {
+        avoided_input_usd_per_1m: Math.max(0, Math.min(1000, Number((raw.savings_pricing as Record<string, unknown>).avoided_input_usd_per_1m) || 0)),
+      } : DEFAULT_CONFIG.savings_pricing,
       mcp_tool_profile: raw.mcp_tool_profile === 'core' || raw.mcp_tool_profile === 'full'
         ? raw.mcp_tool_profile
         : DEFAULT_CONFIG.mcp_tool_profile,
@@ -197,6 +206,7 @@ export function upsertLynxConfig(values: Partial<LynxRuntimeConfig>): LynxRuntim
     ...(values.agent_response ? { agent_response: { ...current.agent_response, ...values.agent_response } } : {}),
     ...(values.project_brief ? { project_brief: { ...current.project_brief, ...values.project_brief } } : {}),
     ...(values.decision_llm ? { decision_llm: { ...current.decision_llm, ...values.decision_llm } } : {}),
+    ...(values.savings_pricing ? { savings_pricing: { ...current.savings_pricing, ...values.savings_pricing } } : {}),
     ...(values.api_keys ? { api_keys: { ...current.api_keys, ...values.api_keys } } : {}),
   };
   writeLynxConfig(next);

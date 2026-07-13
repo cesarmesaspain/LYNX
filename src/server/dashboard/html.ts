@@ -333,7 +333,7 @@ ${totalLlmCalls > 0 ? `
         <div class="metric-card"><div class="metric-label">${labels.filesAvoided}</div><div class="metric-value" id="mtFiles">${totalFiles.toLocaleString()}</div><div class="metric-sub" id="mtFilesProv">${isSpanish ? 'Estimado' : 'Estimated'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Gasto LLM' : 'LLM spend'}</div><div class="metric-value" id="mtLlmSpend">—</div><div class="metric-sub">${isSpanish ? 'Coste estimado medido' : 'Measured estimated cost'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Llamadas LLM' : 'LLM calls'}</div><div class="metric-value" id="mtLlmCalls">—</div><div class="metric-sub">${isSpanish ? 'Llamadas reales al proveedor' : 'Real provider calls'}</div></div>
-        <div class="metric-card"><div class="metric-label">${isSpanish ? 'Coste / 1.000 tokens evitados' : 'Cost / 1,000 tokens avoided'}</div><div class="metric-value" id="mtLlmEfficiency">—</div><div class="metric-sub">${isSpanish ? 'Menos es mejor' : 'Lower is better'}</div></div>
+        <div class="metric-card"><div class="metric-label">${isSpanish ? 'Coste LLM / 1.000 tokens LYNX' : 'LLM cost / 1,000 LYNX tokens'}</div><div class="metric-value" id="mtLlmEfficiency">—</div><div class="metric-sub">${isSpanish ? 'Eficiencia del flujo' : 'Flow efficiency'}</div></div>
         <div class="metric-card"><div class="metric-label">${isSpanish ? 'Eventos' : 'Events'}</div><div class="metric-value" id="mtEvents">—</div><div class="metric-sub" id="mtEventsProv">${isSpanish ? 'Medido' : 'Measured'}</div></div>
       </section>
       <section class="metrics-coverage" style="margin-top:12px">

@@ -81,8 +81,8 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
       ? 'Se registraron ' + fmt(calls) + ' llamadas LLM por ' + fmtUsd(spend) + '. No hay todavía ahorro de contexto atribuible en esta ventana.'
       : fmt(calls) + ' LLM calls cost ' + fmtUsd(spend) + '. No attributable context savings are recorded in this window yet.';
     return isSpanish
-      ? 'Has gastado ' + fmtUsd(spend) + ' en ' + fmt(calls) + ' llamadas LLM para evitar ' + fmt(tokens) + ' tokens de contexto.'
-      : 'You spent ' + fmtUsd(spend) + ' on ' + fmt(calls) + ' LLM calls to avoid ' + fmt(tokens) + ' context tokens.';
+      ? 'En este flujo, LYNX registró ' + fmt(tokens) + ' tokens de contexto evitados; ' + fmt(calls) + ' decisión(es) LLM costaron ' + fmtUsd(spend) + '.'
+      : 'In this flow, LYNX recorded ' + fmt(tokens) + ' context tokens avoided; ' + fmt(calls) + ' LLM decision(s) cost ' + fmtUsd(spend) + '.';
   }
 
   function loadMetrics() {

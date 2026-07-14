@@ -57,7 +57,12 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     var sessions = coverage.sessions_tracked ? coverage.sessions_tracked + ' sessions' : 'sessions: unavailable';
     var tasks = coverage.tasks_tracked ? coverage.tasks_tracked + ' tasks' : 'tasks: unavailable';
     if (coverage.deterministic_mode) return 'Deterministic mode active (' + sessions + ').';
-    if (!coverage.llm_tracking_active) return 'Events recorded without LLM (' + sessions + ', ' + tasks + '). Configure LYNX_DEEPSEEK_KEY or LYNX_API_KEY to enable semantic reranking.';
+    if (!coverage.llm_tracking_active) {
+      if (coverage.has_llm_key) {
+        return 'Events recorded without LLM (' + sessions + ', ' + tasks + '). API key is configured but enable_llm was off — semantic reranking was not requested.';
+      }
+      return 'Events recorded without LLM (' + sessions + ', ' + tasks + '). Configure LYNX_DEEPSEEK_KEY or LYNX_API_KEY to enable semantic reranking.';
+    }
     return 'Telemetry active (' + sessions + ', ' + tasks + ').';
   }
 

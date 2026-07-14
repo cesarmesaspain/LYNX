@@ -24,6 +24,7 @@
 
 import { attributeLegacyToolObservation, type UsageEvent } from './metrics.js';
 import { readArchivedEvents } from '../store/metrics-db.js';
+import { readLynxConfig } from '../config/runtime.js';
 import {
   type MetricPoint,
   type MetricProvenance,
@@ -584,6 +585,8 @@ function computeCoverage(
   // event_coverage: events exist, but we don't know the denominator.
   // Use a baseline of 1 if events exist (coverage = we have data).
   const eventCov = events.length > 0 ? 1 : 0;
+  const cfg = readLynxConfig();
+  const hasLLMKey = !!(cfg?.api_keys?.deepseek || cfg?.api_keys?.vps_key);
 
   let summary: string;
   if (events.length === 0) {
@@ -595,7 +598,11 @@ function computeCoverage(
   } else if (!llmActive) {
     const sessPart = sessionsAvailable ? `${sessionsTracked} sesiones` : 'sesiones: no disponible';
     const taskPart = tasksAvailable ? `${tasksTracked} tareas` : 'tareas: no disponible';
-    summary = `Eventos registrados sin LLM (${sessPart}, ${taskPart}). Configura LYNX_DEEPSEEK_KEY o LYNX_API_KEY para activar reordenamiento semántico.`;
+    if (hasLLMKey) {
+      summary = `Eventos registrados sin LLM (${sessPart}, ${taskPart}). La API key está configurada pero enable_llm no se activó en las llamadas — el reranking semántico no fue solicitado.`;
+    } else {
+      summary = `Eventos registrados sin LLM (${sessPart}, ${taskPart}). Configura LYNX_DEEPSEEK_KEY o LYNX_API_KEY para activar reordenamiento semántico.`;
+    }
   } else {
     const sessPart = sessionsAvailable ? `${sessionsTracked} sesiones` : 'sesiones: no disponible';
     const taskPart = tasksAvailable ? `${tasksTracked} tareas` : 'tareas: no disponible';
@@ -609,6 +616,7 @@ function computeCoverage(
     tasks_tracked: tasksTracked,
     tasks_available: tasksAvailable,
     llm_tracking_active: llmActive,
+    has_llm_key: hasLLMKey,
     deterministic_mode: isDeterministic,
     summary,
   };

@@ -66,7 +66,7 @@ export async function handleExplainSymbol(
     && readLynxConfig().agent_response?.budget === 'max_savings');
   const metrics = assessSymbolMetrics(db, project, node, projectMeta.rootPath, savingsMode);
   const result = buildExplainResponse(node, metrics, project, qualifiedName || name || '', started, savingsMode);
-  const value = estimateTokensSaved({ resultCount: 1, candidateFiles: 1, files: [node.file_path], rootPath: projectMeta.rootPath });
+  const value = estimateTokensSaved({ resultCount: 1, candidateFiles: 1, files: [node.file_path], rootPath: projectMeta.rootPath, project });
 
   recordUsageEvent({
     type: 'search_graph', project,
@@ -224,7 +224,7 @@ function buildExplainResponse(
 ): unknown {
   const meta = getDb(project).getProject(project);
   const rootPath = meta?.rootPath || process.cwd();
-  const value = estimateTokensSaved({ resultCount: 1, candidateFiles: 1, files: [node.file_path], rootPath });
+  const value = estimateTokensSaved({ resultCount: 1, candidateFiles: 1, files: [node.file_path], rootPath, project });
   const narrative = [
     `${node.kind} \`${node.name}\` in ${node.file_path}:${node.start_line}-${node.end_line}.`,
     `${m.fanIn} inbound callers, ${m.fanOut} outbound dependencies.`,

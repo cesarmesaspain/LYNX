@@ -295,7 +295,7 @@ function buildSemanticResponse(
   const resultFiles = [...new Set(returnedResults.map(r => r.file))];
   const meta = db.getProject(project);
   const rootPath = meta?.rootPath || process.cwd();
-  const value = estimateTokensSaved({ resultCount: returnedResults.length, candidateFiles: returnedTotal, files: resultFiles, rootPath });
+  const value = estimateTokensSaved({ resultCount: returnedResults.length, candidateFiles: returnedTotal, files: resultFiles, rootPath, project });
   recordUsageEvent({
     type: 'search_graph',
     project,

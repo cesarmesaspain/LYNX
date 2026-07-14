@@ -296,7 +296,7 @@ async function buildProjectPackContext(
     : Math.min(1_200, dedupedCandidates.length * 140 + uniqueFiles * 90);
   const meta = db.getProject(project);
   const rootPath = meta?.rootPath || process.cwd();
-  const potential = estimateTokensSaved({ resultCount: dedupedCandidates.length, candidateFiles: Math.max(uniqueFiles * 4, 3), files: fileList, rootPath });
+  const potential = estimateTokensSaved({ resultCount: dedupedCandidates.length, candidateFiles: Math.max(uniqueFiles * 4, 3), files: fileList, rootPath, project });
   recordUsageEvent({
     type: 'pack_context', project,
     query: task.slice(0, 240),

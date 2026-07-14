@@ -156,7 +156,7 @@ export async function handleFindTests(
   });
 
   const testFiles = [...new Set(tests.map(t => t.file_path))];
-  const value = estimateTokensSaved({ resultCount: tests.length, candidateFiles: testFiles.length, files: testFiles, rootPath });
+  const value = estimateTokensSaved({ resultCount: tests.length, candidateFiles: testFiles.length, files: testFiles, rootPath, project });
   recordUsageEvent({
     type: 'search_graph',
     project,

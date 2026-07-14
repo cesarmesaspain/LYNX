@@ -237,7 +237,7 @@ function buildReviewResponse(
             : 'Clean: no issues detected in this review.';
 
   const rootPath = project ? (getDb(project).getProject(project)?.rootPath || process.cwd()) : process.cwd();
-  const value = estimateTokensSaved({ resultCount: nodes.length, candidateFiles: new Set(nodes.map(n => n.file_path)).size, files: [...new Set(nodes.map(n => n.file_path))], rootPath });
+  const value = estimateTokensSaved({ resultCount: nodes.length, candidateFiles: new Set(nodes.map(n => n.file_path)).size, files: [...new Set(nodes.map(n => n.file_path))], rootPath, project });
   recordUsageEvent({
     type: 'search_graph',
     project,

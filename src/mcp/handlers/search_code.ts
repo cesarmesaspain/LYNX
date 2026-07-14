@@ -89,7 +89,7 @@ export async function handleSearchCode(
   const outputResults = buildSearchOutput(limitedResults, mode, projInfo.rootPath, contextLines);
   const files = [...new Set(limitedResults.map(r => r.file))];
 
-  const value = estimateTokensSaved({ resultCount: limitedResults.length, candidateFiles: files.length, files, rootPath: projInfo.rootPath });
+  const value = estimateTokensSaved({ resultCount: limitedResults.length, candidateFiles: files.length, files, rootPath: projInfo.rootPath, project });
   recordUsageEvent({
     type: 'search_graph',
     project,

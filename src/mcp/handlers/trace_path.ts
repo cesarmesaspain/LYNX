@@ -349,7 +349,7 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
   const uniqueFiles = [...new Set(
     p.allCallers.map(v => v.file_path).concat(p.allCallees.map(v => v.file_path))
   )];
-  const fullFileValue = estimateTokensFromFiles(uniqueFiles, rootPath(getDb(p.project), p.project));
+  const fullFileValue = estimateTokensFromFiles(uniqueFiles, rootPath(getDb(p.project), p.project), p.project);
   // A trace returns names, signatures and relationships, not full files. Its
   // observed value is the incremental manual inspection avoided; full source
   // volume remains an explicit potential upper bound for consumers who would

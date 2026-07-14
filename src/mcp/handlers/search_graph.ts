@@ -329,7 +329,7 @@ function buildSearchResponse(
   const resultFiles = [...new Set(resultsArray.map(r => String(r.file)))];
   const projectMeta = db.getProject(project);
   const rootPath = projectMeta?.rootPath || process.cwd();
-  const potential = estimateTokensSaved({ resultCount: resultsArray.length, candidateFiles: Math.max(total, resultsArray.length), files: resultFiles, rootPath });
+  const potential = estimateTokensSaved({ resultCount: resultsArray.length, candidateFiles: Math.max(total, resultsArray.length), files: resultFiles, rootPath, project });
   response.value_metrics = {
     measurement: 'symbol_discovery_context',
     estimated_files_avoided: 0,

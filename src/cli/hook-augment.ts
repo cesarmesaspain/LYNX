@@ -388,7 +388,7 @@ async function handleSearchHook(
 
     // ── Estimated savings (formula, same as before) ─────────────
     const uniqueFiles = new Set(files).size;
-    const estimated = estimateTokensSaved({ resultCount: results.length, candidateFiles: results.length * 4 });
+    const estimated = estimateTokensSaved({ resultCount: results.length, candidateFiles: results.length * 4, files, rootPath, project });
 
     recordUsageEvent({
       type: 'hook_augment',

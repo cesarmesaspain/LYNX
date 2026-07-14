@@ -78,7 +78,7 @@ export async function handleQueryGraph(
     const meta = db.getProject(project);
     const rootPath = meta?.rootPath || process.cwd();
     const resultFiles = limited.filter(r => r.file_path).map(r => r.file_path as string);
-    const potential = estimateTokensSaved({ resultCount: limited.length, candidateFiles: rows.length, files: resultFiles.length > 0 ? resultFiles : undefined, rootPath });
+    const potential = estimateTokensSaved({ resultCount: limited.length, candidateFiles: rows.length, files: resultFiles.length > 0 ? resultFiles : undefined, rootPath, project });
     const observedTokens = limited.length === 0 ? 0 : Math.min(1_200, 100 + limited.length * 90);
     recordUsageEvent({
       type: 'search_graph',

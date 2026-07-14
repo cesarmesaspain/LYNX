@@ -47,7 +47,7 @@ export async function handleGetArchitecture(
   ).all(...(scopePath ? [project, `${scopePath}%`] : [project])) as Array<{ file_path: string }>;
   const files = fileRows.map((row) => row.file_path);
   const projectMeta = db.getProject(project);
-  const value = estimateArchitectureOverviewSavings(files, projectMeta?.rootPath);
+  const value = estimateArchitectureOverviewSavings(files, projectMeta?.rootPath, project);
   recordUsageEvent({
     type: 'architecture_overview',
     project,

@@ -15,6 +15,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { lynxHome } from '../config/runtime.js';
 import { archiveEvent } from '../store/metrics-db.js';
+import { LynxDatabase } from '../store/database.js';
 
 export type UsageEventType =
   | 'pack_context'
@@ -158,13 +159,36 @@ export interface FileSavingsInput {
 
 export function estimateTokensFromFiles(
   files: string[],
-  rootPath?: string
+  rootPath?: string,
+  project?: string
 ): { tokensSaved: number; filesAvoided: number; confidence: 'low' | 'medium' | 'high' } {
   const resolvedRoot = rootPath || '';
   let totalBytes = 0;
   let readable = 0;
 
+  // DB-backed: query file_hashes from last indexing. Fresher than disk
+  // stat — the file watcher updates hashes on every file change.
+  let dbSizeCache: Map<string, number> | null = null;
+  if (project) {
+    try {
+      dbSizeCache = new Map();
+      const db = LynxDatabase.openProject(project);
+      const stmt = db.db.prepare('SELECT size FROM file_hashes WHERE project = ? AND rel_path = ?');
+      for (const f of files) {
+        const row = stmt.get(project, f) as { size: number } | undefined;
+        if (row && row.size > 0) dbSizeCache.set(f, row.size);
+      }
+    } catch { /* DB not available, fall back to disk */ }
+  }
+
   for (const f of files) {
+    // DB cache from last indexing (kept fresh by file watcher).
+    if (dbSizeCache?.has(f)) {
+      totalBytes += dbSizeCache.get(f)!;
+      readable++;
+      continue;
+    }
+    // Fall back to disk for files not yet indexed (or no project).
     const fullPath = resolvedRoot ? path.join(resolvedRoot, f) : f;
     try {
       const stat = fs.statSync(fullPath);
@@ -173,11 +197,11 @@ export function estimateTokensFromFiles(
         readable++;
       }
     } catch {
-      totalBytes += AVG_FILE_TOKENS * 4; // fallback: ~3600 bytes
+      totalBytes += AVG_FILE_TOKENS * 4; // last resort: ~3600 bytes
     }
   }
 
-  const tokensFromBytes = Math.round(totalBytes / 4); // ~4 chars per token
+  const tokensFromBytes = Math.round(totalBytes / 4);
 
   const confidence =
     files.length >= 12 ? 'high' : files.length >= 4 ? 'medium' : 'low';
@@ -193,8 +217,9 @@ export function estimateTokensFromFiles(
 export function estimateArchitectureOverviewSavings(
   files: string[],
   rootPath?: string,
+  project?: string,
 ): { tokensSaved: number; filesAvoided: number; confidence: 'low' | 'medium' | 'high' } {
-  const baseline = estimateTokensFromFiles(files, rootPath);
+  const baseline = estimateTokensFromFiles(files, rootPath, project);
   return {
     filesAvoided: baseline.filesAvoided,
     tokensSaved: Math.min(20_000, Math.round(baseline.tokensSaved * 0.35)),
@@ -284,11 +309,12 @@ export function attributeLegacyToolObservation(event: UsageEvent): UsageEvent {
 export interface TokenEstimateOpts {
   resultCount: number;
   candidateFiles: number;
-  /** Optional list of file paths for real-size-based estimation. When provided
-   *  together with rootPath, the upper bound uses real byte counts instead of
-   *  the fixed 900-token-per-file average. */
+  /** Optional list of file paths for real-size-based estimation. */
   files?: string[];
+  /** Optional rootPath when file paths are relative. */
   rootPath?: string;
+  /** Optional project name for DB-backed size lookup via file_hashes. */
+  project?: string;
 }
 
 /**
@@ -304,7 +330,7 @@ export function estimateTokensSaved(opts: TokenEstimateOpts): {
   tokensSaved: number;
   confidence: 'low' | 'medium' | 'high';
 } {
-  const { resultCount, candidateFiles, files, rootPath } = opts;
+  const { resultCount, candidateFiles, files, rootPath, project } = opts;
   const usefulResults = Math.max(0, resultCount);
   if (usefulResults === 0) return { filesAvoided: 0, tokensSaved: 0, confidence: 'low' };
 
@@ -314,7 +340,7 @@ export function estimateTokensSaved(opts: TokenEstimateOpts): {
   // This is the realistic saving — what the developer would have spent
   // without LYNX's indexed evidence, not a conservative floor.
   if (files && files.length > 0 && rootPath) {
-    const real = estimateTokensFromFiles(files, rootPath);
+    const real = estimateTokensFromFiles(files, rootPath, project);
     return {
       filesAvoided: likelyFilesAvoided,
       tokensSaved: real.tokensSaved,

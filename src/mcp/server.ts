@@ -164,7 +164,7 @@ function recordToolObservation(toolName: string, args: Record<string, unknown>, 
   if (TOOLS_WITH_OWN_USAGE_EVENTS.has(toolName)) return;
   const project = typeof args.project === 'string' ? args.project.trim() : '';
   if (!project) return;
-  const value = estimateToolOperationSavings(toolName, result);
+  const value = estimateToolOperationSavings(toolName, result, project);
   recordUsageEvent({
     type: 'tool_observation',
     project,

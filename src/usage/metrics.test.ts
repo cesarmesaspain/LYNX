@@ -133,13 +133,13 @@ describe('usage metrics', () => {
     expect(value.confidence).toBe('medium');
   });
 
-  it('attributes operational tools from their useful result, with per-call caps', () => {
+  it('attributes operational tools from their useful result, proportional to data returned', () => {
     const noResult = estimateToolOperationSavings('find_dead_code', { candidates: [] });
     const candidates = estimateToolOperationSavings('find_dead_code', { candidates: Array(20).fill({}) });
     const failed = estimateToolOperationSavings('find_dead_code', { error: 'not indexed' });
 
     expect(candidates.tokensSaved).toBeGreaterThan(noResult.tokensSaved);
-    expect(candidates.tokensSaved).toBeLessThanOrEqual(7_000);
+    expect(candidates.tokensSaved).toBeGreaterThan(8_000);
     expect(candidates.filesAvoided).toBeGreaterThan(0);
     expect(failed.tokensSaved).toBe(0);
   });
@@ -148,15 +148,15 @@ describe('usage metrics', () => {
     const small = estimateToolOperationSavings('detect_changes', { category_counts: { total: 1 } });
     const broad = estimateToolOperationSavings('detect_changes', { category_counts: { total: 10 } });
     expect(broad.tokensSaved).toBeGreaterThan(small.tokensSaved);
-    expect(broad.tokensSaved).toBeLessThanOrEqual(5_000);
+    expect(broad.tokensSaved).toBeGreaterThan(5_000);
   });
 
-  it('gives legacy zero-value operational events their conservative baseline only', () => {
+  it('gives legacy zero-value operational events their baseline only', () => {
     const event = attributeLegacyToolObservation({
       ts: '2026-01-01T00:00:00.000Z', type: 'tool_observation', project: 'demo',
       tool_hint: 'index_status', tokens_saved: 0, files_avoided: 0,
     });
-    expect(event.tokens_saved).toBe(280);
+    expect(event.tokens_saved).toBe(900);
     expect(event.confidence).toBe('low');
   });
 });

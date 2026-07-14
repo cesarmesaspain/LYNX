@@ -210,9 +210,10 @@ export function estimateTokensFromFiles(
 }
 
 /**
- * A project overview replaces an initial orientation pass, not a full code
- * review. Attribute a conservative 35% of the real indexed source volume and
- * cap it so a single broad request cannot dominate all product metrics.
+ * A project overview replaces an initial orientation pass — the developer
+ * would have scanned the project tree and opened key files to understand
+ * the architecture.  Attribute 60 % of the real indexed source volume:
+ * the overview replaces the scan but the developer still reads selected files.
  */
 export function estimateArchitectureOverviewSavings(
   files: string[],
@@ -222,7 +223,7 @@ export function estimateArchitectureOverviewSavings(
   const baseline = estimateTokensFromFiles(files, rootPath, project);
   return {
     filesAvoided: baseline.filesAvoided,
-    tokensSaved: Math.min(20_000, Math.round(baseline.tokensSaved * 0.35)),
+    tokensSaved: Math.round(baseline.tokensSaved * 0.6),
     confidence: baseline.confidence,
   };
 }
@@ -234,12 +235,22 @@ export interface ToolOperationSavings {
 }
 
 /**
- * Conservative, result-based attribution for tools whose benefit is not a
- * direct source read.  The numbers represent the manual inspection and
- * coordination the completed result replaces; they are capped per call and
- * deliberately do not use request latency as a proxy for value.
+ * Attribution for tools whose benefit is not a direct source read.
+ *
+ * When the tool result contains file paths AND we know the project, those
+ * files' real indexed sizes determine the saved-tokens estimate — the
+ * developer would have read those files line-by-line without LYNX.
+ * A coverage multiplier accounts for how much of that manual reading
+ * the tool's analysis replaces.
+ *
+ * Tools without file paths (index_status, etc.) use a base formula
+ * calibrated to the real manual work each operation replaces.
  */
-export function estimateToolOperationSavings(toolName: string, result: unknown): ToolOperationSavings {
+export function estimateToolOperationSavings(
+  toolName: string,
+  result: unknown,
+  project?: string
+): ToolOperationSavings {
   const data = result && typeof result === 'object' && !Array.isArray(result)
     ? result as Record<string, unknown>
     : {};
@@ -247,6 +258,22 @@ export function estimateToolOperationSavings(toolName: string, result: unknown):
     return { tokensSaved: 0, filesAvoided: 0, confidence: 'low' };
   }
 
+  // ── File-based estimation (real indexed sizes) ──────────────
+  if (project) {
+    const paths = extractResultFilePaths(toolName, data);
+    if (paths.length > 0) {
+      const coverage = FILE_TOOL_COVERAGE[toolName] ?? 0.5;
+      const deduped = [...new Set(paths)];
+      const real = estimateTokensFromFiles(deduped, undefined, project);
+      return {
+        tokensSaved: Math.round(real.tokensSaved * coverage),
+        filesAvoided: Math.max(1, Math.round(real.filesAvoided * coverage)),
+        confidence: real.confidence,
+      };
+    }
+  }
+
+  // ── Count-based fallback (no project, no file paths, or simple tools) ──
   const count = (...keys: string[]) => keys.reduce((total, key) => {
     const value = data[key];
     if (Array.isArray(value)) return total + value.length;
@@ -257,33 +284,162 @@ export function estimateToolOperationSavings(toolName: string, result: unknown):
     }
     return total + (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0);
   }, 0);
-  const policy: Record<string, { base: number; perItem: number; cap: number; items: number }> = {
-    // Preparing or checking a project avoids shell/db inspection, but is kept
-    // below analytical tools because it does not itself answer a code question.
-    index_repository: { base: 350, perItem: 45, cap: 6_000, items: count('files_inspected', 'files_reindexed', 'files_added', 'files_modified') },
-    index_status: { base: 280, perItem: 0, cap: 280, items: 0 },
-    detect_changes: { base: 650, perItem: 300, cap: 5_000, items: count('changed_files', 'total_changes', 'category_counts') },
-    assess_impact: { base: 900, perItem: 480, cap: 8_000, items: count('total_findings', 'returned_findings') },
-    analyze_hotspots: { base: 850, perItem: 550, cap: 7_000, items: count('hotspots', 'god_components', 'largest_files', 'most_complex') },
-    find_dead_code: { base: 850, perItem: 600, cap: 7_000, items: count('candidates') },
-    pack_memory: { base: 550, perItem: 260, cap: 3_500, items: count('memories', 'facts', 'decisions', 'items') },
-    get_graph_schema: { base: 500, perItem: 120, cap: 2_500, items: count('node_labels', 'edge_types', 'relationship_patterns') },
-    compare_runs: { base: 700, perItem: 300, cap: 2_500, items: data.comparison ? 1 : 0 },
-    ingest_traces: { base: 400, perItem: 90, cap: 3_000, items: count('ingested', 'traces_ingested', 'accepted') },
-    watch_project: { base: 260, perItem: 0, cap: 260, items: 0 },
-    manage_adr: { base: 350, perItem: 180, cap: 2_000, items: count('sections', 'adrs') },
-    delete_project: { base: 220, perItem: 0, cap: 220, items: 0 },
-    list_projects: { base: 160, perItem: 80, cap: 1_000, items: count('projects', 'count') },
+
+  const policy: Record<string, { base: number; perItem: number; items: number }> = {
+    // Tools that also have file-based paths above — fallback when no project.
+    detect_changes:  { base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.8), items: count('category_counts', 'total_changed_files') },
+    analyze_hotspots:{ base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.8), items: count('hotspots', 'god_components') },
+    find_dead_code:  { base: 850, perItem: Math.round(AVG_FILE_TOKENS * 0.65), items: count('candidates') },
+    assess_impact:   { base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.8), items: count('total_findings', 'returned_findings') },
+    pack_memory:     { base: 650, perItem: Math.round(AVG_FILE_TOKENS * 0.5), items: count('memories', 'facts', 'decisions', 'items') },
+    // Tools without file paths — counts are the only available signal.
+    index_repository: { base: 350, perItem: Math.round(AVG_FILE_TOKENS * 0.12), items: count('files_inspected', 'files_reindexed', 'files_added', 'files_modified') },
+    index_status:    { base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.15), items: count('findings') },
+    get_graph_schema:{ base: 800, perItem: Math.round(AVG_FILE_TOKENS * 0.15), items: count('node_labels', 'edge_types', 'relationship_patterns') },
+    compare_runs:    { base: 1200, perItem: Math.round(AVG_FILE_TOKENS * 0.25), items: data.comparison ? 1 : 0 },
+    ingest_traces:   { base: 600, perItem: Math.round(AVG_FILE_TOKENS * 0.1),  items: count('ingested', 'traces_ingested', 'accepted') },
+    watch_project:   { base: 500, perItem: Math.round(AVG_FILE_TOKENS * 0.05), items: data.active !== undefined ? 1 : 0 },
+    manage_adr:      { base: 600, perItem: Math.round(AVG_FILE_TOKENS * 0.2),  items: count('sections', 'adrs') },
+    delete_project:  { base: 400, perItem: Math.round(AVG_FILE_TOKENS * 0.05), items: data.deleted ? 1 : 0 },
+    list_projects:   { base: 400, perItem: Math.round(AVG_FILE_TOKENS * 0.12), items: count('projects', 'count') },
   };
   const selected = policy[toolName];
   if (!selected) return { tokensSaved: 0, filesAvoided: 0, confidence: 'low' };
 
-  const tokensSaved = Math.min(selected.cap, selected.base + selected.items * selected.perItem);
+  const tokensSaved = selected.base + selected.items * selected.perItem;
   return {
     tokensSaved,
     filesAvoided: Math.max(1, Math.ceil(tokensSaved / AVG_FILE_TOKENS)),
     confidence: selected.items >= 4 ? 'medium' : 'low',
   };
+}
+
+/**
+ * File-based tools and their coverage multipliers.
+ *
+ * The multiplier answers: "What fraction of reading these files
+ * line-by-line does the tool's analysis actually replace?"
+ *
+ * - 0.8: thorough per-file analysis (detect_changes, assess_impact)
+ * - 0.75: aggregated file analysis (analyze_hotspots)
+ * - 0.6: identification + verification (find_dead_code)
+ * - 0.5: metadata/pack (pack_memory)
+ */
+const FILE_TOOL_COVERAGE: Record<string, number> = {
+  detect_changes: 0.8,
+  analyze_hotspots: 0.75,
+  find_dead_code: 0.6,
+  assess_impact: 0.8,
+  pack_memory: 0.5,
+};
+
+/** Pull every file path out of a tool result so we can estimate from real sizes. */
+function extractResultFilePaths(toolName: string, data: Record<string, unknown>): string[] {
+  const paths: string[] = [];
+
+  const collectFromArray = (arr: unknown[], key: string) => {
+    for (const item of arr) {
+      if (item && typeof item === 'object') {
+        const obj = item as Record<string, unknown>;
+        if (typeof obj[key] === 'string') paths.push(obj[key] as string);
+      }
+    }
+  };
+
+  const collectFromObj = (obj: Record<string, unknown>, keys: string[]) => {
+    for (const key of keys) {
+      const val = obj[key];
+      if (Array.isArray(val)) collectFromArray(val, 'file_path');
+    }
+  };
+
+  switch (toolName) {
+    case 'detect_changes': {
+      // categories: { staged: [{file}], unstaged: [{file}], ... }
+      const cats = data.categories;
+      if (cats && typeof cats === 'object') {
+        for (const entries of Object.values(cats as Record<string, unknown>)) {
+          if (Array.isArray(entries)) collectFromArray(entries, 'file');
+        }
+      }
+      // impact_assessment: { confirmed: [{file_path}], probable: [{file_path}], nominal: [{file_path}] }
+      const ia = data.impact_assessment;
+      if (ia && typeof ia === 'object') {
+        const iaObj = ia as Record<string, unknown>;
+        for (const key of ['confirmed', 'probable', 'nominal']) {
+          if (Array.isArray(iaObj[key])) collectFromArray(iaObj[key] as unknown[], 'file_path');
+        }
+      }
+      // related_dependencies: [{scope_file}, {related_file}]
+      const rd = data.related_dependencies;
+      if (Array.isArray(rd)) {
+        for (const item of rd) {
+          if (item && typeof item === 'object') {
+            const dep = item as Record<string, unknown>;
+            if (typeof dep.scope_file === 'string') paths.push(dep.scope_file as string);
+            if (typeof dep.related_file === 'string') paths.push(dep.related_file as string);
+          }
+        }
+      }
+      // changed_files: CompatFileEntry[] (may have 'file' or 'path')
+      const cf = data.changed_files;
+      if (Array.isArray(cf)) {
+        for (const item of cf) {
+          if (item && typeof item === 'object') {
+            const entry = item as Record<string, unknown>;
+            if (typeof entry.file === 'string') paths.push(entry.file as string);
+            else if (typeof entry.path === 'string') paths.push(entry.path as string);
+          }
+        }
+      }
+      break;
+    }
+    case 'analyze_hotspots': {
+      collectFromArray(data.hotspots as unknown[] || [], 'file_path');
+      collectFromArray(data.god_components as unknown[] || [], 'file_path');
+      // largest_files: [{path, lines, ...}]
+      const lf = data.largest_files;
+      if (Array.isArray(lf)) collectFromArray(lf, 'path');
+      // most_complex: [{file, complexity, ...}]
+      const mc = data.most_complex;
+      if (Array.isArray(mc)) collectFromArray(mc, 'file');
+      // tightest_coupling: [{file, ...}]
+      const tc = data.tightest_coupling;
+      if (Array.isArray(tc)) collectFromArray(tc, 'file');
+      break;
+    }
+    case 'find_dead_code': {
+      collectFromArray(data.candidates as unknown[] || [], 'file_path');
+      break;
+    }
+    case 'assess_impact': {
+      collectFromArray(data.findings as unknown[] || [], 'file');
+      // recommended_inspection: string[] of file paths
+      const ri = data.recommended_inspection;
+      if (Array.isArray(ri)) {
+        for (const f of ri) {
+          if (typeof f === 'string') paths.push(f);
+        }
+      }
+      break;
+    }
+    case 'pack_memory': {
+      // findings may contain file references
+      const items = data.items || data.memories || data.decisions;
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          if (item && typeof item === 'object') {
+            const obj = item as Record<string, unknown>;
+            if (typeof obj.targetFile === 'string') paths.push(obj.targetFile as string);
+            if (typeof obj.file === 'string') paths.push(obj.file as string);
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  return paths.filter(p => p.length > 0);
 }
 
 /**

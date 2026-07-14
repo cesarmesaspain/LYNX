@@ -174,7 +174,7 @@ describe('usage metrics', () => {
       ts: '2026-01-01T00:00:00.000Z', type: 'tool_observation', project: 'demo',
       tool_hint: 'index_status', tokens_saved: 0, files_avoided: 0,
     });
-    expect(event.tokens_saved).toBe(900);
+    expect(event.tokens_saved).toBe(400);
     expect(event.confidence).toBe('low');
   });
 });

@@ -212,15 +212,15 @@ export function estimateTokensFromFiles(
 /**
  * A project overview replaces an initial orientation pass — the developer
  * would have scanned the project tree and opened key files to understand
- * the architecture.  Attribute 60 % of the real indexed source volume:
+ * the architecture.  Coverage scales from 3% (1 aspect) to 15% (9 aspects):
  * the overview replaces the scan but the developer still reads selected files.
  */
 /** Total number of aspects available in get_architecture. */
 const TOTAL_ARCHITECTURE_ASPECTS = 9;
-/** Min coverage floor so one-aspect calls still get some attribution. */
-const MIN_ASPECT_COVERAGE = 0.15;
-/** Max coverage when all aspects are requested. */
-const FULL_ASPECT_COVERAGE = 0.6;
+/** Min coverage floor so one-aspect calls still get attribution. */
+const MIN_ASPECT_COVERAGE = 0.03;
+/** Max coverage when all 9 aspects are requested — overview replaces ~15% of manual scanning. */
+const FULL_ASPECT_COVERAGE = 0.15;
 
 export function estimateArchitectureOverviewSavings(
   files: string[],
@@ -305,7 +305,7 @@ export function estimateToolOperationSavings(
     pack_memory:     { base: 650, perItem: Math.round(AVG_FILE_TOKENS * 0.5), items: count('memories', 'facts', 'decisions', 'items') },
     // Tools without file paths — counts are the only available signal.
     index_repository: { base: 350, perItem: Math.round(AVG_FILE_TOKENS * 0.12), items: count('files_inspected', 'files_reindexed', 'files_added', 'files_modified') },
-    index_status:    { base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.03), items: count('findings') },
+    index_status:    { base: 400, perItem: 0, items: 0 },
     get_graph_schema:{ base: 800, perItem: Math.round(AVG_FILE_TOKENS * 0.15), items: count('node_labels', 'edge_types', 'relationship_patterns') },
     compare_runs:    { base: 1200, perItem: Math.round(AVG_FILE_TOKENS * 0.25), items: data.comparison ? 1 : 0 },
     ingest_traces:   { base: 600, perItem: Math.round(AVG_FILE_TOKENS * 0.1),  items: count('ingested', 'traces_ingested', 'accepted') },

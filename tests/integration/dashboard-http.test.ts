@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import * as fs from 'node:fs';
 import * as http from 'node:http';
+import { LynxDatabase } from '../../src/store/database.js';
 import { startDashboard } from '../../src/server/dashboard/server.js';
 
 function waitForListening(server: http.Server): Promise<number> {
@@ -57,6 +59,40 @@ describe('local dashboard HTTP boundary', () => {
 
     const tooLarge = await request(port, '/api/projects/add', 'x'.repeat(1_048_577));
     expect(tooLarge.status).toBe(413);
+  });
+
+  it('physically removes a project database through the delete endpoint', async () => {
+    const project = 'dashboard-delete-regression';
+    const db = LynxDatabase.openProject(project);
+    const dbPath = db.dbPath;
+    db.upsertProject(project, '/tmp/dashboard-delete-regression');
+    db.db.prepare(`INSERT INTO nodes (
+      project, kind, name, qualified_name, file_path, start_line, end_line,
+      is_exported, is_test, is_entry_point, properties
+    ) VALUES (?, 'Function', 'main', 'dashboard.main', 'src/index.ts', 1, 1, 0, 0, 0, '{}')`).run(project);
+    db.close();
+
+    try {
+      server = startDashboard(0);
+      const port = await waitForListening(server);
+      const response = await request(
+        port,
+        '/api/projects/delete',
+        JSON.stringify({ project_name: project }),
+      );
+
+      expect(response.status).toBe(200);
+      expect(JSON.parse(response.body)).toMatchObject({
+        ok: true,
+        deleted: project,
+        nodes_removed: 1,
+      });
+      expect(fs.existsSync(dbPath)).toBe(false);
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) {
+        fs.rmSync(dbPath + suffix, { force: true });
+      }
+    }
   });
 
   it('recovers when a temporary port conflict is released', async () => {

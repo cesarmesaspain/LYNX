@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { URL } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { lynxHome, readLynxConfig, readLynxConfigSafe, upsertLynxConfig } from '../../config/runtime.js';
-import { LynxDatabase } from '../../store/database.js';
+import { LynxDatabase, removeSqliteDatabaseFiles } from '../../store/database.js';
 import { runPipeline } from '../../pipeline/orchestrator.js';
 import { collectProjectCards, collectActionGraph, getSavingsLabScenarios } from './data.js';
 import { renderDashboard } from './html.js';
@@ -132,13 +132,16 @@ async function handleApiProjectsDelete(req: http.IncomingMessage, res: http.Serv
     return;
   }
   const db = LynxDatabase.openProject(project_name);
+  let deleted = false;
   try {
     const nodeCount = (db.db.prepare('SELECT COUNT(*) as cnt FROM nodes WHERE project = ?').get(project_name) as { cnt: number }).cnt;
     const edgeCount = (db.db.prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ?').get(project_name) as { cnt: number }).cnt;
     db.deleteProject(project_name);
+    deleted = true;
     writeJson(res, 200, { ok: true, deleted: project_name, nodes_removed: nodeCount, edges_removed: edgeCount });
   } finally {
     db.close();
+    if (deleted) removeSqliteDatabaseFiles(dbPath);
   }
 }
 

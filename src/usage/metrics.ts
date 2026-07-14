@@ -323,7 +323,7 @@ export function estimateTokensSaved(opts: TokenEstimateOpts): {
   let confidence: 'low' | 'medium' | 'high';
   if (files && files.length > 0 && rootPath) {
     const real = estimateTokensFromFiles(files, rootPath);
-    upperBound = Math.max(gross, real.tokensSaved);
+    upperBound = real.tokensSaved;
     confidence = real.confidence;
   } else {
     upperBound = likelyFilesAvoided * AVG_FILE_TOKENS;

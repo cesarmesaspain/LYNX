@@ -36,6 +36,8 @@ import { handleWatchProject } from './handlers/watch_project.js';
 import { handleFindTests } from './handlers/find_tests.js';
 import { handleBatchGetCode } from './handlers/batch_get_code.js';
 import { handleToolCatalog } from './handlers/tool_catalog.js';
+import { handleDiagnose } from './handlers/diagnose.js';
+import { handleUsageSummary } from './handlers/usage_summary.js';
 import { decayCounter } from '../cli/hook-augment.js';
 import { cleanupNativeExtractor } from '../paths.js';
 import { LynxDatabase } from '../store/database.js';
@@ -45,7 +47,8 @@ import { discoverFiles } from '../pipeline/phases/discover.js';
 import { runPipeline } from '../pipeline/orchestrator.js';
 import { lynxHome, readLynxConfig } from '../config/runtime.js';
 import { closeAllProjectWatchers, getProjectWatcherStatus, startProjectWatcher } from '../watcher/watcher-manager.js';
-import { recordUsageEvent, summarizeUsage } from '../usage/metrics.js';
+import { estimateToolOperationSavings, recordUsageEvent, summarizeUsage } from '../usage/metrics.js';
+import { layerValueMetrics } from '../usage/value-metrics.js';
 import { resolveProjectReference } from './project-resolution.js';
 
 // ── Handler registry ──────────────────────────────────────────
@@ -138,38 +141,80 @@ const HANDLERS: Record<string, Handler> = {
   watch_project: handleWatchProject,
   find_tests: handleFindTests,
   batch_get_code: handleBatchGetCode,
+  diagnose: handleDiagnose,
+  usage_summary: handleUsageSummary,
 };
 
 const CORE_TOOL_NAMES = new Set([
   'pack_context', 'search_graph', 'get_code_snippet', 'trace_path',
   'find_tests', 'detect_changes', 'assess_impact', 'list_projects',
-  'tool_catalog',
+  'tool_catalog', 'diagnose', 'usage_summary',
 ]);
 
-// These handlers already record a tool-specific event with a defensible
-// savings estimate. Every other project-scoped call still gets a measured
-// completion event below, but never an invented token-savings figure.
+// These handlers already record a tool-specific, result-based savings event.
+// The remaining project-scoped tools are attributed centrally below.
 const TOOLS_WITH_OWN_USAGE_EVENTS = new Set([
   'pack_context', 'search_graph', 'trace_path', 'get_code_snippet',
   'query_graph', 'search_code', 'explain_symbol', 'smart_review',
-  'semantic_search', 'find_tests', 'batch_get_code', 'index_repository',
+  'semantic_search', 'find_tests', 'batch_get_code',
+  'get_architecture', 'diagnose', 'usage_summary',
 ]);
 
-function recordToolObservation(toolName: string, args: Record<string, unknown>, startedAt: number): void {
+function recordToolObservation(toolName: string, args: Record<string, unknown>, result: unknown, startedAt: number): void {
   if (TOOLS_WITH_OWN_USAGE_EVENTS.has(toolName)) return;
   const project = typeof args.project === 'string' ? args.project.trim() : '';
   if (!project) return;
+  const value = estimateToolOperationSavings(toolName, result);
   recordUsageEvent({
     type: 'tool_observation',
     project,
     query: toolName,
     result_count: 1,
-    files_avoided: 0,
-    tokens_saved: 0,
-    confidence: 'low',
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
     latency_ms: Math.max(0, Date.now() - startedAt),
     tool_hint: toolName,
   });
+}
+
+/** Normalize every tool's value_metrics response into the same three layers. */
+function enrichValueMetrics(project: string, result: unknown, totalLatencyMs: number): unknown {
+  if (!project || !result || typeof result !== 'object' || Array.isArray(result)) return result;
+  const response = result as Record<string, unknown>;
+  const raw = response.value_metrics;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return result;
+  try {
+    const db = getDb(project);
+    const stats = db.db.prepare(
+      `SELECT COUNT(DISTINCT file_path) AS files, COUNT(*) AS symbols FROM nodes WHERE project = ?`,
+    ).get(project) as { files: number; symbols: number };
+    const rawMetrics = raw as Record<string, unknown>;
+    const llmUsage = response.llm_usage && typeof response.llm_usage === 'object'
+      ? response.llm_usage as Record<string, unknown>
+      : {};
+    const llmLatency = Math.max(0, Number(
+      rawMetrics.llm_rerank_latency_ms ?? llmUsage.latency_ms ?? 0,
+    ) || 0);
+    const totalLatency = Math.max(0, Number(rawMetrics.latency_ms ?? totalLatencyMs) || totalLatencyMs);
+    const graphLatency = Number(rawMetrics.graph_query_latency_ms);
+    const withLatency = {
+      ...rawMetrics,
+      latency_ms: totalLatency,
+      latency_breakdown: {
+        total_ms: totalLatency,
+        ...(Number.isFinite(graphLatency) ? { graph_query_ms: Math.max(0, graphLatency) } : {}),
+        llm_rerank_ms: llmLatency,
+        local_processing_ms: Math.max(0, totalLatency - llmLatency - (Number.isFinite(graphLatency) ? Math.max(0, graphLatency) : 0)),
+      },
+    };
+    return {
+      ...response,
+      value_metrics: layerValueMetrics(withLatency, stats, response),
+    };
+  } catch {
+    return result;
+  }
 }
 
 // ── JSON-RPC dispatch ─────────────────────────────────────────
@@ -240,7 +285,7 @@ function setDb(project: string, db: LynxDatabase): void {
 export function normalizeProjectArgs(
   toolName: string,
   args: Record<string, unknown>,
-): { args: Record<string, unknown>; resolution?: { input: string; canonical_name: string; matched_by: 'root_path' } } | { error: string; hint: string } {
+): { args: Record<string, unknown>; resolution?: { input: string; canonical_name: string; matched_by: 'name' | 'root_path' } } | { error: string; hint: string } {
   if (typeof args.project !== 'string' || !args.project.trim()) return { args };
 
   const input = args.project;
@@ -252,10 +297,12 @@ export function normalizeProjectArgs(
   }
 
   const resolved = resolveProjectReference(input);
-  if (!resolved.resolved || resolved.matchedBy === 'name') return { args };
+  if (!resolved.resolved) return { args };
   return {
     args: { ...args, project: resolved.project },
-    resolution: { input, canonical_name: resolved.project, matched_by: 'root_path' },
+    ...(resolved.project === input
+      ? {}
+      : { resolution: { input, canonical_name: resolved.project, matched_by: resolved.matchedBy } }),
   };
 }
 
@@ -331,20 +378,26 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
     }
 
     try {
-      // A stdio MCP process can be created speculatively by an editor or can
-      // outlive its visible chat.  Index only after the client makes its first
-      // real tool request, never merely because the process was spawned.
-      // This keeps an idle, stale client from indexing an unrelated cwd.
-      if (!autoIndexForSession) autoIndexForSession = maybeAutoIndexCurrentProject();
-      await autoIndexForSession;
       const startedAt = Date.now();
       const normalized = normalizeProjectArgs(name, args || {});
       if ('error' in normalized) {
         return jsonRpcResult(id, { content: [{ type: 'text', text: JSON.stringify(normalized, null, 2) }] });
       }
-      const result = await HANDLERS[name](normalized.args);
-      recordToolObservation(name, normalized.args, startedAt);
-      decayCounter(); // Any LYNX MCP tool use decays the strict-mode counter by STRICT_DECAY
+      // Indexing must never hold the first user-visible tool response. It is
+      // background maintenance, and only applies when the MCP process cwd is
+      // the project actually requested (an editor can reuse one process for
+      // another indexed project).
+      if (!autoIndexForSession && shouldAutoIndexForProject(normalized.args.project)) {
+        autoIndexForSession = maybeAutoIndexCurrentProject();
+      }
+      const handlerResult = await HANDLERS[name](normalized.args);
+      const result = enrichValueMetrics(
+        typeof normalized.args.project === 'string' ? normalized.args.project : '', handlerResult, Date.now() - startedAt,
+      );
+      recordToolObservation(name, normalized.args, result, startedAt);
+      if (typeof normalized.args.project === 'string' && normalized.args.project) {
+        decayCounter(normalized.args.project);
+      }
       const context = buildIndexContext(normalized.args);
       const agentResponsePreference = getAgentResponsePreference();
       const enriched = result && typeof result === 'object' && !Array.isArray(result)
@@ -508,6 +561,13 @@ export async function maybeAutoIndexCurrentProject(): Promise<void> {
   } catch (err) {
     console.error(`[lynx] auto-index failed: ${err instanceof Error ? err.message : String(err)}`);
   }
+}
+
+function shouldAutoIndexForProject(project: unknown): boolean {
+  if (typeof project !== 'string' || !project.trim()) return false;
+  const detected = findNearestProject(process.cwd());
+  if (!detected) return false;
+  return resolveProjectNameByRoot(detected.name, detected.rootPath) === project;
 }
 
 function startAutoWatcher(project: string, rootPath: string): void {

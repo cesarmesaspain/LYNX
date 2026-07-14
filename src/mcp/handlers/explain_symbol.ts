@@ -66,12 +66,13 @@ export async function handleExplainSymbol(
     && readLynxConfig().agent_response?.budget === 'max_savings');
   const metrics = assessSymbolMetrics(db, project, node, projectMeta.rootPath, savingsMode);
   const result = buildExplainResponse(node, metrics, project, qualifiedName || name || '', started, savingsMode);
+  const value = estimateTokensSaved(1, 1);
 
   recordUsageEvent({
     type: 'search_graph', project,
     query: qualifiedName || name || '',
     result_count: 1, unique_files: 1,
-    files_avoided: 5, tokens_saved: 2250, confidence: 'high',
+    files_avoided: value.filesAvoided, tokens_saved: value.tokensSaved, confidence: value.confidence,
     latency_ms: Date.now() - started, tool_hint: 'explain_symbol',
   });
 
@@ -221,6 +222,7 @@ function buildExplainResponse(
   started: number,
   savingsMode: boolean,
 ): unknown {
+  const value = estimateTokensSaved(1, 1);
   const narrative = [
     `${node.kind} \`${node.name}\` in ${node.file_path}:${node.start_line}-${node.end_line}.`,
     `${m.fanIn} inbound callers, ${m.fanOut} outbound dependencies.`,
@@ -269,9 +271,9 @@ function buildExplainResponse(
     source: m.source,
     ...(!savingsMode ? { narrative } : {}),
     value_metrics: {
-      estimated_files_avoided: 5,
-      estimated_tokens_saved: 2250,
-      confidence: 'high' as const,
+      estimated_files_avoided: value.filesAvoided,
+      estimated_tokens_saved: value.tokensSaved,
+      confidence: value.confidence,
       latency_ms: Date.now() - started,
     },
   };

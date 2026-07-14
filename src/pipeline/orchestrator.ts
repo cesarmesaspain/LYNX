@@ -23,6 +23,7 @@ import { analyze } from './phases/analyze.js';
 import { computeCyclomaticComplexities, computeTransitiveLoopDepths } from '../intelligence/complexity.js';
 import { explainArchitecture } from '../intelligence/narrative.js';
 import type { LynxIndexMode, LynxIndexStatus, LynxArchitecture } from '../types.js';
+import type { ResolutionStats } from './phases/resolve/index.js';
 import type { Narrative } from '../intelligence/narrative.js';
 import { getGitContext } from '../git/context.js';
 import { enrichFile } from '../llm/client.js';
@@ -34,8 +35,6 @@ import { maxFilesForTier } from '../commercial/tiers.js';
 export interface PipelineOptions {
   mode?: LynxIndexMode;
   incremental?: boolean;
-  /** Explicit opt-in. Incremental updates remain disabled until requested. */
-  incrementalFeatureFlag?: boolean;
   /** Test-only fault injection. Never enabled by MCP or normal CLI calls. */
   testFailAt?: 'cleanup' | 'nodes' | 'edges' | 'hashes' | 'run';
   /** Test-only: skip optional post-commit brief generation. */
@@ -72,6 +71,18 @@ export interface PipelineResult {
     contextTokensAvoided: number;
   };
   incremental: IncrementalUpdateMetrics;
+  coverage: {
+    files_discovered: number;
+    files_processed: number;
+    files_skipped: number;
+    files_with_nodes: number;
+    excluded_directories: string[];
+    functions_extracted: number;
+    calls_extracted: number;
+    calls_resolved: number;
+    calls_unresolved: number;
+    call_resolution_rate: number;
+  };
 }
 
 /**
@@ -87,7 +98,10 @@ export async function runPipeline(
   const beforeNodes = (db.db.prepare('SELECT COUNT(*) AS count FROM nodes WHERE project = ?').get(project) as { count: number }).count;
   const beforeEdges = (db.db.prepare('SELECT COUNT(*) AS count FROM edges WHERE project = ?').get(project) as { count: number }).count;
   const mode = opts.mode || 'moderate';
-  const requestedIncremental = opts.incremental === true && (opts.incrementalFeatureFlag === true || process.env.LYNX_INCREMENTAL_INDEX === '1');
+  // Incremental indexing is the normal path. Deletions and renames still
+  // trigger the explicit full fallback below, where relationship resolution
+  // cannot be safely limited to the changed files.
+  const requestedIncremental = opts.incremental === true;
   const llmEnrichment = opts.llmEnrichment === true || process.env.LYNX_INDEX_LLM === '1';
   const llmSummaryCache = { hits: 0, misses: 0, contextTokensAvoided: 0 };
 
@@ -170,7 +184,7 @@ export async function runPipeline(
 
   // Track changed files for cleanup in incremental mode
   const changedFiles: string[] = [];
-  let stats;
+  let stats!: ResolutionStats;
   let architecture!: LynxArchitecture;
   let hotspotCount = 0;
   let filesProcessed = 0;
@@ -318,8 +332,27 @@ export async function runPipeline(
   // Checkpoint
   db.checkpoint();
 
+  const functionsExtracted = db.db.prepare(
+    `SELECT COUNT(*) AS count FROM nodes WHERE project = ? AND kind IN ('Function', 'Method')`,
+  ).get(project) as { count: number };
+  const filesWithNodes = db.db.prepare(
+    `SELECT COUNT(DISTINCT file_path) AS count FROM nodes WHERE project = ? AND file_path != ''`,
+  ).get(project) as { count: number };
+
   return {
     status, architecture, narrative, filesProcessed, filesSkipped, llmSummaryCache,
+    coverage: {
+      files_discovered: discovery.files.length,
+      files_processed: filesProcessed,
+      files_skipped: filesSkipped,
+      files_with_nodes: filesWithNodes.count,
+      excluded_directories: discovery.excludedDirs.slice(0, 100),
+      functions_extracted: functionsExtracted.count,
+      calls_extracted: stats.totalCalls,
+      calls_resolved: Math.max(0, stats.totalCalls - stats.unresolvedCalls),
+      calls_unresolved: stats.unresolvedCalls,
+      call_resolution_rate: stats.totalCalls === 0 ? 1 : Number(((stats.totalCalls - stats.unresolvedCalls) / stats.totalCalls).toFixed(4)),
+    },
     incremental: {
       updateMode: incremental ? 'incremental' : (requestedIncremental ? 'full_fallback' : 'full'),
       filesInspected: discovery.files.length,

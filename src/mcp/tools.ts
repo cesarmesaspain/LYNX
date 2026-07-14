@@ -29,6 +29,7 @@ const EVIDENCE_TOOLS = new Set([
   'detect_changes', 'assess_impact', 'pack_memory', 'analyze_hotspots',
   'find_dead_code', 'compare_runs', 'explain_symbol', 'smart_review',
   'semantic_search', 'find_tests', 'batch_get_code',
+  'diagnose', 'usage_summary',
 ]);
 
 /** Tools which only inspect an already indexed project or its working tree. */
@@ -38,7 +39,7 @@ export const READ_ONLY_TOOL_NAMES = new Set([
   'list_projects', 'get_graph_schema', 'search_code', 'detect_changes',
   'assess_impact', 'pack_memory', 'analyze_hotspots', 'find_dead_code',
   'compare_runs', 'explain_symbol', 'smart_review', 'semantic_search',
-  'find_tests', 'batch_get_code',
+  'find_tests', 'batch_get_code', 'diagnose', 'usage_summary',
 ]);
 
 const DESTRUCTIVE_TOOL_NAMES = new Set(['delete_project']);
@@ -129,8 +130,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'trace_path',
     description:
-      'Trace callers/callees through the code graph in one call. Each entry includes a 1-line signature — evaluate relevance from the signature before calling get_code_snippet. ' +
-      'Use when the task specifically requires control flow, workflow, impact-chain, or data-flow evidence. For workflows use mode=calls, direction=outbound, depth=4.',
+      'Trace callers/callees and labelled references through the code graph in one call. Each entry identifies whether its evidence is a direct call or a reference. ' +
+      'Use mode=calls for control flow, references for bindings/state usage, data_flow for both, or auto for Swift-aware fallback when direct calls are absent.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -138,9 +139,11 @@ export const TOOLS: LynxToolDef[] = [
         project: { type: 'string' },
         direction: { type: 'string', enum: ['inbound', 'outbound', 'both'], description: 'outbound for end-to-end workflow/callee tracing; inbound for callers/impact; both only when both directions are required.' },
         depth: { type: 'integer', description: 'Max BFS depth (default 3). Use 4 for representative end-to-end workflows.' },
-        mode: { type: 'string', enum: ['calls', 'data_flow', 'cross_service'], description: 'Trace mode.' },
+        mode: { type: 'string', enum: ['calls', 'references', 'data_flow', 'cross_service', 'auto'], description: 'calls keeps direct control-flow semantics; references includes READS/USAGE; auto expands only for a Swift symbol with no direct calls.' },
         risk_labels: { type: 'boolean', description: 'Add CRITICAL/HIGH/MEDIUM/LOW risk labels based on hop distance.' },
         include_tests: { type: 'boolean', description: 'Include test files in results.' },
+        edge_types: { type: 'array', items: { type: 'string' }, description: 'Optional explicit edge-type override (for example CALLS, READS, USAGE).' },
+        include_edges: { type: 'boolean', description: 'Include a compact labelled edge page.' },
       },
       required: ['function_name', 'project'],
     },
@@ -218,10 +221,6 @@ export const TOOLS: LynxToolDef[] = [
           type: 'boolean',
           description: 'Override a stale lock. Use only when a previous index run crashed.',
         },
-        incremental_feature_flag: {
-          type: 'boolean',
-          description: 'Explicit opt-in for incremental index mode.',
-        },
       },
       required: ['repo_path'],
     },
@@ -235,6 +234,22 @@ export const TOOLS: LynxToolDef[] = [
         project: { type: 'string' },
       },
       required: ['project'],
+    },
+  },
+  {
+    name: 'diagnose',
+    description: 'Run fast local LYNX health checks: runtime availability, index freshness, orphaned locks, and safe configuration status. Does not make network calls or expose credentials.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'usage_summary',
+    description: 'Summarize locally recorded LYNX usage and estimated savings for one project or all projects. Estimates are clearly separated from provider billing and graph confidence.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string', description: 'Optional indexed project name.' },
+        limit: { type: 'integer', description: 'Maximum recent events to include (default 1000, maximum 10000).' },
+      },
     },
   },
   {

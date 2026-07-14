@@ -18,7 +18,7 @@ const CLAUDE_READ_ONLY_LYNX_TOOLS = [
   'list_projects', 'get_graph_schema', 'search_code', 'detect_changes',
   'assess_impact', 'pack_memory', 'analyze_hotspots', 'find_dead_code',
   'compare_runs', 'explain_symbol', 'smart_review', 'semantic_search',
-  'find_tests', 'batch_get_code',
+  'find_tests', 'batch_get_code', 'diagnose', 'usage_summary',
 ] as const;
 
 function log(msg: string): void { console.log(`  ${msg}`); }
@@ -33,6 +33,21 @@ function lynxDiscoveryReminder(): string {
     '5. Use find_tests when coverage is material to the intended change; use batch_get_code when comparing multiple candidates.',
     '6. Use shell search/read when it is more direct for docs, configs, literals, or when LYNX has no useful result. Reuse evidence and stop when it is sufficient.',
   ].join(' ');
+}
+
+/**
+ * Index only repositories that explicitly opt into LYNX guidance. This keeps
+ * the global user-level hook from indexing arbitrary folders opened in Codex
+ * or Claude while still covering projects initialized by `lynx init`.
+ */
+function sessionStartIndexCommand(): string {
+  return 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --mode fast --incremental; fi';
+}
+
+function isLynxCodexSessionStartHook(hook: Record<string, unknown>): boolean {
+  const command = String(hook.command || '');
+  return command.includes('LYNX code discovery protocol') ||
+    command.includes('lynx index "$PWD" --mode fast');
 }
 
 // ── Hooks (Claude Code) ────────────────────────────────────────────
@@ -67,6 +82,8 @@ export function installClaudeHooks(command: string, args: string[], dryRun: bool
     '# Installed by: lynx install',
     '# New chats must establish LYNX context before exploratory file tools.',
     'rm -f "$HOME/.lynx/session-counter.json"',
+    '# Keep the local graph fresh for projects that opt into LYNX guidance.',
+    sessionStartIndexCommand(),
     'cat << \'REMINDER\'',
     'LYNX Code Intelligence is active.',
     '',
@@ -350,11 +367,11 @@ function codexHookBlock(): string {
   return [
     CODEX_HOOK_START,
     '[[hooks.SessionStart]]',
-    'matcher = "startup|resume|clear|compact"',
+    'matcher = "startup"',
     '',
     '[[hooks.SessionStart.hooks]]',
     'type = "command"',
-    `command = ${JSON.stringify(`echo ${JSON.stringify(lynxDiscoveryReminder())}`)}`,
+    `command = ${JSON.stringify(sessionStartIndexCommand())}`,
     CODEX_HOOK_END,
     '',
   ].join('\n');
@@ -398,10 +415,6 @@ export function installCodexHook(configDir: string, dryRun: boolean): void {
     : `installed Codex SessionStart hook → ${configPath}`);
 }
 
-function codexReminderCommand(): string {
-  return `echo ${JSON.stringify(lynxDiscoveryReminder())}`;
-}
-
 function installCodexHooksJson(hooksPath: string, dryRun: boolean): void {
   let config: Record<string, unknown> = {};
   if (fs.existsSync(hooksPath)) {
@@ -418,11 +431,11 @@ function installCodexHooksJson(hooksPath: string, dryRun: boolean): void {
     : [];
   const filtered = entries.filter((entry) => {
     const inner = Array.isArray(entry.hooks) ? entry.hooks as Array<Record<string, unknown>> : [];
-    return !inner.some((hook) => String(hook.command || '').includes('LYNX code discovery protocol'));
+    return !inner.some(isLynxCodexSessionStartHook);
   });
   filtered.push({
-    matcher: 'startup|resume|clear|compact',
-    hooks: [{ type: 'command', command: codexReminderCommand() }],
+    matcher: 'startup',
+    hooks: [{ type: 'command', command: sessionStartIndexCommand() }],
   });
   hooks.SessionStart = filtered;
   config.hooks = hooks;
@@ -452,21 +465,17 @@ function registerSessionStartHook(settingsPath: string, hookPath: string): void 
   const hooks = (settings.hooks as Record<string, unknown>) || {};
   const sessionStart = (hooks.SessionStart as Array<Record<string, unknown>>) || [];
 
-  const alreadyRegistered = sessionStart.some(entry => {
+  const filtered = sessionStart.filter(entry => {
     const inner = (entry.hooks as Array<Record<string, unknown>>) || [];
-    return inner.some(h => (h.command as string || '').includes('lynx-session-start'));
+    return !inner.some(h => (h.command as string || '').includes('lynx-session-start'));
   });
-  if (alreadyRegistered) return;
 
-  const matchers = ['startup', 'resume', 'clear', 'compact'];
-  for (const m of matchers) {
-    sessionStart.push({
-      matcher: m,
-      hooks: [{ type: 'command', command: hookPath }],
-    });
-  }
+  filtered.push({
+    matcher: 'startup',
+    hooks: [{ type: 'command', command: hookPath }],
+  });
 
-  hooks.SessionStart = sessionStart;
+  hooks.SessionStart = filtered;
   settings.hooks = hooks;
 
   const tmp = settingsPath + '.tmp';
@@ -660,7 +669,7 @@ function removeCodexHooksJson(hooksPath: string, dryRun: boolean): void {
     : [];
   const filtered = entries.filter((entry) => {
     const inner = Array.isArray(entry.hooks) ? entry.hooks as Array<Record<string, unknown>> : [];
-    return !inner.some((hook) => String(hook.command || '').includes('LYNX code discovery protocol'));
+    return !inner.some(isLynxCodexSessionStartHook);
   });
 
   if (filtered.length === entries.length) {

@@ -8,6 +8,9 @@ import {
   computeSemanticROI,
   defaultUsageContext,
   estimateRerankCostUsd,
+  estimateArchitectureOverviewSavings,
+  estimateToolOperationSavings,
+  attributeLegacyToolObservation,
   estimateTokensFromFiles,
   estimateTokensSaved,
   exportUsageEvents,
@@ -15,6 +18,7 @@ import {
   summarizeUsage,
   usageLogPath,
 } from './metrics.js';
+import { layerValueMetrics } from './value-metrics.js';
 
 let tempHome: string;
 
@@ -31,6 +35,35 @@ afterEach(() => {
 });
 
 describe('usage metrics', () => {
+  it('separates conservative savings, exploration potential, and structural confidence', () => {
+    const value = layerValueMetrics(
+      { estimated_tokens_saved: 1200, estimated_files_avoided: 2, confidence: 'medium' },
+      { files: 500, symbols: 8_000 },
+      { callers: [{}, {}], relationship_profile: { edge_counts: { CALLS: 2 } } },
+    );
+    const potential = value.exploration_potential as Record<string, number>;
+    const structural = value.structural_confidence as Record<string, unknown>;
+    expect(value.estimated_tokens_saved).toBe(1200);
+    expect(potential.likely_tokens).toBeGreaterThan(1200);
+    expect(potential.maximum_reasonable_tokens).toBeGreaterThan(potential.likely_tokens);
+    expect(structural.decision_status).toBe('confirmed');
+  });
+
+  it('does not present untraced search results as reinforced graph evidence', () => {
+    const value = layerValueMetrics(
+      { estimated_tokens_saved: 900, estimated_files_avoided: 0, confidence: 'high', measurement: 'symbol_discovery_context' },
+      { files: 500, symbols: 8_000 },
+      { results: [{ file: 'src/a.ts' }, { file: 'src/b.ts' }] },
+    );
+    const structural = value.structural_confidence as Record<string, unknown>;
+    const observed = value.observed_savings as Record<string, unknown>;
+    expect(value.confidence).toBe('low');
+    expect(structural.decision_status).toBe('partial');
+    expect(structural.files_affected).toBe(2);
+    expect(structural.ambiguities_detected).toContain('limited_structural_evidence');
+    expect(observed.basis).toBe('symbol_discovery_context');
+  });
+
   it('estimates savings with confidence', () => {
     expect(estimateTokensSaved(0, 10)).toEqual({
       filesAvoided: 0,
@@ -38,12 +71,12 @@ describe('usage metrics', () => {
       confidence: 'low',
     });
     expect(estimateTokensSaved(2, 8)).toMatchObject({
-      filesAvoided: 8,
-      confidence: 'medium',
+      filesAvoided: 2,
+      confidence: 'low',
     });
     expect(estimateTokensSaved(5, 40)).toMatchObject({
-      filesAvoided: 20,
-      confidence: 'high',
+      filesAvoided: 5,
+      confidence: 'low',
     });
   });
 
@@ -68,7 +101,7 @@ describe('usage metrics', () => {
     const summary = summarizeUsage('demo');
     expect(summary.events).toBe(1);
     expect(summary.tokens_saved).toBeGreaterThan(0);
-    expect(summary.high_confidence_tokens_saved).toBeGreaterThan(0);
+    expect(summary.low_confidence_tokens_saved).toBeGreaterThan(0);
     const event = JSON.parse(raw) as { session_id?: string; task_id?: string };
     expect(event.session_id).toBe(defaultUsageContext('demo').session_id);
     expect(event.task_id).toBe(defaultUsageContext('demo').task_id);
@@ -91,9 +124,63 @@ describe('usage metrics', () => {
     expect(estimateRerankCostUsd(0)).toBeGreaterThanOrEqual(0);
     expect(estimateRerankCostUsd(10)).toBeGreaterThan(estimateRerankCostUsd(1));
   });
+
+  it('estimates architecture orientation conservatively from indexed files', () => {
+    const files = ['missing-a.ts', 'missing-b.ts', 'missing-c.ts', 'missing-d.ts'];
+    const value = estimateArchitectureOverviewSavings(files);
+
+    expect(value.filesAvoided).toBe(4);
+    expect(value.tokensSaved).toBeGreaterThan(0);
+    expect(value.confidence).toBe('medium');
+  });
+
+  it('attributes operational tools from their useful result, with per-call caps', () => {
+    const noResult = estimateToolOperationSavings('find_dead_code', { candidates: [] });
+    const candidates = estimateToolOperationSavings('find_dead_code', { candidates: Array(20).fill({}) });
+    const failed = estimateToolOperationSavings('find_dead_code', { error: 'not indexed' });
+
+    expect(candidates.tokensSaved).toBeGreaterThan(noResult.tokensSaved);
+    expect(candidates.tokensSaved).toBeLessThanOrEqual(7_000);
+    expect(candidates.filesAvoided).toBeGreaterThan(0);
+    expect(failed.tokensSaved).toBe(0);
+  });
+
+  it('uses structured evidence instead of a fixed value for change analysis', () => {
+    const small = estimateToolOperationSavings('detect_changes', { category_counts: { total: 1 } });
+    const broad = estimateToolOperationSavings('detect_changes', { category_counts: { total: 10 } });
+    expect(broad.tokensSaved).toBeGreaterThan(small.tokensSaved);
+    expect(broad.tokensSaved).toBeLessThanOrEqual(5_000);
+  });
+
+  it('gives legacy zero-value operational events their conservative baseline only', () => {
+    const event = attributeLegacyToolObservation({
+      ts: '2026-01-01T00:00:00.000Z', type: 'tool_observation', project: 'demo',
+      tool_hint: 'index_status', tokens_saved: 0, files_avoided: 0,
+    });
+    expect(event.tokens_saved).toBe(280);
+    expect(event.confidence).toBe('low');
+  });
 });
 
 describe('session dedup', () => {
+  it('counts each independently requested architecture overview', () => {
+    const event = {
+      type: 'architecture_overview' as const,
+      project: 'architecture-dedup',
+      files: ['src/a.ts', 'src/b.ts'],
+      files_avoided: 2,
+      tokens_saved: 1200,
+      confidence: 'medium' as const,
+      skip_session_dedup: true,
+    };
+    recordUsageEvent(event);
+    recordUsageEvent(event);
+
+    const summary = summarizeUsage('architecture-dedup');
+    expect(summary.events).toBe(2);
+    expect(summary.tokens_saved).toBe(2400);
+  });
+
   it('deduplicates files across multiple events', () => {
     const files = ['src/a.ts', 'src/b.ts', 'src/c.ts'];
     recordUsageEvent({

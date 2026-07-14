@@ -344,12 +344,12 @@ function buildInstallPlan(
     hooks_planned: [
       ...agents.some((a) => a.key === 'claude-code')
         ? [
-            { agent: 'claude-code', event: 'SessionStart', blocking: false, command_source: 'lynx-session-start' },
+            { agent: 'claude-code', event: 'SessionStart', blocking: false, command_source: 'guarded lynx index --mode fast' },
             { agent: 'claude-code', event: 'PreToolUse', matcher: 'Grep|Glob|Read|Bash', blocking: true, command_source: 'lynx-code-discovery-augment' },
           ]
         : [],
       ...agents.some((a) => a.key === 'codex')
-        ? [{ agent: 'codex', event: 'SessionStart', blocking: false, command_source: 'managed config.toml echo reminder' }]
+        ? [{ agent: 'codex', event: 'SessionStart', blocking: false, command_source: 'guarded lynx index --mode fast' }]
         : [],
       ...agents.some((a) => a.key === 'gemini')
         ? [

@@ -5,9 +5,11 @@ import { LynxDatabase } from '../store/database.js';
 
 describe('MCP tool registry', () => {
   it('returns the complete registry in one tools/list response', () => {
-    expect(TOOLS).toHaveLength(27);
+    expect(TOOLS).toHaveLength(29);
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
     expect(TOOLS.map((tool) => tool.name)).toContain('find_dead_code');
+    expect(TOOLS.map((tool) => tool.name)).toContain('diagnose');
+    expect(TOOLS.map((tool) => tool.name)).toContain('usage_summary');
     const listed = listMcpTools();
     expect(listed).toHaveLength(TOOLS.length);
     expect(listed.map(tool => tool.name)).toContain('pack_context');
@@ -33,7 +35,7 @@ describe('MCP tool registry', () => {
     const previous = process.env.LYNX_TOOL_PROFILE;
     process.env.LYNX_TOOL_PROFILE = 'core';
     try {
-      expect(listMcpTools()).toHaveLength(9);
+      expect(listMcpTools()).toHaveLength(11);
     } finally {
       if (previous === undefined) delete process.env.LYNX_TOOL_PROFILE;
       else process.env.LYNX_TOOL_PROFILE = previous;

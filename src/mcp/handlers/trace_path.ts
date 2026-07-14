@@ -14,7 +14,7 @@ import * as path from 'node:path';
 import { getDb } from '../server.js';
 import type { LynxDatabase } from '../../store/database.js';
 import { narrateTraversal } from '../../intelligence/narrative.js';
-import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
+import { estimateTokensFromFiles, recordUsageEvent } from '../../usage/metrics.js';
 import { projectNotIndexed, noResults } from '../diagnostics.js';
 import { executeLocalTracePath } from '../../federation/trace-core.js';
 import { federatedTracePath } from '../../federation/gateway.js';
@@ -35,7 +35,10 @@ export async function handleTracePath(args: Record<string, unknown>): Promise<un
   const defaultDepth = savingsMode && args.risk_labels !== true ? 2 : 3;
   const rawDepth = args.depth !== undefined ? Number(args.depth) : defaultDepth;
   const depth = Number.isFinite(rawDepth) ? Math.max(1, Math.min(Math.floor(rawDepth), 10)) : defaultDepth;
-  const mode = (args.mode as string) || 'calls';
+  const requestedMode = (args.mode as string) || 'calls';
+  const mode = ['calls', 'references', 'data_flow', 'cross_service', 'auto'].includes(requestedMode)
+    ? requestedMode
+    : 'calls';
   const riskLabels = args.risk_labels === true;
   const includeTests = args.include_tests === true;
   const parameterName = args.parameter_name ? String(args.parameter_name) : undefined;
@@ -64,7 +67,7 @@ export async function handleTracePath(args: Record<string, unknown>): Promise<un
     return { ...noResults(functionName, 'function'), function_name: functionName };
   }
 
-  const { root, allCallers, allCallees, allEdges, filteredCount, maxHop,
+  const { root, allCallers, allCallees, allEdges, filteredCount, maxHop, effectiveMode,
     totalCallers, totalCallees, provenanceSummary } = traceResult;
 
   // Enrich entries with 1-line signatures
@@ -76,7 +79,7 @@ export async function handleTracePath(args: Record<string, unknown>): Promise<un
 
   return buildTraceResponse({
     root, allCallers: callers, allCallees: callees, allEdges: edges, sigMap,
-    direction, mode, filteredCount: callers.length + callees.length, maxHop,
+    direction, mode: effectiveMode, requestedMode, filteredCount: callers.length + callees.length, maxHop,
     totalCallers: callers.length, totalCallees: callees.length, provenanceSummary,
     page, pageSize, maxResults, includeEdges, parameterName,
     project, functionName, started,
@@ -95,7 +98,21 @@ export function isLikelyCallableSignature(signature: string | undefined): boolea
   return /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function|class)\b/.test(source)
     || /\bfunction\b/.test(source)
     || /=>/.test(source)
-    || /^(?:async\s+)?(?:get\s+|set\s+)?[A-Za-z_$][\w$]*\s*\(/.test(source);
+    // TS/JS class methods commonly carry accessibility/static decorators.
+    || /^(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:public|private|protected|readonly|abstract|declare|static|async|override|get|set)\s+)*[A-Za-z_$][\w$]*(?:<[^>{}]*>)?\s*\(/.test(source)
+    // Swift declarations can carry attributes and many modifiers before func.
+    || /^(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:public|private|fileprivate|internal|open|final|override|static|class|mutating|nonmutating|async|throws|rethrows|isolated|nonisolated)\s+)*func\s+[A-Za-z_]\w*/.test(source)
+    || /^(?:@\w+(?:\([^)]*\))?\s+)*(?:(?:public|private|fileprivate|internal|open|final|override|convenience|required)\s+)*(?:init|subscript)\s*(?:\?|\(|<)/.test(source)
+    // Do not suppress valid graph paths merely because their source syntax is
+    // not JavaScript-like. These patterns cover the callable declarations
+    // emitted by the supported Python, JVM, Go, Rust, Ruby and PHP extractors.
+    || /^(?:async\s+)?def\s+[A-Za-z_]\w*\s*\(/.test(source)
+    || /^(?:(?:public|private|protected|static|final|abstract|synchronized|native|async)\s+)*(?:[A-Za-z_$][\w$<>\[\]?]*\s+)+[A-Za-z_$][\w$]*\s*\(/.test(source)
+    || /^(?:suspend\s+)?fun\s+[A-Za-z_]\w*/.test(source)
+    || /^(?:pub\s+)?(?:async\s+)?fn\s+[A-Za-z_]\w*/.test(source)
+    || /^func\s+(?:\([^)]*\)\s+)?[A-Za-z_]\w*/.test(source)
+    || /^def\s+[A-Za-z_]\w*/.test(source)
+    || /^(?:(?:public|private|protected|static)\s+)*function\s+[A-Za-z_]\w*/.test(source);
 }
 
 // ── Data retrieval ─────────────────────────────────────
@@ -114,6 +131,7 @@ interface TraceFetchResult {
   allEdges: TraceEdge[];
   filteredCount: number;
   maxHop: number;
+  effectiveMode: string;
   totalCallers: number;
   totalCallees: number;
   provenanceSummary?: Record<string, unknown>;
@@ -143,6 +161,7 @@ async function fetchTraceData(
       allEdges: fedResult.edges,
       filteredCount: fedResult.total_visited,
       maxHop: fedResult.max_depth,
+      effectiveMode: fedResult.mode,
       totalCallers: fedResult.pagination.total_callers,
       totalCallees: fedResult.pagination.total_callees,
       provenanceSummary: fedResult.provenance_summary as unknown as Record<string, unknown>,
@@ -166,6 +185,7 @@ async function fetchTraceData(
     allEdges: traceData.edges,
     filteredCount: traceData.totalVisited,
     maxHop: traceData.maxHop,
+    effectiveMode: traceData.mode,
     totalCallers: traceData.totalCallers,
     totalCallees: traceData.totalCallees,
   };
@@ -227,7 +247,7 @@ interface BuildTraceResponseParams {
   root: { name: string; qualified_name: string; file_path: string; kind: string };
   allCallers: TraceEntry[]; allCallees: TraceEntry[]; allEdges: TraceEdge[];
   sigMap: Map<string, string>;
-  direction: string; mode: string;
+  direction: string; mode: string; requestedMode: string;
   filteredCount: number; maxHop: number;
   totalCallers: number; totalCallees: number;
   provenanceSummary?: Record<string, unknown>;
@@ -237,6 +257,12 @@ interface BuildTraceResponseParams {
 }
 
 function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown> {
+  const relationshipFor = (entry: TraceEntry): { types: string[]; kind: string } => {
+    const types = [...new Set(p.allEdges
+      .filter(edge => edge.fromName === entry.name || edge.toName === entry.name)
+      .map(edge => edge.type))];
+    return { types, kind: types.includes('CALLS') ? 'direct_call' : 'reference' };
+  };
   const toRecordEntry = (e: TraceEntry, sig?: string): Record<string, unknown> => {
     const entry: Record<string, unknown> = {
       name: e.name,
@@ -244,6 +270,11 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
       file_path: e.file_path,
       hop: e.hop,
     };
+    const relationship = relationshipFor(e);
+    if (relationship.types.length > 0) {
+      entry.relationship_types = relationship.types;
+      entry.relationship_kind = relationship.kind;
+    }
     if (e.risk) entry.risk = e.risk;
     if (sig) entry.signature = sig;
     return entry;
@@ -315,23 +346,48 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
     response.parameter_name = p.parameterName;
   }
 
-  const value = estimateTokensSaved(p.filteredCount, p.filteredCount * 2);
+  const uniqueFiles = [...new Set(
+    p.allCallers.map(v => v.file_path).concat(p.allCallees.map(v => v.file_path))
+  )];
+  const fullFileValue = estimateTokensFromFiles(uniqueFiles, rootPath(getDb(p.project), p.project));
+  // A trace returns names, signatures and relationships, not full files. Its
+  // observed value is the incremental manual inspection avoided; full source
+  // volume remains an explicit potential upper bound for consumers who would
+  // otherwise have opened every involved file.
+  const observedTokens = p.filteredCount === 0 ? 0 : Math.min(
+    fullFileValue.tokensSaved,
+    p.filteredCount * 220 + uniqueFiles.length * 80,
+  );
+  const value = {
+    filesAvoided: uniqueFiles.length,
+    tokensSaved: observedTokens,
+    confidence: fullFileValue.confidence,
+  };
   response.value_metrics = {
     estimated_files_avoided: value.filesAvoided,
     estimated_tokens_saved: value.tokensSaved,
     confidence: value.confidence,
+    full_file_potential_tokens: fullFileValue.tokensSaved,
+    measurement: 'incremental_trace_context',
     latency_ms: Date.now() - p.started,
   };
 
-  const uniqueFiles = new Set(
-    p.allCallers.map(v => v.file_path).concat(p.allCallees.map(v => v.file_path))
-  );
+  const edgeCounts = p.allEdges.reduce<Record<string, number>>((counts, edge) => {
+    counts[edge.type] = (counts[edge.type] || 0) + 1;
+    return counts;
+  }, {});
+  response.relationship_profile = {
+    requested: p.requestedMode,
+    effective: p.mode,
+    edge_types: Object.keys(edgeCounts),
+    edge_counts: edgeCounts,
+  };
   recordUsageEvent({
     type: 'trace_path',
     project: p.project,
     query: p.functionName,
     result_count: p.filteredCount,
-    unique_files: uniqueFiles.size,
+    unique_files: uniqueFiles.length,
     files_avoided: value.filesAvoided,
     tokens_saved: value.tokensSaved,
     confidence: value.confidence,

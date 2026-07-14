@@ -27,22 +27,22 @@ function fixture(project: string) {
 }
 
 describe('handleIndexRepository incremental contract', () => {
-  it('keeps a compatible full rebuild until the explicit feature flag is enabled', async () => {
+  it('uses the incremental contract by default', async () => {
     const project = `handler-${Date.now()}`;
     const root = fixture(project);
     const result = await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, __test_skip_project_brief: true }) as Record<string, unknown>;
-    expect(result.update_mode).toBe('full');
+    expect(result.update_mode).toBe('incremental');
     expect(result.health).toBe('healthy');
     expect(result.files_inspected).toBeGreaterThan(0);
     expect(result.fallback_reason).toBeNull();
   }, 30000);
 
-  it('reports an added file through the enabled incremental contract', async () => {
+  it('reports an added file through the incremental contract', async () => {
     const project = `handler-${Date.now()}`;
     const root = fixture(project);
     await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', __test_skip_project_brief: true });
     fs.writeFileSync(path.join(root, 'src', 'added.ts'), 'export const added = 1;');
-    const result = await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, incremental_feature_flag: true, __test_skip_project_brief: true }) as Record<string, unknown>;
+    const result = await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, __test_skip_project_brief: true }) as Record<string, unknown>;
     expect(result.update_mode).toBe('incremental');
     expect(result.files_added).toEqual(['src/added.ts']);
     expect(result.files_reindexed).toContain('src/added.ts');
@@ -57,7 +57,7 @@ describe('handleIndexRepository incremental contract', () => {
     const root = fixture(project);
     await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', __test_skip_project_brief: true });
     fs.renameSync(path.join(root, 'src', 'app.ts'), path.join(root, 'src', 'renamed.ts'));
-    const result = await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, incremental_feature_flag: true, __test_skip_project_brief: true }) as Record<string, any>;
+    const result = await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, __test_skip_project_brief: true }) as Record<string, any>;
     expect(result.update_mode).toBe('full_fallback');
     expect(result.fallback_reason).toBe('deleted_or_renamed_file_requires_full_relationship_resolution');
     expect(result.files_deleted).toEqual(['src/app.ts']);
@@ -70,8 +70,8 @@ describe('handleIndexRepository incremental contract', () => {
     const root = fixture(project);
     await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', __test_skip_project_brief: true });
     fs.writeFileSync(path.join(root, 'src', 'app.ts'), 'export const app = 2;');
-    await expect(handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, incremental_feature_flag: true, __test_skip_project_brief: true, __test_fail_at: 'hashes' })).rejects.toThrow('LYNX_TEST_PIPELINE_FAILURE:hashes');
-    const recovered = await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, incremental_feature_flag: true, __test_skip_project_brief: true }) as Record<string, unknown>;
+    await expect(handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, __test_skip_project_brief: true, __test_fail_at: 'hashes' })).rejects.toThrow('LYNX_TEST_PIPELINE_FAILURE:hashes');
+    const recovered = await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, __test_skip_project_brief: true }) as Record<string, unknown>;
     expect(recovered.health).toBe('healthy');
     expect(recovered.update_mode).toBe('incremental');
   }, 30000);

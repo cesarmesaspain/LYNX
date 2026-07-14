@@ -26,15 +26,16 @@ function hopToRisk(hop: number): string {
   return 'LOW';
 }
 
-function edgeTypesForMode(mode: string): string[] {
+export function edgeTypesForMode(mode: string): string[] {
   switch (mode) {
     case 'calls': return ['CALLS'];
-    case 'data_flow': return ['CALLS', 'DATA_FLOWS'];
+    case 'references': return ['CALLS', 'READS', 'USAGE', 'REGISTRY_DISPATCH'];
+    case 'data_flow': return ['CALLS', 'DATA_FLOWS', 'READS', 'USAGE', 'REGISTRY_DISPATCH'];
     case 'cross_service':
       return ['CALLS', 'HTTP_CALLS', 'ASYNC_CALLS', 'DATA_FLOWS',
               'CROSS_HTTP_CALLS', 'CROSS_ASYNC_CALLS', 'CROSS_CHANNEL',
               'CROSS_GRPC_CALLS', 'CROSS_GRAPHQL_CALLS', 'CROSS_TRPC_CALLS'];
-    default: return ['CALLS', 'HTTP_CALLS', 'ASYNC_CALLS'];
+    default: return ['CALLS'];
   }
 }
 
@@ -92,9 +93,10 @@ export function executeLocalTracePath(
 
   if (!nodeId) return null;
 
-  const edgeTypes = customEdgeTypes || edgeTypesForMode(mode);
+  let effectiveMode = mode === 'auto' ? 'calls' : mode;
+  let edgeTypes = customEdgeTypes || edgeTypesForMode(effectiveMode);
 
-  const traversal = bfsTraverse(
+  let traversal = bfsTraverse(
     db,
     nodeId,
     direction as 'inbound' | 'outbound' | 'both',
@@ -104,6 +106,19 @@ export function executeLocalTracePath(
   );
 
   if (!traversal) return null;
+
+  // SwiftUI commonly expresses relevant dependencies through bindings and
+  // state access.  Auto remains strict for all languages first; only a Swift
+  // trace with no direct call edge expands to references, and the response
+  // reports that expansion rather than presenting references as calls.
+  if (mode === 'auto' && traversal.visited.length === 0 && /\.swift$/i.test(exactMatch?.file_path || '')) {
+    effectiveMode = 'references';
+    edgeTypes = customEdgeTypes || edgeTypesForMode(effectiveMode);
+    traversal = bfsTraverse(
+      db, nodeId, direction as 'inbound' | 'outbound' | 'both', edgeTypes, depth, maxResults * 3,
+    );
+    if (!traversal) return null;
+  }
 
   const maxHop = traversal.visited.length > 0
     ? Math.max(...traversal.visited.map(v => v.hop))
@@ -155,7 +170,9 @@ export function executeLocalTracePath(
   const totalCallers = callers.length;
   const totalCallees = callees.length;
 
-  const edges: TraceEdge[] = traversal.edges.slice(0, pageSize).map(e => ({
+  // Keep the complete bounded traversal for relationship evidence and value
+  // metrics. The MCP handler paginates presentation separately.
+  const edges: TraceEdge[] = traversal.edges.map(e => ({
     fromName: e.fromName,
     toName: e.toName,
     type: e.type,
@@ -172,7 +189,7 @@ export function executeLocalTracePath(
   return {
     root,
     direction,
-    mode,
+    mode: effectiveMode,
     callers,
     callees,
     edges,

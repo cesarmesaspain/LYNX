@@ -91,6 +91,12 @@ describe('discover exclusion rules', () => {
     expect(hasFile(result, 'generated/types.ts')).toBe(false);
   });
 
+  it('includes application scripts in fast mode', () => {
+    writeFile(path.join(testDir, 'scripts/sync-production.ts'), 'export async function sync() {}');
+    const result = discoverFiles(testDir, 'fast');
+    expect(relFiles(result)).toContain('scripts/sync-production.ts');
+  });
+
   it('excludes coverage output', () => {
     writeFile(path.join(testDir, 'coverage/lcov-report/app.js'), '// lcov');
     writeFile(path.join(testDir, 'src/index.ts'), 'export const x = 1;');

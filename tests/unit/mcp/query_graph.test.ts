@@ -46,4 +46,15 @@ describe('query_graph Cypher aggregation', () => {
     expect(result.rows).toEqual([{ name: 'main', file: 'src/index.ts', entry: 1 }]);
     db.close();
   });
+
+  it('scopes direct SQL to the requested project', async () => {
+    const db = LynxDatabase.openMemory();
+    db.upsertProject(PROJECT, process.cwd());
+    db.upsertProject('other', process.cwd());
+    db.db.prepare(`INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties) VALUES (1, ?, 'Function', 'mine', 'a.mine', 'a.ts', 1, 1, 0, 0, 0, '{}'), (2, 'other', 'Function', 'other', 'b.other', 'b.ts', 1, 1, 0, 0, 0, '{}')`).run(PROJECT);
+    setDb(PROJECT, db);
+    const result = await handleQueryGraph({ project: PROJECT, query: 'SELECT project, COUNT(*) AS total FROM nodes GROUP BY project' }) as { rows: unknown[] };
+    expect(result.rows).toEqual([{ project: PROJECT, total: 1 }]);
+    db.close();
+  });
 });

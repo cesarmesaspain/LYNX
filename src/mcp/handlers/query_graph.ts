@@ -36,8 +36,8 @@ export async function handleQueryGraph(
   }
 
   try {
-    const sql = translateCypher(query, project);
-    const rows = db.db.prepare(sql).all() as any[];
+    const scoped = translateCypher(query, project);
+    const rows = db.db.prepare(scoped.sql).all(...scoped.parameters) as any[];
     const limited = rows.slice(0, maxRows);
     const relationshipEvidence = db.db.prepare(`
       SELECT
@@ -75,16 +75,17 @@ export async function handleQueryGraph(
       }];
     });
 
-    const value = estimateTokensSaved(limited.length, rows.length);
+    const potential = estimateTokensSaved(limited.length, rows.length);
+    const observedTokens = limited.length === 0 ? 0 : Math.min(1_200, 100 + limited.length * 90);
     recordUsageEvent({
       type: 'search_graph',
       project,
       query,
       result_count: limited.length,
       unique_files: 0,
-      files_avoided: value.filesAvoided,
-      tokens_saved: value.tokensSaved,
-      confidence: value.confidence,
+      files_avoided: 0,
+      tokens_saved: observedTokens,
+      confidence: 'low',
       latency_ms: Date.now() - started,
       tool_hint: 'query_graph',
     });
@@ -102,9 +103,12 @@ export async function handleQueryGraph(
           ? 'row_evidence verifies indexed definitions and relationship counts in this response; use zero_callers_and_usages directly instead of issuing per-symbol search_code or trace_path calls.'
           : 'Select qualified_name and file_path to receive per-row definition and relationship evidence.',
       value_metrics: {
-        estimated_files_avoided: value.filesAvoided,
-        estimated_tokens_saved: value.tokensSaved,
-        confidence: value.confidence,
+        measurement: 'graph_query_result_context',
+        estimated_files_avoided: 0,
+        estimated_tokens_saved: observedTokens,
+        full_file_potential_tokens: potential.tokensSaved,
+        potential_basis: 'broader manual graph exploration; not observed savings',
+        confidence: 'low',
         latency_ms: Date.now() - started,
       },
     };
@@ -121,9 +125,36 @@ export async function handleQueryGraph(
   }
 }
 
-function translateCypher(query: string, project: string): string {
+/**
+ * Wrap raw SQL so it only sees project-filtered data.
+ *
+ * Prefixes the query with common-table expressions that shadow graph tables,
+ * scoped to the requested project. This is per statement, so concurrent MCP
+ * requests cannot change one another's database view.
+ */
+interface ScopedQuery { sql: string; parameters: string[]; }
+
+function scopeRawSql(query: string, project: string): ScopedQuery {
+  const trimmed = query.trim();
+  if (/;|--|\/\*|\*\/|\b(?:ATTACH|DETACH|PRAGMA|VACUUM|CREATE|DROP|ALTER|INSERT|UPDATE|DELETE|REPLACE)\b/i.test(trimmed)) {
+    throw new Error('Raw SQL must be a single read-only graph query.');
+  }
+  if (/\b(?:main|temp|sqlite_master|sqlite_schema)\s*\./i.test(trimmed)) {
+    throw new Error('Raw SQL cannot address database schemas directly.');
+  }
+  const tables = [...trimmed.matchAll(/\b(?:FROM|JOIN)\s+([A-Za-z_][\w]*)/gi)].map(match => match[1].toLowerCase());
+  const unsupported = tables.find(table => !['nodes', 'edges', 'projects'].includes(table));
+  if (unsupported) throw new Error(`Raw SQL table '${unsupported}' is not available in query_graph.`);
+  const scope = 'nodes AS (SELECT * FROM main.nodes WHERE project = ?), edges AS (SELECT * FROM main.edges WHERE project = ?), projects AS (SELECT * FROM main.projects WHERE name = ?)';
+  return {
+    sql: /^WITH\s+/i.test(trimmed) ? `WITH ${scope}, ${trimmed.replace(/^WITH\s+/i, '')}` : `WITH ${scope} ${trimmed}`,
+    parameters: [project, project, project],
+  };
+}
+
+function translateCypher(query: string, project: string): ScopedQuery {
   if (/^\s*SELECT\s/i.test(query)) {
-    return query;
+    return scopeRawSql(query, project);
   }
 
   // Handle MATCH (a:Label)-[r:TYPE]->(b:Label)
@@ -132,19 +163,19 @@ function translateCypher(query: string, project: string): string {
   );
 
   if (pathMatch) {
-    return translatePathQuery(query, project, pathMatch);
+    return { sql: translatePathQuery(query, project, pathMatch), parameters: [] };
   }
 
   // Handle single MATCH (var:Label)
   const singleMatch = query.match(/MATCH\s*\((\w+):(\w+)\)/i);
   if (singleMatch) {
-    return translateSingleMatch(query, project, singleMatch);
+    return { sql: translateSingleMatch(query, project, singleMatch), parameters: [] };
   }
 
   // Handle MATCH (n) — match all
   const allMatch = query.match(/MATCH\s*\((\w+)\)/i);
   if (allMatch) {
-    return translateAllMatch(query, project, allMatch);
+    return { sql: translateAllMatch(query, project, allMatch), parameters: [] };
   }
 
   throw new Error('Only MATCH (var:Label), MATCH ()-[r]->(), or MATCH (n) is supported. For complex queries use SQL directly.');

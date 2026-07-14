@@ -93,7 +93,6 @@ const FAST_EXCLUDE_DIRS = new Set([
   'locales',
   'i18n',
   'l10n',
-  'scripts',
   'tools',
   'hack',
   'bin',

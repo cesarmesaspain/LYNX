@@ -112,7 +112,7 @@ describe('incremental pipeline safety', () => {
       initGit(root);
       await runPipeline(db, root, 'modified', { mode: 'fast', testSkipProjectBrief: true });
       fs.writeFileSync(path.join(root, 'src', 'a.ts'), 'export const a = 2; export const b = 3;');
-      const result = await runPipeline(db, root, 'modified', { mode: 'fast', incremental: true, incrementalFeatureFlag: true, testSkipProjectBrief: true });
+      const result = await runPipeline(db, root, 'modified', { mode: 'fast', incremental: true, testSkipProjectBrief: true });
       expect(result.incremental.updateMode).toBe('incremental');
       expect(result.incremental.modified).toEqual(['src/a.ts']);
       expect(result.incremental.reindexed).toEqual(['src/a.ts']);
@@ -129,7 +129,7 @@ describe('incremental pipeline safety', () => {
       initGit(root);
       await runPipeline(db, root, 'rename', { mode: 'fast', testSkipProjectBrief: true });
       fs.renameSync(path.join(root, 'src', 'a.ts'), path.join(root, 'src', 'renamed.ts'));
-      const result = await runPipeline(db, root, 'rename', { mode: 'fast', incremental: true, incrementalFeatureFlag: true, testSkipProjectBrief: true });
+      const result = await runPipeline(db, root, 'rename', { mode: 'fast', incremental: true, testSkipProjectBrief: true });
       expect(result.incremental.updateMode).toBe('full_fallback');
       expect(result.incremental.renamed).toEqual([{ from: 'src/a.ts', to: 'src/renamed.ts' }]);
       expect(result.incremental.fallbackReason).toContain('deleted_or_renamed');
@@ -148,10 +148,10 @@ describe('incremental pipeline safety', () => {
       const before = snapshot();
       fs.writeFileSync(path.join(root, 'src', 'a.ts'), 'export const a = 2;');
       for (const testFailAt of ['cleanup', 'nodes', 'edges', 'hashes', 'run'] as const) {
-        await expect(runPipeline(db, root, 'rollback', { mode: 'fast', incremental: true, incrementalFeatureFlag: true, testFailAt, testSkipProjectBrief: true })).rejects.toThrow(`LYNX_TEST_PIPELINE_FAILURE:${testFailAt}`);
+        await expect(runPipeline(db, root, 'rollback', { mode: 'fast', incremental: true, testFailAt, testSkipProjectBrief: true })).rejects.toThrow(`LYNX_TEST_PIPELINE_FAILURE:${testFailAt}`);
         expect(snapshot()).toEqual(before);
       }
-      const recovered = await runPipeline(db, root, 'rollback', { mode: 'fast', incremental: true, incrementalFeatureFlag: true, testSkipProjectBrief: true });
+      const recovered = await runPipeline(db, root, 'rollback', { mode: 'fast', incremental: true, testSkipProjectBrief: true });
       expect(recovered.incremental.health).toBe('healthy');
     } finally { db.close(); fs.rmSync(root, { recursive: true, force: true }); }
   }, 30000);
@@ -169,7 +169,7 @@ describe('incremental pipeline safety', () => {
       ]) execFileSync('git', args, { cwd: root });
       await runPipeline(db, root, 'incremental', { mode: 'fast', testSkipProjectBrief: true });
       fs.unlinkSync(path.join(root, 'src', 'a.ts'));
-      const result = await runPipeline(db, root, 'incremental', { mode: 'fast', incremental: true, incrementalFeatureFlag: true, testSkipProjectBrief: true });
+      const result = await runPipeline(db, root, 'incremental', { mode: 'fast', incremental: true, testSkipProjectBrief: true });
       expect(result.incremental.updateMode).toBe('full_fallback');
       expect(result.incremental.deleted).toEqual(['src/a.ts']);
       expect(result.incremental.fallbackReason).toContain('deleted_or_renamed');

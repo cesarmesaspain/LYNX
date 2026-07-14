@@ -66,8 +66,11 @@ interface PackContextResult {
     is_fresh: boolean;
   };
   value_metrics?: {
+    measurement?: string;
     estimated_files_avoided: number;
     estimated_tokens_saved: number;
+    full_file_potential_tokens?: number;
+    potential_basis?: string;
     confidence: string;
     session_tokens_saved: number;
     session_files_avoided: number;
@@ -285,15 +288,21 @@ async function buildProjectPackContext(
 
   const uniqueFiles = new Set(dedupedCandidates.map(c => c.file_path)).size;
   const fileList = dedupedCandidates.map(c => c.file_path);
-  const value = estimateTokensSaved(dedupedCandidates.length, Math.max(uniqueFiles * 4, 3));
+  // The pack returns a small, ranked set of pointers; it does not read the
+  // candidate files for the caller. Keep observed value to that delivered
+  // orientation and expose the wider exploration as potential only.
+  const observedTokens = dedupedCandidates.length === 0
+    ? 0
+    : Math.min(1_200, dedupedCandidates.length * 140 + uniqueFiles * 90);
+  const potential = estimateTokensSaved(dedupedCandidates.length, Math.max(uniqueFiles * 4, 3));
   recordUsageEvent({
     type: 'pack_context', project,
     query: task.slice(0, 240),
     result_count: dedupedCandidates.length,
     unique_files: uniqueFiles,
-    files_avoided: value.filesAvoided,
-    tokens_saved: value.tokensSaved,
-    confidence: value.confidence,
+    files_avoided: 0,
+    tokens_saved: observedTokens,
+    confidence: 'low',
     files: fileList,
     tool_hint: 'pack_context',
   });
@@ -342,9 +351,12 @@ async function buildProjectPackContext(
       applied: llmReranked,
     },
     value_metrics: {
-      estimated_files_avoided: value.filesAvoided,
-      estimated_tokens_saved: value.tokensSaved,
-      confidence: value.confidence,
+      measurement: 'ranked_context_pointers',
+      estimated_files_avoided: 0,
+      estimated_tokens_saved: observedTokens,
+      full_file_potential_tokens: potential.tokensSaved,
+      potential_basis: 'broader task exploration from ranked candidates; not observed savings',
+      confidence: 'low',
       session_tokens_saved: usage.tokens_saved,
       session_files_avoided: usage.files_avoided,
       session_unique_files_avoided: usage.unique_files_avoided,

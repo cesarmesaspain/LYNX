@@ -16,6 +16,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { LynxDatabase } from '../../../src/store/database.js';
 import { executeLocalTracePath } from '../../../src/federation/trace-core.js';
 import { handleTracePath, isLikelyCallableSignature } from '../../../src/mcp/handlers/trace_path.js';
+import { edgeTypesForMode } from '../../../src/federation/trace-core.js';
 import { setDb, unsetDb } from '../../../src/mcp/server.js';
 
 const PROJECT = 'test-trace-core';
@@ -350,5 +351,23 @@ describe('isLikelyCallableSignature', () => {
     expect(isLikelyCallableSignature('const exchange = async () => {')).toBe(true);
     expect(isLikelyCallableSignature('handleRequest(input: Request) {')).toBe(true);
     expect(isLikelyCallableSignature(undefined)).toBe(true);
+  });
+
+  it('keeps Swift functions and initializers instead of dropping valid call paths', () => {
+    expect(isLikelyCallableSignature('@MainActor private func runShell(_ command: String) async throws -> String {')).toBe(true);
+    expect(isLikelyCallableSignature('required init?(coder: NSCoder) {')).toBe(true);
+  });
+
+  it('keeps class methods and supported non-JS declarations', () => {
+    expect(isLikelyCallableSignature('private static async executeNode<T>(node: T) {')).toBe(true);
+    expect(isLikelyCallableSignature('async def execute_node(node: Node):')).toBe(true);
+    expect(isLikelyCallableSignature('public Response executeNode(Node node) {')).toBe(true);
+    expect(isLikelyCallableSignature('pub async fn execute_node(node: Node) {')).toBe(true);
+  });
+
+  it('uses explicit relationship profiles without redefining calls', () => {
+    expect(edgeTypesForMode('calls')).toEqual(['CALLS']);
+    expect(edgeTypesForMode('references')).toEqual(['CALLS', 'READS', 'USAGE', 'REGISTRY_DISPATCH']);
+    expect(edgeTypesForMode('data_flow')).toContain('READS');
   });
 });

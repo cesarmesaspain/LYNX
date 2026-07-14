@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import { readLynxConfig } from '../../config/runtime.js';
 import { listOrphanedLocks } from '../../store/lock.js';
 import { storedTimestampMs } from '../../store/time.js';
-import { scanIndexedProjects } from '../project-catalog.js';
+import { findDuplicateProjectRoots, scanIndexedProjects } from '../project-catalog.js';
 
 type IndexFreshness = 'ready' | 'stale' | 'updating' | 'failed' | 'unknown';
 
@@ -26,6 +26,13 @@ export async function handleListProjects(
     const orphanedLocks = listOrphanedLocks();
     const orphanedProjects = new Set(orphanedLocks.map(l => l.project));
 
+    const duplicateRoots = findDuplicateProjectRoots(allRows);
+    const aliasesByProject = new Map<string, string[]>();
+    for (const duplicate of duplicateRoots) {
+      for (const project of duplicate.projects) {
+        aliasesByProject.set(project, duplicate.projects.filter((name) => name !== project));
+      }
+    }
     return {
       projects: allRows.map(p => ({
         name: p.name,
@@ -37,8 +44,14 @@ export async function handleListProjects(
         freshness: computeFreshness({ status: p.status, indexedAt: p.indexedAt }, p.nodeCount),
         nodes: p.nodeCount,
         has_orphaned_lock: orphanedProjects.has(p.name),
+        ...(aliasesByProject.has(p.name) ? { duplicate_root_aliases: aliasesByProject.get(p.name) } : {}),
       })),
       count: allRows.length,
+      identity_warnings: duplicateRoots.length === 0 ? [] : duplicateRoots.map((duplicate) => ({
+        root_path: duplicate.rootPath,
+        project_aliases: duplicate.projects,
+        hint: 'Keep the canonical project selected by LYNX and remove the obsolete alias after verifying its data.',
+      })),
     };
   }
 

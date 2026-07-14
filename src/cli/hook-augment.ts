@@ -1,8 +1,9 @@
 /*
  * hook-augment.ts — Claude PreToolUse augmenter. v5 — DECAY COUNTER.
  *
- * v5 — Decay counter:
- * - Each non-LYNX tool: +1 to counter. Each LYNX MCP tool: -2 (min 0).
+ * v6 — Project-scoped strict counter:
+ * - Each project has its own counter for the current agent session.
+ * - A successful LYNX tool resets that project's discovery budget.
  * - After LYNX_STRICT_THRESHOLD (default 4), emits permissionDecision: "deny".
  * - Mixed usage (70% LYNX, 30% filesystem) naturally stays below threshold.
  * - Bash targets on non-code files (.json/.md/.yaml/etc.) never count.
@@ -35,7 +36,6 @@ const DEADLINE_MS = 300;
 const MAX_RESULTS = 5;
 const STRICT_THRESHOLD = parseInt(process.env.LYNX_STRICT_THRESHOLD || '4', 10);
 const COUNTER_RESET_MS = parseInt(process.env.LYNX_COUNTER_RESET_MS || '600000', 10); // 10 min
-const STRICT_DECAY = parseInt(process.env.LYNX_STRICT_DECAY || '2', 10); // subtracted per LYNX tool
 const NON_CODE_EXTS = /\.(json|md|ya?ml|toml|lock|gitignore|env|txt|csv|xml|svg|css|html|htm|ini|cfg|conf|editorconfig|prettierrc|eslintrc|babelrc|dockerignore|npmignore|gitattributes)$/i;
 const NON_CODE_FILES = /(?:^|\/|\s)(?:README|CHANGELOG|LICENSE|Makefile|Dockerfile|\.(?:env|git|docker|editorconfig|prettier|eslint|babel))$/im;
 
@@ -71,11 +71,14 @@ export async function runHookAugment(): Promise<void> {
     const project = resolveProjectNameByRoot(detected.name, detected.rootPath);
     const strict = isStrictMode();
 
+    const projectScoped = isProjectScopedAction(tool, toolInput, detected.rootPath, cwd);
+
     // ── Counter check (strict mode only) ──
     if (strict) {
       // Bash: only count exploratory commands (grep, find, cat, etc.), not build/infra
-      const shouldCount = tool !== 'bash' || isExploratoryBash(String(toolInput.command || ''), String(toolInput.file_path || ''));
-      const counter = shouldCount ? touchCounter() : readCounter();
+      const exploratory = tool !== 'bash' || isExploratoryBash(String(toolInput.command || ''), String(toolInput.file_path || ''));
+      const shouldCount = projectScoped && exploratory;
+      const counter = shouldCount ? touchCounter(project) : readCounter(project);
       // The first code-discovery action of a chat must be LYNX. Once a LYNX
       // call succeeds, normal strict-mode tolerance resumes for targeted
       // filesystem work. This prevents the expensive `ls/find/read` prelude
@@ -96,9 +99,9 @@ export async function runHookAugment(): Promise<void> {
     }
 
     if (tool === 'read') {
-      await handleReadHook(project, cwd, toolInput, detected.rootPath, strict);
+      if (projectScoped) await handleReadHook(project, cwd, toolInput, detected.rootPath, strict);
     } else {
-      await handleSearchHook(project, cwd, tool, toolInput, detected.rootPath, strict);
+      if (projectScoped) await handleSearchHook(project, cwd, tool, toolInput, detected.rootPath, strict);
     }
   } catch {
     // Hook augmentation must never break or delay the user's tool call.
@@ -109,7 +112,7 @@ export async function runHookAugment(): Promise<void> {
 
 // ── Session counter (strict mode) ──────────────────────────────
 
-interface SessionCounter {
+export interface SessionCounter {
   count: number;
   lastTouch: number; // Date.now()
   strictMode: boolean;
@@ -117,25 +120,49 @@ interface SessionCounter {
   lynxUsed: boolean;
 }
 
+interface CounterStore {
+  version: 2;
+  projects: Record<string, SessionCounter>;
+}
+
 function counterPath(): string {
   return path.join(lynxHome(), 'session-counter.json');
 }
 
-function readCounter(): SessionCounter {
+function defaultCounter(): SessionCounter {
+  return { count: 0, lastTouch: Date.now(), strictMode: false, lynxUsed: false };
+}
+
+function readCounterStore(): CounterStore {
   try {
-    const raw = fs.readFileSync(counterPath(), 'utf-8');
-    return JSON.parse(raw) as SessionCounter;
+    const raw = JSON.parse(fs.readFileSync(counterPath(), 'utf-8')) as Partial<CounterStore & SessionCounter>;
+    if (raw.version === 2 && raw.projects && typeof raw.projects === 'object') {
+      return { version: 2, projects: raw.projects };
+    }
+    // Migrate the former single counter lazily. It is intentionally not
+    // attributed to a project, so it cannot contaminate the next project.
+    return { version: 2, projects: {} };
   } catch {
-    return { count: 0, lastTouch: Date.now(), strictMode: false, lynxUsed: false };
+    return { version: 2, projects: {} };
   }
 }
 
-function writeCounter(c: SessionCounter): void {
+function writeCounterStore(store: CounterStore): void {
   try {
-    fs.writeFileSync(counterPath(), JSON.stringify(c) + '\n');
+    fs.writeFileSync(counterPath(), JSON.stringify(store) + '\n');
   } catch {
     // Best-effort
   }
+}
+
+function readCounter(project: string): SessionCounter {
+  return readCounterStore().projects[project] || defaultCounter();
+}
+
+function writeCounter(project: string, counter: SessionCounter): void {
+  const store = readCounterStore();
+  store.projects[project] = counter;
+  writeCounterStore(store);
 }
 
 function isStrictMode(): boolean {
@@ -143,9 +170,9 @@ function isStrictMode(): boolean {
 }
 
 /** Called every time the hook fires. Returns the updated session state. */
-function touchCounter(): SessionCounter {
+function touchCounter(project: string): SessionCounter {
   const now = Date.now();
-  const c = readCounter();
+  const c = readCounter(project);
 
   // Auto-reset after inactivity
   if (now - c.lastTouch > COUNTER_RESET_MS) {
@@ -155,37 +182,60 @@ function touchCounter(): SessionCounter {
   c.count++;
   c.lastTouch = now;
   c.strictMode = isStrictMode();
-  writeCounter(c);
+  writeCounter(project, c);
 
   return c;
 }
 
-/** Called when the agent uses a LYNX MCP tool — decays the counter by STRICT_DECAY. */
-export function decayCounter(): void {
-  const c = readCounter();
-  c.count = Math.max(0, c.count - STRICT_DECAY);
+/** A successful LYNX request completes the discovery step for this project. */
+export function decayCounter(project: string): void {
+  const c = readCounter(project);
+  c.count = 0;
   c.lastTouch = Date.now();
   c.strictMode = isStrictMode();
   c.lynxUsed = true;
-  writeCounter(c);
+  writeCounter(project, c);
 }
 
 /** Reset counter to 0 (kept for CLI). */
-export function resetCounter(): void {
-  decayCounter(); // same effect when count is low, but also clear entirely
-  const c = readCounter();
-  c.count = 0;
-  writeCounter(c);
+export function resetCounter(project: string): void {
+  decayCounter(project);
 }
 
 /** Read current counter state (for CLI display). */
-export function readCounterState(): SessionCounter {
-  const c = readCounter();
+export function readCounterState(project: string): SessionCounter {
+  const c = readCounter(project);
   const now = Date.now();
   if (now - c.lastTouch > COUNTER_RESET_MS) {
     return { count: 0, lastTouch: now, strictMode: isStrictMode(), lynxUsed: false };
   }
   return c;
+}
+
+function pathIsInside(rootPath: string, candidate: string): boolean {
+  const root = path.resolve(rootPath);
+  const target = path.resolve(candidate);
+  return target === root || target.startsWith(root + path.sep);
+}
+
+/** Whether this hook action actually explores the project resolved from cwd. */
+export function isProjectScopedAction(
+  tool: HookTool,
+  toolInput: Record<string, unknown>,
+  rootPath: string,
+  cwd: string,
+): boolean {
+  const explicit = String(toolInput.file_path || toolInput.path || '');
+  if (explicit) {
+    return pathIsInside(rootPath, path.isAbsolute(explicit) ? explicit : path.resolve(cwd, explicit));
+  }
+  if (tool === 'bash') {
+    const target = extractFileTarget(String(toolInput.command || ''));
+    if (target && path.isAbsolute(target)) return pathIsInside(rootPath, target);
+  }
+  // Grep/Glob without an explicit path and shell exploration without an
+  // absolute target operate from cwd, which is how the project was resolved.
+  return pathIsInside(rootPath, cwd);
 }
 
 // ── Tool detection ──────────────────────────────────────────────
@@ -271,7 +321,7 @@ async function handleReadHook(
           .all(project, relPath) as Array<{ name: string; qualified_name: string; kind: string; start_line: number }>;
 
         if (symbols.length > 0) {
-          const counter = readCounter();
+          const counter = readCounter(project);
           process.stdout.write(
             JSON.stringify({
               hookSpecificOutput: {
@@ -293,7 +343,7 @@ async function handleReadHook(
   if (!result.matched) return; // Not a file LYNX suggested — nothing to say
 
   const realSavings = computeRealSavings(project, cwd, rootPath);
-  const counter = readCounter();
+  const counter = readCounter(project);
 
   process.stdout.write(
     JSON.stringify({
@@ -369,7 +419,7 @@ async function handleSearchHook(
     }
 
     const usage = summarizeUsage(project, 500);
-    const counter = readCounter();
+    const counter = readCounter(project);
 
     process.stdout.write(
       JSON.stringify({

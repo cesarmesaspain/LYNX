@@ -18,6 +18,7 @@ import { archiveEvent } from '../store/metrics-db.js';
 
 export type UsageEventType =
   | 'pack_context'
+  | 'architecture_overview'
   | 'search_graph'
   | 'trace_path'
   | 'llm_rerank'
@@ -54,6 +55,10 @@ export interface UsageEvent {
   task_id?: string;
   event_id?: string;
   deterministic_mode?: boolean;
+  /** Keeps related estimators from deduplicating against unrelated tool flows. */
+  dedup_scope?: string;
+  /** Count a complete, independently useful operation even when it covers known files. */
+  skip_session_dedup?: boolean;
 }
 
 export interface UsageSummary {
@@ -98,7 +103,7 @@ export function defaultUsageContext(project: string): { session_id: string; task
 
 // ── Session-level dedup ─────────────────────────────────────
 
-const sessionFileSet = new Map<string, Set<string>>(); // project -> files
+const sessionFileSet = new Map<string, Set<string>>(); // project + scope -> files
 
 /** Simple v4-like UUID generator (no crypto dependency). */
 function generateEventId(): string {
@@ -118,13 +123,20 @@ export function clearSessionDedup(project?: string): void {
 function adjustEventForSessionDedup(event: Omit<UsageEvent, 'ts'>): Omit<UsageEvent, 'ts'> {
   const adjustedEvent = { ...event, files: event.files ? [...event.files] : event.files };
   if (!adjustedEvent.files || adjustedEvent.files.length === 0 || !adjustedEvent.project) return adjustedEvent;
+  if (adjustedEvent.skip_session_dedup) return adjustedEvent;
 
-  if (!sessionFileSet.has(adjustedEvent.project)) sessionFileSet.set(adjustedEvent.project, new Set());
-  const seen = sessionFileSet.get(adjustedEvent.project)!;
+  const dedupKey = `${adjustedEvent.project}:${adjustedEvent.dedup_scope || 'default'}`;
+  if (!sessionFileSet.has(dedupKey)) sessionFileSet.set(dedupKey, new Set());
+  const seen = sessionFileSet.get(dedupKey)!;
   const newFiles = adjustedEvent.files.filter((file) => !seen.has(file));
   for (const file of newFiles) seen.add(file);
 
   if (!adjustedEvent.files_avoided) return adjustedEvent;
+  if (newFiles.length === 0 && adjustedEvent.dedup_scope) {
+    adjustedEvent.files_avoided = 0;
+    adjustedEvent.tokens_saved = 0;
+    return adjustedEvent;
+  }
   const dedupRatio = newFiles.length / adjustedEvent.files.length;
   adjustedEvent.files_avoided = Math.max(1, Math.round(adjustedEvent.files_avoided * dedupRatio));
   if (adjustedEvent.tokens_saved) {
@@ -176,6 +188,102 @@ export function estimateTokensFromFiles(
   return { tokensSaved: net, filesAvoided: files.length, confidence };
 }
 
+/**
+ * A project overview replaces an initial orientation pass, not a full code
+ * review. Attribute a conservative 35% of the real indexed source volume and
+ * cap it so a single broad request cannot dominate all product metrics.
+ */
+export function estimateArchitectureOverviewSavings(
+  files: string[],
+  rootPath?: string,
+): { tokensSaved: number; filesAvoided: number; confidence: 'low' | 'medium' | 'high' } {
+  const baseline = estimateTokensFromFiles(files, rootPath);
+  return {
+    filesAvoided: baseline.filesAvoided,
+    tokensSaved: Math.min(20_000, Math.round(baseline.tokensSaved * 0.35)),
+    confidence: baseline.confidence,
+  };
+}
+
+export interface ToolOperationSavings {
+  tokensSaved: number;
+  filesAvoided: number;
+  confidence: 'low' | 'medium' | 'high';
+}
+
+/**
+ * Conservative, result-based attribution for tools whose benefit is not a
+ * direct source read.  The numbers represent the manual inspection and
+ * coordination the completed result replaces; they are capped per call and
+ * deliberately do not use request latency as a proxy for value.
+ */
+export function estimateToolOperationSavings(toolName: string, result: unknown): ToolOperationSavings {
+  const data = result && typeof result === 'object' && !Array.isArray(result)
+    ? result as Record<string, unknown>
+    : {};
+  if (typeof data.error === 'string' || data.project_status === 'failed') {
+    return { tokensSaved: 0, filesAvoided: 0, confidence: 'low' };
+  }
+
+  const count = (...keys: string[]) => keys.reduce((total, key) => {
+    const value = data[key];
+    if (Array.isArray(value)) return total + value.length;
+    if (value && typeof value === 'object') {
+      const objectTotal = Object.values(value as Record<string, unknown>)
+        .reduce<number>((sum, entry) => sum + (typeof entry === 'number' && Number.isFinite(entry) ? Math.max(0, entry) : 0), 0);
+      return total + objectTotal;
+    }
+    return total + (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0);
+  }, 0);
+  const policy: Record<string, { base: number; perItem: number; cap: number; items: number }> = {
+    // Preparing or checking a project avoids shell/db inspection, but is kept
+    // below analytical tools because it does not itself answer a code question.
+    index_repository: { base: 350, perItem: 45, cap: 6_000, items: count('files_inspected', 'files_reindexed', 'files_added', 'files_modified') },
+    index_status: { base: 280, perItem: 0, cap: 280, items: 0 },
+    detect_changes: { base: 650, perItem: 300, cap: 5_000, items: count('changed_files', 'total_changes', 'category_counts') },
+    assess_impact: { base: 900, perItem: 480, cap: 8_000, items: count('total_findings', 'returned_findings') },
+    analyze_hotspots: { base: 850, perItem: 550, cap: 7_000, items: count('hotspots', 'god_components', 'largest_files', 'most_complex') },
+    find_dead_code: { base: 850, perItem: 600, cap: 7_000, items: count('candidates') },
+    pack_memory: { base: 550, perItem: 260, cap: 3_500, items: count('memories', 'facts', 'decisions', 'items') },
+    get_graph_schema: { base: 500, perItem: 120, cap: 2_500, items: count('node_labels', 'edge_types', 'relationship_patterns') },
+    compare_runs: { base: 700, perItem: 300, cap: 2_500, items: data.comparison ? 1 : 0 },
+    ingest_traces: { base: 400, perItem: 90, cap: 3_000, items: count('ingested', 'traces_ingested', 'accepted') },
+    watch_project: { base: 260, perItem: 0, cap: 260, items: 0 },
+    manage_adr: { base: 350, perItem: 180, cap: 2_000, items: count('sections', 'adrs') },
+    delete_project: { base: 220, perItem: 0, cap: 220, items: 0 },
+    list_projects: { base: 160, perItem: 80, cap: 1_000, items: count('projects', 'count') },
+  };
+  const selected = policy[toolName];
+  if (!selected) return { tokensSaved: 0, filesAvoided: 0, confidence: 'low' };
+
+  const tokensSaved = Math.min(selected.cap, selected.base + selected.items * selected.perItem);
+  return {
+    tokensSaved,
+    filesAvoided: Math.max(1, Math.ceil(tokensSaved / AVG_FILE_TOKENS)),
+    confidence: selected.items >= 4 ? 'medium' : 'low',
+  };
+}
+
+/**
+ * Older releases stored successful operational calls as zero-value events.
+ * Preserve their activity history, but apply only the low-confidence baseline
+ * of today's policy when the tool name is known; no synthetic result volume is
+ * invented for historical records.
+ */
+export function attributeLegacyToolObservation(event: UsageEvent): UsageEvent {
+  if (event.type !== 'tool_observation' || Number(event.tokens_saved || 0) > 0) return event;
+  const toolName = event.tool_hint || event.query;
+  if (!toolName) return event;
+  const value = estimateToolOperationSavings(toolName, {});
+  if (value.tokensSaved === 0) return event;
+  return {
+    ...event,
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: 'low',
+  };
+}
+
 export function estimateTokensSaved(
   resultCount: number,
   candidateFiles: number
@@ -187,14 +295,18 @@ export function estimateTokensSaved(
   const usefulResults = Math.max(0, resultCount);
   if (usefulResults === 0) return { filesAvoided: 0, tokensSaved: 0, confidence: 'low' };
 
-  const likelyFilesAvoided = Math.max(0, Math.min(candidateFiles, usefulResults * 4));
-  const gross = likelyFilesAvoided * AVG_FILE_TOKENS;
-  const lynxContext = usefulResults * AVG_SYMBOL_TOKENS;
+  // Observed savings mean only the compact indexed evidence returned by this
+  // call: a symbol/file pointer plus enough context to choose the next step.
+  // They must not charge four complete manual file reads per result. Full-file
+  // exploration belongs in the separate potential range exposed by handlers.
+  const likelyFilesAvoided = Math.max(0, Math.min(candidateFiles, usefulResults));
+  const gross = likelyFilesAvoided * 120 + usefulResults * 160;
+  const upperBound = likelyFilesAvoided * AVG_FILE_TOKENS;
   const confidence =
-    likelyFilesAvoided >= 12 ? 'high' : likelyFilesAvoided >= 4 ? 'medium' : 'low';
+    likelyFilesAvoided >= 12 ? 'medium' : 'low';
   return {
     filesAvoided: likelyFilesAvoided,
-    tokensSaved: Math.max(0, gross - lynxContext),
+    tokensSaved: Math.max(0, Math.min(upperBound, gross)),
     confidence,
   };
 }
@@ -268,7 +380,8 @@ export function readUsageEvents(project?: string, limit = 1000): UsageEvent[] {
     const recent = lines.slice(Math.max(0, lines.length - limit));
     const events = recent
       .map((line) => JSON.parse(line) as UsageEvent)
-      .filter((event) => !project || event.project === project);
+      .filter((event) => !project || event.project === project)
+      .map(attributeLegacyToolObservation);
     return events;
   } catch {
     return [];

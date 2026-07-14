@@ -312,11 +312,18 @@ function checkHooks(agents: AgentInfo[]): DoctorCheck {
 
     const sessionHookExists = fs.existsSync(sessionHook);
     const augmentHookExists = fs.existsSync(augmentHook);
-    if (sessionHookExists && sessionSettingsOk) {
+    let sessionHookIndexes = false;
+    try {
+      sessionHookIndexes = fs.readFileSync(sessionHook, 'utf-8').includes('lynx index "$PWD" --mode fast');
+    } catch {
+      // hook missing or unreadable
+    }
+    if (sessionHookExists && sessionSettingsOk && sessionHookIndexes) {
       details.push('Claude SessionStart ✓');
     } else {
       if (!sessionHookExists) missing.push('Claude SessionStart script');
       if (!sessionSettingsOk) missing.push('Claude SessionStart settings');
+      if (sessionHookExists && !sessionHookIndexes) missing.push('Claude SessionStart indexing');
     }
 
     if (augmentHookExists && augmentSettingsOk) {
@@ -334,9 +341,11 @@ function checkHooks(agents: AgentInfo[]): DoctorCheck {
     let codexOk = false;
     try {
       if (fs.existsSync(hooksJsonPath)) {
-        codexOk = fs.readFileSync(hooksJsonPath, 'utf-8').includes('LYNX code discovery protocol');
+        codexOk = fs.readFileSync(hooksJsonPath, 'utf-8').includes('lynx index') &&
+          fs.readFileSync(hooksJsonPath, 'utf-8').includes('--mode fast');
       } else {
-        codexOk = fs.readFileSync(configPath, 'utf-8').includes('# >>> lynx SessionStart >>>');
+        const raw = fs.readFileSync(configPath, 'utf-8');
+        codexOk = raw.includes('# >>> lynx SessionStart >>>') && raw.includes('lynx index') && raw.includes('--mode fast');
       }
     } catch {
       // config missing

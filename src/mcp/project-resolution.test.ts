@@ -13,6 +13,19 @@ describe('project reference resolution', () => {
     expect(resolveProjectReference('LYNX', projects)).toEqual({ resolved: true, project: 'LYNX', matchedBy: 'name' });
   });
 
+  it('canonicalizes a differently cased project name', () => {
+    expect(resolveProjectReference('lynx', projects)).toEqual({
+      resolved: true, project: 'LYNX', matchedBy: 'name',
+    });
+  });
+
+  it('chooses the newest canonical identity when legacy aliases share a root', () => {
+    expect(resolveProjectReference('/tmp/lynx-project', [
+      ...projects,
+      { name: 'lynx', rootPath: '/tmp/lynx-project', indexedAt: '2026-07-13', status: 'ready', statusError: null, nodeCount: 1 },
+    ])).toEqual({ resolved: true, project: 'lynx', matchedBy: 'root_path' });
+  });
+
   it('resolves an indexed root path to its canonical project name', () => {
     expect(resolveProjectReference('/tmp/lynx-project/', projects)).toEqual({ resolved: true, project: 'LYNX', matchedBy: 'root_path' });
   });

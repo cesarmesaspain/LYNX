@@ -4,6 +4,7 @@ import { LynxDatabase } from '../../store/database.js';
 import { runPipeline } from '../../pipeline/orchestrator.js';
 import { resolveProjectPath } from '../../discovery/project-scanner.js';
 import { cleanupNativeExtractor } from '../../paths.js';
+import { resolveProjectReference } from '../../mcp/project-resolution.js';
 
 export async function cmdIndex(args: string[]): Promise<void> {
   const firstArg = args[0];
@@ -51,14 +52,27 @@ export async function cmdIndex(args: string[]): Promise<void> {
   const nameIdx = args.indexOf('--name');
   if (nameIdx !== -1) projectName = args[nameIdx + 1];
 
+  const existingForRoot = resolveProjectReference(repoPath);
+  if (existingForRoot.resolved) {
+    if (nameIdx !== -1 && projectName !== existingForRoot.project) {
+      console.error(`"${repoPath}" is already indexed as "${existingForRoot.project}". Use that canonical name or delete it before renaming.`);
+      process.exit(1);
+    }
+    projectName = existingForRoot.project;
+  } else {
+    const existingForName = resolveProjectReference(projectName);
+    if (existingForName.resolved) projectName = existingForName.project;
+  }
+
   const modeIdx = args.indexOf('--mode');
   const mode = (modeIdx !== -1 ? args[modeIdx + 1] : 'moderate') as 'full' | 'moderate' | 'fast';
   const llmEnrichment = args.includes('--llm');
+  const incremental = args.includes('--incremental');
 
-  console.log(`Indexing ${repoPath} as "${projectName}" (mode: ${mode})...`);
+  console.log(`Indexing ${repoPath} as "${projectName}" (mode: ${mode}${incremental ? ', incremental' : ''})...`);
 
   const db = LynxDatabase.openProject(projectName);
-  const { status, architecture } = await runPipeline(db, repoPath, projectName, { mode, llmEnrichment });
+  const { status, architecture } = await runPipeline(db, repoPath, projectName, { mode, incremental, llmEnrichment });
 
   console.log(`Done. ${status.totalNodes} nodes, ${status.totalEdges} edges.`);
   console.log(`Hotspots: ${architecture.hotspots.length}, Clusters: ${architecture.clusters.length}`);

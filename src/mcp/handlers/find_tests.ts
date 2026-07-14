@@ -155,15 +155,16 @@ export async function handleFindTests(
     };
   });
 
+  const value = estimateTokensSaved(tests.length, new Set(tests.map(t => t.file_path)).size);
   recordUsageEvent({
     type: 'search_graph',
     project,
     query: qualifiedName || name || '',
     result_count: tests.length,
     unique_files: new Set(tests.map(t => t.file_path)).size,
-    files_avoided: tests.length > 0 ? tests.length * 2 : 1,
-    tokens_saved: tests.length * 450,
-    confidence: tests.length >= 4 ? 'high' : tests.length >= 2 ? 'medium' : 'low',
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
     latency_ms: Date.now() - started,
     tool_hint: 'find_tests',
   });
@@ -184,9 +185,9 @@ export async function handleFindTests(
       : undefined,
     found: true,
     value_metrics: {
-      estimated_files_avoided: tests.length > 0 ? tests.length * 2 : 1,
-      estimated_tokens_saved: tests.length * 450,
-      confidence: tests.length >= 4 ? 'high' as const : tests.length >= 2 ? 'medium' as const : 'low' as const,
+      estimated_files_avoided: value.filesAvoided,
+      estimated_tokens_saved: value.tokensSaved,
+      confidence: value.confidence,
       latency_ms: Date.now() - started,
     },
   };

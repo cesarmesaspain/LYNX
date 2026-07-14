@@ -64,4 +64,22 @@ describe('tree-sitter JavaScript definition identity', () => {
       isEntryPoint: true,
     });
   });
+
+  it('extracts a same-file TypeScript call from a multiline async function', async () => {
+    const result = await extractFile(
+      `export async function runScenarioDev(input: { flowKey: string }): Promise<void> {
+         await executeNode(input.flowKey);
+       }
+       async function executeNode(flowKey: string): Promise<void> { }
+      `,
+      'fixture',
+      'src/scenarioRuntimeDev.ts',
+      'scenarioRuntimeDev',
+    );
+
+    expect(result.calls).toContainEqual(expect.objectContaining({
+      calleeName: 'executeNode',
+      enclosingFuncQn: 'scenarioRuntimeDev.runScenarioDev',
+    }));
+  });
 });

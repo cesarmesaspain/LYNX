@@ -22,7 +22,7 @@
  * Coverage estimate: < 0.1% collision rate.
  */
 
-import { readUsageEvents, type UsageEvent } from './metrics.js';
+import { attributeLegacyToolObservation, readUsageEvents, type UsageEvent } from './metrics.js';
 import { readArchivedEvents, summarizeHistory } from '../store/metrics-db.js';
 import {
   type MetricPoint,
@@ -67,6 +67,7 @@ export function getTimeWindows(_now?: string): WindowInfo[] {
 // ── Category assignment (mutually exclusive) ───────────────────
 
 const CATEGORY_BY_TYPE: Record<string, string> = {
+  architecture_overview: 'architecture_overview',
   search_graph: 'direct_discovery',
   search_code: 'direct_discovery',
   semantic_search: 'direct_discovery',
@@ -82,17 +83,38 @@ const CATEGORY_BY_TYPE: Record<string, string> = {
   tool_observation: 'other',
 };
 
+const OBSERVATION_CATEGORY_BY_TOOL: Record<string, string> = {
+  detect_changes: 'impact_analysis',
+  assess_impact: 'impact_analysis',
+  analyze_hotspots: 'impact_analysis',
+  find_dead_code: 'impact_analysis',
+  pack_memory: 'context_packing',
+  get_graph_schema: 'context_packing',
+  compare_runs: 'impact_analysis',
+  index_repository: 'project_operations',
+  index_status: 'project_operations',
+  ingest_traces: 'project_operations',
+  watch_project: 'project_operations',
+  manage_adr: 'project_operations',
+  delete_project: 'project_operations',
+};
+
 const CATEGORY_LABELS: Record<string, string> = {
+  architecture_overview: 'Orientación de arquitectura',
   direct_discovery: 'Descubrimiento directo',
   smart_navigation: 'Navegación inteligente',
   context_packing: 'Empaquetado de contexto',
   impact_analysis: 'Análisis de impacto',
   llm_rerank: 'Reordenamiento semántico',
   hook_augment: 'Aumento por hook',
+  project_operations: 'Operaciones de proyecto',
   other: 'Otros',
 };
 
 function categoryForEvent(e: UsageEvent): string {
+  if (e.type === 'tool_observation' && e.tool_hint) {
+    return OBSERVATION_CATEGORY_BY_TOOL[e.tool_hint] || 'other';
+  }
   return CATEGORY_BY_TYPE[e.type] || 'other';
 }
 
@@ -258,7 +280,7 @@ export function aggregateTotal(
   const recent = readUsageEvents(project, 5000);
 
   // Merge: archive first, then JSONL; dedup drops duplicates
-  const merged = dedupEvents([...archived, ...recent]);
+  const merged = dedupEvents([...archived, ...recent].map(attributeLegacyToolObservation));
 
   const result = buildFromEvents(win, merged, now);
 
@@ -397,7 +419,7 @@ function buildSavingsAttribution(events: UsageEvent[]): SavingsAttribution {
   const byTool = new Map<string, { events: number; tokens_saved: number; files_avoided: number }>();
 
   for (const event of savings) {
-    const type = event.type || 'other';
+    const type = event.tool_hint || event.type || 'other';
     const entry = byTool.get(type) || { events: 0, tokens_saved: 0, files_avoided: 0 };
     entry.events++;
     entry.tokens_saved += Number(event.tokens_saved || 0);
@@ -438,12 +460,14 @@ function buildCategoryBreakdown(events: UsageEvent[]): CategoryBreakdown[] {
   }
 
   const allCats = [
+    'architecture_overview',
     'direct_discovery',
     'smart_navigation',
     'context_packing',
     'impact_analysis',
     'llm_rerank',
     'hook_augment',
+    'project_operations',
     'other',
   ];
 
@@ -486,8 +510,8 @@ function buildMetricPoints(
       value: totals.tokens_saved,
       unit: 'tokens',
       provenance: prov('estimated', {
-        source: 'events tokens_saved (heuristic: files_avoided*900 - results*180)',
-        formula: 'sum(event.tokens_saved); tokens are estimated via heuristic',
+        source: 'events tokens_saved (conservative returned-context attribution)',
+        formula: 'sum(event.tokens_saved); full-file exploration is kept out of observed savings',
         confidence: 0.7,
         sample_size: totals.events,
       }),

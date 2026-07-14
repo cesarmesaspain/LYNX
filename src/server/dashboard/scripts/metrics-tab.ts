@@ -38,11 +38,15 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
 
   function categoryLabel(category, fallback) {
     var labels = isSpanish ? {
+      architecture_overview: 'Orientación de arquitectura',
       direct_discovery: 'Descubrimiento directo', smart_navigation: 'Navegación inteligente',
-      context_packing: 'Empaquetado de contexto', llm_rerank: 'Reordenamiento semántico',
+      context_packing: 'Empaquetado de contexto', impact_analysis: 'Análisis de impacto',
+      project_operations: 'Operaciones de proyecto', llm_rerank: 'Reordenamiento semántico',
     } : {
+      architecture_overview: 'Architecture overview',
       direct_discovery: 'Direct discovery', smart_navigation: 'Smart navigation',
-      context_packing: 'Context packing', llm_rerank: 'Semantic reranking',
+      context_packing: 'Context packing', impact_analysis: 'Impact analysis',
+      project_operations: 'Project operations', llm_rerank: 'Semantic reranking',
     };
     return labels[category] || fallback;
   }
@@ -119,15 +123,28 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     var operationalEvents = Number(attribution && attribution.operational_events || 0);
     var confidence = attribution && attribution.confidence || 'medium';
     var toolLabels = isSpanish ? {
+      architecture_overview: 'resumen de arquitectura',
       search_graph: 'consulta de descubrimiento', search_code: 'consulta de código',
       semantic_search: 'búsqueda semántica', trace_path: 'trazado de flujo',
       get_code_snippet: 'fragmento dirigido', batch_get_code: 'lectura dirigida',
       pack_context: 'empaquetado de contexto', find_tests: 'búsqueda de pruebas',
+      index_repository: 'indexación', index_status: 'comprobación del índice',
+      detect_changes: 'detección de cambios', assess_impact: 'análisis de impacto',
+      analyze_hotspots: 'análisis de zonas críticas', find_dead_code: 'detección de código sin uso',
+      pack_memory: 'memoria del proyecto', get_graph_schema: 'esquema del grafo',
+      compare_runs: 'comparación de indexaciones', ingest_traces: 'integración de trazas',
+      watch_project: 'seguimiento del proyecto', manage_adr: 'gestión de decisiones técnicas',
     } : {
+      architecture_overview: 'architecture overview',
       search_graph: 'discovery query', search_code: 'code query',
       semantic_search: 'semantic search', trace_path: 'flow trace',
       get_code_snippet: 'targeted snippet', batch_get_code: 'targeted read',
       pack_context: 'context pack', find_tests: 'test lookup',
+      index_repository: 'indexing', index_status: 'index check', detect_changes: 'change detection',
+      assess_impact: 'impact assessment', analyze_hotspots: 'hotspot analysis',
+      find_dead_code: 'dead-code detection', pack_memory: 'project memory',
+      get_graph_schema: 'graph schema', compare_runs: 'index comparison',
+      ingest_traces: 'trace ingestion', watch_project: 'project monitoring', manage_adr: 'architecture decision management',
     };
     var sourceLabel = source ? (toolLabels[source.type] || source.type) : (isSpanish ? 'operación LYNX' : 'LYNX operation');
     var confidenceLabel = isSpanish
@@ -136,11 +153,9 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     var text = isSpanish
       ? fmt(tokens) + ' tokens estimados proceden de ' + fmt(savingEvents) + ' ' + sourceLabel + (savingEvents === 1 ? '' : 's') + ' (confianza ' + confidenceLabel + ').'
       : fmt(tokens) + ' estimated tokens come from ' + fmt(savingEvents) + ' ' + (savingEvents === 1 ? sourceLabel : (sourceLabel.endsWith('query') ? sourceLabel.slice(0, -1) + 'ies' : sourceLabel + 's')) + ' (' + confidenceLabel + ' confidence).';
-    if (operationalEvents > 0) {
-      text += isSpanish
-        ? ' Otros ' + fmt(operationalEvents) + ' eventos operativos se registran por separado y no suman ahorro.'
-        : ' ' + fmt(operationalEvents) + ' other operational events are recorded separately and do not add savings.';
-    }
+    if (operationalEvents > 0) text += isSpanish
+      ? ' ' + fmt(operationalEvents) + ' eventos sin resultado atribuible se registran solo como actividad.'
+      : ' ' + fmt(operationalEvents) + ' events without attributable results are recorded as activity only.';
     if (Number(t.llm_events || 0) > 0) text += ' ' + llmInsight(t, monetary);
     else if (monetary && Number(monetary.avoided_input_usd_per_1m || 0)) {
       text += isSpanish

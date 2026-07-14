@@ -127,7 +127,12 @@ async function extractNativeLargeFiles(
   toProcess: ProcessItem[],
   project: string
 ): Promise<Map<number, ExtractionBatch>> {
-  if (process.env.LYNX_DISABLE_NATIVE === '1') {
+  // The native TypeScript scanner is deliberately opt-in until it emits a
+  // complete call graph.  It currently extracts definitions/imports quickly
+  // but cannot assign local calls to their enclosing function, which creates
+  // indexed symbols with missing CALLS edges. Correct graph connectivity is
+  // more important than this optional fast path.
+  if (process.env.LYNX_DISABLE_NATIVE === '1' || process.env.LYNX_ENABLE_NATIVE_EXTRACTOR !== '1') {
     return new Map();
   }
 

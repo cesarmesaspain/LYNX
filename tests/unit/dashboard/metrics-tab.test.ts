@@ -13,10 +13,12 @@ describe('dashboard metrics interaction', () => {
     expect(script).toContain('mtNetSavings');
     expect(script).toContain('estimated net savings');
     expect(script).toContain('savings_attribution');
-    expect(script).toContain('operational events are recorded separately');
+    expect(script).toContain('events without attributable results are recorded as activity only');
     expect(script).toContain('LLM usage by model');
     expect(script).toContain('Model not recorded');
     expect(script).toContain('llm-model-row');
+    expect(script).toContain("architecture_overview: 'Architecture overview'");
+    expect(script).toContain("project_operations: 'Project operations'");
   });
 
   it('restores the metrics tab after a reload', () => {

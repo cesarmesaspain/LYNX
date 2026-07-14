@@ -236,15 +236,16 @@ function buildReviewResponse(
             ? `Review returned ${Math.min(issues.length, limit)} of ${issues.length} issues — increase limit to see all.`
             : 'Clean: no issues detected in this review.';
 
+  const value = estimateTokensSaved(nodes.length, new Set(nodes.map(n => n.file_path)).size);
   recordUsageEvent({
     type: 'search_graph',
     project,
     query: qualifiedName || filePath || '',
     result_count: nodes.length,
     unique_files: new Set(nodes.map(n => n.file_path)).size,
-    files_avoided: nodes.length * 3,
-    tokens_saved: nodes.length * 900,
-    confidence: nodes.length >= 4 ? 'high' as const : nodes.length >= 2 ? 'medium' as const : 'low' as const,
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
     latency_ms: Date.now() - started,
     tool_hint: 'smart_review',
   });
@@ -269,9 +270,9 @@ function buildReviewResponse(
     })),
     remaining_issues: Math.max(0, issues.length - limitedIssues.length),
     value_metrics: {
-      estimated_files_avoided: nodes.length * 3,
-      estimated_tokens_saved: nodes.length * 900,
-      confidence: nodes.length >= 4 ? 'high' as const : nodes.length >= 2 ? 'medium' as const : 'low' as const,
+      estimated_files_avoided: value.filesAvoided,
+      estimated_tokens_saved: value.tokensSaved,
+      confidence: value.confidence,
       latency_ms: Date.now() - started,
     },
   };

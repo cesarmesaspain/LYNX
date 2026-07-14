@@ -277,6 +277,7 @@ function buildSearchResponse(
   llmUsage: LlmUsage,
   db: LynxDatabase,
   project: string,
+  graphQueryLatencyMs: number,
 ): Record<string, unknown> {
   const hasMore = a.offset + a.limit < total;
   const limitedResults = deduped.slice(a.offset, a.offset + a.limit);
@@ -318,13 +319,24 @@ function buildSearchResponse(
   if (projectCheck) response.diagnostic = projectCheck;
   if (provenanceSummary) response.provenance_summary = provenanceSummary;
 
-  const value = estimateTokensSaved(resultsArray.length, Math.max(total, resultsArray.length));
+  // A search response supplies locations and a small symbol summary. It does
+  // not supply the contents of every matching file, so its observed layer must
+  // not be based on the full result set or on hypothetical file reads.
+  const uniqueResultFiles = new Set(resultsArray.map(result => String(result.file))).size;
+  const observedTokens = resultsArray.length === 0
+    ? 0
+    : Math.min(1_500, resultsArray.length * 180 + uniqueResultFiles * 90);
+  const potential = estimateTokensSaved(resultsArray.length, Math.max(total, resultsArray.length));
   response.value_metrics = {
-    measurement: 'estimated',
-    estimated_files_avoided: value.filesAvoided,
-    estimated_tokens_saved: value.tokensSaved,
-    confidence: value.confidence,
+    measurement: 'symbol_discovery_context',
+    estimated_files_avoided: 0,
+    estimated_tokens_saved: observedTokens,
+    full_file_potential_tokens: potential.tokensSaved,
+    potential_basis: 'broader manual exploration of indexed matches; not observed savings',
+    confidence: 'low',
     latency_ms: Date.now() - started,
+    graph_query_latency_ms: graphQueryLatencyMs,
+    llm_rerank_latency_ms: llmUsage.latency_ms,
   };
 
   try {
@@ -387,9 +399,9 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
   let { project, query, label, namePattern, qnPattern, nameLike, qnLike, filePattern,
         limit, offset, minDegree, maxDegree, excludeEntryPoints,
         semanticQuery, enableLlm } = parsed;
-  const llmWasExplicitlySet = Object.prototype.hasOwnProperty.call(args, 'enable_llm');
-
-  // Free tier: LLM rerank degrades to heuristic silently
+  // Free tier: an explicitly requested LLM rerank degrades to heuristic.
+  // Ordinary graph search stays deterministic and local: an implicit network
+  // call makes a fast lookup feel stalled and can surprise the caller.
   if (enableLlm && !hasCapability('semantic_rerank')) {
     enableLlm = false;
   }
@@ -420,19 +432,14 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
     deduped = localResult.results;
     total = localResult.total;
   }
-
-  // Explicit requests always win. Otherwise an opt-in policy can resolve only
-  // close deterministic rankings, with a strict hourly cap.
-  if (!llmWasExplicitlySet && !enableLlm && mayAutoRerank(deduped) && hasCapability('semantic_rerank')) {
-    enableLlm = true;
-  }
+  const graphQueryLatencyMs = Date.now() - started;
 
   const { deduped: reRanked, llmReranked, llmMetrics, llmUsage } =
     await applyLlmRerank(db, project, deduped, query, enableLlm);
 
   const response = buildSearchResponse(
     parsed, started, reRanked, total, provenanceSummary,
-    projectCheck, llmReranked, llmMetrics, llmUsage, db, project,
+    projectCheck, llmReranked, llmMetrics, llmUsage, db, project, graphQueryLatencyMs,
   );
 
   const resultsArray = response.results as Array<Record<string, unknown>>;

@@ -16,6 +16,9 @@ import { readRequestBody, pickFolderNative, RequestBodyTooLargeError } from './u
 import { getTimeWindows, type TimeWindow } from '../../usage/aggregation.js';
 import { getCachedMetrics } from '../../usage/cache.js';
 import { closeAllProjectWatchers } from '../../watcher/watcher-manager.js';
+import { clearProjectMetrics } from '../../store/metrics-db.js';
+import { clearUsageEvents } from '../../usage/metrics.js';
+import { invalidateProject } from '../../usage/cache.js';
 
 const PORT = parseInt(process.env.LYNX_DASHBOARD_PORT || '9191', 10);
 let _server: http.Server | null = null;
@@ -345,6 +348,32 @@ async function handleMutationRoute(req: http.IncomingMessage, res: http.ServerRe
       writeJson(res, 200, { ok: true });
     } catch {
       writeJson(res, 400, { error: 'Invalid JSON body' });
+    }
+    return true;
+  }
+  if (url.pathname === '/api/metrics/clear' && req.method === 'POST') {
+    const body = await readRequestBody(req);
+    let parsed: { project?: string };
+    try { parsed = JSON.parse(body); } catch {
+      writeJson(res, 400, { error: 'Invalid JSON body' });
+      return true;
+    }
+    const project = parsed.project || undefined;
+    if (project && !isValidProjectName(project)) {
+      writeJson(res, 400, { error: 'Invalid project name' });
+      return true;
+    }
+    try {
+      const dbResult = clearProjectMetrics(project);
+      const jsonlRemoved = clearUsageEvents(project);
+      if (project) invalidateProject(project);
+      writeJson(res, 200, {
+        ok: true,
+        project: project || null,
+        deleted: { events_archive: dbResult.events, daily_snapshots: dbResult.snapshots, usage_jsonl: jsonlRemoved },
+      });
+    } catch (err) {
+      writeJson(res, 500, { error: 'Failed to clear metrics: ' + String(err) });
     }
     return true;
   }

@@ -236,7 +236,8 @@ function buildReviewResponse(
             ? `Review returned ${Math.min(issues.length, limit)} of ${issues.length} issues — increase limit to see all.`
             : 'Clean: no issues detected in this review.';
 
-  const value = estimateTokensSaved(nodes.length, new Set(nodes.map(n => n.file_path)).size);
+  const rootPath = project ? (getDb(project).getProject(project)?.rootPath || process.cwd()) : process.cwd();
+  const value = estimateTokensSaved({ resultCount: nodes.length, candidateFiles: new Set(nodes.map(n => n.file_path)).size, files: [...new Set(nodes.map(n => n.file_path))], rootPath });
   recordUsageEvent({
     type: 'search_graph',
     project,

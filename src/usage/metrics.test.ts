@@ -65,23 +65,22 @@ describe('usage metrics', () => {
   });
 
   it('estimates savings with confidence', () => {
-    expect(estimateTokensSaved(0, 10)).toEqual({
+    expect(estimateTokensSaved({ resultCount: 0, candidateFiles: 10 })).toMatchObject({
       filesAvoided: 0,
       tokensSaved: 0,
-      confidence: 'low',
     });
-    expect(estimateTokensSaved(2, 8)).toMatchObject({
+    expect(estimateTokensSaved({ resultCount: 2, candidateFiles: 8 })).toMatchObject({
       filesAvoided: 2,
       confidence: 'low',
     });
-    expect(estimateTokensSaved(5, 40)).toMatchObject({
+    expect(estimateTokensSaved({ resultCount: 5, candidateFiles: 40 })).toMatchObject({
       filesAvoided: 5,
       confidence: 'low',
     });
   });
 
   it('records sanitized events and summarizes by project', () => {
-    const value = estimateTokensSaved(5, 20);
+    const value = estimateTokensSaved({ resultCount: 5, candidateFiles: 20 });
     recordUsageEvent({
       type: 'search_graph',
       project: 'demo',

@@ -197,7 +197,7 @@ export async function runBenchmark(args: string[]): Promise<void> {
         if (topChanged) semanticTopChanged++;
         semanticLatencyTotal += semanticLatency;
         semanticCostTotal += semanticCost;
-        const value = estimateTokensSaved(results.length, Math.max(results.length * 4, 8));
+        const value = estimateTokensSaved({ resultCount: results.length, candidateFiles: Math.max(results.length * 4, 8) });
         totalLatency += latency;
         totalTokensSaved += value.tokensSaved;
         totalFilesAvoided += value.filesAvoided;

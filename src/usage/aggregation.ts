@@ -22,8 +22,8 @@
  * Coverage estimate: < 0.1% collision rate.
  */
 
-import { attributeLegacyToolObservation, readUsageEvents, type UsageEvent } from './metrics.js';
-import { readArchivedEvents, summarizeHistory } from '../store/metrics-db.js';
+import { attributeLegacyToolObservation, type UsageEvent } from './metrics.js';
+import { readArchivedEvents } from '../store/metrics-db.js';
 import {
   type MetricPoint,
   type MetricProvenance,
@@ -251,13 +251,13 @@ export function aggregateByWindow(
   const win = windows.find((w) => w.window === window)!;
   const now = win.until;
 
-  // Read from usage.jsonl (most recent events, always categorizable)
-  const allEvents = readUsageEvents(project, 10000);
+  // DB-only: read from events_archive.
+  const allEvents = readArchivedEvents(project, 10000);
   const inWindow = allEvents.filter(
     (e) => e.ts >= win.since && e.ts <= win.until
   );
 
-  return buildFromEvents(win, dedupEvents(inWindow), now);
+  return buildFromEvents(win, dedupEvents(inWindow.map(attributeLegacyToolObservation)), now);
 }
 
 /**
@@ -273,60 +273,11 @@ export function aggregateTotal(
   const win = windows.find((w) => w.window === 'total')!;
   const now = win.until;
 
-  // Primary: events_archive (persistent, complete history)
-  const archived = readArchivedEvents(project || undefined, 50000);
+  // DB-only: events_archive is the single source of truth.
+  const archived = readArchivedEvents(project, 50000);
+  const merged = dedupEvents(archived.map(attributeLegacyToolObservation));
 
-  // Secondary: recent JSONL events not yet in archive
-  const recent = readUsageEvents(project, 5000);
-
-  // Merge: archive first, then JSONL; dedup drops duplicates
-  const merged = dedupEvents([...archived, ...recent].map(attributeLegacyToolObservation));
-
-  const result = buildFromEvents(win, merged, now);
-
-  // Reconcile: compare per-event totals against daily_snapshots.
-  // Any snapshot tokens/files not represented in per-event data go to
-  // historical_unclassified (pre-v3 legacy, corrupted, or non-reconstructible).
-  if (project) {
-    try {
-      const history = summarizeHistory(project, 365);
-      const snapshotTokens = history.total_tokens_saved;
-      const snapshotFiles = history.total_files_avoided;
-      const snapshotEvents = history.total_events;
-
-      // If snapshots exceed per-event totals, the delta is unreconciled
-      const deltaTokens = snapshotTokens - result.totals.tokens_saved;
-      const deltaFiles = snapshotFiles - result.totals.files_avoided;
-      const deltaEvents = snapshotEvents - result.totals.events;
-
-      if (deltaTokens > 0 || deltaFiles > 0) {
-        result.historical_unclassified = {
-          tokens_saved: Math.max(0, deltaTokens),
-          files_avoided: Math.max(0, deltaFiles),
-          events: Math.max(0, deltaEvents),
-          provenance: {
-            kind: 'scenario',
-            source: 'daily_snapshots vs events_archive delta',
-            period: `${win.since}/${win.until}`,
-            computed_at: now,
-            formula: 'snapshot_total - per_event_total',
-            sample_size: 0,
-            confidence: 0.3,
-            session_id: null,
-            task_id: null,
-            event_id: null,
-            status: snapshotEvents === 0 ? 'no_snapshots' :
-                    result.totals.events === 0 && snapshotEvents > 0 ? 'legacy' :
-                    'unreconciled',
-          },
-        };
-      }
-    } catch {
-      // reconciliation is advisory; ignore failures
-    }
-  }
-
-  return result;
+  return buildFromEvents(win, merged, now);
 }
 
 // ── Build from events ──────────────────────────────────────────

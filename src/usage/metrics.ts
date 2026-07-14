@@ -284,14 +284,30 @@ export function attributeLegacyToolObservation(event: UsageEvent): UsageEvent {
   };
 }
 
-export function estimateTokensSaved(
-  resultCount: number,
-  candidateFiles: number
-): {
+export interface TokenEstimateOpts {
+  resultCount: number;
+  candidateFiles: number;
+  /** Optional list of file paths for real-size-based estimation. When provided
+   *  together with rootPath, the upper bound uses real byte counts instead of
+   *  the fixed 900-token-per-file average. */
+  files?: string[];
+  rootPath?: string;
+}
+
+/**
+ * Conservative estimate of context tokens saved by returning indexed evidence
+ * instead of reading full source files.
+ *
+ * When file paths and rootPath are supplied the upper bound is derived from
+ * real file sizes via estimateTokensFromFiles. Otherwise a fixed 900-token
+ * average per candidate file is used as the ceiling.
+ */
+export function estimateTokensSaved(opts: TokenEstimateOpts): {
   filesAvoided: number;
   tokensSaved: number;
   confidence: 'low' | 'medium' | 'high';
 } {
+  const { resultCount, candidateFiles, files, rootPath } = opts;
   const usefulResults = Math.max(0, resultCount);
   if (usefulResults === 0) return { filesAvoided: 0, tokensSaved: 0, confidence: 'low' };
 
@@ -301,9 +317,19 @@ export function estimateTokensSaved(
   // exploration belongs in the separate potential range exposed by handlers.
   const likelyFilesAvoided = Math.max(0, Math.min(candidateFiles, usefulResults));
   const gross = likelyFilesAvoided * 120 + usefulResults * 160;
-  const upperBound = likelyFilesAvoided * AVG_FILE_TOKENS;
-  const confidence =
-    likelyFilesAvoided >= 12 ? 'medium' : 'low';
+
+  // Upper bound: use real file sizes when available, fall back to fixed average
+  let upperBound: number;
+  let confidence: 'low' | 'medium' | 'high';
+  if (files && files.length > 0 && rootPath) {
+    const real = estimateTokensFromFiles(files, rootPath);
+    upperBound = Math.max(gross, real.tokensSaved);
+    confidence = real.confidence;
+  } else {
+    upperBound = likelyFilesAvoided * AVG_FILE_TOKENS;
+    confidence = likelyFilesAvoided >= 12 ? 'medium' : 'low';
+  }
+
   return {
     filesAvoided: likelyFilesAvoided,
     tokensSaved: Math.max(0, Math.min(upperBound, gross)),

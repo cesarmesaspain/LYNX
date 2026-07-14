@@ -239,7 +239,7 @@ describe("Full metrics pipeline (isolated)", () => {
 
   // ── Stage 7: historical_unclassified ───────────────────────
 
-  it("historical_unclassified with legacy status when snapshot > archive", async () => {
+  it("historical_unclassified removed — DB-only, no longer reconciles snapshots", async () => {
     const { upsertDailySnapshot } =
       await import("../../src/store/metrics-db.js");
     const { aggregateTotal } = await import("../../src/usage/aggregation.js");
@@ -260,10 +260,8 @@ describe("Full metrics pipeline (isolated)", () => {
     );
 
     const agg = aggregateTotal(PROJECT, "2026-07-10T12:00:00.000Z");
-    expect(agg.historical_unclassified).toBeDefined();
-    expect(agg.historical_unclassified!.tokens_saved).toBe(50000);
-    expect(agg.historical_unclassified!.provenance.kind).toBe("scenario");
-    expect(agg.historical_unclassified!.provenance.status).toBe("legacy");
+    // DB-only: historical_unclassified is no longer emitted — events_archive is the single source of truth
+    expect(agg.historical_unclassified).toBeUndefined();
   });
 
   // ── Stage 8: Coverage with missing telemetry ───────────────

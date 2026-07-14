@@ -263,6 +263,56 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     projSelect.addEventListener('change', loadMetrics);
   }
 
+  var clearBtn = document.getElementById('clearMetricsBtn');
+  var clearModal = document.getElementById('clearMetricsModal');
+  var clearTitle = document.getElementById('clearMetricsTitle');
+  var clearBody = document.getElementById('clearMetricsBody');
+  var clearCancel = document.getElementById('clearMetricsCancel');
+  var clearConfirm = document.getElementById('clearMetricsConfirm');
+
+  if (clearBtn && clearModal) {
+    clearBtn.addEventListener('click', function() {
+      var project = projSelect ? projSelect.value : '';
+      var projectLabel = project || (isSpanish ? 'TODOS los proyectos' : 'ALL projects');
+      if (clearTitle) clearTitle.innerHTML = isSpanish
+        ? '¿Borrar métricas de <span class="delete-project-name">' + escapeHtml(projectLabel) + '</span>?'
+        : 'Clear metrics for <span class="delete-project-name">' + escapeHtml(projectLabel) + '</span>?';
+      if (clearBody) clearBody.textContent = isSpanish
+        ? 'Se eliminarán todos los eventos registrados y snapshots diarios. Esta acción no se puede deshacer. Los datos de uso empezarán desde cero.'
+        : 'This will remove all recorded events and daily snapshots. This action cannot be undone. Usage data will start from zero.';
+      clearModal.classList.add('open');
+    });
+
+    var closeClearModal = function() { clearModal.classList.remove('open'); };
+    if (clearCancel) clearCancel.addEventListener('click', closeClearModal);
+    clearModal.addEventListener('click', function(e) { if (e.target === clearModal) closeClearModal(); });
+
+    if (clearConfirm) {
+      clearConfirm.addEventListener('click', function() {
+        var project = projSelect ? projSelect.value : '';
+        clearConfirm.disabled = true;
+        clearConfirm.textContent = isSpanish ? 'Borrando...' : 'Clearing...';
+        fetch('/api/metrics/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(project ? { project: project } : {}),
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            clearConfirm.disabled = false;
+            clearConfirm.textContent = isSpanish ? 'Borrar' : 'Clear';
+            clearModal.classList.remove('open');
+            if (data.ok) loadMetrics();
+          })
+          .catch(function() {
+            clearConfirm.disabled = false;
+            clearConfirm.textContent = isSpanish ? 'Borrar' : 'Clear';
+            clearModal.classList.remove('open');
+          });
+      });
+    }
+  }
+
   var metricsTabBtn = document.querySelector('[data-tab="metrics"]');
   if (metricsTabBtn) {
     metricsTabBtn.addEventListener('click', function() { setTimeout(loadMetrics, 50); });

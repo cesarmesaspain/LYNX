@@ -395,9 +395,20 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
         typeof normalized.args.project === 'string' ? normalized.args.project : '', handlerResult, Date.now() - startedAt,
       );
       recordToolObservation(name, normalized.args, result, startedAt);
-      if (typeof normalized.args.project === 'string' && normalized.args.project) {
-        decayCounter(normalized.args.project);
-      }
+      // Decay any project the agent is working on — explicit project arg takes
+      // priority; global tools (diagnose, list_projects) resolve from the MCP
+      // server CWD so they still release the strict-mode counter for the
+      // current workspace.
+      const decayProject: string | undefined =
+        typeof normalized.args.project === 'string' && normalized.args.project
+          ? normalized.args.project
+          : (() => {
+              try {
+                const nearest = findNearestProject(process.cwd());
+                return nearest ? resolveProjectNameByRoot(nearest.name, nearest.rootPath) : undefined;
+              } catch { return undefined; }
+            })();
+      if (decayProject) decayCounter(decayProject);
       const context = buildIndexContext(normalized.args);
       const agentResponsePreference = getAgentResponsePreference();
       const enriched = result && typeof result === 'object' && !Array.isArray(result)

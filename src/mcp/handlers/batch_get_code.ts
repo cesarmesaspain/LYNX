@@ -105,7 +105,7 @@ export async function handleBatchGetCode(
   }
 
   const returned = results.filter((r) => 'name' in r).length;
-  const value = estimateTokensSaved(returned, unique.length);
+  const value = estimateTokensSaved({ resultCount: returned, candidateFiles: unique.length, files: unique, rootPath });
   recordUsageEvent({
     type: 'search_graph', // batch_get_code is a search_graph variant
     project,

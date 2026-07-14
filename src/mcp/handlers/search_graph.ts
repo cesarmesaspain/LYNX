@@ -326,7 +326,10 @@ function buildSearchResponse(
   const observedTokens = resultsArray.length === 0
     ? 0
     : Math.min(1_500, resultsArray.length * 180 + uniqueResultFiles * 90);
-  const potential = estimateTokensSaved(resultsArray.length, Math.max(total, resultsArray.length));
+  const resultFiles = [...new Set(resultsArray.map(r => String(r.file)))];
+  const projectMeta = db.getProject(project);
+  const rootPath = projectMeta?.rootPath || process.cwd();
+  const potential = estimateTokensSaved({ resultCount: resultsArray.length, candidateFiles: Math.max(total, resultsArray.length), files: resultFiles, rootPath });
   response.value_metrics = {
     measurement: 'symbol_discovery_context',
     estimated_files_avoided: 0,

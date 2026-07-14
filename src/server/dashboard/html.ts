@@ -332,6 +332,7 @@ ${totalLlmCalls > 0 ? `
             <button class="win-btn" data-win="30d">30d</button>
             <button class="win-btn active" data-win="total">${isSpanish ? 'Total' : 'Total'}</button>
           </div>
+          <button class="metrics-clear-btn" id="clearMetricsBtn" type="button" title="${isSpanish ? 'Borrar historial de métricas del proyecto seleccionado' : 'Clear metrics history for selected project'}">${isSpanish ? 'Borrar historial' : 'Clear history'}</button>
         </div>
         <span class="metrics-badge" id="metricsProvenance"></span>
       </section>
@@ -415,6 +416,16 @@ ${totalLlmCalls > 0 ? `
       <div class="delete-modal-actions">
         <button class="btn-delete-cancel" id="deleteProjectCancel" type="button">${labels.cancel}</button>
         <button class="btn-delete-confirm" id="deleteProjectConfirm" type="button">${labels.delete}</button>
+      </div>
+    </div>
+  </div>
+  <div class="delete-modal-overlay" id="clearMetricsModal">
+    <div class="delete-modal-box">
+      <h3 id="clearMetricsTitle"></h3>
+      <p id="clearMetricsBody"></p>
+      <div class="delete-modal-actions">
+        <button class="btn-delete-cancel" id="clearMetricsCancel" type="button">${labels.cancel}</button>
+        <button class="btn-delete-confirm" id="clearMetricsConfirm" type="button">${isSpanish ? 'Borrar' : 'Clear'}</button>
       </div>
     </div>
   </div>

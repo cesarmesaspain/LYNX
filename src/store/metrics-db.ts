@@ -600,3 +600,31 @@ export function flushTodayEvents(project: string): void {
     // Non-critical.
   }
 }
+
+/**
+ * Clear all metrics history for a project (or all projects if no project specified).
+ * Deletes from events_archive and daily_snapshots. Returns count of deleted rows.
+ */
+export function clearProjectMetrics(project?: string): { events: number; snapshots: number } {
+  try {
+    const db = open();
+    let eventsDeleted = 0;
+    let snapshotsDeleted = 0;
+
+    if (project) {
+      const evResult = db.prepare('DELETE FROM events_archive WHERE project = ?').run(project);
+      eventsDeleted = evResult.changes;
+      const snapResult = db.prepare('DELETE FROM daily_snapshots WHERE project = ?').run(project);
+      snapshotsDeleted = snapResult.changes;
+    } else {
+      const evResult = db.prepare('DELETE FROM events_archive').run();
+      eventsDeleted = evResult.changes;
+      const snapResult = db.prepare('DELETE FROM daily_snapshots').run();
+      snapshotsDeleted = snapResult.changes;
+    }
+
+    return { events: eventsDeleted, snapshots: snapshotsDeleted };
+  } catch {
+    return { events: 0, snapshots: 0 };
+  }
+}

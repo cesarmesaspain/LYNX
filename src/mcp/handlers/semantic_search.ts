@@ -292,7 +292,10 @@ function buildSemanticResponse(
       ? `${total} results for "${searchTerm}".`
       : `${total} results, showing top ${limit} for "${searchTerm}".`;
 
-  const value = estimateTokensSaved(returnedResults.length, returnedTotal);
+  const resultFiles = [...new Set(returnedResults.map(r => r.file))];
+  const meta = db.getProject(project);
+  const rootPath = meta?.rootPath || process.cwd();
+  const value = estimateTokensSaved({ resultCount: returnedResults.length, candidateFiles: returnedTotal, files: resultFiles, rootPath });
   recordUsageEvent({
     type: 'search_graph',
     project,

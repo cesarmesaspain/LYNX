@@ -184,7 +184,7 @@ export async function handleGetCodeSnippet(
     result.complexity_note = narrative.complexityNote;
   }
 
-  const value = estimateTokensSaved(1, 1);
+  const value = estimateTokensSaved({ resultCount: 1, candidateFiles: 1, files: [node.file_path], rootPath });
   (result as Record<string, unknown>).value_metrics = {
     estimated_files_avoided: value.filesAvoided,
     estimated_tokens_saved: value.tokensSaved,

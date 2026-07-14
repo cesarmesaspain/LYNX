@@ -155,7 +155,8 @@ export async function handleFindTests(
     };
   });
 
-  const value = estimateTokensSaved(tests.length, new Set(tests.map(t => t.file_path)).size);
+  const testFiles = [...new Set(tests.map(t => t.file_path))];
+  const value = estimateTokensSaved({ resultCount: tests.length, candidateFiles: testFiles.length, files: testFiles, rootPath });
   recordUsageEvent({
     type: 'search_graph',
     project,

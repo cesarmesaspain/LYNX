@@ -215,15 +215,26 @@ export function estimateTokensFromFiles(
  * the architecture.  Attribute 60 % of the real indexed source volume:
  * the overview replaces the scan but the developer still reads selected files.
  */
+/** Total number of aspects available in get_architecture. */
+const TOTAL_ARCHITECTURE_ASPECTS = 9;
+/** Min coverage floor so one-aspect calls still get some attribution. */
+const MIN_ASPECT_COVERAGE = 0.15;
+/** Max coverage when all aspects are requested. */
+const FULL_ASPECT_COVERAGE = 0.6;
+
 export function estimateArchitectureOverviewSavings(
   files: string[],
   rootPath?: string,
   project?: string,
+  requestedAspects?: number,
 ): { tokensSaved: number; filesAvoided: number; confidence: 'low' | 'medium' | 'high' } {
   const baseline = estimateTokensFromFiles(files, rootPath, project);
+  const coverage = requestedAspects
+    ? Math.max(MIN_ASPECT_COVERAGE, FULL_ASPECT_COVERAGE * (requestedAspects / TOTAL_ARCHITECTURE_ASPECTS))
+    : FULL_ASPECT_COVERAGE;
   return {
     filesAvoided: baseline.filesAvoided,
-    tokensSaved: Math.round(baseline.tokensSaved * 0.6),
+    tokensSaved: Math.round(baseline.tokensSaved * coverage),
     confidence: baseline.confidence,
   };
 }

@@ -124,7 +124,25 @@ describe('usage metrics', () => {
     expect(estimateRerankCostUsd(10)).toBeGreaterThan(estimateRerankCostUsd(1));
   });
 
-  it('estimates architecture orientation conservatively from indexed files', () => {
+  it('scales architecture overview coverage by requested aspects vs total', () => {
+    const files = ['missing-a.ts', 'missing-b.ts', 'missing-c.ts', 'missing-d.ts'];
+    const full = estimateArchitectureOverviewSavings(files, undefined, undefined, 9);
+    const partial = estimateArchitectureOverviewSavings(files, undefined, undefined, 3);
+    const single = estimateArchitectureOverviewSavings(files, undefined, undefined, 1);
+
+    // Full overview (9/9 aspects) should save the most
+    expect(full.tokensSaved).toBeGreaterThan(partial.tokensSaved);
+    // Partial (3/9) should save less than full
+    expect(partial.tokensSaved).toBeGreaterThan(single.tokensSaved);
+    // Single aspect should still hit the floor (15%), not zero
+    expect(single.tokensSaved).toBeGreaterThan(0);
+    // Partial should be roughly 1/3 of full (3/9)
+    const ratio = partial.tokensSaved / full.tokensSaved;
+    expect(ratio).toBeGreaterThan(0.3);
+    expect(ratio).toBeLessThan(0.4);
+  });
+
+  it('estimates architecture orientation from indexed files with full coverage when aspects not specified', () => {
     const files = ['missing-a.ts', 'missing-b.ts', 'missing-c.ts', 'missing-d.ts'];
     const value = estimateArchitectureOverviewSavings(files);
 

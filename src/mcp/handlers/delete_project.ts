@@ -2,7 +2,7 @@
  * delete_project.ts — Remove a project and all its data.
  */
 
-import * as fs from 'node:fs';
+import { removeSqliteDatabaseFiles } from '../../store/database.js';
 import { getDb, unsetDb } from '../server.js';
 import { projectNotIndexed } from '../diagnostics.js';
 
@@ -11,7 +11,7 @@ function purgePersistentDatabase(project: string, db: ReturnType<typeof getDb>):
   const dbPath = db.dbPath;
   db.close();
   unsetDb(project, { close: false });
-  for (const suffix of ['', '-wal', '-shm']) fs.rmSync(dbPath + suffix, { force: true });
+  removeSqliteDatabaseFiles(dbPath);
   return true;
 }
 

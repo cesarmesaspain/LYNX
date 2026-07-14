@@ -13,6 +13,12 @@ import * as fs from 'node:fs';
 import { lynxHome } from '../config/runtime.js';
 import { CORE_SCHEMA, DROP_EDGE_INDEXES, CREATE_EDGE_INDEXES, migrateV01toV02 } from './ddl.js';
 
+export function removeSqliteDatabaseFiles(dbPath: string): void {
+  for (const suffix of ['', '-wal', '-shm']) {
+    fs.rmSync(dbPath + suffix, { force: true });
+  }
+}
+
 export class LynxDatabase {
   readonly db: BetterSqlite3.Database;
   readonly dbPath: string;

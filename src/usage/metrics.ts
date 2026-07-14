@@ -305,7 +305,7 @@ export function estimateToolOperationSavings(
     pack_memory:     { base: 650, perItem: Math.round(AVG_FILE_TOKENS * 0.5), items: count('memories', 'facts', 'decisions', 'items') },
     // Tools without file paths — counts are the only available signal.
     index_repository: { base: 350, perItem: Math.round(AVG_FILE_TOKENS * 0.12), items: count('files_inspected', 'files_reindexed', 'files_added', 'files_modified') },
-    index_status:    { base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.15), items: count('findings') },
+    index_status:    { base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.03), items: count('findings') },
     get_graph_schema:{ base: 800, perItem: Math.round(AVG_FILE_TOKENS * 0.15), items: count('node_labels', 'edge_types', 'relationship_patterns') },
     compare_runs:    { base: 1200, perItem: Math.round(AVG_FILE_TOKENS * 0.25), items: data.comparison ? 1 : 0 },
     ingest_traces:   { base: 600, perItem: Math.round(AVG_FILE_TOKENS * 0.1),  items: count('ingested', 'traces_ingested', 'accepted') },
@@ -332,13 +332,13 @@ export function estimateToolOperationSavings(
  * line-by-line does the tool's analysis actually replace?"
  *
  * - 0.8: thorough per-file analysis (detect_changes, assess_impact)
- * - 0.75: aggregated file analysis (analyze_hotspots)
+ * - 0.2: hotspot/god-component identification — flags the file but doesn't replace reading it
  * - 0.6: identification + verification (find_dead_code)
  * - 0.5: metadata/pack (pack_memory)
  */
 const FILE_TOOL_COVERAGE: Record<string, number> = {
   detect_changes: 0.8,
-  analyze_hotspots: 0.75,
+  analyze_hotspots: 0.2,
   find_dead_code: 0.6,
   assess_impact: 0.8,
   pack_memory: 0.5,

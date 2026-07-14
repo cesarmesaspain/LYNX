@@ -715,7 +715,8 @@ export function getLanguageConfigForPath(filePath: string): LanguageConfig | nul
   const ext = base.includes('.') ? base.split('.').pop() || '' : base;
 
   for (const [key, index] of extMap) {
-    if (key.includes('.') && base.endsWith(key.toLowerCase())) {
+    const compound = key.toLowerCase();
+    if (compound.includes('.') && (base === compound || base.endsWith('.' + compound))) {
       return ALL_LANGUAGES[index];
     }
   }

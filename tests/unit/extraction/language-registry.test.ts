@@ -132,6 +132,17 @@ describe('language-registry', () => {
     expect(getLanguageConfigForPath('user.spec.tsx')?.tsLang).toBe('tsx');
   });
 
+  it('requires a dot or exact filename before compound extensions', () => {
+    expect(getLanguageConfigForPath('app.component.html')?.tsLang).toBe('angular');
+    expect(getLanguageConfigForPath('requirements.txt')?.tsLang).toBe('requirements');
+    expect(getLanguageConfigForPath('page.blade.php')?.tsLang).toBe('blade');
+
+    expect(getLanguageConfigForPath('mycomponent.html')?.tsLang).not.toBe('angular');
+    expect(getLanguageConfigForPath('thingng.html')?.tsLang).not.toBe('angular');
+    expect(getLanguageConfigForPath('myrequirements.txt')?.tsLang).not.toBe('requirements');
+    expect(getLanguageConfigForPath('notblade.php')?.tsLang).not.toBe('blade');
+  });
+
   it('getLanguageConfigForPath returns null for unknown files', () => {
     expect(getLanguageConfigForPath('unknown.xyz')).toBeNull();
     expect(getLanguageConfigForPath('Makefile')).not.toBeNull(); // has no extension

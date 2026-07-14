@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOOLS } from './tools.js';
-import { buildIndexContext, listMcpTools, setDb, unsetDb } from './server.js';
+import { buildIndexContext, getDb, listMcpTools, setDb, unsetDb } from './server.js';
 import { LynxDatabase } from '../store/database.js';
 
 describe('MCP tool registry', () => {
@@ -50,6 +50,24 @@ describe('MCP tool registry', () => {
     } finally {
       if (previous === undefined) delete process.env.LYNX_TOOL_PROFILE;
       else process.env.LYNX_TOOL_PROFILE = previous;
+    }
+  });
+});
+
+describe('MCP database cache', () => {
+  it('reopens a database when the cached instance was closed by its owner', () => {
+    const project = 'closed-cache-recovery';
+    const closed = LynxDatabase.openMemory();
+    setDb(project, closed);
+    closed.close();
+
+    const recovered = getDb(project);
+
+    try {
+      expect(recovered).not.toBe(closed);
+      expect(recovered.db.open).toBe(true);
+    } finally {
+      unsetDb(project, { close: true });
     }
   });
 });

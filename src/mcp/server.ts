@@ -247,12 +247,16 @@ function getDb(project?: string, options: { createPersistent?: boolean } = {}): 
   const key = project || '_memory';
   const cached = DB_CACHE.get(key);
   if (cached) {
-    // A prior read of an unknown project is intentionally isolated in memory.
-    // Promote that cache entry only when an indexing operation explicitly needs
-    // to create the on-disk project database.
-    if (!(project && options.createPersistent && cached.dbPath === ':memory:')) return cached;
-    cached.close();
-    DB_CACHE.delete(key);
+    if (!cached.db.open) {
+      DB_CACHE.delete(key);
+    } else {
+      // A prior read of an unknown project is intentionally isolated in memory.
+      // Promote that cache entry only when an indexing operation explicitly needs
+      // to create the on-disk project database.
+      if (!(project && options.createPersistent && cached.dbPath === ':memory:')) return cached;
+      cached.close();
+      DB_CACHE.delete(key);
+    }
   }
 
   if (!DB_CACHE.has(key)) {

@@ -87,6 +87,22 @@ const DEFAULT_CONFIG: LynxRuntimeConfig = {
   mcp_tool_profile: 'full',
 };
 
+function boundedRuntimeNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || (parsed === 0 && value !== 0)) return fallback;
+  return Math.max(0, Math.min(1000, parsed));
+}
+
+function defaultRuntimeConfig(): LynxRuntimeConfig {
+  return {
+    ...DEFAULT_CONFIG,
+    agent_response: DEFAULT_CONFIG.agent_response ? { ...DEFAULT_CONFIG.agent_response } : undefined,
+    project_brief: DEFAULT_CONFIG.project_brief ? { ...DEFAULT_CONFIG.project_brief } : undefined,
+    decision_llm: DEFAULT_CONFIG.decision_llm ? { ...DEFAULT_CONFIG.decision_llm } : undefined,
+    savings_pricing: DEFAULT_CONFIG.savings_pricing ? { ...DEFAULT_CONFIG.savings_pricing } : undefined,
+  };
+}
+
 /**
  * Per-async-operation home override. This avoids mutating process.env when a
  * workflow needs isolated storage (for example, benchmarks running in
@@ -110,41 +126,42 @@ export function lynxConfigPath(): string {
 }
 
 export function readLynxConfig(): LynxRuntimeConfig {
+  const defaults = defaultRuntimeConfig();
   const filePath = lynxConfigPath();
-  if (!fs.existsSync(filePath)) return { ...DEFAULT_CONFIG };
+  if (!fs.existsSync(filePath)) return defaults;
   try {
     const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
     return {
       enabled: raw.enabled !== false,
-      auto_index: typeof raw.auto_index === 'boolean' ? raw.auto_index : DEFAULT_CONFIG.auto_index,
+      auto_index: typeof raw.auto_index === 'boolean' ? raw.auto_index : defaults.auto_index,
       auto_index_limit: typeof raw.auto_index_limit === 'number'
         ? raw.auto_index_limit
-        : DEFAULT_CONFIG.auto_index_limit,
-      auto_watch: typeof raw.auto_watch === 'boolean' ? raw.auto_watch : DEFAULT_CONFIG.auto_watch,
-      auto_dashboard: typeof raw.auto_dashboard === 'boolean' ? raw.auto_dashboard : DEFAULT_CONFIG.auto_dashboard,
+        : defaults.auto_index_limit,
+      auto_watch: typeof raw.auto_watch === 'boolean' ? raw.auto_watch : defaults.auto_watch,
+      auto_dashboard: typeof raw.auto_dashboard === 'boolean' ? raw.auto_dashboard : defaults.auto_dashboard,
       stale_threshold_hours: typeof raw.stale_threshold_hours === 'number'
         ? raw.stale_threshold_hours
-        : DEFAULT_CONFIG.stale_threshold_hours,
+        : defaults.stale_threshold_hours,
       lock_ttl_minutes: typeof raw.lock_ttl_minutes === 'number'
         ? raw.lock_ttl_minutes
-        : DEFAULT_CONFIG.lock_ttl_minutes,
-      locale: raw.locale === 'es' || raw.locale === 'en' ? (raw.locale as 'es' | 'en') : DEFAULT_CONFIG.locale,
-      agent_response: raw.agent_response && typeof raw.agent_response === 'object' ? raw.agent_response as LynxRuntimeConfig['agent_response'] : DEFAULT_CONFIG.agent_response,
+        : defaults.lock_ttl_minutes,
+      locale: raw.locale === 'es' || raw.locale === 'en' ? raw.locale : defaults.locale,
+      agent_response: raw.agent_response && typeof raw.agent_response === 'object' ? raw.agent_response as LynxRuntimeConfig['agent_response'] : defaults.agent_response,
       project_brief: raw.project_brief && typeof raw.project_brief === 'object' ? {
         llm_enrichment: (raw.project_brief as Record<string, unknown>).llm_enrichment === true,
-      } : DEFAULT_CONFIG.project_brief,
+      } : defaults.project_brief,
       decision_llm: raw.decision_llm && typeof raw.decision_llm === 'object' ? {
         mode: ['off', 'conservative', 'adaptive'].includes(String((raw.decision_llm as Record<string, unknown>).mode))
           ? (raw.decision_llm as { mode: 'off' | 'conservative' | 'adaptive' }).mode
           : 'off',
-        max_calls_per_hour: Math.max(0, Math.min(1000, Number((raw.decision_llm as Record<string, unknown>).max_calls_per_hour) || 10)),
-      } : DEFAULT_CONFIG.decision_llm,
+        max_calls_per_hour: boundedRuntimeNumber((raw.decision_llm as Record<string, unknown>).max_calls_per_hour, 10),
+      } : defaults.decision_llm,
       savings_pricing: raw.savings_pricing && typeof raw.savings_pricing === 'object' ? {
-        avoided_input_usd_per_1m: Math.max(0, Math.min(1000, Number((raw.savings_pricing as Record<string, unknown>).avoided_input_usd_per_1m) || 0)),
-      } : DEFAULT_CONFIG.savings_pricing,
+        avoided_input_usd_per_1m: boundedRuntimeNumber((raw.savings_pricing as Record<string, unknown>).avoided_input_usd_per_1m, 0),
+      } : defaults.savings_pricing,
       mcp_tool_profile: raw.mcp_tool_profile === 'core' || raw.mcp_tool_profile === 'full'
         ? raw.mcp_tool_profile
-        : DEFAULT_CONFIG.mcp_tool_profile,
+        : defaults.mcp_tool_profile,
       project_aliases: raw.project_aliases && typeof raw.project_aliases === 'object'
         ? Object.fromEntries(Object.entries(raw.project_aliases as Record<string, unknown>)
           .filter(([, aliases]) => Array.isArray(aliases) && aliases.every(alias => typeof alias === 'string'))
@@ -158,7 +175,7 @@ export function readLynxConfig(): LynxRuntimeConfig {
       pricing: raw.pricing != null ? (raw.pricing as PricingConfig) : undefined,
     };
   } catch {
-    return { ...DEFAULT_CONFIG };
+    return defaultRuntimeConfig();
   }
 }
 

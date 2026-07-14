@@ -51,6 +51,9 @@ export class LynxDatabase {
   }
 
   static openProject(projectName: string): LynxDatabase {
+    if (!projectName.trim() || projectName.length > 128 || /[\0/\\]/.test(projectName)) {
+      throw new Error('Invalid project name: use a non-empty name without path separators');
+    }
     const dbPath = path.join(lynxHome(), 'dbs', `${projectName}.db`);
     return LynxDatabase.openPath(dbPath);
   }

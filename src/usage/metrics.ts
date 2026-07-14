@@ -83,7 +83,6 @@ export interface UsageSummary {
 }
 
 const AVG_FILE_TOKENS = 900;
-const AVG_SYMBOL_TOKENS = 180;
 const MAX_QUERY_CHARS = 180;
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 const RERANK_INPUT_TOKENS_PER_CANDIDATE = 90;
@@ -179,13 +178,11 @@ export function estimateTokensFromFiles(
   }
 
   const tokensFromBytes = Math.round(totalBytes / 4); // ~4 chars per token
-  const gross = Math.max(files.length * AVG_FILE_TOKENS, tokensFromBytes);
-  const net = Math.max(0, gross - files.length * AVG_SYMBOL_TOKENS);
 
   const confidence =
     files.length >= 12 ? 'high' : files.length >= 4 ? 'medium' : 'low';
 
-  return { tokensSaved: net, filesAvoided: files.length, confidence };
+  return { tokensSaved: tokensFromBytes, filesAvoided: files.length, confidence };
 }
 
 /**
@@ -295,12 +292,12 @@ export interface TokenEstimateOpts {
 }
 
 /**
- * Conservative estimate of context tokens saved by returning indexed evidence
- * instead of reading full source files.
+ * Estimate of context tokens saved by returning indexed evidence instead of
+ * reading full source files.
  *
- * When file paths and rootPath are supplied the upper bound is derived from
- * real file sizes via estimateTokensFromFiles. Otherwise a fixed 900-token
- * average per candidate file is used as the ceiling.
+ * When file paths + rootPath are supplied, savings equal the real token cost
+ * of reading those files (bytes / 4). Otherwise falls back to the formula:
+ * filesAvoided * 120 + results * 160, capped at candidateFiles * 900.
  */
 export function estimateTokensSaved(opts: TokenEstimateOpts): {
   filesAvoided: number;
@@ -311,29 +308,27 @@ export function estimateTokensSaved(opts: TokenEstimateOpts): {
   const usefulResults = Math.max(0, resultCount);
   if (usefulResults === 0) return { filesAvoided: 0, tokensSaved: 0, confidence: 'low' };
 
-  // Observed savings mean only the compact indexed evidence returned by this
-  // call: a symbol/file pointer plus enough context to choose the next step.
-  // They must not charge four complete manual file reads per result. Full-file
-  // exploration belongs in the separate potential range exposed by handlers.
   const likelyFilesAvoided = Math.max(0, Math.min(candidateFiles, usefulResults));
-  const gross = likelyFilesAvoided * 120 + usefulResults * 160;
 
-  // Upper bound: use real file sizes when available, fall back to fixed average
-  let upperBound: number;
-  let confidence: 'low' | 'medium' | 'high';
+  // Real file sizes: the true token cost of reading those files (bytes/4).
+  // This is the realistic saving — what the developer would have spent
+  // without LYNX's indexed evidence, not a conservative floor.
   if (files && files.length > 0 && rootPath) {
     const real = estimateTokensFromFiles(files, rootPath);
-    upperBound = real.tokensSaved;
-    confidence = real.confidence;
-  } else {
-    upperBound = likelyFilesAvoided * AVG_FILE_TOKENS;
-    confidence = likelyFilesAvoided >= 12 ? 'medium' : 'low';
+    return {
+      filesAvoided: likelyFilesAvoided,
+      tokensSaved: real.tokensSaved,
+      confidence: real.confidence,
+    };
   }
 
+  // Fallback when file paths are unavailable (CLI tools, benchmarks).
+  const gross = likelyFilesAvoided * 120 + usefulResults * 160;
+  const ceiling = likelyFilesAvoided * AVG_FILE_TOKENS;
   return {
     filesAvoided: likelyFilesAvoided,
-    tokensSaved: Math.max(0, Math.min(upperBound, gross)),
-    confidence,
+    tokensSaved: Math.max(0, Math.min(ceiling, gross)),
+    confidence: likelyFilesAvoided >= 12 ? 'medium' : 'low',
   };
 }
 

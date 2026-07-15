@@ -55,32 +55,40 @@ export function buildAgentSummary(
     cost: number[],
     correct: number,
     totalRuns: number,
-  ) => ({
-    wall_time_ms: { median: med(wall), p95: p95(wall) },
-    input_tokens: { median: med(inputT), total: total(inputT) },
-    output_tokens: { median: med(outputT), total: total(outputT) },
-    cached_tokens: {
-      median: med(runs.map((r) => r.metrics.cached_tokens)),
-      total: total(runs.map((r) => r.metrics.cached_tokens)),
-    },
-    reasoning_tokens: {
-      median: med(runs.map((r) => r.metrics.reasoning_tokens)),
-      total: total(runs.map((r) => r.metrics.reasoning_tokens)),
-    },
-    tool_calls: { median: med(tools), total: total(tools) },
-    cost_usd: { median: med(cost), total: total(cost) },
-    functional_success_rate: totalRuns > 0 ? correct / totalRuns : 0,
-    evaluated_runs: totalRuns,
-    excluded_from_evaluation: runs.length - totalRuns,
-    defects_per_task:
-      totalRuns > 0
-        ? total(
-            runs
-              .filter((r) => r.evaluation_eligible)
-              .map((r) => r.metrics.defects_introduced),
-          ) / totalRuns
-        : 0,
-  });
+  ) => {
+    const unnecessary = runs.map((r) => r.metrics.tool_calls_unnecessary ?? 0);
+    const evidence = runs.map((r) => r.metrics.evidence_used ?? 0);
+    const effScore = runs.map((r) => r.metrics.efficiency_score ?? 0);
+    return {
+      wall_time_ms: { median: med(wall), p95: p95(wall) },
+      input_tokens: { median: med(inputT), total: total(inputT) },
+      output_tokens: { median: med(outputT), total: total(outputT) },
+      cached_tokens: {
+        median: med(runs.map((r) => r.metrics.cached_tokens)),
+        total: total(runs.map((r) => r.metrics.cached_tokens)),
+      },
+      reasoning_tokens: {
+        median: med(runs.map((r) => r.metrics.reasoning_tokens)),
+        total: total(runs.map((r) => r.metrics.reasoning_tokens)),
+      },
+      tool_calls: { median: med(tools), total: total(tools) },
+      cost_usd: { median: med(cost), total: total(cost) },
+      functional_success_rate: totalRuns > 0 ? correct / totalRuns : 0,
+      evaluated_runs: totalRuns,
+      excluded_from_evaluation: runs.length - totalRuns,
+      defects_per_task:
+        totalRuns > 0
+          ? total(
+              runs
+                .filter((r) => r.evaluation_eligible)
+                .map((r) => r.metrics.defects_introduced),
+            ) / totalRuns
+          : 0,
+      tool_calls_unnecessary: { median: med(unnecessary), total: total(unnecessary) },
+      evidence_used: { median: med(evidence), total: total(evidence) },
+      efficiency_score: { median: med(effScore) },
+    };
+  };
 
   const withCond = buildCond(
     withRuns,
@@ -191,6 +199,61 @@ export function buildAgentSummary(
       interpretation: notExecuted
         ? "Dry run — no cost"
         : "Estimated from token usage and published pricing",
+    },
+    {
+      metric: "Unnecessary tool calls (median)",
+      class: "measured" as const,
+      with_lynx: notExecuted
+        ? "N/A"
+        : `${withCond.tool_calls_unnecessary!.median}`,
+      without_lynx: notExecuted
+        ? "N/A"
+        : `${withoutCond.tool_calls_unnecessary!.median}`,
+      delta: notExecuted
+        ? "N/A"
+        : pctDelta(
+            withCond.tool_calls_unnecessary!.median,
+            withoutCond.tool_calls_unnecessary!.median,
+          ),
+      interpretation: notExecuted
+        ? "Dry run — no tool calls"
+        : "Duplicate tool calls within the same run",
+    },
+    {
+      metric: "Evidence used (median)",
+      class: "measured" as const,
+      with_lynx: notExecuted ? "N/A" : `${withCond.evidence_used!.median}`,
+      without_lynx: notExecuted
+        ? "N/A"
+        : `${withoutCond.evidence_used!.median}`,
+      delta: notExecuted
+        ? "N/A"
+        : pctDelta(
+            withCond.evidence_used!.median,
+            withoutCond.evidence_used!.median,
+          ),
+      interpretation: notExecuted
+        ? "Dry run — no evidence"
+        : "Distinct tools returning non-trivial evidence payloads",
+    },
+    {
+      metric: "Efficiency score (median)",
+      class: "measured" as const,
+      with_lynx: notExecuted
+        ? "N/A"
+        : `${(withCond.efficiency_score!.median * 100).toFixed(1)}%`,
+      without_lynx: notExecuted
+        ? "N/A"
+        : `${(withoutCond.efficiency_score!.median * 100).toFixed(1)}%`,
+      delta: notExecuted
+        ? "N/A"
+        : pctDelta(
+            withCond.efficiency_score!.median,
+            withoutCond.efficiency_score!.median,
+          ),
+      interpretation: notExecuted
+        ? "Dry run — not measured"
+        : "Composite efficiency: success × useful_tools / total_tools",
     },
     {
       metric: "Functional success rate",

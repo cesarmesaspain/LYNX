@@ -17,7 +17,7 @@ import { upsertNode, upsertNodesBatch, deleteNodesByFile, deleteNodesByProject }
 import { deleteEdgesByProject, deleteEdgesForNodesInFile } from '../store/edges.js';
 import { getAllFileHashes, upsertFileHash, insertIndexRun, deleteFileHash, deleteFindingsByFile, getCachedLlmSummary, upsertCachedLlmSummary } from '../store/memory.js';
 import { discoverFiles } from './phases/discover.js';
-import { extractAll } from './phases/extract.js';
+import { extractAll, fileToModuleQn } from './phases/extract.js';
 import { resolveAll } from './phases/resolve/index.js';
 import { analyze } from './phases/analyze.js';
 import { computeCyclomaticComplexities, computeTransitiveLoopDepths } from '../intelligence/complexity.js';
@@ -121,16 +121,24 @@ export async function runPipeline(
   const deleted = fileHashMap ? [...fileHashMap.keys()].filter((file) => !presentPaths.has(file)).sort() : [];
   const added = fileHashMap ? discovery.files.filter((file) => !fileHashMap.has(file.relPath)).map((file) => file.relPath).sort() : [];
   const renamed: Array<{ from: string; to: string }> = [];
-  // A rename cannot be resolved safely from hashes alone without reparsing every
-  // dependent source file. Fall back to the full semantic reference pipeline.
-  let fallbackReason: string | null = deleted.length > 0 ? 'deleted_or_renamed_file_requires_full_relationship_resolution' : null;
   if (fileHashMap && deleted.length > 0 && added.length > 0) {
     for (const from of deleted) {
       const hash = fileHashMap.get(from);
       const to = discovery.files.find((file) => added.includes(file.relPath) && hash === hashFile(file.absPath));
-      if (to) renamed.push({ from, to: to.relPath });
+      if (to && hash) {
+        renamed.push({ from, to: to.relPath });
+        // Seed the cache before extraction so the unchanged renamed file is
+        // skipped. Persistent paths are updated later inside the graph transaction.
+        fileHashMap.set(to.relPath, hash);
+      }
     }
   }
+  // Renames with matching content hash: update paths in-place, no re-extraction.
+  // True deletions (path gone, no matching hash) still require full fallback.
+  const trueDeletions = renamed.length > 0
+    ? deleted.filter(d => !renamed.some(r => r.from === d))
+    : deleted;
+  let fallbackReason: string | null = trueDeletions.length > 0 ? 'deleted_or_renamed_file_requires_full_relationship_resolution' : null;
   const incremental = requestedIncremental && fallbackReason === null;
 
   // Phase 2: Extract — skip unchanged files in incremental mode
@@ -206,12 +214,37 @@ export async function runPipeline(
   }
   failIfRequested(opts, 'cleanup');
 
+  // Renamed files with matching content hash: update paths in-place without
+  // re-extraction. Nodes and edges are preserved (they reference node.id, not
+  // file_path). Only file_path, qualified_name, and file_hashes are updated.
+  if (renamed.length > 0 && fileHashMap) {
+    db.transaction(() => {
+      for (const { from, to } of renamed) {
+        const oldModuleQn = fileToModuleQn(from);
+        const newModuleQn = fileToModuleQn(to);
+        db.db
+          .prepare(
+            `UPDATE nodes SET file_path = ?, qualified_name = REPLACE(qualified_name, ?, ?)
+             WHERE project = ? AND file_path = ?`
+          )
+          .run(to, oldModuleQn, newModuleQn, project, from);
+        const hash = fileHashMap.get(from)!;
+        deleteFileHash(db, project, from);
+        const newFile = discovery.files.find(f => f.relPath === to)!;
+        upsertFileHash(db, project, to, hash, 0, newFile.size);
+        // Feed the new path into fileHashMap so extractAll skips it — the
+        // content hasn't changed and the nodes are already updated.
+        fileHashMap.set(to, hash);
+      }
+    });
+  }
+
   // Removed paths must never survive a successful update. This is intentionally
   // performed before extraction results are written; full fallback then rebuilds
   // the entire graph from the same semantic reference pipeline.
-  if (deleted.length > 0) {
+  if (trueDeletions.length > 0) {
     db.transaction(() => {
-      for (const file of deleted) {
+      for (const file of trueDeletions) {
         deleteEdgesForNodesInFile(db, project, file);
         deleteNodesByFile(db, project, file);
         deleteFindingsByFile(db, project, file);

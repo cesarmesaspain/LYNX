@@ -259,21 +259,38 @@ export function narrateTraversal(
     };
   }
 
-  const pathNodes: string[] = [rootName];
-  let current = rootName;
-  for (let hop = 0; hop < maxHop; hop++) {
-    const next = edges.find((e) => e.fromName === current);
-    if (!next) break;
-    pathNodes.push(next.toName);
-    current = next.toName;
+  const adjacency = new Map<string, string[]>();
+  for (const e of edges) {
+    const list = adjacency.get(e.fromName) || [];
+    list.push(e.toName);
+    adjacency.set(e.fromName, list);
   }
-  const deepestPath = pathNodes.join(' → ');
+
+  // DFS to find the deepest chain from root
+  function dfs(node: string, visited: Set<string>): string[] {
+    const neighbors = adjacency.get(node) || [];
+    let best: string[] = [];
+    for (const next of neighbors) {
+      if (visited.has(next)) continue;
+      visited.add(next);
+      const tail = dfs(next, visited);
+      visited.delete(next);
+      if (tail.length + 1 > best.length) best = [next, ...tail];
+    }
+    return best;
+  }
+
+  const visited = new Set<string>([rootName]);
+  const tail = dfs(rootName, visited);
+  const deepestPath = [rootName, ...tail].join(' → ');
 
   const summary =
     maxHop <= 1
       ? `From ${rootName}, ${visitedCount} nodes are reachable in 1 hop. It's a function with direct dependencies and no deep chains.`
-      : `From ${rootName}, ${visitedCount} nodes are reachable in up to ${maxHop} hops. ` +
-        `The deepest chain: ${deepestPath}.`;
+      : tail.length > 0
+        ? `From ${rootName}, ${visitedCount} nodes are reachable in up to ${maxHop} hops. ` +
+          `The deepest chain: ${deepestPath}.`
+        : `From ${rootName}, ${visitedCount} nodes are reachable in up to ${maxHop} hops, but no multi-hop chains were found — all connections are direct.`;
 
   return { summary, deepestPath };
 }

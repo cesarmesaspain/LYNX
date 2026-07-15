@@ -71,6 +71,22 @@ export function makeLynxTools(): AgentToolDefinition[] {
     {
       type: "function",
       function: {
+        name: "get_edge_evidence",
+        description: "Get the evidence records backing a graph edge. Use after tracing relationships when you need to verify why a dependency exists.",
+        parameters: {
+          type: "object",
+          properties: {
+            edge_id: { type: "number", description: "Edge identifier" },
+            source_name: { type: "string", description: "Source symbol name" },
+            target_name: { type: "string", description: "Target symbol name" },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
         name: "find_tests",
         description: "Find test functions that cover a given symbol.",
         parameters: {
@@ -144,6 +160,59 @@ export function makeBaselineTools(): AgentToolDefinition[] {
             },
           },
           required: ["pattern"],
+        },
+      },
+    },
+  ];
+}
+
+/** Baseline tools extended with code-modification capabilities for bug-fix tasks (B3).
+ *  The without_lynx condition must have equivalent write/edit/test tools. */
+export function makeBaselineToolsForModification(): AgentToolDefinition[] {
+  return [
+    ...makeBaselineTools(),
+    {
+      type: "function",
+      function: {
+        name: "write_file",
+        description:
+          "Write or overwrite a file in the project with new content. Use after reading and understanding the file.",
+        parameters: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Relative file path in the project" },
+            content: { type: "string", description: "New file content to write" },
+          },
+          required: ["path", "content"],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "run_build",
+        description: "Run the project build command (npm run build) and return success/failure output.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "run_tests",
+        description: "Run the project's test suite and return results.",
+        parameters: {
+          type: "object",
+          properties: {
+            testFile: {
+              type: "string",
+              description: "Optional: specific test file pattern to run",
+            },
+          },
+          required: [],
         },
       },
     },

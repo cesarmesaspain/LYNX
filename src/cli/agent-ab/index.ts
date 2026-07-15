@@ -5,6 +5,7 @@ export {
   cmdAgentABBenchmark,
   makeLynxTools,
   makeBaselineTools,
+  makeBaselineToolsForModification,
   externalProjectLabel,
   evaluateExternalDeadCodeResponse,
   isEvaluationEligible,
@@ -70,6 +71,7 @@ export type {
   AgentABExperimentProtocol,
   AgentABExperimentComparison,
   EvaluationKind,
+  PilotGroundTruth,
 } from "./types.js";
 export {
   summarizeAgentABIndexLines,
@@ -77,6 +79,17 @@ export {
   wilsonInterval,
   aggregateAgentABHistory,
 } from "./history.js";
+export {
+  extractPilotGroundTruth,
+  makePilotTasks,
+  setupB3Worktree,
+  evaluatePilotBugFix,
+  evaluatePilotScalability,
+  HIDDEN_TESTS_DIR,
+  PILOT_TASK_TOOL_PROFILES,
+  makeLynxToolsForPilotTask,
+  executePilotLynxTool,
+} from "./pilot-suite.js";
 export type {
   AgentABIndexEntry,
   AgentABHistoryExclusionReason,

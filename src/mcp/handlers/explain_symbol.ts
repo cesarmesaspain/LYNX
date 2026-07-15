@@ -20,6 +20,7 @@ import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
 import { projectNotIndexed } from '../diagnostics.js';
 import type { LynxFinding } from '../../types.js';
 import { readLynxConfig } from '../../config/runtime.js';
+import { getNodeEdgeEvidence } from '../../store/edge-evidence.js';
 
 function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
   const seen = new Set<string>();
@@ -109,6 +110,7 @@ interface SymbolMetrics {
   loopDepth: number;
   transitiveLoopDepth: number;
   fanIn: number;
+  uniqueCallers: number;
   fanOut: number;
   callers: Array<{ type: string; name: string; qualified_name: string; kind: string; file: string }>;
   callees: Array<{ type: string; name: string; qualified_name: string; kind: string; file: string }>;
@@ -117,6 +119,7 @@ interface SymbolMetrics {
   findings: any[];
   trend: any;
   related: any[];
+  edgeEvidence: Array<{ type: string; direction: string; symbol: string; qualified_name: string; evidence_count: number; strongest_evidence: unknown }>;
   riskLevel: string;
   riskNarrative: string;
 }
@@ -136,6 +139,9 @@ function assessSymbolMetrics(
 
   const fanIn = db.db
     .prepare("SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND target_id = ? AND type IN ('CALLS', 'USAGE', 'TESTS')")
+    .get(project, node.id) as { cnt: number };
+  const uniqueCallers = db.db
+    .prepare("SELECT COUNT(DISTINCT source_id) as cnt FROM edges WHERE project = ? AND target_id = ? AND type IN ('CALLS', 'USAGE', 'TESTS')")
     .get(project, node.id) as { cnt: number };
   const fanOut = db.db
     .prepare("SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND source_id = ? AND type IN ('CALLS', 'USAGE', 'IMPORTS')")
@@ -186,19 +192,21 @@ function assessSymbolMetrics(
   const trend = getComplexityTrend(db, project, node.qualified_name);
   const related = getRelatedFindings(db, project, node.qualified_name);
 
+  const edgeEvidence = getNodeEdgeEvidence(db, project, node.id, savingsMode ? 10 : 30);
+
   // Risk assessment
   const totalInDegree = fanIn.cnt;
   let riskLevel: string;
   let riskNarrative: string;
   if (totalInDegree >= 20 || cyclomaticComplexity > 100) {
     riskLevel = 'critical';
-    riskNarrative = `This symbol is CRITICAL: ${totalInDegree} inbound dependencies and cyclomatic complexity of ${cyclomaticComplexity}. Any change here has a high risk of breaking other parts of the system.`;
+    riskNarrative = `This symbol is CRITICAL: ${uniqueCallers.cnt} unique callers (${totalInDegree} total call edges) and cyclomatic complexity of ${cyclomaticComplexity}. Any change here has a high risk of breaking other parts of the system.`;
   } else if (totalInDegree >= 10 || cyclomaticComplexity > 50) {
     riskLevel = 'high';
-    riskNarrative = `HIGH risk: ${totalInDegree} inbound dependencies. Changes here should be reviewed carefully.`;
+    riskNarrative = `HIGH risk: ${uniqueCallers.cnt} unique callers (${totalInDegree} total call edges). Changes here should be reviewed carefully.`;
   } else if (totalInDegree >= 5 || cyclomaticComplexity > 20) {
     riskLevel = 'medium';
-    riskNarrative = `MEDIUM risk: ${totalInDegree} dependencies. Moderately safe changes with proper tests.`;
+    riskNarrative = `MEDIUM risk: ${uniqueCallers.cnt} unique callers (${totalInDegree} total call edges). Moderately safe changes with proper tests.`;
   } else {
     riskLevel = 'low';
     riskNarrative = 'LOW risk: few dependencies and manageable complexity.';
@@ -206,8 +214,8 @@ function assessSymbolMetrics(
 
   return {
     cyclomaticComplexity, cognitiveComplexity, loopDepth, transitiveLoopDepth,
-    fanIn: fanIn.cnt, fanOut: fanOut.cnt,
-    callers, callees, parents, source, findings, trend, related,
+    fanIn: fanIn.cnt, uniqueCallers: uniqueCallers.cnt, fanOut: fanOut.cnt,
+    callers, callees, parents, source, findings, trend, related, edgeEvidence,
     riskLevel, riskNarrative,
   };
 }
@@ -227,7 +235,7 @@ function buildExplainResponse(
   const value = estimateTokensSaved({ resultCount: 1, candidateFiles: 1, files: [node.file_path], rootPath, project });
   const narrative = [
     `${node.kind} \`${node.name}\` in ${node.file_path}:${node.start_line}-${node.end_line}.`,
-    `${m.fanIn} inbound callers, ${m.fanOut} outbound dependencies.`,
+    `${m.uniqueCallers} unique callers, ${m.fanIn} total call edges. ${m.fanOut} outbound dependencies.`,
     m.cyclomaticComplexity > 0 ? `Cyclomatic complexity: ${m.cyclomaticComplexity}.` : '',
     m.cognitiveComplexity > 0 ? `Cognitive complexity: ${m.cognitiveComplexity}.` : '',
     m.riskNarrative,
@@ -254,6 +262,7 @@ function buildExplainResponse(
     },
     dependencies: {
       fan_in: m.fanIn,
+      unique_callers: m.uniqueCallers,
       fan_out: m.fanOut,
       callers: m.callers,
       callees: m.callees,

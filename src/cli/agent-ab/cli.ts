@@ -18,7 +18,7 @@ interface ParsedCliArgs {
   includeTrace: boolean;
   chainedFlag: boolean;
   outPath: string | null;
-  suite: "default" | "realistic";
+  suite: "default" | "realistic" | "pilot";
   screeningLocal: boolean;
   screeningGroq: boolean;
 }
@@ -58,11 +58,16 @@ function parseAgentABCliArgs(args: string[]): ParsedCliArgs {
 
   const screeningGroq = flag("--screening-groq");
   const screeningLocal = flag("--screening-local");
+  const isPilot = flag("--pilot");
   if (screeningGroq && screeningLocal) {
     throw new Error("Use only one screening provider: --screening-groq or --screening-local.");
   }
   const isScreening = screeningGroq || screeningLocal;
   const localBaseUrl = val("--local-base-url") || "http://127.0.0.1:8011/v1";
+
+  if (isPilot && (!val("--project-dir"))) {
+    throw new Error("--pilot requires --project-dir pointing to the project to benchmark.");
+  }
 
   if (flag("--html")) {
     console.error("Error: --html is not yet implemented.");
@@ -95,7 +100,7 @@ function parseAgentABCliArgs(args: string[]): ParsedCliArgs {
     includeTrace: flag("--include-trace"),
     chainedFlag: flag("--chained"),
     outPath: val("--out") || null,
-    suite: val("--suite") === "realistic" ? "realistic" : "default",
+    suite: isPilot ? "pilot" : val("--suite") === "realistic" ? "realistic" : "default",
   };
 }
 
@@ -108,6 +113,7 @@ export async function cmdAgentABBenchmark(args: string[]): Promise<void> {
     screeningLocal, screeningGroq } = parseAgentABCliArgs(args);
 
   const isScreening = screeningLocal || screeningGroq;
+  const isPilotMode = suite === "pilot";
   const hasKey = !!(config.apiKey || getApiKey());
   if (!hasKey && !config.dryRun) {
     console.error(
@@ -126,7 +132,7 @@ export async function cmdAgentABBenchmark(args: string[]): Promise<void> {
     config.dryRun = true;
   }
 
-  const modeLabel = screeningLocal ? "SCREENING-LOCAL" : screeningGroq ? "SCREENING" : "OFFICIAL";
+  const modeLabel = isPilotMode ? "PILOT" : screeningLocal ? "SCREENING-LOCAL" : screeningGroq ? "SCREENING" : "OFFICIAL";
   console.error(
     `LYNX agent-ab ${modeLabel} benchmark — seed=${config.seed} rounds=${config.measuredRounds} model=${config.model} ${config.dryRun ? "DRY-RUN" : "LIVE"}`,
   );

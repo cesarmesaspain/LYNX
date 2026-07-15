@@ -38,6 +38,8 @@ import { handleBatchGetCode } from './handlers/batch_get_code.js';
 import { handleToolCatalog } from './handlers/tool_catalog.js';
 import { handleDiagnose } from './handlers/diagnose.js';
 import { handleUsageSummary } from './handlers/usage_summary.js';
+import { handleGetEdgeEvidence } from './handlers/get_edge_evidence.js';
+import { handleInvestigateSymbol } from './handlers/investigate_symbol.js';
 import { decayCounter } from '../cli/hook-augment.js';
 import { cleanupNativeExtractor } from '../paths.js';
 import { LynxDatabase } from '../store/database.js';
@@ -143,12 +145,15 @@ const HANDLERS: Record<string, Handler> = {
   batch_get_code: handleBatchGetCode,
   diagnose: handleDiagnose,
   usage_summary: handleUsageSummary,
+  get_edge_evidence: handleGetEdgeEvidence,
+  investigate_symbol: handleInvestigateSymbol,
 };
 
 const CORE_TOOL_NAMES = new Set([
   'pack_context', 'search_graph', 'get_code_snippet', 'trace_path',
   'find_tests', 'detect_changes', 'assess_impact', 'list_projects',
-  'tool_catalog', 'diagnose', 'usage_summary',
+  'tool_catalog', 'diagnose', 'usage_summary', 'get_edge_evidence',
+  'investigate_symbol',
 ]);
 
 // These handlers already record a tool-specific, result-based savings event.

@@ -52,14 +52,14 @@ describe('handleIndexRepository incremental contract', () => {
     expect((db.db.prepare('SELECT COUNT(*) AS count FROM file_hashes WHERE project = ? AND rel_path = ?').get(project, 'src/added.ts') as { count: number }).count).toBe(1);
   }, 30000);
 
-  it('reports deletion and rename fallbacks with an exact reason', async () => {
+  it('detects a rename and updates paths in-place without full rebuild', async () => {
     const project = `handler-${Date.now()}`;
     const root = fixture(project);
     await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', __test_skip_project_brief: true });
     fs.renameSync(path.join(root, 'src', 'app.ts'), path.join(root, 'src', 'renamed.ts'));
     const result = await handleIndexRepository({ repo_path: root, name: project, mode: 'fast', incremental: true, __test_skip_project_brief: true }) as Record<string, any>;
-    expect(result.update_mode).toBe('full_fallback');
-    expect(result.fallback_reason).toBe('deleted_or_renamed_file_requires_full_relationship_resolution');
+    expect(result.update_mode).toBe('incremental');
+    expect(result.fallback_reason).toBeNull();
     expect(result.files_deleted).toEqual(['src/app.ts']);
     expect(result.files_renamed).toEqual([{ from: 'src/app.ts', to: 'src/renamed.ts' }]);
     expect(result.health).toBe('healthy');

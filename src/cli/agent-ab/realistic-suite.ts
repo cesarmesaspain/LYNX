@@ -2,7 +2,7 @@
  * agent-ab/realistic-suite.ts — Realistic developer workflow suite.
  *
  * Selected only via --suite realistic. Does NOT affect default/core behavior
- * or historical comparability. Exercises all 18 agent-relevant LYNX MCP tools.
+ * or historical comparability. Exercises all 20 agent-relevant LYNX MCP tools plus read_file.
  */
 
 import * as path from 'node:path';
@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process';
 import type { AgentToolDefinition, EvaluationKind } from './types.js';
 import { EVIDENCE_DISCIPLINE, TOOLS, withEvidenceDiscipline } from '../../mcp/tools.js';
 
-// ── All 18 handler imports ─────────────────────────────────────
+// ── All agent handler imports ─────────────────────────────────
 
 import { handleSearchGraph } from '../../mcp/handlers/search_graph.js';
 import { handleTracePath } from '../../mcp/handlers/trace_path.js';
@@ -32,11 +32,13 @@ import { handlePackMemory } from '../../mcp/handlers/pack_memory.js';
 import { handleQueryGraph } from '../../mcp/handlers/query_graph.js';
 import { handleCompareRuns } from '../../mcp/handlers/compare_runs.js';
 import { handlePackContext } from '../../mcp/handlers/pack_context.js';
+import { handleGetEdgeEvidence } from '../../mcp/handlers/get_edge_evidence.js';
+import { handleInvestigateSymbol } from '../../mcp/handlers/investigate_symbol.js';
 
 // ── Coverage manifest ──────────────────────────────────────────
 
 /**
- * Authoritative 25-tool coverage manifest.
+ * Authoritative 26-tool coverage manifest.
  *
  * Classification key:
  *   agent       — usable by an LLM agent to explore/understand code
@@ -85,6 +87,13 @@ export const TOOL_COVERAGE: ToolCoverageEntry[] = [
     tool_name: 'find_tests', classification: 'agent', coverage: 'executable',
     task_id: 'find_tests', direct_deterministic_test: true,
     required_seeded_state: 'TESTS edges from test fns → lynxHome',
+    executable_now: true,
+    exclusion_rationale: '',
+  },
+  {
+    tool_name: 'get_edge_evidence', classification: 'agent', coverage: 'executable',
+    task_id: 'edge_evidence', direct_deterministic_test: true,
+    required_seeded_state: 'CALLS edge with captured edge_evidence records (lynxConfigPath → lynxHome)',
     executable_now: true,
     exclusion_rationale: '',
   },
@@ -259,7 +268,7 @@ export function designedOnlyTools(): string[] {
   return TOOL_COVERAGE.filter(e => e.coverage === 'designed-only').map(e => e.tool_name);
 }
 
-// ── Expanded tool definitions (18 agent-relevant tools) ────────
+// ── Expanded tool definitions (20 agent-relevant tools) ────────
 
 export function makeLynxToolsRealistic(): AgentToolDefinition[] {
   const benchmarkToolNames = new Set([
@@ -267,7 +276,7 @@ export function makeLynxToolsRealistic(): AgentToolDefinition[] {
     'get_architecture', 'analyze_hotspots', 'find_dead_code', 'get_graph_schema',
     'semantic_search', 'batch_get_code', 'get_code_snippet', 'search_code',
     'smart_review', 'detect_changes', 'pack_memory', 'query_graph',
-    'compare_runs', 'pack_context',
+    'compare_runs', 'pack_context', 'get_edge_evidence', 'investigate_symbol',
   ]);
   const catalogTools = TOOLS
     .map(withEvidenceDiscipline)
@@ -348,6 +357,8 @@ const TOOL_DISPATCHERS: Record<string, ToolHandler> = {
   query_graph: (a, p) => handleQueryGraph({ project: p, query: String(a.query || '') }),
   compare_runs: (_a, p) => handleCompareRuns({ project: p }),
   pack_context: (a, p) => handlePackContext({ task: String(a.task || ''), project: p }),
+  get_edge_evidence: (a, p) => handleGetEdgeEvidence({ project: p, edge_id: a.edge_id, source_name: a.source_name, target_name: a.target_name, type: a.type }),
+  investigate_symbol: (a, p) => handleInvestigateSymbol({ project: p, symbol: String(a.symbol || a.name || a.qualified_name || ''), depth: a.depth ? Number(a.depth) : 2 }),
 };
 
 export async function executeLynxToolRealistic(
@@ -538,6 +549,27 @@ export const TASKS_WORKFLOW: RealisticTask[] = [
     },
     evaluation_kind: 'deterministic',
   },
+  {
+    id: 'edge_evidence',
+    name: 'Verify relationship evidence',
+    userPrompt:
+      'Use get_edge_evidence to verify the relationship between lynxConfigPath and lynxHome. ' +
+      'Respond with JSON: {"evidence_count": N, "verified": true/false}',
+    expected: {
+      evidence_count: 1,
+      verified: true,
+    },
+    evaluation_kind: 'deterministic',
+  },
+  {
+    id: 'investigate_symbol',
+    name: 'Investigate symbol end-to-end context pack',
+    userPrompt:
+      'Use investigate_symbol on the symbol "lynxHome" to gather its definition, behavior, call relationships, source snippet, and related tests. ' +
+      'Respond with JSON: {"symbol":"...", "has_definition":true/false, "has_trace":true/false, "has_snippet":true/false, "has_tests":true/false, "summary":"..."}',
+    expected: {},
+    evaluation_kind: 'designed-only',
+  },
   // ── Designed-only tasks (no deterministic assertion possible) ──
   {
     id: 'smart_review',
@@ -577,11 +609,11 @@ export const TASKS_WORKFLOW: RealisticTask[] = [
   },
 ];
 
-/** All 15 tasks: 5 core + 10 workflow. */
+/** All 16 tasks: 5 core + 11 workflow. */
 export const TASKS_REALISTIC: RealisticTask[] = [...TASKS_CORE, ...TASKS_WORKFLOW];
 
 /** Task IDs whose expected={} are designed-only (no deterministic assertion). */
-export const DESIGNED_ONLY_TASK_IDS = new Set(['smart_review', 'detect_changes', 'pack_memory', 'query_graph']);
+export const DESIGNED_ONLY_TASK_IDS = new Set(['smart_review', 'detect_changes', 'pack_memory', 'query_graph', 'investigate_symbol']);
 
 /** Task IDs with partial expected (some fields deterministic). */
 export const PARTIAL_EXPECTED_TASK_IDS = new Set<string>();

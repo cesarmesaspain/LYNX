@@ -124,12 +124,20 @@ export function isNodeExported(
 ): boolean {
   const text = node.text;
   const firstLine = text.split('\n')[0].trim();
-  return (
+  if (
     firstLine.startsWith('export ') ||
     firstLine.startsWith('pub ') ||
     firstLine.startsWith('public ') ||
     firstLine.includes(' @export')
-  );
+  ) return true;
+  // Tree-sitter: export is a parent node (export_statement), not inside the
+  // declaration node text. Check if any ancestor is an export_statement.
+  let parent = node.parent;
+  while (parent) {
+    if (parent.type === 'export_statement') return true;
+    parent = parent.parent;
+  }
+  return false;
 }
 
 // ── Throw extraction ─────────────────────────────────────────────

@@ -29,17 +29,19 @@ const EVIDENCE_TOOLS = new Set([
   'detect_changes', 'assess_impact', 'pack_memory', 'analyze_hotspots',
   'find_dead_code', 'compare_runs', 'explain_symbol', 'smart_review',
   'semantic_search', 'find_tests', 'batch_get_code',
-  'diagnose', 'usage_summary',
+  'diagnose', 'usage_summary', 'get_edge_evidence',
+  'investigate_symbol',
 ]);
 
 /** Tools which only inspect an already indexed project or its working tree. */
 export const READ_ONLY_TOOL_NAMES = new Set([
   'tool_catalog', 'pack_context', 'search_graph', 'trace_path',
   'get_code_snippet', 'get_architecture', 'query_graph', 'index_status',
-  'list_projects', 'get_graph_schema', 'search_code', 'detect_changes',
+  'list_projects', 'get_graph_schema', 'search_code', 'get_edge_evidence', 'detect_changes',
   'assess_impact', 'pack_memory', 'analyze_hotspots', 'find_dead_code',
   'compare_runs', 'explain_symbol', 'smart_review', 'semantic_search',
   'find_tests', 'batch_get_code', 'diagnose', 'usage_summary',
+  'investigate_symbol',
 ]);
 
 const DESTRUCTIVE_TOOL_NAMES = new Set(['delete_project']);
@@ -144,6 +146,7 @@ export const TOOLS: LynxToolDef[] = [
         include_tests: { type: 'boolean', description: 'Include test files in results.' },
         edge_types: { type: 'array', items: { type: 'string' }, description: 'Optional explicit edge-type override (for example CALLS, READS, USAGE).' },
         include_edges: { type: 'boolean', description: 'Include a compact labelled edge page.' },
+        include_evidence: { type: 'boolean', description: 'Annotate each edge with its captured evidence (file, line, extractor, confidence). Eliminates a separate get_edge_evidence round-trip.' },
       },
       required: ['function_name', 'project'],
     },
@@ -234,6 +237,40 @@ export const TOOLS: LynxToolDef[] = [
         project: { type: 'string' },
       },
       required: ['project'],
+    },
+  },
+  {
+    name: 'get_edge_evidence',
+    description: 'Get the evidence backing a graph edge and explain why the relationship exists in the code graph.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string' },
+        edge_id: { type: 'integer', description: 'Direct edge ID if known.' },
+        source_name: { type: 'string', description: 'Source symbol name.' },
+        target_name: { type: 'string', description: 'Target symbol name.' },
+        type: { type: 'string', description: 'Optional edge type filter.' },
+      },
+      required: ['project'],
+    },
+  },
+  {
+    name: 'investigate_symbol',
+    description:
+      'Meta-tool: deep-dive into a single symbol in one call. Internally orchestrates search_graph → explain_symbol → trace_path (with evidence) → get_code_snippet → find_tests. ' +
+      'Returns a unified context pack. Use instead of chaining 4-5 separate discovery tools when the agent needs a complete picture of a function, class, or method.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string' },
+        symbol: { type: 'string', description: 'Symbol name or qualified_name to investigate.' },
+        name: { type: 'string', description: 'Alias for symbol.' },
+        qualified_name: { type: 'string', description: 'Alias for symbol.' },
+        depth: { type: 'integer', description: 'Max BFS depth for trace_path (default 2).' },
+        include_evidence: { type: 'boolean', description: 'Include edge evidence in traces (default true).' },
+        verbose: { type: 'boolean', description: 'Include value_metrics, llm_usage, and index context (default false — compact agent-friendly output).' },
+      },
+      required: ['project', 'symbol'],
     },
   },
   {

@@ -1,6 +1,6 @@
 import { readLynxConfig } from '../../config/runtime.js';
 
-const CORE = ['pack_context', 'search_graph', 'get_code_snippet', 'trace_path', 'find_tests', 'detect_changes', 'assess_impact', 'list_projects', 'tool_catalog'];
+const CORE = ['pack_context', 'search_graph', 'get_code_snippet', 'trace_path', 'find_tests', 'detect_changes', 'assess_impact', 'list_projects', 'tool_catalog', 'get_edge_evidence'];
 
 export async function handleToolCatalog(): Promise<unknown> {
   const requestedProfile = process.env.LYNX_TOOL_PROFILE || readLynxConfig().mcp_tool_profile || 'full';

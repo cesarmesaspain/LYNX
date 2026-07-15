@@ -20,6 +20,8 @@ import { handleFindTests } from '../../mcp/handlers/find_tests.js';
 import { handleFindDeadCode } from '../../mcp/handlers/find_dead_code.js';
 import { handleAnalyzeHotspots } from '../../mcp/handlers/analyze_hotspots.js';
 import { handleSemanticSearch } from '../../mcp/handlers/semantic_search.js';
+import { handleInvestigateSymbol } from '../../mcp/handlers/investigate_symbol.js';
+import { handleGetEdgeEvidence } from '../../mcp/handlers/get_edge_evidence.js';
 
 function printJson(result: unknown): void {
   process.stdout.write(JSON.stringify(result) + '\n');
@@ -116,5 +118,34 @@ export async function cmdSemantic(args: string[]): Promise<void> {
   }
   const limit = args[2] ? Number(args[2]) : 10;
   const result = await handleSemanticSearch({ project, query, limit });
+  printJson(result);
+}
+
+// ── investigate ─────────────────────────────────────────────────────
+
+export async function cmdInvestigate(args: string[]): Promise<void> {
+  const project = args[0];
+  const symbol = args[1];
+  if (!project || !symbol) {
+    process.stderr.write('Usage: lynx investigate <project> <symbol> [depth] [--verbose]\n');
+    process.exit(1);
+  }
+  const depth = args[2] && !args[2].startsWith('--') ? Number(args[2]) : 2;
+  const verbose = args.includes('--verbose');
+  const result = await handleInvestigateSymbol({ project, symbol, depth, verbose });
+  printJson(result);
+}
+
+// ── evidence ─────────────────────────────────────────────────────────
+
+export async function cmdEvidence(args: string[]): Promise<void> {
+  const project = args[0];
+  const source = args[1];
+  const target = args[2];
+  if (!project || !source || !target) {
+    process.stderr.write('Usage: lynx evidence <project> <source_name> <target_name>\n');
+    process.exit(1);
+  }
+  const result = await handleGetEdgeEvidence({ project, source_name: source, target_name: target });
   printJson(result);
 }

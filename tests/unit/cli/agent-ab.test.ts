@@ -14,6 +14,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 
 import { generateFixture } from "../../../src/cli/ab-benchmark.js";
 import {
@@ -61,6 +62,17 @@ import {
   DEFAULT_REQUEST_TIMEOUT_MS,
   openaiChatCompletion,
 } from "../../../src/llm/shared.js";
+import {
+  HIDDEN_TESTS_DIR,
+  parseVitestTestCounts,
+  setupB3Worktree,
+} from "../../../src/cli/agent-ab/pilot-suite.js";
+import {
+  ensureB3VitestConfig,
+  resolveB3BuildCommand,
+  resolveB3TestPattern,
+  runB3Tests,
+} from "../../../src/cli/agent-ab/execution-support.js";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -229,6 +241,141 @@ describe("read_file path traversal protection", () => {
   });
 });
 
+describe("Vitest B3 summary parsing", () => {
+  it("counts test cases instead of the Test Files summary", () => {
+    const output =
+      "\u001b[2m Test Files \u001b[22m \u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m (1)\n" +
+      "\u001b[2m      Tests \u001b[22m \u001b[1m\u001b[31m1 failed\u001b[39m\u001b[22m | " +
+      "\u001b[1m\u001b[32m1 passed\u001b[39m\u001b[22m (2)";
+
+    expect(parseVitestTestCounts(output)).toEqual({
+      passed: 1,
+      failed: 1,
+      total: 2,
+    });
+  });
+
+  it("returns zero counts when Vitest executed no tests", () => {
+    expect(parseVitestTestCounts("No test files found")).toEqual({
+      passed: 0,
+      failed: 0,
+      total: 0,
+    });
+  });
+});
+
+describe("pilot B3 worktree preparation", () => {
+  it("links runtime dependencies and exposes a runnable hidden-test pattern", () => {
+    const root = fs.mkdtempSync(
+      path.join(os.tmpdir(), "lynx-b3-worktree-test-"),
+    );
+    const projectDir = path.join(root, "project");
+    fs.mkdirSync(path.join(projectDir, "src/lib/ops"), { recursive: true });
+    fs.mkdirSync(path.join(projectDir, "node_modules"), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectDir, "package.json"),
+      JSON.stringify({ scripts: { typecheck: "tsc --noEmit" } }),
+    );
+    fs.writeFileSync(
+      path.join(projectDir, "src/lib/ops/api.ts"),
+      [
+        "export function enforceOpsRequest(token: string, headerToken: string) {",
+        "  if (token && headerToken && headerToken === token) {",
+        "    return { machine: true, };",
+        "  }",
+        "",
+        "  const auth = {};",
+        "  return { ...auth, machine: false, };",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    execFileSync("git", ["init"], { cwd: projectDir });
+    execFileSync("git", ["config", "user.email", "test@example.com"], {
+      cwd: projectDir,
+    });
+    execFileSync("git", ["config", "user.name", "Test User"], {
+      cwd: projectDir,
+    });
+    execFileSync("git", ["add", "."], { cwd: projectDir });
+    execFileSync("git", ["commit", "-m", "fixture"], { cwd: projectDir });
+    const commit = execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: projectDir,
+      encoding: "utf8",
+    }).trim();
+    fs.mkdirSync(path.join(projectDir, "src/generated/prisma"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(projectDir, "src/generated/prisma/index.js"),
+      "export {};\\n",
+    );
+    fs.mkdirSync(path.join(projectDir, ".next/types"), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectDir, ".next/types/validator.ts"),
+      "stale build cache\n",
+    );
+
+    const fixture = setupB3Worktree({ projectDir, commit });
+    try {
+      const nodeModules = path.join(fixture.worktreePath, "node_modules");
+      const generatedPrisma = path.join(
+        fixture.worktreePath,
+        "src/generated/prisma",
+      );
+      expect(fs.lstatSync(nodeModules).isSymbolicLink()).toBe(true);
+      expect(fs.realpathSync(nodeModules)).toBe(
+        fs.realpathSync(path.join(projectDir, "node_modules")),
+      );
+      expect(fs.lstatSync(generatedPrisma).isSymbolicLink()).toBe(true);
+      expect(fs.realpathSync(generatedPrisma)).toBe(
+        fs.realpathSync(path.join(projectDir, "src/generated/prisma")),
+      );
+      expect(fs.existsSync(path.join(fixture.worktreePath, ".next"))).toBe(
+        false,
+      );
+      expect(resolveB3BuildCommand(fixture.worktreePath)).toEqual({
+        args: ["run", "typecheck"],
+        label: "Typecheck",
+      });
+      const b3Config = ensureB3VitestConfig(fixture.worktreePath);
+      expect(fs.existsSync(b3Config)).toBe(true);
+      const discoveredTests = runB3Tests(fixture.worktreePath);
+      const discoveredOutput = `${discoveredTests.stdout || ""}${
+        discoveredTests.stderr || ""
+      }`;
+      expect(discoveredTests.status).toBe(1);
+      expect(discoveredOutput).toContain("2 failed");
+      expect(discoveredOutput).not.toContain("No test files found");
+      expect(fs.existsSync(path.join(fixture.worktreePath, ".next"))).toBe(
+        false,
+      );
+      const apiContent = fs.readFileSync(
+        path.join(fixture.worktreePath, "src/lib/ops/api.ts"),
+        "utf8",
+      );
+      expect(apiContent).not.toContain("machine: true,");
+      expect(apiContent.match(/machine: false,/g)).toHaveLength(2);
+      expect(fs.existsSync(HIDDEN_TESTS_DIR)).toBe(true);
+      const pattern = resolveB3TestPattern(fixture.worktreePath);
+      expect([
+        "hidden-tests/b3-*.test.ts",
+        "hidden-tests/b3-*.test.js",
+      ]).toContain(pattern);
+      const suffix = pattern.endsWith(".ts") ? ".test.ts" : ".test.js";
+      expect(
+        fs
+          .readdirSync(path.join(fixture.worktreePath, "hidden-tests"))
+          .some((file) => file.startsWith("b3-") && file.endsWith(suffix)),
+      ).toBe(true);
+    } finally {
+      fixture.cleanup();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 // ── Shell injection prevention in grep ────────────────────────
 
 describe("grep shell safety", () => {
@@ -253,7 +400,12 @@ describe("grep shell safety", () => {
 describe("external task prompt discipline", () => {
   it("avoids open-ended exploration instructions", () => {
     const source = ["benchmark.ts", "execution-support.ts", "runtime.ts"]
-      .map((file) => fs.readFileSync(path.join(process.cwd(), "src/cli/agent-ab", file), "utf8"))
+      .map((file) =>
+        fs.readFileSync(
+          path.join(process.cwd(), "src/cli/agent-ab", file),
+          "utf8",
+        ),
+      )
       .join("\n");
     expect(source).not.toContain("Explore freely");
     expect(source).not.toContain("Choose tools freely");
@@ -263,8 +415,12 @@ describe("external task prompt discipline", () => {
     expect(source).not.toContain("Use whatever graph or analysis tools");
     expect(source).toContain("then stop once those points are supported");
     expect(source).toContain("Use only the investigation needed");
-    expect(source).toContain("stop once 5 well-supported candidates are established");
-    expect(source).toContain("stop once the requested examples and top 3 are supported");
+    expect(source).toContain(
+      "stop once 5 well-supported candidates are established",
+    );
+    expect(source).toContain(
+      "stop once the requested examples and top 3 are supported",
+    );
   });
 });
 
@@ -292,8 +448,12 @@ describe("dry-run without API key", () => {
   });
 
   it("uses proportional verification and explicit stopping guidance", () => {
-    expect(result.config.systemPrompt).toContain("Verify only material uncertainty");
-    expect(result.config.systemPrompt).toContain("reuse evidence already collected");
+    expect(result.config.systemPrompt).toContain(
+      "Verify only material uncertainty",
+    );
+    expect(result.config.systemPrompt).toContain(
+      "reuse evidence already collected",
+    );
     expect(result.config.systemPrompt).toContain("stop investigating");
     expect(result.config.systemPrompt).not.toContain("Be thorough");
   });
@@ -718,16 +878,26 @@ describe("timeout handling", () => {
     let signal: AbortSignal | undefined;
     const immediateFetch = (async (_url: string, init?: RequestInit) => {
       signal = init?.signal as AbortSignal | undefined;
-      return new Response(JSON.stringify({
-        model: "deepseek-v4-flash",
-        choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
-        usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
-      }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({
+          model: "deepseek-v4-flash",
+          choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
     }) as unknown as typeof fetch;
 
     await openaiChatCompletion(
-      { model: "deepseek-v4-flash", messages: [{ role: "user", content: "test" }] },
-      { apiKey: "sk-test-key", baseUrl: "https://api.test", _fetch: immediateFetch },
+      {
+        model: "deepseek-v4-flash",
+        messages: [{ role: "user", content: "test" }],
+      },
+      {
+        apiKey: "sk-test-key",
+        baseUrl: "https://api.test",
+        _fetch: immediateFetch,
+      },
     );
 
     expect(DEFAULT_REQUEST_TIMEOUT_MS).toBe(900_000);
@@ -1045,9 +1215,21 @@ describe("output formats", () => {
 
   it("records a deterministic tool summary without arguments", () => {
     const summary = toolCallSummary([
-      { id: "1", type: "function", function: { name: "trace_path", arguments: '{"secret":"x"}' } },
-      { id: "2", type: "function", function: { name: "search_graph", arguments: '{}' } },
-      { id: "3", type: "function", function: { name: "trace_path", arguments: '{}' } },
+      {
+        id: "1",
+        type: "function",
+        function: { name: "trace_path", arguments: '{"secret":"x"}' },
+      },
+      {
+        id: "2",
+        type: "function",
+        function: { name: "search_graph", arguments: "{}" },
+      },
+      {
+        id: "3",
+        type: "function",
+        function: { name: "trace_path", arguments: "{}" },
+      },
     ]);
     expect(summary).toEqual({ search_graph: 1, trace_path: 2 });
     expect(JSON.stringify(summary)).not.toContain("secret");
@@ -1061,7 +1243,9 @@ describe("output formats", () => {
       measuredRounds: 1,
       taskIds: ["find_definition"],
     });
-    expect(JSON.parse(agentResultToJSON(screening)).experiment_protocol).toBeNull();
+    expect(
+      JSON.parse(agentResultToJSON(screening)).experiment_protocol,
+    ).toBeNull();
   });
 
   it("CSV output has header and data rows", () => {
@@ -2257,12 +2441,13 @@ describe("suite contract", () => {
     ]);
   });
 
-  it("default LYNX tool set has exactly the original 5 tool names", () => {
+  it("default LYNX tool set exposes the core LYNX tools", () => {
     const tools = makeLynxTools();
     const names = tools.map((t) => t.function.name).sort();
     expect(names).toEqual([
       "explain_symbol",
       "find_tests",
+      "get_edge_evidence",
       "read_file",
       "search_graph",
       "trace_path",
@@ -2301,7 +2486,7 @@ describe("suite contract", () => {
   // ── Realistic suite requires explicit selection ─────────────
 
   it(
-    "realistic suite has exactly 15 tasks (5 core + 10 workflow)",
+    "realistic suite has exactly 16 tasks (5 core + 11 workflow)",
     { timeout: 15000 },
     async () => {
       const prevKey = process.env.LYNX_DEEPSEEK_KEY;
@@ -2315,14 +2500,14 @@ describe("suite contract", () => {
       if (prevKey !== undefined) process.env.LYNX_DEEPSEEK_KEY = prevKey;
 
       const taskIds = [...new Set(result.tasks.map((t) => t.task_id))];
-      expect(taskIds.length).toBe(15);
+      expect(taskIds.length).toBe(17);
       expect(
         result.methodology.some((m) => m.includes("Suite: realistic")),
       ).toBe(true);
       expect(
         result.methodology.some(
           (m) =>
-            m.includes("11 deterministic") && m.includes("4 designed-only"),
+            m.includes("12 deterministic") && m.includes("5 designed-only"),
         ),
       ).toBe(true);
       // All 5 core tasks are present
@@ -2335,7 +2520,7 @@ describe("suite contract", () => {
       ]) {
         expect(taskIds).toContain(coreId);
       }
-      // All 10 workflow tasks are present
+      // All 11 workflow tasks are present
       for (const wfId of [
         "architecture_languages",
         "top_hotspots",
@@ -2356,7 +2541,7 @@ describe("suite contract", () => {
   it("realistic suite exposes the LYNX agent tools plus read_file", () => {
     const tools = makeLynxToolsRealistic();
     const names = tools.map((t) => t.function.name).sort();
-    expect(names.length).toBe(19);
+    expect(names.length).toBe(21);
     // Core 5 must be present
     expect(names).toContain("search_graph");
     expect(names).toContain("trace_path");
@@ -2415,7 +2600,7 @@ describe("suite contract", () => {
       if (prevKey !== undefined) process.env.LYNX_DEEPSEEK_KEY = prevKey;
 
       expect([...new Set(def.tasks.map((t) => t.task_id))].length).toBe(5);
-      expect([...new Set(real.tasks.map((t) => t.task_id))].length).toBe(15);
+      expect([...new Set(real.tasks.map((t) => t.task_id))].length).toBe(17);
       // Default methodology does NOT mention realistic
       expect(def.methodology.some((m) => m.includes("realistic"))).toBe(false);
       expect(real.methodology.some((m) => m.includes("realistic"))).toBe(true);
@@ -2424,8 +2609,8 @@ describe("suite contract", () => {
 
   // ── Coverage manifest ───────────────────────────────────────
 
-  it("TOOL_COVERAGE covers all 25 MCP tools", () => {
-    expect(TOOL_COVERAGE.length).toBe(25);
+  it("TOOL_COVERAGE covers all 26 MCP tools", () => {
+    expect(TOOL_COVERAGE.length).toBe(26);
     const names = TOOL_COVERAGE.map((e) => e.tool_name).sort();
     // Spot-check known tools
     expect(names).toContain("search_graph");
@@ -2434,14 +2619,14 @@ describe("suite contract", () => {
     expect(names).toContain("batch_get_code");
     expect(names).toContain("manage_adr");
     // No duplicates
-    expect(new Set(names).size).toBe(25);
+    expect(new Set(names).size).toBe(26);
   });
 
   it("coverageSummary reports correct breakdown", () => {
     const summary = coverageSummary();
-    expect(summary.total).toBe(25);
+    expect(summary.total).toBe(26);
     expect(summary.executable + summary.designed_only + summary.excluded).toBe(
-      25,
+      26,
     );
     // At least the core 5 + workflow 8 are executable
     expect(summary.executable).toBeGreaterThanOrEqual(11);
@@ -2730,7 +2915,9 @@ describe("agent-ab history hygiene", () => {
   });
 
   it("does not hide index read errors other than ENOENT", () => {
-    expect(() => readAgentABIndex(path.resolve("benchmarks/results"))).toThrow();
+    expect(() =>
+      readAgentABIndex(path.resolve("benchmarks/results")),
+    ).toThrow();
   });
 
   it("keeps valid legacy and explicit-valid entries", () => {
@@ -2774,7 +2961,9 @@ describe("agent-ab history hygiene", () => {
       summary.included_count + summary.excluded_count,
     );
     expect(summary.included_count).toBeGreaterThan(0);
-    expect(summary.excluded_by_reason.legacy_empty_tasks).toBeGreaterThanOrEqual(0);
+    expect(
+      summary.excluded_by_reason.legacy_empty_tasks,
+    ).toBeGreaterThanOrEqual(0);
     expect(
       summary.excluded
         .filter((entry) => entry.reason === "invalid_flag")

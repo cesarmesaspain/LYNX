@@ -29,6 +29,7 @@ import { storedTimestampMs } from '../../store/time.js';
 import { rerankSearchWithMeta, type RerankMeta } from '../../llm/client.js';
 import { readLynxConfig } from '../../config/runtime.js';
 import { hasCapability } from '../../commercial/gate.js';
+import { getNodeEdgeEvidence } from '../../store/edge-evidence.js';
 
 interface GraphCandidate {
   name: string;
@@ -40,6 +41,7 @@ interface GraphCandidate {
   score: number;
   change_risk?: 'high' | 'medium' | 'low';
   fan_in?: number;
+  edge_evidence?: Array<{ type: string; direction: string; symbol: string; evidence_count: number }>;
   memory_findings?: Array<{
     title: string;
     severity: string;
@@ -267,6 +269,21 @@ async function buildProjectPackContext(
     }
   } else if (!shouldSelectWithLlm) {
     llmUsage.fallback_reason = 'enable_llm=false, skipped rerank';
+  }
+
+  // Enrich with graph edge evidence
+  for (const c of dedupedCandidates) {
+    try {
+      const node = db.db.prepare('SELECT id FROM nodes WHERE project = ? AND qualified_name = ? LIMIT 1').get(project, c.qualified_name) as { id?: number } | undefined;
+      if (node?.id) {
+c.edge_evidence = getNodeEdgeEvidence(db, project, node.id, 5).map((row) => ({
+type: row.type,
+direction: row.direction,
+symbol: row.symbol,
+evidence_count: row.evidence_count,
+}));
+      }
+    } catch { }
   }
 
   // Enrich with memory findings

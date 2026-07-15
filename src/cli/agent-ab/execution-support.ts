@@ -1,20 +1,23 @@
 /* Tool adapters, deterministic task definitions, and evaluators for agent A/B runs. */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { spawnSync } from 'node:child_process';
-import { LynxDatabase } from '../../store/database.js';
-import { handleSearchGraph } from '../../mcp/handlers/search_graph.js';
-import { handleTracePath } from '../../mcp/handlers/trace_path.js';
-import { handleExplainSymbol } from '../../mcp/handlers/explain_symbol.js';
-import { handleFindTests } from '../../mcp/handlers/find_tests.js';
-import { handleFindDeadCode } from '../../mcp/handlers/find_dead_code.js';
-import { redactSecrets } from './api-client.js';
-import type { AgentToolDefinition, EvaluationKind } from './types.js';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { spawnSync } from "node:child_process";
+import { LynxDatabase } from "../../store/database.js";
+import { handleSearchGraph } from "../../mcp/handlers/search_graph.js";
+import { handleTracePath } from "../../mcp/handlers/trace_path.js";
+import { handleExplainSymbol } from "../../mcp/handlers/explain_symbol.js";
+import { handleFindTests } from "../../mcp/handlers/find_tests.js";
+import { handleFindDeadCode } from "../../mcp/handlers/find_dead_code.js";
+import { redactSecrets } from "./api-client.js";
+import type { AgentToolDefinition, EvaluationKind } from "./types.js";
 
 // ── Path safety ───────────────────────────────────────────────
 
-export function safeReadFile(fixtureDir: string, requestedPath: string): string {
+export function safeReadFile(
+  fixtureDir: string,
+  requestedPath: string,
+): string {
   // Resolve and verify path stays within fixtureDir
   const resolved = path.resolve(fixtureDir, requestedPath);
   const normalizedFixture = path.resolve(fixtureDir) + path.sep;
@@ -26,6 +29,88 @@ export function safeReadFile(fixtureDir: string, requestedPath: string): string 
   } catch {
     return `Error: cannot read file "${requestedPath}"`;
   }
+}
+
+export function resolveB3TestPattern(fixtureDir: string): string {
+  const hiddenTestsDir = path.join(fixtureDir, "hidden-tests");
+  try {
+    const files = fs.readdirSync(hiddenTestsDir);
+    if (files.some((file) => /^b3-.*\.test\.ts$/.test(file))) {
+      return "hidden-tests/b3-*.test.ts";
+    }
+    if (files.some((file) => /^b3-.*\.test\.js$/.test(file))) {
+      return "hidden-tests/b3-*.test.js";
+    }
+  } catch {
+    // Preserve the source-test default until the fixture has been prepared.
+  }
+  return "hidden-tests/b3-*.test.ts";
+}
+
+export function resolveB3BuildCommand(fixtureDir: string): {
+  args: string[];
+  label: string;
+} {
+  try {
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(fixtureDir, "package.json"), "utf-8"),
+    ) as { scripts?: Record<string, string> };
+    if (packageJson.scripts?.typecheck) {
+      return { args: ["run", "typecheck"], label: "Typecheck" };
+    }
+  } catch {
+    // Fall back to the conventional build script for generic fixtures.
+  }
+  return { args: ["run", "build"], label: "Build" };
+}
+
+export function ensureB3VitestConfig(fixtureDir: string): string {
+  const hiddenTestsDir = path.join(fixtureDir, "hidden-tests");
+  fs.mkdirSync(hiddenTestsDir, { recursive: true });
+  const configPath = path.join(hiddenTestsDir, "vitest.b3.config.mjs");
+  fs.writeFileSync(
+    configPath,
+    [
+      "export default {",
+      "  root: process.cwd(),",
+      "  test: {",
+      "    environment: 'node',",
+      "    include: ['hidden-tests/b3-*.test.ts', 'hidden-tests/b3-*.test.js'],",
+      "    exclude: [],",
+      "  },",
+      "};",
+      "",
+    ].join("\n"),
+    "utf-8",
+  );
+  return configPath;
+}
+
+export function runB3Build(fixtureDir: string) {
+  const command = resolveB3BuildCommand(fixtureDir);
+  const result = spawnSync("npm", command.args, {
+    cwd: fixtureDir,
+    encoding: "utf-8",
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 120_000,
+    env: { ...process.env, CI: "true" },
+  });
+  return { command, result };
+}
+
+export function runB3Tests(fixtureDir: string, testFile?: string) {
+  const configPath = ensureB3VitestConfig(fixtureDir);
+  const args = ["vitest", "run", "--config", configPath];
+  if (testFile && !/[*?{}[\]]/.test(testFile)) {
+    args.push(testFile);
+  }
+  return spawnSync("npx", args, {
+    cwd: fixtureDir,
+    encoding: "utf-8",
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 60_000,
+    env: { ...process.env },
+  });
 }
 
 // ── Tool executors ────────────────────────────────────────────
@@ -104,6 +189,38 @@ export function executeBaselineTool(
       if (result.error) return `Error: ${redactSecrets(result.error.message)}`;
       return result.stdout || "(no matches)";
     }
+    case "write_file": {
+      const filePath = String(args.path || "");
+      const content = String(args.content || "");
+      const resolved = path.resolve(fixtureDir, filePath);
+      const normalizedFixture = path.resolve(fixtureDir) + path.sep;
+      if (!resolved.startsWith(normalizedFixture)) {
+        return `Error: path traversal denied for "${filePath}"`;
+      }
+      try {
+        fs.writeFileSync(resolved, content, "utf-8");
+        return `File written: ${filePath} (${content.length} bytes)`;
+      } catch (err: any) {
+        return `Error writing file: ${redactSecrets(String(err.message || err))}`;
+      }
+    }
+    case "run_build": {
+      const { command, result } = runB3Build(fixtureDir);
+      return result.status === 0
+        ? `${command.label} passed.\n${result.stdout.slice(-2000)}`
+        : `${command.label} FAILED (exit ${result.status}):\n${(result.stderr || result.stdout).slice(-2000)}`;
+    }
+    case "run_tests": {
+      const testFile = args.testFile
+        ? String(args.testFile)
+        : resolveB3TestPattern(fixtureDir);
+      const result = runB3Tests(fixtureDir, testFile);
+      return (
+        result.stdout?.slice(-3000) ||
+        result.stderr?.slice(-3000) ||
+        "(no output)"
+      );
+    }
     default:
       return `Unknown tool: ${toolName}`;
   }
@@ -119,7 +236,9 @@ export type BenchmarkTask = {
   evaluation_kind?: EvaluationKind;
 };
 
-export function makeExternalProjectTasks(projectLabel: string): BenchmarkTask[] {
+export function makeExternalProjectTasks(
+  projectLabel: string,
+): BenchmarkTask[] {
   return [
     {
       id: "external_simple_techstack",
@@ -201,16 +320,59 @@ Respond with a single JSON: {"question1":{"language":"...","framework":"...","ho
 }
 
 export const EXTERNAL_TASK_TOOL_PROFILES: Record<string, readonly string[]> = {
-  external_simple_techstack: ['get_architecture', 'search_graph', 'read_file'],
-  external_multi_turn: ['get_architecture', 'analyze_hotspots', 'trace_path', 'find_tests', 'read_file'],
-  external_dead_code: ['find_dead_code', 'read_file'],
-  external_generic_architecture: ['get_architecture', 'analyze_hotspots', 'search_graph', 'read_file'],
-  external_generic_flow: ['get_architecture', 'search_graph', 'trace_path', 'get_code_snippet', 'read_file'],
-  external_generic_change_impact: ['get_architecture', 'search_graph', 'trace_path', 'find_tests', 'read_file'],
-  external_generic_incident: ['get_architecture', 'search_graph', 'trace_path', 'get_code_snippet', 'read_file'],
-  external_missing_tests: ['analyze_hotspots', 'search_graph', 'query_graph', 'read_file'],
-  external_semantic_discovery: ['semantic_search', 'get_code_snippet', 'read_file'],
-  external_scalability_snapshot: ['get_architecture', 'analyze_hotspots', 'query_graph', 'read_file'],
+  external_simple_techstack: ["get_architecture", "search_graph", "read_file"],
+  external_multi_turn: [
+    "get_architecture",
+    "analyze_hotspots",
+    "trace_path",
+    "find_tests",
+    "read_file",
+  ],
+  external_dead_code: ["find_dead_code", "read_file"],
+  external_generic_architecture: [
+    "get_architecture",
+    "analyze_hotspots",
+    "search_graph",
+    "read_file",
+  ],
+  external_generic_flow: [
+    "get_architecture",
+    "search_graph",
+    "trace_path",
+    "get_code_snippet",
+    "read_file",
+  ],
+  external_generic_change_impact: [
+    "get_architecture",
+    "search_graph",
+    "trace_path",
+    "find_tests",
+    "read_file",
+  ],
+  external_generic_incident: [
+    "get_architecture",
+    "search_graph",
+    "trace_path",
+    "get_code_snippet",
+    "read_file",
+  ],
+  external_missing_tests: [
+    "analyze_hotspots",
+    "search_graph",
+    "query_graph",
+    "read_file",
+  ],
+  external_semantic_discovery: [
+    "semantic_search",
+    "get_code_snippet",
+    "read_file",
+  ],
+  external_scalability_snapshot: [
+    "get_architecture",
+    "analyze_hotspots",
+    "query_graph",
+    "read_file",
+  ],
 };
 
 export const TASKS: BenchmarkTask[] = [
@@ -499,7 +661,11 @@ export function evaluateExternalScalabilityResponse(responseText: string): {
 export async function evaluateExternalDeadCodeResponse(
   responseText: string,
   project: string,
-  verifiedCandidates?: Array<{ name?: unknown; file_path?: unknown; kind?: unknown }>,
+  verifiedCandidates?: Array<{
+    name?: unknown;
+    file_path?: unknown;
+    kind?: unknown;
+  }>,
 ): Promise<{
   result: Record<string, unknown>;
   correct: boolean;
@@ -524,15 +690,18 @@ export async function evaluateExternalDeadCodeResponse(
 
   const verification = verifiedCandidates
     ? { candidates: verifiedCandidates }
-    : await handleFindDeadCode({ project, limit: 100 }) as {
-        candidates?: Array<{ name?: unknown; file_path?: unknown; kind?: unknown }>;
-      };
+    : ((await handleFindDeadCode({ project, limit: 100 })) as {
+        candidates?: Array<{
+          name?: unknown;
+          file_path?: unknown;
+          kind?: unknown;
+        }>;
+      });
   const candidates = verification.candidates || [];
   const seen = new Set<string>();
   const normalizedKind = (value: unknown) => String(value).toLowerCase();
-  const normalizePath = (value: unknown) => String(value)
-    .replace(/\\/g, "/")
-    .replace(/^\.\//, "");
+  const normalizePath = (value: unknown) =>
+    String(value).replace(/\\/g, "/").replace(/^\.\//, "");
 
   for (const [index, item] of reported.entries()) {
     if (!item || typeof item !== "object" || Array.isArray(item)) {
@@ -547,7 +716,9 @@ export async function evaluateExternalDeadCodeResponse(
     const identity = `${name}|${file}`;
     if (!name || !file || !["function", "method", "class"].includes(kind)) {
       defects++;
-      errors.push(`unused_symbols[${index}]: name, file, and function/method/class kind are required`);
+      errors.push(
+        `unused_symbols[${index}]: name, file, and function/method/class kind are required`,
+      );
       continue;
     }
     if (seen.has(identity)) {
@@ -558,14 +729,21 @@ export async function evaluateExternalDeadCodeResponse(
     seen.add(identity);
     const match = candidates.some((verified) => {
       const verifiedKind = normalizedKind(verified.kind);
-      const kindMatches = kind === "class"
-        ? verifiedKind === "class"
-        : verifiedKind === "function" || verifiedKind === "method";
-      return verified.name === name && normalizePath(verified.file_path) === file && kindMatches;
+      const kindMatches =
+        kind === "class"
+          ? verifiedKind === "class"
+          : verifiedKind === "function" || verifiedKind === "method";
+      return (
+        verified.name === name &&
+        normalizePath(verified.file_path) === file &&
+        kindMatches
+      );
     });
     if (!match) {
       defects++;
-      errors.push(`unused_symbols[${index}]: not a verified zero-reference definition: ${identity}`);
+      errors.push(
+        `unused_symbols[${index}]: not a verified zero-reference definition: ${identity}`,
+      );
     }
   }
 

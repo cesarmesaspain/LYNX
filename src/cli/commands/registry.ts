@@ -155,6 +155,16 @@ const COMMAND_DEFS: Array<{ name: string; description: string; loader: CommandEn
     description: 'Search code by natural-language intent',
     loader: () => import('./query-cmd.js').then(m => m.cmdSemantic),
   },
+  {
+    name: 'investigate',
+    description: 'Deep-dive into a symbol: search, explain, trace, snippet, tests in one call',
+    loader: () => import('./query-cmd.js').then(m => m.cmdInvestigate),
+  },
+  {
+    name: 'evidence',
+    description: 'Show why an edge exists: relationship, confidence, source location, evidence chain',
+    loader: () => import('./query-cmd.js').then(m => m.cmdEvidence),
+  },
 ];
 
 const COMMAND_MAP = new Map<string, CommandEntry>();

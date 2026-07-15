@@ -120,7 +120,7 @@ describe('incremental pipeline safety', () => {
     } finally { db.close(); fs.rmSync(root, { recursive: true, force: true }); }
   }, 30000);
 
-  it('classifies a rename and falls back to the semantic reference rebuild', async () => {
+  it('classifies a rename and updates paths in-place without full rebuild', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-incremental-'));
     const db = LynxDatabase.openMemory();
     try {
@@ -130,9 +130,15 @@ describe('incremental pipeline safety', () => {
       await runPipeline(db, root, 'rename', { mode: 'fast', testSkipProjectBrief: true });
       fs.renameSync(path.join(root, 'src', 'a.ts'), path.join(root, 'src', 'renamed.ts'));
       const result = await runPipeline(db, root, 'rename', { mode: 'fast', incremental: true, testSkipProjectBrief: true });
-      expect(result.incremental.updateMode).toBe('full_fallback');
+      expect(result.incremental.updateMode).toBe('incremental');
       expect(result.incremental.renamed).toEqual([{ from: 'src/a.ts', to: 'src/renamed.ts' }]);
-      expect(result.incremental.fallbackReason).toContain('deleted_or_renamed');
+      expect(result.incremental.fallbackReason).toBeNull();
+      expect(result.filesProcessed).toBe(0);
+      expect(result.filesSkipped).toBe(1);
+      // Nodes must be preserved and have their file_path updated in-place
+      const node = db.db.prepare('SELECT file_path, qualified_name FROM nodes WHERE project = ? AND kind = ?').get('rename', 'Variable') as { file_path: string; qualified_name: string };
+      expect(node.file_path).toBe('src/renamed.ts');
+      expect(node.qualified_name).toContain('renamed');
     } finally { db.close(); fs.rmSync(root, { recursive: true, force: true }); }
   }, 30000);
 

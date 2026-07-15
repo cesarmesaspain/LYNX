@@ -21,6 +21,7 @@ import { federatedTracePath } from '../../federation/gateway.js';
 import { getFederatedConfig } from '../../federation/handler-bridge.js';
 import type { TraceEntry, TraceEdge } from '../../federation/types.js';
 import { readLynxConfig } from '../../config/runtime.js';
+import { getBulkEdgeEvidence, classifyConfidence } from '../../store/edge-evidence.js';
 
 export async function handleTracePath(args: Record<string, unknown>): Promise<unknown> {
   const started = Date.now();
@@ -52,6 +53,7 @@ export async function handleTracePath(args: Record<string, unknown>): Promise<un
   const rawPageSize = args.page_size !== undefined ? Number(args.page_size) : Math.min(maxResults, defaultPageSize);
   const pageSize = Number.isFinite(rawPageSize) ? Math.max(1, Math.min(Math.floor(rawPageSize), maxResults, 100)) : Math.min(maxResults, defaultPageSize);
   const includeEdges = args.include_edges === true;
+  const includeEvidence = args.include_evidence === true;
 
   const db = getDb(project);
 
@@ -81,7 +83,7 @@ export async function handleTracePath(args: Record<string, unknown>): Promise<un
     root, allCallers: callers, allCallees: callees, allEdges: edges, sigMap,
     direction, mode: effectiveMode, requestedMode, filteredCount: callers.length + callees.length, maxHop,
     totalCallers: callers.length, totalCallees: callees.length, provenanceSummary,
-    page, pageSize, maxResults, includeEdges, parameterName,
+    page, pageSize, maxResults, includeEdges, includeEvidence, parameterName,
     project, functionName, started,
   });
 }
@@ -252,7 +254,7 @@ interface BuildTraceResponseParams {
   totalCallers: number; totalCallees: number;
   provenanceSummary?: Record<string, unknown>;
   page: number; pageSize: number; maxResults: number;
-  includeEdges: boolean; parameterName?: string;
+  includeEdges: boolean; includeEvidence: boolean; parameterName?: string;
   project: string; functionName: string; started: number;
 }
 
@@ -291,6 +293,90 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
     fromName: e.fromName, toName: e.toName, type: e.type,
   }));
 
+  // ── Evidence enrichment (improvement #2) ──────────────────
+  let edgeEvidenceMap: Map<number, Array<Record<string, unknown>>> | undefined;
+  if (p.includeEvidence) {
+    edgeEvidenceMap = new Map();
+    try {
+      const evidenceDb = getDb(p.project);
+      // Batch lookup edge IDs from (fromName, toName, type)
+      const uniqueEdges = new Map<string, TraceEdge>();
+      for (const e of p.allEdges) {
+        uniqueEdges.set(`${e.fromName}|${e.toName}|${e.type}`, e);
+      }
+      const edgeIds: number[] = [];
+      const edgeIdByKey = new Map<string, number>();
+      for (const [key, e] of uniqueEdges) {
+        const row = evidenceDb.db.prepare(
+          `SELECT e.id FROM edges e
+           JOIN nodes ns ON e.source_id = ns.id
+           JOIN nodes nt ON e.target_id = nt.id
+           WHERE e.project = ? AND ns.name = ? AND nt.name = ? AND e.type = ?
+           LIMIT 1`
+        ).get(p.project, e.fromName, e.toName, e.type) as { id: number } | undefined;
+        if (row) {
+          edgeIds.push(row.id);
+          edgeIdByKey.set(key, row.id);
+        }
+      }
+      if (edgeIds.length > 0) {
+        const rawEvidence = getBulkEdgeEvidence(evidenceDb, p.project, edgeIds);
+        // Convert to key-based map: fromName|toName|type → evidence records
+        for (const [eId, records] of rawEvidence) {
+          // Find the key for this edge ID
+          for (const [key, id] of edgeIdByKey) {
+            if (id === eId) {
+              const compactRecords = records.map(r => ({
+                evidence_type: r.evidence_type,
+                source_path: r.source_path,
+                start_line: r.start_line,
+                end_line: r.end_line,
+                extractor: r.extractor,
+                confidence_tier: r.confidence_tier,
+                strength: r.strength,
+                location: r.source_path
+                  ? `${r.source_path}${r.start_line ? `:${r.start_line}${r.end_line && r.end_line !== r.start_line ? `-${r.end_line}` : ''}` : ''}`
+                  : null,
+                payload: r.payload,
+              }));
+              edgeEvidenceMap!.set(eId, compactRecords as Array<Record<string, unknown>>);
+              break;
+            }
+          }
+        }
+      }
+    } catch { /* evidence unavailable — omit gracefully */ }
+  }
+
+  // Enrich edges with evidence annotations
+  const enrichedEdges = edgeEvidenceMap
+    ? edges.map(e => {
+        // Look up edge ID by key
+        const row = (() => {
+          try {
+            const evidenceDb = getDb(p.project);
+            return evidenceDb.db.prepare(
+              `SELECT e.id FROM edges e
+               JOIN nodes ns ON e.source_id = ns.id
+               JOIN nodes nt ON e.target_id = nt.id
+               WHERE e.project = ? AND ns.name = ? AND nt.name = ? AND e.type = ?
+               LIMIT 1`
+            ).get(p.project, e.fromName, e.toName, e.type) as { id: number } | undefined;
+          } catch { return undefined; }
+        })();
+        const evidenceRecords = row ? edgeEvidenceMap!.get(row.id) : undefined;
+        return {
+          ...e,
+          ...(evidenceRecords && evidenceRecords.length > 0
+            ? { evidence: evidenceRecords.slice(0, 3) }
+            : {}),
+        };
+      })
+    : edges;
+
+  // ── Response building ──────────────────────────────────────
+  // Use enriched or plain edges for the narrative (names suffice)
+  const responseEdges = p.includeEvidence ? enrichedEdges : edges;
   const narrative = narrateTraversal(
     p.root.name, p.filteredCount, p.maxHop,
     edges.map(e => ({ fromName: e.fromName, toName: e.toName }))
@@ -323,7 +409,7 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
   };
 
   if (p.includeEdges) {
-    response.edges = edges;
+    response.edges = responseEdges;
     response.edges_truncated = p.allEdges.length > edges.length;
   } else {
     response.edge_summary = {

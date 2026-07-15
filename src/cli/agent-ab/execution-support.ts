@@ -404,12 +404,12 @@ export const TASKS: BenchmarkTask[] = [
     id: "change_impact",
     name: "Assess impact of Config change",
     userPrompt:
-      'Determine what functions are impacted if the "Config" interface changes in the project. ' +
-      "List the names of impacted functions. " +
+      'Suppose the "Config.home" field is renamed to "rootDir". Identify every production function whose own source code must change. ' +
+      "Exclude tests and transitive callers that do not directly construct Config or access the renamed field. " +
       'Respond with JSON: {"impacted_functions": ["func1", "func2"], "references": N}',
     expected: {
-      impacted_functions: ["readConfig", "openDb"],
-      references: 2,
+      impacted_functions: ["readConfig", "openDb", "dbPath"],
+      references: 3,
     },
     evaluation_kind: "deterministic",
   },

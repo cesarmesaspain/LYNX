@@ -216,6 +216,27 @@ El 20% de capacidades que entrega el 80% del valor práctico:
 
 ---
 
+## Prioridad estratégica inmediata
+
+Antes de continuar con las fases 11–14, el orden de trabajo del proyecto pasa a ser:
+
+1. **Optimización de LYNX (máxima prioridad).**
+   - Reducir la sobreinvestigación del agente.
+   - Reducir tokens, coste y latencia.
+   - Optimizar los perfiles mínimos de herramientas por tipo de tarea.
+   - Diseñar herramientas compuestas que resuelvan tareas completas con menos llamadas.
+   - Mejorar continuamente el rendimiento y la eficiencia del agente.
+
+2. **Evolución del Semantic-Aware Code Graph (SACG).**
+   - Ampliar el conocimiento semántico del grafo.
+   - Incorporar nuevas relaciones y evidencias.
+   - Mejorar `explain_symbol`, `trace_path` y el análisis de impacto.
+   - Convertir el SACG en el principal diferenciador técnico de LYNX.
+
+El benchmark deja de ser el objetivo principal del desarrollo y pasa a utilizarse principalmente como instrumento para medir objetivamente la evolución de LYNX. Las fases 11–14 continúan siendo el roadmap oficial y deberán ejecutarse alineadas con estas dos prioridades.
+
+---
+
 ## Fases de implementación
 
 ### Fase 11 — Consolidación de producto (2026-07 a 2026-08)

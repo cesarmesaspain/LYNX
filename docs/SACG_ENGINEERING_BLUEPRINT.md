@@ -33,6 +33,19 @@ La ventaja pionera de LYNX será combinar en un mismo núcleo:
 - federación local/shared con procedencia obligatoria;
 - métricas auditables de calidad y utilidad.
 
+## 1.1 Prioridad operativa inmediata
+
+La evolución del SACG debe mejorar directamente la eficiencia del agente, no solo enriquecer el modelo de datos. Cada nueva capacidad semántica deberá evaluarse por su capacidad para:
+
+- resolver preguntas completas con menos llamadas a herramientas;
+- reducir tokens de entrada y contexto repetido;
+- reducir latencia y coste;
+- evitar sobreinvestigación una vez que la evidencia sea suficiente;
+- producir respuestas compactas con evidencia y procedencia integradas;
+- sustituir cadenas de consultas de bajo nivel por operaciones compuestas y verificables.
+
+El benchmark se utilizará como instrumento de medición de estas mejoras, no como objetivo independiente del producto.
+
 ## 2. Diagnóstico del sistema actual
 
 La base actual es valiosa y debe evolucionar, no reemplazarse:

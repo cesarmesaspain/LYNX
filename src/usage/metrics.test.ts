@@ -6,7 +6,11 @@ import {
   clearSessionDedup,
   clearUsageEvents,
   computeSemanticROI,
+  defaultUsageContext,
   estimateRerankCostUsd,
+  estimateArchitectureOverviewSavings,
+  estimateToolOperationSavings,
+  attributeLegacyToolObservation,
   estimateTokensFromFiles,
   estimateTokensSaved,
   exportUsageEvents,
@@ -14,6 +18,7 @@ import {
   summarizeUsage,
   usageLogPath,
 } from './metrics.js';
+import { layerValueMetrics } from './value-metrics.js';
 
 let tempHome: string;
 
@@ -30,24 +35,52 @@ afterEach(() => {
 });
 
 describe('usage metrics', () => {
+  it('separates conservative savings, exploration potential, and structural confidence', () => {
+    const value = layerValueMetrics(
+      { estimated_tokens_saved: 1200, estimated_files_avoided: 2, confidence: 'medium' },
+      { files: 500, symbols: 8_000 },
+      { callers: [{}, {}], relationship_profile: { edge_counts: { CALLS: 2 } } },
+    );
+    const potential = value.exploration_potential as Record<string, number>;
+    const structural = value.structural_confidence as Record<string, unknown>;
+    expect(value.estimated_tokens_saved).toBe(1200);
+    expect(potential.likely_tokens).toBeGreaterThan(1200);
+    expect(potential.maximum_reasonable_tokens).toBeGreaterThan(potential.likely_tokens);
+    expect(structural.decision_status).toBe('confirmed');
+  });
+
+  it('does not present untraced search results as reinforced graph evidence', () => {
+    const value = layerValueMetrics(
+      { estimated_tokens_saved: 900, estimated_files_avoided: 0, confidence: 'high', measurement: 'symbol_discovery_context' },
+      { files: 500, symbols: 8_000 },
+      { results: [{ file: 'src/a.ts' }, { file: 'src/b.ts' }] },
+    );
+    const structural = value.structural_confidence as Record<string, unknown>;
+    const observed = value.observed_savings as Record<string, unknown>;
+    expect(value.confidence).toBe('low');
+    expect(structural.decision_status).toBe('partial');
+    expect(structural.files_affected).toBe(2);
+    expect(structural.ambiguities_detected).toContain('limited_structural_evidence');
+    expect(observed.basis).toBe('symbol_discovery_context');
+  });
+
   it('estimates savings with confidence', () => {
-    expect(estimateTokensSaved(0, 10)).toEqual({
+    expect(estimateTokensSaved({ resultCount: 0, candidateFiles: 10 })).toMatchObject({
       filesAvoided: 0,
       tokensSaved: 0,
+    });
+    expect(estimateTokensSaved({ resultCount: 2, candidateFiles: 8 })).toMatchObject({
+      filesAvoided: 2,
       confidence: 'low',
     });
-    expect(estimateTokensSaved(2, 8)).toMatchObject({
-      filesAvoided: 8,
-      confidence: 'medium',
-    });
-    expect(estimateTokensSaved(5, 40)).toMatchObject({
-      filesAvoided: 20,
-      confidence: 'high',
+    expect(estimateTokensSaved({ resultCount: 5, candidateFiles: 40 })).toMatchObject({
+      filesAvoided: 5,
+      confidence: 'low',
     });
   });
 
   it('records sanitized events and summarizes by project', () => {
-    const value = estimateTokensSaved(5, 20);
+    const value = estimateTokensSaved({ resultCount: 5, candidateFiles: 20 });
     recordUsageEvent({
       type: 'search_graph',
       project: 'demo',
@@ -67,7 +100,10 @@ describe('usage metrics', () => {
     const summary = summarizeUsage('demo');
     expect(summary.events).toBe(1);
     expect(summary.tokens_saved).toBeGreaterThan(0);
-    expect(summary.high_confidence_tokens_saved).toBeGreaterThan(0);
+    expect(summary.low_confidence_tokens_saved).toBeGreaterThan(0);
+    const event = JSON.parse(raw) as { session_id?: string; task_id?: string };
+    expect(event.session_id).toBe(defaultUsageContext('demo').session_id);
+    expect(event.task_id).toBe(defaultUsageContext('demo').task_id);
   });
 
   it('exports and clears events', () => {
@@ -87,9 +123,81 @@ describe('usage metrics', () => {
     expect(estimateRerankCostUsd(0)).toBeGreaterThanOrEqual(0);
     expect(estimateRerankCostUsd(10)).toBeGreaterThan(estimateRerankCostUsd(1));
   });
+
+  it('scales architecture overview coverage by requested aspects vs total', () => {
+    const files = ['missing-a.ts', 'missing-b.ts', 'missing-c.ts', 'missing-d.ts'];
+    const full = estimateArchitectureOverviewSavings(files, undefined, undefined, 9);
+    const partial = estimateArchitectureOverviewSavings(files, undefined, undefined, 3);
+    const single = estimateArchitectureOverviewSavings(files, undefined, undefined, 1);
+
+    // Full overview (9/9 aspects) should save the most
+    expect(full.tokensSaved).toBeGreaterThan(partial.tokensSaved);
+    // Partial (3/9) should save less than full
+    expect(partial.tokensSaved).toBeGreaterThan(single.tokensSaved);
+    // Single aspect should still hit the floor (15%), not zero
+    expect(single.tokensSaved).toBeGreaterThan(0);
+    // Partial should be roughly 1/3 of full (3/9)
+    const ratio = partial.tokensSaved / full.tokensSaved;
+    expect(ratio).toBeGreaterThan(0.3);
+    expect(ratio).toBeLessThan(0.4);
+  });
+
+  it('estimates architecture orientation from indexed files with full coverage when aspects not specified', () => {
+    const files = ['missing-a.ts', 'missing-b.ts', 'missing-c.ts', 'missing-d.ts'];
+    const value = estimateArchitectureOverviewSavings(files);
+
+    expect(value.filesAvoided).toBe(4);
+    expect(value.tokensSaved).toBeGreaterThan(0);
+    expect(value.confidence).toBe('medium');
+  });
+
+  it('attributes operational tools from their useful result, proportional to data returned', () => {
+    const noResult = estimateToolOperationSavings('find_dead_code', { candidates: [] });
+    const candidates = estimateToolOperationSavings('find_dead_code', { candidates: Array(20).fill({}) });
+    const failed = estimateToolOperationSavings('find_dead_code', { error: 'not indexed' });
+
+    expect(candidates.tokensSaved).toBeGreaterThan(noResult.tokensSaved);
+    expect(candidates.tokensSaved).toBeGreaterThan(8_000);
+    expect(candidates.filesAvoided).toBeGreaterThan(0);
+    expect(failed.tokensSaved).toBe(0);
+  });
+
+  it('uses structured evidence instead of a fixed value for change analysis', () => {
+    const small = estimateToolOperationSavings('detect_changes', { category_counts: { total: 1 } });
+    const broad = estimateToolOperationSavings('detect_changes', { category_counts: { total: 10 } });
+    expect(broad.tokensSaved).toBeGreaterThan(small.tokensSaved);
+    expect(broad.tokensSaved).toBeGreaterThan(5_000);
+  });
+
+  it('gives legacy zero-value operational events their baseline only', () => {
+    const event = attributeLegacyToolObservation({
+      ts: '2026-01-01T00:00:00.000Z', type: 'tool_observation', project: 'demo',
+      tool_hint: 'index_status', tokens_saved: 0, files_avoided: 0,
+    });
+    expect(event.tokens_saved).toBe(400);
+    expect(event.confidence).toBe('low');
+  });
 });
 
 describe('session dedup', () => {
+  it('counts each independently requested architecture overview', () => {
+    const event = {
+      type: 'architecture_overview' as const,
+      project: 'architecture-dedup',
+      files: ['src/a.ts', 'src/b.ts'],
+      files_avoided: 2,
+      tokens_saved: 1200,
+      confidence: 'medium' as const,
+      skip_session_dedup: true,
+    };
+    recordUsageEvent(event);
+    recordUsageEvent(event);
+
+    const summary = summarizeUsage('architecture-dedup');
+    expect(summary.events).toBe(2);
+    expect(summary.tokens_saved).toBe(2400);
+  });
+
   it('deduplicates files across multiple events', () => {
     const files = ['src/a.ts', 'src/b.ts', 'src/c.ts'];
     recordUsageEvent({
@@ -114,6 +222,27 @@ describe('session dedup', () => {
     // The second event should have reduced files_avoided/tokens_saved
     // because src/a.ts was already seen
     expect(summary.tokens_saved).toBeLessThan(16_000);
+  });
+
+  it('does not mutate the caller event during deduplication', () => {
+    const event = {
+      type: 'search_graph' as const,
+      project: 'dedup-immutable',
+      files: ['src/a.ts', 'src/b.ts'],
+      files_avoided: 8,
+      tokens_saved: 6000,
+    };
+
+    recordUsageEvent(event);
+    recordUsageEvent(event);
+
+    expect(event).toEqual({
+      type: 'search_graph',
+      project: 'dedup-immutable',
+      files: ['src/a.ts', 'src/b.ts'],
+      files_avoided: 8,
+      tokens_saved: 6000,
+    });
   });
 
   it('unique_files_avoided is less than or equal to files_avoided', () => {

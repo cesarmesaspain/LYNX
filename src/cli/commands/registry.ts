@@ -119,6 +119,52 @@ const COMMAND_DEFS: Array<{ name: string; description: string; loader: CommandEn
     description: 'Start the LYNX MCP server',
     loader: () => import('./serve-cmd.js').then(m => m.cmdServe),
   },
+  // ── Query tools (direct CLI wrappers around MCP handlers) ──────────
+  {
+    name: 'search',
+    description: 'Search the code graph by keyword or name',
+    loader: () => import('./query-cmd.js').then(m => m.cmdSearch),
+  },
+  {
+    name: 'trace',
+    description: 'Trace callers/callees through the code graph',
+    loader: () => import('./query-cmd.js').then(m => m.cmdTrace),
+  },
+  {
+    name: 'snippet',
+    description: 'Read the source code of a symbol',
+    loader: () => import('./query-cmd.js').then(m => m.cmdSnippet),
+  },
+  {
+    name: 'tests',
+    description: 'Find tests covering a symbol',
+    loader: () => import('./query-cmd.js').then(m => m.cmdTests),
+  },
+  {
+    name: 'dead',
+    description: 'Find dead code candidates (zero callers)',
+    loader: () => import('./query-cmd.js').then(m => m.cmdDead),
+  },
+  {
+    name: 'hotspots',
+    description: 'Show highest-complexity files and functions',
+    loader: () => import('./query-cmd.js').then(m => m.cmdHotspots),
+  },
+  {
+    name: 'semantic',
+    description: 'Search code by natural-language intent',
+    loader: () => import('./query-cmd.js').then(m => m.cmdSemantic),
+  },
+  {
+    name: 'investigate',
+    description: 'Deep-dive into a symbol: search, explain, trace, snippet, tests in one call',
+    loader: () => import('./query-cmd.js').then(m => m.cmdInvestigate),
+  },
+  {
+    name: 'evidence',
+    description: 'Show why an edge exists: relationship, confidence, source location, evidence chain',
+    loader: () => import('./query-cmd.js').then(m => m.cmdEvidence),
+  },
 ];
 
 const COMMAND_MAP = new Map<string, CommandEntry>();

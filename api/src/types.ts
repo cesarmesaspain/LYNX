@@ -16,13 +16,12 @@ export interface IntelligenceResponse {
 }
 
 export interface LicenseActivateRequest {
-  email: string;
-  stripe_session_id?: string;
+  stripe_session_id: string;
 }
 
 export interface LicenseValidateRequest {
   license_jwt: string;
-  machine_fingerprint: string;
+  machine_fingerprint?: string;
 }
 
 export interface TelemetryEvent {

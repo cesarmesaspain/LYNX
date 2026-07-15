@@ -15,15 +15,19 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { lynxHome } from '../config/runtime.js';
 import { archiveEvent } from '../store/metrics-db.js';
+import { LynxDatabase } from '../store/database.js';
 
 export type UsageEventType =
   | 'pack_context'
+  | 'architecture_overview'
   | 'search_graph'
   | 'trace_path'
   | 'llm_rerank'
   | 'hook_augment'
   | 'benchmark'
-  | 'real_savings';
+  | 'real_savings'
+  /** A completed LYNX tool call with no tool-specific savings estimator. */
+  | 'tool_observation';
 
 export interface UsageEvent {
   ts: string;
@@ -38,6 +42,8 @@ export interface UsageEvent {
   confidence?: 'low' | 'medium' | 'high';
   latency_ms?: number;
   llm_provider?: string;
+  /** Concrete model used for the LLM call, when the provider reports it. */
+  llm_model?: string;
   llm_latency_ms?: number;
   estimated_llm_cost_usd?: number;
   rank_changed?: boolean;
@@ -50,6 +56,10 @@ export interface UsageEvent {
   task_id?: string;
   event_id?: string;
   deterministic_mode?: boolean;
+  /** Keeps related estimators from deduplicating against unrelated tool flows. */
+  dedup_scope?: string;
+  /** Count a complete, independently useful operation even when it covers known files. */
+  skip_session_dedup?: boolean;
 }
 
 export interface UsageSummary {
@@ -74,16 +84,26 @@ export interface UsageSummary {
 }
 
 const AVG_FILE_TOKENS = 900;
-const AVG_SYMBOL_TOKENS = 180;
 const MAX_QUERY_CHARS = 180;
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 const RERANK_INPUT_TOKENS_PER_CANDIDATE = 90;
 const RERANK_OUTPUT_TOKENS = 80;
 const FLASH_COST_PER_1K_TOKENS_USD = 0.00014;
+const RUNTIME_SESSION_ID = `runtime-${process.pid}-${Date.now().toString(36)}`;
+
+/**
+ * MCP does not expose a portable task identifier on every client. Keep a
+ * stable local fallback per process and project so related tool calls can be
+ * measured together without sending any identifier outside the machine.
+ */
+export function defaultUsageContext(project: string): { session_id: string; task_id: string } {
+  const task = process.env.LYNX_TASK_ID || process.env.CODEX_THREAD_ID || `${RUNTIME_SESSION_ID}:${project || 'global'}`;
+  return { session_id: RUNTIME_SESSION_ID, task_id: task };
+}
 
 // ── Session-level dedup ─────────────────────────────────────
 
-const sessionFileSet = new Map<string, Set<string>>(); // project -> files
+const sessionFileSet = new Map<string, Set<string>>(); // project + scope -> files
 
 /** Simple v4-like UUID generator (no crypto dependency). */
 function generateEventId(): string {
@@ -100,6 +120,31 @@ export function clearSessionDedup(project?: string): void {
   }
 }
 
+function adjustEventForSessionDedup(event: Omit<UsageEvent, 'ts'>): Omit<UsageEvent, 'ts'> {
+  const adjustedEvent = { ...event, files: event.files ? [...event.files] : event.files };
+  if (!adjustedEvent.files || adjustedEvent.files.length === 0 || !adjustedEvent.project) return adjustedEvent;
+  if (adjustedEvent.skip_session_dedup) return adjustedEvent;
+
+  const dedupKey = `${adjustedEvent.project}:${adjustedEvent.dedup_scope || 'default'}`;
+  if (!sessionFileSet.has(dedupKey)) sessionFileSet.set(dedupKey, new Set());
+  const seen = sessionFileSet.get(dedupKey)!;
+  const newFiles = adjustedEvent.files.filter((file) => !seen.has(file));
+  for (const file of newFiles) seen.add(file);
+
+  if (!adjustedEvent.files_avoided) return adjustedEvent;
+  if (newFiles.length === 0 && adjustedEvent.dedup_scope) {
+    adjustedEvent.files_avoided = 0;
+    adjustedEvent.tokens_saved = 0;
+    return adjustedEvent;
+  }
+  const dedupRatio = newFiles.length / adjustedEvent.files.length;
+  adjustedEvent.files_avoided = Math.max(1, Math.round(adjustedEvent.files_avoided * dedupRatio));
+  if (adjustedEvent.tokens_saved) {
+    adjustedEvent.tokens_saved = Math.max(1, Math.round(adjustedEvent.tokens_saved * dedupRatio));
+  }
+  return adjustedEvent;
+}
+
 export function usageLogPath(): string {
   return path.join(lynxHome(), 'usage.jsonl');
 }
@@ -114,13 +159,36 @@ export interface FileSavingsInput {
 
 export function estimateTokensFromFiles(
   files: string[],
-  rootPath?: string
+  rootPath?: string,
+  project?: string
 ): { tokensSaved: number; filesAvoided: number; confidence: 'low' | 'medium' | 'high' } {
   const resolvedRoot = rootPath || '';
   let totalBytes = 0;
   let readable = 0;
 
+  // DB-backed: query file_hashes from last indexing. Fresher than disk
+  // stat — the file watcher updates hashes on every file change.
+  let dbSizeCache: Map<string, number> | null = null;
+  if (project) {
+    try {
+      dbSizeCache = new Map();
+      const db = LynxDatabase.openProject(project);
+      const stmt = db.db.prepare('SELECT size FROM file_hashes WHERE project = ? AND rel_path = ?');
+      for (const f of files) {
+        const row = stmt.get(project, f) as { size: number } | undefined;
+        if (row && row.size > 0) dbSizeCache.set(f, row.size);
+      }
+    } catch { /* DB not available, fall back to disk */ }
+  }
+
   for (const f of files) {
+    // DB cache from last indexing (kept fresh by file watcher).
+    if (dbSizeCache?.has(f)) {
+      totalBytes += dbSizeCache.get(f)!;
+      readable++;
+      continue;
+    }
+    // Fall back to disk for files not yet indexed (or no project).
     const fullPath = resolvedRoot ? path.join(resolvedRoot, f) : f;
     try {
       const stat = fs.statSync(fullPath);
@@ -129,40 +197,334 @@ export function estimateTokensFromFiles(
         readable++;
       }
     } catch {
-      totalBytes += AVG_FILE_TOKENS * 4; // fallback: ~3600 bytes
+      totalBytes += AVG_FILE_TOKENS * 4; // last resort: ~3600 bytes
     }
   }
 
-  const tokensFromBytes = Math.round(totalBytes / 4); // ~4 chars per token
-  const gross = Math.max(files.length * AVG_FILE_TOKENS, tokensFromBytes);
-  const net = Math.max(0, gross - files.length * AVG_SYMBOL_TOKENS);
+  const tokensFromBytes = Math.round(totalBytes / 4);
 
   const confidence =
     files.length >= 12 ? 'high' : files.length >= 4 ? 'medium' : 'low';
 
-  return { tokensSaved: net, filesAvoided: files.length, confidence };
+  return { tokensSaved: tokensFromBytes, filesAvoided: files.length, confidence };
 }
 
-export function estimateTokensSaved(
-  resultCount: number,
-  candidateFiles: number
-): {
+/**
+ * A project overview replaces an initial orientation pass — the developer
+ * would have scanned the project tree and opened key files to understand
+ * the architecture.  Coverage scales from 3% (1 aspect) to 15% (9 aspects):
+ * the overview replaces the scan but the developer still reads selected files.
+ */
+/** Total number of aspects available in get_architecture. */
+const TOTAL_ARCHITECTURE_ASPECTS = 9;
+/** Min coverage floor so one-aspect calls still get attribution. */
+const MIN_ASPECT_COVERAGE = 0.03;
+/** Max coverage when all 9 aspects are requested — overview replaces ~15% of manual scanning. */
+const FULL_ASPECT_COVERAGE = 0.15;
+
+export function estimateArchitectureOverviewSavings(
+  files: string[],
+  rootPath?: string,
+  project?: string,
+  requestedAspects?: number,
+): { tokensSaved: number; filesAvoided: number; confidence: 'low' | 'medium' | 'high' } {
+  const baseline = estimateTokensFromFiles(files, rootPath, project);
+  const coverage = requestedAspects
+    ? Math.max(MIN_ASPECT_COVERAGE, FULL_ASPECT_COVERAGE * (requestedAspects / TOTAL_ARCHITECTURE_ASPECTS))
+    : FULL_ASPECT_COVERAGE;
+  return {
+    filesAvoided: baseline.filesAvoided,
+    tokensSaved: Math.round(baseline.tokensSaved * coverage),
+    confidence: baseline.confidence,
+  };
+}
+
+export interface ToolOperationSavings {
+  tokensSaved: number;
+  filesAvoided: number;
+  confidence: 'low' | 'medium' | 'high';
+}
+
+/**
+ * Attribution for tools whose benefit is not a direct source read.
+ *
+ * When the tool result contains file paths AND we know the project, those
+ * files' real indexed sizes determine the saved-tokens estimate — the
+ * developer would have read those files line-by-line without LYNX.
+ * A coverage multiplier accounts for how much of that manual reading
+ * the tool's analysis replaces.
+ *
+ * Tools without file paths (index_status, etc.) use a base formula
+ * calibrated to the real manual work each operation replaces.
+ */
+export function estimateToolOperationSavings(
+  toolName: string,
+  result: unknown,
+  project?: string
+): ToolOperationSavings {
+  const data = result && typeof result === 'object' && !Array.isArray(result)
+    ? result as Record<string, unknown>
+    : {};
+  if (typeof data.error === 'string' || data.project_status === 'failed') {
+    return { tokensSaved: 0, filesAvoided: 0, confidence: 'low' };
+  }
+
+  // ── File-based estimation (real indexed sizes) ──────────────
+  if (project) {
+    const paths = extractResultFilePaths(toolName, data);
+    if (paths.length > 0) {
+      const coverage = FILE_TOOL_COVERAGE[toolName] ?? 0.5;
+      const deduped = [...new Set(paths)];
+      const real = estimateTokensFromFiles(deduped, undefined, project);
+      return {
+        tokensSaved: Math.round(real.tokensSaved * coverage),
+        filesAvoided: Math.max(1, Math.round(real.filesAvoided * coverage)),
+        confidence: real.confidence,
+      };
+    }
+  }
+
+  // ── Count-based fallback (no project, no file paths, or simple tools) ──
+  const count = (...keys: string[]) => keys.reduce((total, key) => {
+    const value = data[key];
+    if (Array.isArray(value)) return total + value.length;
+    if (value && typeof value === 'object') {
+      const objectTotal = Object.values(value as Record<string, unknown>)
+        .reduce<number>((sum, entry) => sum + (typeof entry === 'number' && Number.isFinite(entry) ? Math.max(0, entry) : 0), 0);
+      return total + objectTotal;
+    }
+    return total + (typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0);
+  }, 0);
+
+  const policy: Record<string, { base: number; perItem: number; items: number }> = {
+    // Tools that also have file-based paths above — fallback when no project.
+    detect_changes:  { base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.8), items: count('category_counts', 'total_changed_files') },
+    analyze_hotspots:{ base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.8), items: count('hotspots', 'god_components') },
+    find_dead_code:  { base: 850, perItem: Math.round(AVG_FILE_TOKENS * 0.65), items: count('candidates') },
+    assess_impact:   { base: 900, perItem: Math.round(AVG_FILE_TOKENS * 0.8), items: count('total_findings', 'returned_findings') },
+    pack_memory:     { base: 650, perItem: Math.round(AVG_FILE_TOKENS * 0.5), items: count('memories', 'facts', 'decisions', 'items') },
+    // Tools without file paths — counts are the only available signal.
+    index_repository: { base: 350, perItem: Math.round(AVG_FILE_TOKENS * 0.12), items: count('files_inspected', 'files_reindexed', 'files_added', 'files_modified') },
+    index_status:    { base: 400, perItem: 0, items: 0 },
+    get_graph_schema:{ base: 800, perItem: Math.round(AVG_FILE_TOKENS * 0.15), items: count('node_labels', 'edge_types', 'relationship_patterns') },
+    compare_runs:    { base: 1200, perItem: Math.round(AVG_FILE_TOKENS * 0.25), items: data.comparison ? 1 : 0 },
+    ingest_traces:   { base: 600, perItem: Math.round(AVG_FILE_TOKENS * 0.1),  items: count('ingested', 'traces_ingested', 'accepted') },
+    watch_project:   { base: 500, perItem: Math.round(AVG_FILE_TOKENS * 0.05), items: data.active !== undefined ? 1 : 0 },
+    manage_adr:      { base: 600, perItem: Math.round(AVG_FILE_TOKENS * 0.2),  items: count('sections', 'adrs') },
+    delete_project:  { base: 400, perItem: Math.round(AVG_FILE_TOKENS * 0.05), items: data.deleted ? 1 : 0 },
+    list_projects:   { base: 400, perItem: Math.round(AVG_FILE_TOKENS * 0.12), items: count('projects', 'count') },
+    get_edge_evidence:  { base: 700, perItem: Math.round(AVG_FILE_TOKENS * 0.2),  items: count('evidence', 'records') },
+    investigate_symbol: { base: 1800, perItem: Math.round(AVG_FILE_TOKENS * 0.6), items: count('callers', 'callees', 'tests') },
+    tool_catalog:   { base: 500, perItem: Math.round(AVG_FILE_TOKENS * 0.08), items: count('categories', 'tools') },
+  };
+  const selected = policy[toolName];
+  if (!selected) return { tokensSaved: 0, filesAvoided: 0, confidence: 'low' };
+
+  const tokensSaved = selected.base + selected.items * selected.perItem;
+  return {
+    tokensSaved,
+    filesAvoided: Math.max(1, Math.ceil(tokensSaved / AVG_FILE_TOKENS)),
+    confidence: selected.items >= 4 ? 'medium' : 'low',
+  };
+}
+
+/**
+ * File-based tools and their coverage multipliers.
+ *
+ * The multiplier answers: "What fraction of reading these files
+ * line-by-line does the tool's analysis actually replace?"
+ *
+ * - 0.8: thorough per-file analysis (detect_changes, assess_impact)
+ * - 0.2: hotspot/god-component identification — flags the file but doesn't replace reading it
+ * - 0.6: identification + verification (find_dead_code)
+ * - 0.5: metadata/pack (pack_memory)
+ */
+const FILE_TOOL_COVERAGE: Record<string, number> = {
+  detect_changes: 0.8,
+  analyze_hotspots: 0.2,
+  find_dead_code: 0.6,
+  assess_impact: 0.8,
+  pack_memory: 0.5,
+};
+
+/** Pull every file path out of a tool result so we can estimate from real sizes. */
+function extractResultFilePaths(toolName: string, data: Record<string, unknown>): string[] {
+  const paths: string[] = [];
+
+  const collectFromArray = (arr: unknown[], key: string) => {
+    for (const item of arr) {
+      if (item && typeof item === 'object') {
+        const obj = item as Record<string, unknown>;
+        if (typeof obj[key] === 'string') paths.push(obj[key] as string);
+      }
+    }
+  };
+
+  const collectFromObj = (obj: Record<string, unknown>, keys: string[]) => {
+    for (const key of keys) {
+      const val = obj[key];
+      if (Array.isArray(val)) collectFromArray(val, 'file_path');
+    }
+  };
+
+  switch (toolName) {
+    case 'detect_changes': {
+      // categories: { staged: [{file}], unstaged: [{file}], ... }
+      const cats = data.categories;
+      if (cats && typeof cats === 'object') {
+        for (const entries of Object.values(cats as Record<string, unknown>)) {
+          if (Array.isArray(entries)) collectFromArray(entries, 'file');
+        }
+      }
+      // impact_assessment: { confirmed: [{file_path}], probable: [{file_path}], nominal: [{file_path}] }
+      const ia = data.impact_assessment;
+      if (ia && typeof ia === 'object') {
+        const iaObj = ia as Record<string, unknown>;
+        for (const key of ['confirmed', 'probable', 'nominal']) {
+          if (Array.isArray(iaObj[key])) collectFromArray(iaObj[key] as unknown[], 'file_path');
+        }
+      }
+      // related_dependencies: [{scope_file}, {related_file}]
+      const rd = data.related_dependencies;
+      if (Array.isArray(rd)) {
+        for (const item of rd) {
+          if (item && typeof item === 'object') {
+            const dep = item as Record<string, unknown>;
+            if (typeof dep.scope_file === 'string') paths.push(dep.scope_file as string);
+            if (typeof dep.related_file === 'string') paths.push(dep.related_file as string);
+          }
+        }
+      }
+      // changed_files: CompatFileEntry[] (may have 'file' or 'path')
+      const cf = data.changed_files;
+      if (Array.isArray(cf)) {
+        for (const item of cf) {
+          if (item && typeof item === 'object') {
+            const entry = item as Record<string, unknown>;
+            if (typeof entry.file === 'string') paths.push(entry.file as string);
+            else if (typeof entry.path === 'string') paths.push(entry.path as string);
+          }
+        }
+      }
+      break;
+    }
+    case 'analyze_hotspots': {
+      collectFromArray(data.hotspots as unknown[] || [], 'file_path');
+      collectFromArray(data.god_components as unknown[] || [], 'file_path');
+      // largest_files: [{path, lines, ...}]
+      const lf = data.largest_files;
+      if (Array.isArray(lf)) collectFromArray(lf, 'path');
+      // most_complex: [{file, complexity, ...}]
+      const mc = data.most_complex;
+      if (Array.isArray(mc)) collectFromArray(mc, 'file');
+      // tightest_coupling: [{file, ...}]
+      const tc = data.tightest_coupling;
+      if (Array.isArray(tc)) collectFromArray(tc, 'file');
+      break;
+    }
+    case 'find_dead_code': {
+      collectFromArray(data.candidates as unknown[] || [], 'file_path');
+      break;
+    }
+    case 'assess_impact': {
+      collectFromArray(data.findings as unknown[] || [], 'file');
+      // recommended_inspection: string[] of file paths
+      const ri = data.recommended_inspection;
+      if (Array.isArray(ri)) {
+        for (const f of ri) {
+          if (typeof f === 'string') paths.push(f);
+        }
+      }
+      break;
+    }
+    case 'pack_memory': {
+      // findings may contain file references
+      const items = data.items || data.memories || data.decisions;
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          if (item && typeof item === 'object') {
+            const obj = item as Record<string, unknown>;
+            if (typeof obj.targetFile === 'string') paths.push(obj.targetFile as string);
+            if (typeof obj.file === 'string') paths.push(obj.file as string);
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  return paths.filter(p => p.length > 0);
+}
+
+/**
+ * Older releases stored successful operational calls as zero-value events.
+ * Preserve their activity history, but apply only the low-confidence baseline
+ * of today's policy when the tool name is known; no synthetic result volume is
+ * invented for historical records.
+ */
+export function attributeLegacyToolObservation(event: UsageEvent): UsageEvent {
+  if (event.type !== 'tool_observation' || Number(event.tokens_saved || 0) > 0) return event;
+  const toolName = event.tool_hint || event.query;
+  if (!toolName) return event;
+  const value = estimateToolOperationSavings(toolName, {});
+  if (value.tokensSaved === 0) return event;
+  return {
+    ...event,
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: 'low',
+  };
+}
+
+export interface TokenEstimateOpts {
+  resultCount: number;
+  candidateFiles: number;
+  /** Optional list of file paths for real-size-based estimation. */
+  files?: string[];
+  /** Optional rootPath when file paths are relative. */
+  rootPath?: string;
+  /** Optional project name for DB-backed size lookup via file_hashes. */
+  project?: string;
+}
+
+/**
+ * Estimate of context tokens saved by returning indexed evidence instead of
+ * reading full source files.
+ *
+ * When file paths + rootPath are supplied, savings equal the real token cost
+ * of reading those files (bytes / 4). Otherwise falls back to the formula:
+ * filesAvoided * 120 + results * 160, capped at candidateFiles * 900.
+ */
+export function estimateTokensSaved(opts: TokenEstimateOpts): {
   filesAvoided: number;
   tokensSaved: number;
   confidence: 'low' | 'medium' | 'high';
 } {
+  const { resultCount, candidateFiles, files, rootPath, project } = opts;
   const usefulResults = Math.max(0, resultCount);
   if (usefulResults === 0) return { filesAvoided: 0, tokensSaved: 0, confidence: 'low' };
 
-  const likelyFilesAvoided = Math.max(0, Math.min(candidateFiles, usefulResults * 4));
-  const gross = likelyFilesAvoided * AVG_FILE_TOKENS;
-  const lynxContext = usefulResults * AVG_SYMBOL_TOKENS;
-  const confidence =
-    likelyFilesAvoided >= 12 ? 'high' : likelyFilesAvoided >= 4 ? 'medium' : 'low';
+  const likelyFilesAvoided = Math.max(0, Math.min(candidateFiles, usefulResults));
+
+  // Real file sizes: the true token cost of reading those files (bytes/4).
+  // This is the realistic saving — what the developer would have spent
+  // without LYNX's indexed evidence, not a conservative floor.
+  if (files && files.length > 0 && rootPath) {
+    const real = estimateTokensFromFiles(files, rootPath, project);
+    return {
+      filesAvoided: likelyFilesAvoided,
+      tokensSaved: real.tokensSaved,
+      confidence: real.confidence,
+    };
+  }
+
+  // Fallback when file paths are unavailable (CLI tools, benchmarks).
+  const gross = likelyFilesAvoided * 120 + usefulResults * 160;
+  const ceiling = likelyFilesAvoided * AVG_FILE_TOKENS;
   return {
     filesAvoided: likelyFilesAvoided,
-    tokensSaved: Math.max(0, gross - lynxContext),
-    confidence,
+    tokensSaved: Math.max(0, Math.min(ceiling, gross)),
+    confidence: likelyFilesAvoided >= 12 ? 'medium' : 'low',
   };
 }
 
@@ -175,36 +537,22 @@ export function estimateRerankCostUsd(candidateCount: number): number {
 
 export function recordUsageEvent(event: Omit<UsageEvent, 'ts'>): void {
   try {
+    const adjustedEvent = adjustEventForSessionDedup(event);
     const dir = lynxHome();
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     rotateLogIfNeeded();
 
-    // Session-level dedup: track unique files per project
-    if (event.files && event.files.length > 0 && event.project) {
-      if (!sessionFileSet.has(event.project)) {
-        sessionFileSet.set(event.project, new Set());
-      }
-      const seen = sessionFileSet.get(event.project)!;
-      const newFiles = event.files.filter((f) => !seen.has(f));
-      for (const f of newFiles) seen.add(f);
-      // Adjust files_avoided to count only new files
-      if (event.files_avoided && event.files) {
-        const dedupRatio = event.files.length > 0 ? newFiles.length / event.files.length : 1;
-        event.files_avoided = Math.max(1, Math.round(event.files_avoided * dedupRatio));
-        event.tokens_saved = event.tokens_saved
-          ? Math.max(1, Math.round(event.tokens_saved * dedupRatio))
-          : event.tokens_saved;
-      }
-    }
-
-    const safeQuery = sanitizeQuery(event.query);
+    const safeQuery = sanitizeQuery(adjustedEvent.query);
+    const context = defaultUsageContext(adjustedEvent.project);
     const row: UsageEvent = {
       ts: new Date().toISOString(),
-      ...event,
+      ...adjustedEvent,
       query: safeQuery,
-      query_hash: event.query ? hashString(event.query) : undefined,
-      event_id: event.event_id || generateEventId(),
-      deterministic_mode: event.deterministic_mode ?? (process.env.LYNX_NO_LLM === '1'),
+      query_hash: adjustedEvent.query ? hashString(adjustedEvent.query) : undefined,
+      event_id: adjustedEvent.event_id || generateEventId(),
+      session_id: adjustedEvent.session_id || context.session_id,
+      task_id: adjustedEvent.task_id || context.task_id,
+      deterministic_mode: adjustedEvent.deterministic_mode ?? (process.env.LYNX_NO_LLM === '1'),
     };
     fs.appendFileSync(usageLogPath(), JSON.stringify(row) + '\n');
     // Also archive to metrics.db for long-term history
@@ -249,7 +597,8 @@ export function readUsageEvents(project?: string, limit = 1000): UsageEvent[] {
     const recent = lines.slice(Math.max(0, lines.length - limit));
     const events = recent
       .map((line) => JSON.parse(line) as UsageEvent)
-      .filter((event) => !project || event.project === project);
+      .filter((event) => !project || event.project === project)
+      .map(attributeLegacyToolObservation);
     return events;
   } catch {
     return [];

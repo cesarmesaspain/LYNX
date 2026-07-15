@@ -127,7 +127,12 @@ async function extractNativeLargeFiles(
   toProcess: ProcessItem[],
   project: string
 ): Promise<Map<number, ExtractionBatch>> {
-  if (process.env.LYNX_DISABLE_NATIVE === '1') {
+  // The native TypeScript scanner is deliberately opt-in until it emits a
+  // complete call graph.  It currently extracts definitions/imports quickly
+  // but cannot assign local calls to their enclosing function, which creates
+  // indexed symbols with missing CALLS edges. Correct graph connectivity is
+  // more important than this optional fast path.
+  if (process.env.LYNX_DISABLE_NATIVE === '1' || process.env.LYNX_ENABLE_NATIVE_EXTRACTOR !== '1') {
     return new Map();
   }
 
@@ -165,6 +170,7 @@ async function extractNativeLargeFiles(
     for (const result of parsed) {
       const original = toProcess[result.id];
       if (!original || result.result.hasError) continue;
+      restoreNativeEntryPointFlags(result.result.nodes, original.file.relPath);
       // The native extractor emits compact method nodes. Restore class scope here
       // so same-named methods in different classes never share a qualified name.
       const classes = result.result.nodes.filter(node => node.kind === 'Class');
@@ -190,6 +196,15 @@ async function extractNativeLargeFiles(
   } catch (err) {
     console.error('[lynx] Native extractor failed:', (err as Error).message || String(err));
     return new Map();
+  }
+}
+
+/** Keep native C extractor output aligned with the tree-sitter extractor. */
+export function restoreNativeEntryPointFlags(nodes: ExtractionResult['nodes'], relPath: string): void {
+  const conventionalIndex = relPath.endsWith('index.ts') || relPath.endsWith('index.tsx');
+  if (!conventionalIndex) return;
+  for (const node of nodes) {
+    if (node.kind === 'Module') node.isEntryPoint = true;
   }
 }
 

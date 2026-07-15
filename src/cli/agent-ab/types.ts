@@ -58,6 +58,12 @@ export interface AgentABRun {
   finalization_error?: string;
   /** Present only when --include-trace is set. Sanitized: no keys, headers, or full file contents. */
   trace?: ToolTraceStep[];
+  /** For external/pilot tasks: the resolved project directory path. */
+  projectDir?: string;
+  /** For B3: git diff captured after the agent run. */
+  diff?: string;
+  /** For B3: captured test output (truncated). */
+  testOutput?: string;
 }
 
 /** Single step in a tool-call trace. Sanitized — no secrets, no full file contents, no headers. */
@@ -128,6 +134,39 @@ export interface AgentABMetrics {
   defects_introduced: number;
   fixes_needed: number;
   not_executed: boolean;
+  /** B3 code-modification: did the project build after the agent fix? */
+  build_passed?: boolean;
+  /** B3 code-modification: hidden tests that passed. */
+  tests_passed?: number;
+  /** B3 code-modification: total hidden tests run. */
+  tests_total?: number;
+  /** B3 code-modification: files modified by the agent. */
+  diff_files_changed?: number;
+  /** B3 code-modification: lines added by the agent. */
+  diff_lines_added?: number;
+  /** B3 code-modification: lines removed by the agent. */
+  diff_lines_removed?: number;
+  /** Time spent indexing the project (first run only, 0 for warm runs). */
+  cold_start_index_ms?: number;
+  /** Improvement #6: efficiency metrics for benchmark quality scoring. */
+  /** Number of tool calls with duplicate (name + args hash) within the same run. */
+  tool_calls_unnecessary?: number;
+  /** Number of distinct tools that returned evidence (non-empty, non-trivial payload). */
+  evidence_used?: number;
+  /** Composite efficiency score 0-1: (functional_success × useful_tools / total_tools). */
+  efficiency_score?: number;
+}
+
+/** Ground truth frozen before the pilot benchmark run. */
+export interface PilotGroundTruth {
+  a2_callers: Array<{ name: string; file_path: string }>;
+  a5_largest_files: Array<{ file: string; lines: number }>;
+  a5_most_complex: Array<{ name: string; file: string; complexity: number }>;
+  a5_tightest_coupling: Array<{ name: string; file: string; fan_in: number }>;
+  a5_god_objects: Array<{ name: string; file: string; lines: number }>;
+  b3_commit: string;
+  b3_bug_file: string;
+  b3_bug_description: string;
 }
 
 export interface AgentABTask {
@@ -176,6 +215,10 @@ export interface AgentABConditionSummary {
   evaluated_runs: number;
   excluded_from_evaluation: number;
   defects_per_task: number;
+  /** Improvement #6: efficiency metrics in summary. */
+  tool_calls_unnecessary?: { median: number; total: number };
+  evidence_used?: { median: number; total: number };
+  efficiency_score?: { median: number };
 }
 
 /** Immutable protocol used for a paid before/after microbenchmark. */

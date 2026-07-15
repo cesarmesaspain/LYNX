@@ -5,7 +5,7 @@
  * writes responses to stdout. Uses the official MCP protocol format.
  */
 
-import { TOOLS, withEvidenceDiscipline } from './tools.js';
+import { TOOLS, withEvidenceDiscipline, withSafetyAnnotations } from './tools.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { LynxToolDef } from './tools.js';
@@ -36,21 +36,82 @@ import { handleWatchProject } from './handlers/watch_project.js';
 import { handleFindTests } from './handlers/find_tests.js';
 import { handleBatchGetCode } from './handlers/batch_get_code.js';
 import { handleToolCatalog } from './handlers/tool_catalog.js';
+import { handleDiagnose } from './handlers/diagnose.js';
+import { handleUsageSummary } from './handlers/usage_summary.js';
+import { handleGetEdgeEvidence } from './handlers/get_edge_evidence.js';
+import { handleInvestigateSymbol } from './handlers/investigate_symbol.js';
 import { decayCounter } from '../cli/hook-augment.js';
 import { cleanupNativeExtractor } from '../paths.js';
 import { LynxDatabase } from '../store/database.js';
+import { storedTimestampMs } from '../store/time.js';
 import { findNearestProject } from '../discovery/project-scanner.js';
 import { discoverFiles } from '../pipeline/phases/discover.js';
 import { runPipeline } from '../pipeline/orchestrator.js';
 import { lynxHome, readLynxConfig } from '../config/runtime.js';
 import { closeAllProjectWatchers, getProjectWatcherStatus, startProjectWatcher } from '../watcher/watcher-manager.js';
-import { startDashboard } from '../server/dashboard/index.js';
-import { summarizeUsage } from '../usage/metrics.js';
+import { estimateToolOperationSavings, recordUsageEvent, summarizeUsage } from '../usage/metrics.js';
+import { layerValueMetrics } from '../usage/value-metrics.js';
 import { resolveProjectReference } from './project-resolution.js';
 
 // ── Handler registry ──────────────────────────────────────────
 
 type Handler = (args: Record<string, unknown>) => Promise<unknown>;
+
+let lastAgentResponseReminderAt = 0;
+let compactResponsesSent = 0;
+let compactResponseBytesSaved = 0;
+let autoIndexForSession: Promise<void> | null = null;
+
+/** Measured transport savings for the current MCP process (not an estimate). */
+export function getResponseOptimizationMetrics(): {
+  compact_responses: number;
+  bytes_saved: number;
+  estimated_tokens_saved: number;
+} {
+  return {
+    compact_responses: compactResponsesSent,
+    bytes_saved: compactResponseBytesSaved,
+    estimated_tokens_saved: Math.round(compactResponseBytesSaved / 4),
+  };
+}
+
+function getAgentResponsePreference(): Record<string, unknown> | undefined {
+  const preference = readLynxConfig().agent_response;
+  if (!preference?.enabled) return undefined;
+
+  const intervalMs = Math.max(1, Math.min(120, preference.reminder_interval_minutes || 30)) * 60_000;
+  const now = Date.now();
+  if (now - lastAgentResponseReminderAt < intervalMs) return undefined;
+  lastAgentResponseReminderAt = now;
+
+  const length = preference.length === 'long' ? 'detailed' : preference.length;
+  const style = preference.style === 'concise' ? 'direct' : preference.style;
+  const budget = preference.budget || 'balanced';
+  const budgetInstruction = budget === 'max_savings'
+    ? 'Lead with the result; include only actionable evidence, risk, and next step. Do not restate, narrate routine work, or repeat tool data.'
+    : budget === 'thorough'
+      ? 'Be complete only when evidence, risk, or a decision requires it; otherwise stay concise.'
+      : 'Stay concise; expand only for material evidence, risk, or a decision.';
+  return {
+    length,
+    style,
+    budget,
+    instruction: `Final answer: ${length} and ${style}. ${budgetInstruction}`,
+  };
+}
+
+function serializeToolResponse(value: unknown): string {
+  if (typeof value === 'string') return value;
+  const preference = readLynxConfig().agent_response;
+  if (preference?.enabled && preference.budget === 'max_savings') {
+    const compact = JSON.stringify(value);
+    const expanded = JSON.stringify(value, null, 2);
+    compactResponsesSent++;
+    compactResponseBytesSaved += Math.max(0, Buffer.byteLength(expanded) - Buffer.byteLength(compact));
+    return compact;
+  }
+  return JSON.stringify(value, null, 2);
+}
 
 const STRICT_CANONICAL_PROJECT_TOOLS = new Set(['delete_project']);
 
@@ -82,13 +143,84 @@ const HANDLERS: Record<string, Handler> = {
   watch_project: handleWatchProject,
   find_tests: handleFindTests,
   batch_get_code: handleBatchGetCode,
+  diagnose: handleDiagnose,
+  usage_summary: handleUsageSummary,
+  get_edge_evidence: handleGetEdgeEvidence,
+  investigate_symbol: handleInvestigateSymbol,
 };
 
 const CORE_TOOL_NAMES = new Set([
   'pack_context', 'search_graph', 'get_code_snippet', 'trace_path',
   'find_tests', 'detect_changes', 'assess_impact', 'list_projects',
-  'tool_catalog',
+  'tool_catalog', 'diagnose', 'usage_summary', 'get_edge_evidence',
+  'investigate_symbol',
 ]);
+
+// These handlers already record a tool-specific, result-based savings event.
+// The remaining project-scoped tools are attributed centrally below.
+const TOOLS_WITH_OWN_USAGE_EVENTS = new Set([
+  'pack_context', 'search_graph', 'trace_path', 'get_code_snippet',
+  'query_graph', 'search_code', 'explain_symbol', 'smart_review',
+  'semantic_search', 'find_tests', 'batch_get_code',
+  'get_architecture', 'diagnose', 'usage_summary',
+]);
+
+function recordToolObservation(toolName: string, args: Record<string, unknown>, result: unknown, startedAt: number): void {
+  if (TOOLS_WITH_OWN_USAGE_EVENTS.has(toolName)) return;
+  const project = typeof args.project === 'string' ? args.project.trim() : '';
+  if (!project) return;
+  const value = estimateToolOperationSavings(toolName, result, project);
+  recordUsageEvent({
+    type: 'tool_observation',
+    project,
+    query: toolName,
+    result_count: 1,
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
+    latency_ms: Math.max(0, Date.now() - startedAt),
+    tool_hint: toolName,
+  });
+}
+
+/** Normalize every tool's value_metrics response into the same three layers. */
+function enrichValueMetrics(project: string, result: unknown, totalLatencyMs: number): unknown {
+  if (!project || !result || typeof result !== 'object' || Array.isArray(result)) return result;
+  const response = result as Record<string, unknown>;
+  const raw = response.value_metrics;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return result;
+  try {
+    const db = getDb(project);
+    const stats = db.db.prepare(
+      `SELECT COUNT(DISTINCT file_path) AS files, COUNT(*) AS symbols FROM nodes WHERE project = ?`,
+    ).get(project) as { files: number; symbols: number };
+    const rawMetrics = raw as Record<string, unknown>;
+    const llmUsage = response.llm_usage && typeof response.llm_usage === 'object'
+      ? response.llm_usage as Record<string, unknown>
+      : {};
+    const llmLatency = Math.max(0, Number(
+      rawMetrics.llm_rerank_latency_ms ?? llmUsage.latency_ms ?? 0,
+    ) || 0);
+    const totalLatency = Math.max(0, Number(rawMetrics.latency_ms ?? totalLatencyMs) || totalLatencyMs);
+    const graphLatency = Number(rawMetrics.graph_query_latency_ms);
+    const withLatency = {
+      ...rawMetrics,
+      latency_ms: totalLatency,
+      latency_breakdown: {
+        total_ms: totalLatency,
+        ...(Number.isFinite(graphLatency) ? { graph_query_ms: Math.max(0, graphLatency) } : {}),
+        llm_rerank_ms: llmLatency,
+        local_processing_ms: Math.max(0, totalLatency - llmLatency - (Number.isFinite(graphLatency) ? Math.max(0, graphLatency) : 0)),
+      },
+    };
+    return {
+      ...response,
+      value_metrics: layerValueMetrics(withLatency, stats, response),
+    };
+  } catch {
+    return result;
+  }
+}
 
 // ── JSON-RPC dispatch ─────────────────────────────────────────
 
@@ -101,21 +233,47 @@ interface JsonRpcRequest {
 
 const DB_CACHE = new Map<string, LynxDatabase>();
 
-export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' | 'inputSchema'>> {
-  const profile = process.env.LYNX_TOOL_PROFILE || 'core';
-  const visible = profile === 'advanced' ? TOOLS : TOOLS.filter(tool => CORE_TOOL_NAMES.has(tool.name));
-  return visible.map(withEvidenceDiscipline).map((tool) => ({
+export function listMcpTools(): Array<Pick<LynxToolDef, 'name' | 'description' | 'inputSchema' | 'annotations'>> {
+  if (!readLynxConfig().enabled) return [];
+  // A configured MCP server must expose the full public contract by default.
+  // An environment value takes precedence for managed deployments.
+  const requestedProfile = process.env.LYNX_TOOL_PROFILE || readLynxConfig().mcp_tool_profile || 'full';
+  const profile = requestedProfile === 'core' ? 'core' : 'full';
+  const visible = profile === 'core' ? TOOLS.filter(tool => CORE_TOOL_NAMES.has(tool.name)) : TOOLS;
+  return visible.map(withEvidenceDiscipline).map(withSafetyAnnotations).map((tool) => ({
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema,
+    annotations: tool.annotations,
   }));
 }
 
-function getDb(project?: string): LynxDatabase {
+function getDb(project?: string, options: { createPersistent?: boolean } = {}): LynxDatabase {
   const key = project || '_memory';
+  const cached = DB_CACHE.get(key);
+  if (cached) {
+    if (!cached.db.open) {
+      DB_CACHE.delete(key);
+    } else {
+      // A prior read of an unknown project is intentionally isolated in memory.
+      // Promote that cache entry only when an indexing operation explicitly needs
+      // to create the on-disk project database.
+      if (!(project && options.createPersistent && cached.dbPath === ':memory:')) return cached;
+      cached.close();
+      DB_CACHE.delete(key);
+    }
+  }
+
   if (!DB_CACHE.has(key)) {
     if (project) {
-      // Try persistent project DB first
+      const dbPath = path.join(lynxHome(), 'dbs', `${project}.db`);
+      // Read-only tools must not turn a typo into a persistent empty project.
+      // Indexing is the only flow that opts into creating a project database.
+      if (!options.createPersistent && !fs.existsSync(dbPath)) {
+        const db = LynxDatabase.openMemory();
+        DB_CACHE.set(key, db);
+        return db;
+      }
       try {
         const db = LynxDatabase.openProject(project);
         DB_CACHE.set(key, db);
@@ -136,7 +294,7 @@ function setDb(project: string, db: LynxDatabase): void {
 export function normalizeProjectArgs(
   toolName: string,
   args: Record<string, unknown>,
-): { args: Record<string, unknown>; resolution?: { input: string; canonical_name: string; matched_by: 'root_path' } } | { error: string; hint: string } {
+): { args: Record<string, unknown>; resolution?: { input: string; canonical_name: string; matched_by: 'name' | 'root_path' } } | { error: string; hint: string } {
   if (typeof args.project !== 'string' || !args.project.trim()) return { args };
 
   const input = args.project;
@@ -148,26 +306,41 @@ export function normalizeProjectArgs(
   }
 
   const resolved = resolveProjectReference(input);
-  if (!resolved.resolved || resolved.matchedBy === 'name') return { args };
+  if (!resolved.resolved) return { args };
   return {
     args: { ...args, project: resolved.project },
-    resolution: { input, canonical_name: resolved.project, matched_by: 'root_path' },
+    ...(resolved.project === input
+      ? {}
+      : { resolution: { input, canonical_name: resolved.project, matched_by: resolved.matchedBy } }),
   };
 }
 
-function buildIndexContext(args: Record<string, unknown>): Record<string, unknown> | undefined {
+export function buildIndexContext(args: Record<string, unknown>): Record<string, unknown> | undefined {
   if (typeof args.project !== 'string' || !args.project) return undefined;
-  const meta = getDb(args.project).getProject(args.project);
+  const db = getDb(args.project);
+  const meta = db.getProject(args.project);
   if (!meta) return undefined;
-  const ageSeconds = Math.max(0, Math.floor((Date.now() - new Date(meta.indexedAt).getTime()) / 1000));
+  const nodeCount = (db.db.prepare('SELECT COUNT(*) AS cnt FROM nodes WHERE project = ?')
+    .get(args.project) as { cnt: number }).cnt;
+  const ageSeconds = Math.max(0, Math.floor((Date.now() - storedTimestampMs(meta.indexedAt)) / 1000));
   const watcher = getProjectWatcherStatus(args.project);
-  return {
+  const freshness = nodeCount === 0 ? 'unknown' : meta.status === 'ready' && ageSeconds < 24 * 3600 ? 'fresh' : meta.status;
+  const pendingChanges = watcher?.pendingChanges || 0;
+  const context = {
     project: meta.name,
     indexed_at: meta.indexedAt,
     index_age_seconds: ageSeconds,
-    freshness: meta.status === 'ready' && ageSeconds < 24 * 3600 ? 'fresh' : meta.status,
-    watcher: watcher ? { active: watcher.watching, pending_changes: watcher.pendingChanges } : { active: false },
+    freshness,
+    watcher: watcher ? { active: watcher.watching, pending_changes: pendingChanges } : { active: false },
   };
+  const savingsMode = readLynxConfig().agent_response?.enabled
+    && readLynxConfig().agent_response?.budget === 'max_savings';
+  // A healthy, settled index needs only a compact assurance. Keep the full
+  // diagnostics whenever the caller might need to act on them.
+  if (savingsMode && freshness === 'fresh' && pendingChanges === 0) {
+    return { project: meta.name, freshness };
+  }
+  return context;
 }
 
 async function dispatch(req: JsonRpcRequest): Promise<string> {
@@ -209,24 +382,54 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
     if (!name || !HANDLERS[name]) {
       return jsonRpcError(id, -32601, `Tool not found: ${name}`);
     }
+    if (!readLynxConfig().enabled) {
+      return jsonRpcError(id, -32001, 'LYNX is disabled globally. Re-enable it from the LYNX Dashboard and restart this MCP client to restore its tool catalog.');
+    }
 
     try {
+      const startedAt = Date.now();
       const normalized = normalizeProjectArgs(name, args || {});
       if ('error' in normalized) {
         return jsonRpcResult(id, { content: [{ type: 'text', text: JSON.stringify(normalized, null, 2) }] });
       }
-      const result = await HANDLERS[name](normalized.args);
-      decayCounter(); // Any LYNX MCP tool use decays the strict-mode counter by STRICT_DECAY
+      // Indexing must never hold the first user-visible tool response. It is
+      // background maintenance, and only applies when the MCP process cwd is
+      // the project actually requested (an editor can reuse one process for
+      // another indexed project).
+      if (!autoIndexForSession && shouldAutoIndexForProject(normalized.args.project)) {
+        autoIndexForSession = maybeAutoIndexCurrentProject();
+      }
+      const handlerResult = await HANDLERS[name](normalized.args);
+      const result = enrichValueMetrics(
+        typeof normalized.args.project === 'string' ? normalized.args.project : '', handlerResult, Date.now() - startedAt,
+      );
+      recordToolObservation(name, normalized.args, result, startedAt);
+      // Decay any project the agent is working on — explicit project arg takes
+      // priority; global tools (diagnose, list_projects) resolve from the MCP
+      // server CWD so they still release the strict-mode counter for the
+      // current workspace.
+      const decayProject: string | undefined =
+        typeof normalized.args.project === 'string' && normalized.args.project
+          ? normalized.args.project
+          : (() => {
+              try {
+                const nearest = findNearestProject(process.cwd());
+                return nearest ? resolveProjectNameByRoot(nearest.name, nearest.rootPath) : undefined;
+              } catch { return undefined; }
+            })();
+      if (decayProject) decayCounter(decayProject);
       const context = buildIndexContext(normalized.args);
+      const agentResponsePreference = getAgentResponsePreference();
       const enriched = result && typeof result === 'object' && !Array.isArray(result)
         ? {
             ...result as Record<string, unknown>,
             ...(normalized.resolution ? { project_resolution: normalized.resolution } : {}),
             ...(context ? { index_context: context } : {}),
+            ...(agentResponsePreference ? { agent_response_preference: agentResponsePreference } : {}),
           }
         : result;
       return jsonRpcResult(id, {
-        content: [{ type: 'text', text: typeof enriched === 'string' ? enriched : JSON.stringify(enriched, null, 2) }],
+        content: [{ type: 'text', text: serializeToolResponse(enriched) }],
       });
     } catch (err) {
       return jsonRpcError(id, -32000, String(err));
@@ -239,17 +442,6 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
 // ── Run server ──────────────────────────────────────────────
 
 export async function runServer(): Promise<void> {
-  const config = readLynxConfig();
-  const verificationMode = process.env.LYNX_VERIFY === '1';
-  if (!verificationMode && config.auto_dashboard) {
-    try {
-      startDashboard();
-    } catch (err) {
-      console.error('[lynx] Dashboard failed to start:', String(err));
-    }
-  }
-  if (!verificationMode) void maybeAutoIndexCurrentProject();
-
   let pending = 0;
   let stdinClosed = false;
 
@@ -312,7 +504,7 @@ export async function runServer(): Promise<void> {
 
 export async function maybeAutoIndexCurrentProject(): Promise<void> {
   const config = readLynxConfig();
-  if (!config.auto_index) return;
+  if (!config.enabled || !config.auto_index) return;
 
   const detected = findNearestProject(process.cwd());
   if (!detected) return;
@@ -334,8 +526,9 @@ export async function maybeAutoIndexCurrentProject(): Promise<void> {
   const project = resolveProjectNameByRoot(detected.name, detected.rootPath);
   try {
     const db = LynxDatabase.openProject(project);
+    let result: Awaited<ReturnType<typeof runPipeline>>;
     try {
-      const result = await runPipeline(db, detected.rootPath, project, {
+      result = await runPipeline(db, detected.rootPath, project, {
         mode: 'fast',
         incremental: true,
       });
@@ -350,6 +543,24 @@ export async function maybeAutoIndexCurrentProject(): Promise<void> {
 
     if (config.auto_watch) {
       startAutoWatcher(project, detected.rootPath);
+    }
+
+    // A background refresh is still observable local work. Only record it
+    // when something was actually processed, so opening a new MCP session
+    // does not manufacture activity from an unchanged index.
+    if (result.filesProcessed > 0) {
+      recordUsageEvent({
+        type: 'tool_observation',
+        project,
+        query: detected.rootPath,
+        result_count: result.filesProcessed,
+        unique_files: result.filesProcessed,
+        files_avoided: 0,
+        tokens_saved: 0,
+        confidence: 'low',
+        latency_ms: result.incremental.durationMs,
+        tool_hint: 'auto_index',
+      });
     }
 
     // Welcome-back: show accumulated savings from previous sessions
@@ -370,6 +581,13 @@ export async function maybeAutoIndexCurrentProject(): Promise<void> {
   } catch (err) {
     console.error(`[lynx] auto-index failed: ${err instanceof Error ? err.message : String(err)}`);
   }
+}
+
+function shouldAutoIndexForProject(project: unknown): boolean {
+  if (typeof project !== 'string' || !project.trim()) return false;
+  const detected = findNearestProject(process.cwd());
+  if (!detected) return false;
+  return resolveProjectNameByRoot(detected.name, detected.rootPath) === project;
 }
 
 function startAutoWatcher(project: string, rootPath: string): void {

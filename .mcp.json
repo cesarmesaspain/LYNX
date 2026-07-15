@@ -1,3 +1,11 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "lynx": {
+      "command": "/Users/admin/.local/nodejs/node-v20.19.5-darwin-arm64/bin/node",
+      "args": [
+        "/Users/admin/Desktop/LYNX/dist/cli.js",
+        "serve"
+      ]
+    }
+  }
 }

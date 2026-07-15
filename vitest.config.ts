@@ -7,6 +7,7 @@ export default defineConfig({
     // setupFiles and inherited by all dynamic imports within the worker.
     pool: 'threads',
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    exclude: ['**/hidden-tests/**'],
     // setupFiles runs in each worker before any test file is imported.
     // It sets LYNX_HOME to an isolated temp directory per worker,
     // guaranteeing zero writes to the user's real ~/.lynx.

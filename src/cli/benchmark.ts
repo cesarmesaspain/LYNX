@@ -94,6 +94,10 @@ function measureResponseBytes(rows: BenchmarkRow[]): number {
   return Buffer.byteLength(JSON.stringify(payload), 'utf-8');
 }
 
+export function getBenchmarkRerankProvider(args: string[]): 'api' | 'deepseek' | 'heuristic' {
+  return args.includes('--no-llm') ? 'heuristic' : getRerankProviderMode();
+}
+
 export async function runBenchmark(args: string[]): Promise<void> {
   const targetPath = args[0] && !args[0].startsWith('--') ? args[0] : process.cwd();
   const nameIdx = args.indexOf('--name');
@@ -145,7 +149,7 @@ export async function runBenchmark(args: string[]): Promise<void> {
     clearSessionDedup(project);
     const db = LynxDatabase.openProject(project);
     try {
-      const semanticProvider = getRerankProviderMode();
+      const semanticProvider = getBenchmarkRerankProvider(args);
       let totalLatency = 0;
       let totalTokensSaved = 0;
       let totalFilesAvoided = 0;
@@ -193,7 +197,7 @@ export async function runBenchmark(args: string[]): Promise<void> {
         if (topChanged) semanticTopChanged++;
         semanticLatencyTotal += semanticLatency;
         semanticCostTotal += semanticCost;
-        const value = estimateTokensSaved(results.length, Math.max(results.length * 4, 8));
+        const value = estimateTokensSaved({ resultCount: results.length, candidateFiles: Math.max(results.length * 4, 8), files: results.map(r => r.node.filePath), rootPath: repoPath, project });
         totalLatency += latency;
         totalTokensSaved += value.tokensSaved;
         totalFilesAvoided += value.filesAvoided;
@@ -317,7 +321,7 @@ export async function runBenchmark(args: string[]): Promise<void> {
   console.log(`Median latency: ${result.aggregate.median_latency_ms}ms`);
   console.log(`P95 latency: ${result.aggregate.p95_latency_ms}ms`);
   console.log(`Average latency: ${result.aggregate.avg_latency_ms}ms (±${result.aggregate.stddev_latency_ms}ms)`);
-  console.log(`Semantic ranking provider: ${getRerankProviderMode()}`);
+  console.log(`Semantic ranking provider: ${getBenchmarkRerankProvider(args)}`);
   console.log(`Semantic rank improved: ${last.semantic_rank_changed}/${last.rows.length} queries`);
   console.log(`Semantic top improved: ${last.semantic_top_changed}/${last.rows.length} queries`);
   console.log(`Average semantic latency: ${last.avg_semantic_latency}ms`);

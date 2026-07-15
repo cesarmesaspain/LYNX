@@ -19,6 +19,8 @@ import * as path from 'node:path';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
 import { projectNotIndexed } from '../diagnostics.js';
 import type { LynxFinding } from '../../types.js';
+import { readLynxConfig } from '../../config/runtime.js';
+import { getNodeEdgeEvidence } from '../../store/edge-evidence.js';
 
 function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
   const seen = new Set<string>();
@@ -61,14 +63,17 @@ export async function handleExplainSymbol(
     };
   }
 
-  const metrics = assessSymbolMetrics(db, project, node, projectMeta.rootPath);
-  const result = buildExplainResponse(node, metrics, project, qualifiedName || name || '', started);
+  const savingsMode = Boolean(readLynxConfig().agent_response?.enabled
+    && readLynxConfig().agent_response?.budget === 'max_savings');
+  const metrics = assessSymbolMetrics(db, project, node, projectMeta.rootPath, savingsMode);
+  const result = buildExplainResponse(node, metrics, project, qualifiedName || name || '', started, savingsMode);
+  const value = estimateTokensSaved({ resultCount: 1, candidateFiles: 1, files: [node.file_path], rootPath: projectMeta.rootPath, project });
 
   recordUsageEvent({
     type: 'search_graph', project,
     query: qualifiedName || name || '',
     result_count: 1, unique_files: 1,
-    files_avoided: 5, tokens_saved: 2250, confidence: 'high',
+    files_avoided: value.filesAvoided, tokens_saved: value.tokensSaved, confidence: value.confidence,
     latency_ms: Date.now() - started, tool_hint: 'explain_symbol',
   });
 
@@ -105,6 +110,7 @@ interface SymbolMetrics {
   loopDepth: number;
   transitiveLoopDepth: number;
   fanIn: number;
+  uniqueCallers: number;
   fanOut: number;
   callers: Array<{ type: string; name: string; qualified_name: string; kind: string; file: string }>;
   callees: Array<{ type: string; name: string; qualified_name: string; kind: string; file: string }>;
@@ -113,6 +119,7 @@ interface SymbolMetrics {
   findings: any[];
   trend: any;
   related: any[];
+  edgeEvidence: Array<{ type: string; direction: string; symbol: string; qualified_name: string; evidence_count: number; strongest_evidence: unknown }>;
   riskLevel: string;
   riskNarrative: string;
 }
@@ -122,6 +129,7 @@ function assessSymbolMetrics(
   project: string,
   node: any,
   rootPath: string,
+  savingsMode: boolean,
 ): SymbolMetrics {
   const props = JSON.parse(node.properties || '{}');
   const cyclomaticComplexity = props.cyclomaticComplexity || 0;
@@ -130,10 +138,13 @@ function assessSymbolMetrics(
   const transitiveLoopDepth = props.transitiveLoopDepth || 0;
 
   const fanIn = db.db
-    .prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND target_id = ?')
+    .prepare("SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND target_id = ? AND type IN ('CALLS', 'USAGE', 'TESTS')")
+    .get(project, node.id) as { cnt: number };
+  const uniqueCallers = db.db
+    .prepare("SELECT COUNT(DISTINCT source_id) as cnt FROM edges WHERE project = ? AND target_id = ? AND type IN ('CALLS', 'USAGE', 'TESTS')")
     .get(project, node.id) as { cnt: number };
   const fanOut = db.db
-    .prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND source_id = ?')
+    .prepare("SELECT COUNT(*) as cnt FROM edges WHERE project = ? AND source_id = ? AND type IN ('CALLS', 'USAGE', 'IMPORTS')")
     .get(project, node.id) as { cnt: number };
 
   // Source code
@@ -141,7 +152,7 @@ function assessSymbolMetrics(
   try {
     const content = fs.readFileSync(path.join(rootPath, node.file_path), 'utf-8');
     const lines = content.split('\n');
-    source = lines.slice(node.start_line - 1, node.end_line).join('\n').substring(0, 4000);
+    source = lines.slice(node.start_line - 1, node.end_line).join('\n').substring(0, savingsMode ? 1600 : 4000);
   } catch { /* source unavailable */ }
 
   // Callers (inbound)
@@ -149,8 +160,8 @@ function assessSymbolMetrics(
     .prepare(
       `SELECT e.type, n.name, n.qualified_name, n.kind, n.file_path
        FROM edges e JOIN nodes n ON e.source_id = n.id
-       WHERE e.project = ? AND e.target_id = ? AND e.type IN ('CALLS', 'USAGE')
-       LIMIT 20`
+       WHERE e.project = ? AND e.target_id = ? AND e.type IN ('CALLS', 'USAGE', 'TESTS')
+       LIMIT ${savingsMode ? 8 : 20}`
     )
     .all(project, node.id) as Array<{ type: string; name: string; qualified_name: string; kind: string; file_path: string }>;
   const callers = callerRows.map(r => ({ type: r.type, name: r.name, qualified_name: r.qualified_name, kind: r.kind, file: r.file_path }));
@@ -161,7 +172,7 @@ function assessSymbolMetrics(
       `SELECT e.type, n.name, n.qualified_name, n.kind, n.file_path
        FROM edges e JOIN nodes n ON e.target_id = n.id
        WHERE e.project = ? AND e.source_id = ? AND e.type IN ('CALLS', 'USAGE', 'IMPORTS')
-       LIMIT 20`
+       LIMIT ${savingsMode ? 8 : 20}`
     )
     .all(project, node.id) as Array<{ type: string; name: string; qualified_name: string; kind: string; file_path: string }>;
   const callees = calleeRows.map(r => ({ type: r.type, name: r.name, qualified_name: r.qualified_name, kind: r.kind, file: r.file_path }));
@@ -181,19 +192,21 @@ function assessSymbolMetrics(
   const trend = getComplexityTrend(db, project, node.qualified_name);
   const related = getRelatedFindings(db, project, node.qualified_name);
 
+  const edgeEvidence = getNodeEdgeEvidence(db, project, node.id, savingsMode ? 10 : 30);
+
   // Risk assessment
   const totalInDegree = fanIn.cnt;
   let riskLevel: string;
   let riskNarrative: string;
   if (totalInDegree >= 20 || cyclomaticComplexity > 100) {
     riskLevel = 'critical';
-    riskNarrative = `This symbol is CRITICAL: ${totalInDegree} inbound dependencies and cyclomatic complexity of ${cyclomaticComplexity}. Any change here has a high risk of breaking other parts of the system.`;
+    riskNarrative = `This symbol is CRITICAL: ${uniqueCallers.cnt} unique callers (${totalInDegree} total call edges) and cyclomatic complexity of ${cyclomaticComplexity}. Any change here has a high risk of breaking other parts of the system.`;
   } else if (totalInDegree >= 10 || cyclomaticComplexity > 50) {
     riskLevel = 'high';
-    riskNarrative = `HIGH risk: ${totalInDegree} inbound dependencies. Changes here should be reviewed carefully.`;
+    riskNarrative = `HIGH risk: ${uniqueCallers.cnt} unique callers (${totalInDegree} total call edges). Changes here should be reviewed carefully.`;
   } else if (totalInDegree >= 5 || cyclomaticComplexity > 20) {
     riskLevel = 'medium';
-    riskNarrative = `MEDIUM risk: ${totalInDegree} dependencies. Moderately safe changes with proper tests.`;
+    riskNarrative = `MEDIUM risk: ${uniqueCallers.cnt} unique callers (${totalInDegree} total call edges). Moderately safe changes with proper tests.`;
   } else {
     riskLevel = 'low';
     riskNarrative = 'LOW risk: few dependencies and manageable complexity.';
@@ -201,8 +214,8 @@ function assessSymbolMetrics(
 
   return {
     cyclomaticComplexity, cognitiveComplexity, loopDepth, transitiveLoopDepth,
-    fanIn: fanIn.cnt, fanOut: fanOut.cnt,
-    callers, callees, parents, source, findings, trend, related,
+    fanIn: fanIn.cnt, uniqueCallers: uniqueCallers.cnt, fanOut: fanOut.cnt,
+    callers, callees, parents, source, findings, trend, related, edgeEvidence,
     riskLevel, riskNarrative,
   };
 }
@@ -215,10 +228,14 @@ function buildExplainResponse(
   project: string,
   query: string,
   started: number,
+  savingsMode: boolean,
 ): unknown {
+  const meta = getDb(project).getProject(project);
+  const rootPath = meta?.rootPath || process.cwd();
+  const value = estimateTokensSaved({ resultCount: 1, candidateFiles: 1, files: [node.file_path], rootPath, project });
   const narrative = [
     `${node.kind} \`${node.name}\` in ${node.file_path}:${node.start_line}-${node.end_line}.`,
-    `${m.fanIn} inbound callers, ${m.fanOut} outbound dependencies.`,
+    `${m.uniqueCallers} unique callers, ${m.fanIn} total call edges. ${m.fanOut} outbound dependencies.`,
     m.cyclomaticComplexity > 0 ? `Cyclomatic complexity: ${m.cyclomaticComplexity}.` : '',
     m.cognitiveComplexity > 0 ? `Cognitive complexity: ${m.cognitiveComplexity}.` : '',
     m.riskNarrative,
@@ -245,6 +262,7 @@ function buildExplainResponse(
     },
     dependencies: {
       fan_in: m.fanIn,
+      unique_callers: m.uniqueCallers,
       fan_out: m.fanOut,
       callers: m.callers,
       callees: m.callees,
@@ -262,11 +280,11 @@ function buildExplainResponse(
       related_issues: m.related.length,
     },
     source: m.source,
-    narrative,
+    ...(!savingsMode ? { narrative } : {}),
     value_metrics: {
-      estimated_files_avoided: 5,
-      estimated_tokens_saved: 2250,
-      confidence: 'high' as const,
+      estimated_files_avoided: value.filesAvoided,
+      estimated_tokens_saved: value.tokensSaved,
+      confidence: value.confidence,
       latency_ms: Date.now() - started,
     },
   };

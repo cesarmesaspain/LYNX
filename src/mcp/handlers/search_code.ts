@@ -15,6 +15,7 @@ import * as os from 'node:os';
 import { getDb } from '../server.js';
 import type { LynxDatabase } from '../../store/database.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 interface GrepMatch {
   file: string;
@@ -41,12 +42,18 @@ export async function handleSearchCode(
   args: Record<string, unknown>
 ): Promise<unknown> {
   const started = Date.now();
-  const pattern = String(args.pattern || '');
+  // Align with the discovery vocabulary used by search_graph and common MCP clients.
+  const pattern = String(args.pattern || args.query || args.text || '');
   const project = String(args.project || '');
-  const filePattern = args.file_pattern ? String(args.file_pattern) : undefined;
-  const pathFilter = args.path_filter ? String(args.path_filter) : undefined;
+  const filePattern = args.file_pattern ? String(args.file_pattern) : args.glob ? String(args.glob) : undefined;
+  const pathFilter = args.path_filter ? String(args.path_filter) : args.path_prefix ? String(args.path_prefix) : undefined;
   const mode = String(args.mode || 'compact');
-  const limit = args.limit !== undefined ? Number(args.limit) : 10;
+  const savingsMode = readLynxConfig().agent_response?.enabled && readLynxConfig().agent_response?.budget === 'max_savings';
+  const defaultLimit = savingsMode ? 5 : 10;
+  const requestedLimit = args.limit !== undefined ? Number(args.limit) : args.max_results !== undefined ? Number(args.max_results) : defaultLimit;
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.max(1, Math.min(Math.floor(requestedLimit), 1000))
+    : 10;
   const contextLines = args.context ? Number(args.context) : 0;
   const useRegex = args.regex === true;
 
@@ -82,7 +89,7 @@ export async function handleSearchCode(
   const outputResults = buildSearchOutput(limitedResults, mode, projInfo.rootPath, contextLines);
   const files = [...new Set(limitedResults.map(r => r.file))];
 
-  const value = estimateTokensSaved(limitedResults.length, files.length);
+  const value = estimateTokensSaved({ resultCount: limitedResults.length, candidateFiles: files.length, files, rootPath: projInfo.rootPath, project });
   recordUsageEvent({
     type: 'search_graph',
     project,
@@ -126,7 +133,7 @@ function looksLikeRegex(pattern: string): boolean {
   return false;
 }
 
-function runGrepSearch(
+export function runGrepSearch(
   db: LynxDatabase,
   project: string,
   pattern: string,
@@ -191,30 +198,31 @@ function runGrepSearch(
   const grepFlag = isRegex ? '-E' : '-F';
   // Run grep in batches to avoid ARG_MAX on macOS (~256KB). Each batch: 500 files max.
   const BATCH = 500;
-  let allOutput = '';
-  for (let i = 0; i < filesToSearch.length; i += BATCH) {
-    const batch = filesToSearch.slice(i, i + BATCH);
-    const cmd = `grep -Hn ${grepFlag} -f '${patternFile}' ${batch.map(f => `'${f}'`).join(' ')} 2>/dev/null`;
-    try {
-      const out = child_process.execSync(cmd, {
-        cwd: rootPath,
-        encoding: 'utf-8',
-        maxBuffer: 50 * 1024 * 1024,
-        timeout: 30000,
-      });
-      if (out) allOutput += out;
-    } catch (e: any) {
-      // grep exit 1 = no matches in this batch (not an error), exit 2+ = real error
-      if (e.status && e.status > 1) {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-        return { error: `grep failed: ${e.message}`, total_grep_matches: 0, total_results: 0, results: [] };
+  try {
+    let allOutput = '';
+    for (let i = 0; i < filesToSearch.length; i += BATCH) {
+      const batch = filesToSearch.slice(i, i + BATCH);
+      try {
+        const out = child_process.execFileSync('grep', ['-Hn', grepFlag, '-f', patternFile, '--', ...batch], {
+          cwd: rootPath,
+          encoding: 'utf-8',
+          maxBuffer: 50 * 1024 * 1024,
+          timeout: 30000,
+          stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        if (out) allOutput += out;
+      } catch (e: any) {
+        // grep exit 1 = no matches in this batch (not an error), exit 2+ = real error
+        if (e.status && e.status > 1) {
+          return { error: `grep failed: ${e.message}`, total_grep_matches: 0, total_results: 0, results: [] };
+        }
+        // status 1: no matches in batch, continue
       }
-      // status 1: no matches in batch, continue
     }
+    return parseGrepOutput(allOutput);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
-
-  fs.rmSync(tmpDir, { recursive: true, force: true });
-  return parseGrepOutput(allOutput);
 }
 
 function parseGrepOutput(grepOutput: string): GrepMatch[] {

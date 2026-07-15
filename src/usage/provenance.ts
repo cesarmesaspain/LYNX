@@ -159,6 +159,8 @@ export interface TelemetryCoverage {
   tasks_available: boolean;
   /** Whether LLM cost tracking is active. */
   llm_tracking_active: boolean;
+  /** Whether an LLM API key (DeepSeek or VPS) is configured. */
+  has_llm_key: boolean;
   /** Whether deterministic mode is on (no LLM events expected). */
   deterministic_mode: boolean;
   /** Human-readable summary. */

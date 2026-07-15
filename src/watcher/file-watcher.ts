@@ -47,6 +47,7 @@ export class FileWatcher {
   private watcher: FSWatcher | null = null;
   private pending = new Set<string>();
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private flushInFlight: Promise<void> | null = null;
   private pauseTimer: ReturnType<typeof setInterval> | null = null;
   private lastActivity = Date.now();
   private paused = false;
@@ -148,6 +149,21 @@ export class FileWatcher {
   }
 
   private async flushPending(): Promise<void> {
+    if (this.flushInFlight) {
+      await this.flushInFlight;
+      return this.flushPending();
+    }
+
+    const flush = this.doFlushPending();
+    this.flushInFlight = flush;
+    try {
+      await flush;
+    } finally {
+      this.flushInFlight = null;
+    }
+  }
+
+  private async doFlushPending(): Promise<void> {
     if (this.pending.size === 0) return;
 
     const files = [...this.pending];
@@ -281,10 +297,11 @@ export class FileWatcher {
 
   private buildWatchConfig(): { ignored: RegExp[] } {
     const names = [
-      'node_modules', '.git', 'dist', 'build', '.next', '.next-build',
+      'node_modules', '.git', 'dist', 'build', '.build', '.next', '.next-build',
       '__pycache__', '.venv', 'venv', 'vendor', 'target', 'tmp', 'tmp_build',
       '.backups', 'backups', '.turbo', '.cache',
       'coverage', '.nyc_output', 'logs', 'public', 'workspace',
+      '.swiftpm', 'DerivedData', '.gradle',
     ];
     const patterns = names.map((n) => new RegExp(`(^|[/\\\\])${n}($|[/\\\\])`));
     // Also ignore binary/media files

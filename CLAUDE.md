@@ -1,3 +1,54 @@
+<!-- lynx-tools:start -->
+## MCP Tools (31)
+
+**Busqueda:** `search_graph`, `semantic_search`, `search_code`
+
+**Navegacion:** `trace_path`, `query_graph`, `get_code_snippet`, `batch_get_code`, `get_edge_evidence`, `investigate_symbol`
+
+**Analisis:** `explain_symbol`, `smart_review`, `analyze_hotspots`, `find_tests`, `find_dead_code`, `assess_impact`
+
+**Contexto:** `pack_context`, `pack_memory`, `get_architecture`, `get_graph_schema`
+
+**Gestion:** `index_repository`, `index_status`, `list_projects`, `delete_project`, `diagnose`
+
+**Cambios:** `detect_changes`, `compare_runs`, `watch_project`
+
+**ADR:** `manage_adr`
+
+**Trazas:** `ingest_traces`
+
+**Utilidades:** `tool_catalog`, `usage_summary`
+
+<!-- lynx-tools:end -->
+
+<!-- lynx:start -->
+# LYNX MCP — REGLA DE PRIORIDAD ABSOLUTA
+
+Proyecto `lynx`: **6,708 nodos**, **24,127 aristas**, 368 archivos, ts, yml, gitignore.
+
+
+**REGLA BLOQUEANTE:** Para cualquier tarea de codigo, la primera herramienta que uses debe ser LYNX. 
+No puedes usar Bash, Read, Grep ni Glob antes de haber consultado LYNX. 
+El proyecto esta indexado — si no usas LYNX primero, estas perdiendo tokens y tiempo innecesariamente.
+
+**Excepcion unica:** solo despues de que una consulta LYNX no resuelva la duda, puedes caer a herramientas de archivo.
+Tambien puedes usar herramientas de archivo directamente para: configuracion, JSON, .env, Dockerfiles o literales que LYNX no indexa.
+
+**Criterio:** usa la herramienta LYNX mas pequena que aporte evidencia suficiente. Reutiliza resultados. No amplies hasta que falte evidencia.
+
+## Arranque
+1. Si el proyecto no esta indexado o esta desactualizado, ejecuta `index_repository` sin preguntar.
+2. No declares que LYNX no esta disponible. Si las tools no aparecen, cargalas bajo demanda.
+3. Para tareas amplias, `pack_context(task, "lynx")` es obligatorio.
+
+## Herramientas esenciales
+- `search_graph` + `get_code_snippet` — definiciones y fuente exacta.
+- `trace_path` — callers, callees, flujo de datos.
+- `query_graph` — metricas, agregaciones, relaciones cruzadas.
+- `batch_get_code` — comparar varios simbolos en una sola llamada.
+- `find_tests` — cuando la cobertura de tests sea relevante.
+<!-- lynx:end -->
+
 # CLAUDE.md — LYNX
 
 ## Guia de investigacion con LYNX
@@ -11,7 +62,7 @@ Reserva pack_context para tareas amplias o multisimbolo, trace_path para flujo r
 
 Ultima actualizacion: 2026-07-11 CEST. **Motor puro + onboarding completo + medicion comercial + benchmark agent A/B.**
 
-LYNX es un servidor MCP de inteligencia de codigo que indexa repositorios en SQLite y expone un grafo de conocimiento con 24 herramientas MCP. Extrae definiciones, llamadas, imports, usos, herencia, rutas HTTP, canales, dependencias y mas — con extractor nativo C para TS/TSX y fallback WASM para 159 lenguajes.
+LYNX es un servidor MCP de inteligencia de codigo que indexa repositorios en SQLite y expone un grafo de conocimiento con 31 herramientas MCP. Extrae definiciones, llamadas, imports, usos, herencia, rutas HTTP, canales, dependencias y mas — con extractor nativo C para TS/TSX y fallback WASM para 159 lenguajes.
 
 ## Onboarding (Fase 9 completada — 2026-07-09)
 
@@ -64,17 +115,6 @@ Para cross-compilacion usa `--all` en build-native-extractor.js (requiere cross-
 ## LLM Hibrido (Fase 2 completada)
 
 Modulo `src/llm/` con 7 archivos. LLM heuristico siempre activo (reglas deterministicas). DeepSeek V4 Flash opcional si `LYNX_DEEPSEEK_KEY` esta seteada. Cache LRU por SHA256. El heuristico mejora TESTS_FILE de 12 a 1033 edges. Binario-safe.
-
-## MCP Tools (24)
-
-**Busqueda:** `search_graph`, `semantic_search`, `search_code`
-**Navegacion:** `trace_path`, `query_graph`, `get_code_snippet`, `batch_get_code`
-**Analisis:** `explain_symbol`, `smart_review`, `analyze_hotspots`, `find_tests`
-**Contexto:** `pack_context`, `pack_memory`, `get_architecture`, `get_graph_schema`
-**Gestion:** `index_repository`, `index_status`, `list_projects`, `delete_project`
-**Cambios:** `detect_changes`, `compare_runs`, `watch_project`
-**ADR:** `manage_adr`
-**Trazas:** `ingest_traces`
 
 ## Medicion comercial (Fase 10 completada)
 

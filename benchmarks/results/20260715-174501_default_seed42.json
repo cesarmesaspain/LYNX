@@ -1,0 +1,1681 @@
+{
+  "config": {
+    "tier": "official",
+    "seed": 42,
+    "model": "deepseek-v4-flash",
+    "baseUrl": "https://api.deepseek.com/v1",
+    "systemPrompt": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else.",
+    "temperature": 0,
+    "warmupRounds": 0,
+    "measuredRounds": 1,
+    "dryRun": false
+  },
+  "methodology": [
+    "6 deterministic tasks executed through a DeepSeek LLM agent.",
+    "with_lynx: LLM has access to LYNX graph tools (search_graph, trace_path, explain_symbol, find_tests) + read_file.",
+    "without_lynx: LLM has access to read_file + grep only.",
+    "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
+    "Paid microbenchmark protocol: exact deepseek-v4-flash, temperature 0, fixed per-round seeds, identical prompts/order/limits/runtime; no model or provider fallback.",
+    "Mode: live API calls. Suite: default.",
+    "Cost is estimated from token usage and configured pricing. Wall time includes API latency.",
+    "ROI claims blocked when baseline invalid or sample size too small."
+  ],
+  "tasks": [
+    {
+      "run_id": "run_1_6ece60eb53ee",
+      "task_id": "find_callers",
+      "condition": "with_lynx",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find all functions that call \"readConfig\". List them as an array of {name, file_path} objects in JSON. Respond with JSON: {\"callers\": [{\"name\": \"...\", \"file_path\": \"...\"}]}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_6xhwdbw0rOHEajkKCk5E8064",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"readConfig\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_ZBKpa9MDLvyRfua4glkE3641",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"readConfig\", \"direction\": \"inbound\", \"depth\": 1}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_7KSdJNlEdiB0Drp2MoZc0215",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"readConfig\", \"direction\": \"inbound\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Lwb2eRvAUlt9MPDBWbpd9498",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"readConfig\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_VtHJY9OmL8b2jFF8NqNt9131",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_n7fhD2KHtWB5iwsIV1jc2666",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/store/db.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_AHPeGJwSma7KwpEmrun73904",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/handlers/search.ts\"}"
+          }
+        },
+        {
+          "index": 3,
+          "id": "call_03_pZqPJNa5VTN79WPfdoAF5980",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/config/runtime.test.ts\"}"
+          }
+        }
+      ],
+      "response": "Here are all functions that directly call `readConfig`:\n\n| Function | File | How |\n|---|---|---|\n| `openDb` | `src/store/db.ts` | Imports `readConfig` and calls it |\n| `dbPath` | `src/store/db.ts` | Imports `readConfig` and calls it |\n| `testReadConfigDefaultPort` | `tests/config/runtime.test.ts` | Test function that calls `readConfig` directly |\n\n`searchGraph` (`src/handlers/search.ts`) calls `openDb`, which in turn calls `readConfig`, but does **not** call `readConfig` directly.\n\n```json\n{\n  \"callers\": [\n    {\"name\": \"openDb\", \"file_path\": \"src/store/db.ts\"},\n    {\"name\": \"dbPath\", \"file_path\": \"src/store/db.ts\"},\n    {\"name\": \"testReadConfigDefaultPort\", \"file_path\": \"tests/config/runtime.test.ts\"}\n  ]\n}\n```",
+      "responseHash": "01978ccb17a85c20",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 13923,
+        "output_tokens": 1335,
+        "cached_tokens": 11648,
+        "reasoning_tokens": 247,
+        "tool_call_count": 8,
+        "files_read": 4,
+        "bytes_read": 2388,
+        "wall_time_ms": 14182,
+        "api_latency_ms": 14182,
+        "cost_usd": 0.00085537,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 47,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 4,
+        "efficiency_score": 1
+      },
+      "result": {
+        "callers": [
+          {
+            "name": "openDb",
+            "file_path": "src/store/db.ts"
+          },
+          {
+            "name": "dbPath",
+            "file_path": "src/store/db.ts"
+          },
+          {
+            "name": "testReadConfigDefaultPort",
+            "file_path": "tests/config/runtime.test.ts"
+          }
+        ]
+      },
+      "expected": {
+        "callers": [
+          {
+            "name": "openDb"
+          },
+          {
+            "name": "dbPath"
+          }
+        ]
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_2_040d367c0dc4",
+      "task_id": "find_callers",
+      "condition": "without_lynx",
+      "order_position": 0,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find all functions that call \"readConfig\". List them as an array of {name, file_path} objects in JSON. Respond with JSON: {\"callers\": [{\"name\": \"...\", \"file_path\": \"...\"}]}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_ycHnttYR3cXPJbWt2WaA8920",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"readConfig\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_1Q3oIYGVwTP3gGNSdL6L9500",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/config/runtime.test.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ovhzip223zg5btisrbnS8136",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/store/db.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_rXbVymijGXDyB0LdWCmY4585",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"readConfig\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_gSBfHjHifGt7bI7HKsW95898",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/config/runtime.test.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Fm3z7KA2ZxbhUjo3yXcJ0888",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/store/db.ts\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"callers\": [\n    {\n      \"name\": \"testReadConfigDefaultPort\",\n      \"file_path\": \"tests/config/runtime.test.ts\"\n    },\n    {\n      \"name\": \"openDb\",\n      \"file_path\": \"src/store/db.ts\"\n    },\n    {\n      \"name\": \"dbPath\",\n      \"file_path\": \"src/store/db.ts\"\n    }\n  ]\n}\n```",
+      "responseHash": "b72af221872c955a",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 8033,
+        "output_tokens": 691,
+        "cached_tokens": 6144,
+        "reasoning_tokens": 65,
+        "tool_call_count": 6,
+        "files_read": 2,
+        "bytes_read": 3100,
+        "wall_time_ms": 8226,
+        "api_latency_ms": 8226,
+        "cost_usd": 0.00054396,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 2,
+        "evidence_used": 2,
+        "efficiency_score": 0.67
+      },
+      "result": {
+        "callers": [
+          {
+            "name": "testReadConfigDefaultPort",
+            "file_path": "tests/config/runtime.test.ts"
+          },
+          {
+            "name": "openDb",
+            "file_path": "src/store/db.ts"
+          },
+          {
+            "name": "dbPath",
+            "file_path": "src/store/db.ts"
+          }
+        ]
+      },
+      "expected": {
+        "callers": [
+          {
+            "name": "openDb"
+          },
+          {
+            "name": "dbPath"
+          }
+        ]
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_3_a1f7916cb1b3",
+      "task_id": "find_definition",
+      "condition": "with_lynx",
+      "order_position": 1,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"lynxHome\" is defined. What file is it in? What does it return? Respond with JSON: {\"found_file\": \"<relative path>\", \"function_name\": \"lynxHome\", \"returns_path\": true/false}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_OnXMSez5tFjAsPCb5nel8960",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"lynxHome\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EdXVDCsDuEnQAOZ5Bomc2066",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          }
+        }
+      ],
+      "response": "The function `lynxHome` is defined in `src/config/runtime.ts`. It returns a `string` — specifically, the value of `process.env.LYNX_HOME` if set, otherwise the user's home directory joined with `.lynx`. Since the return value is a file-system path (a string representing a directory location), `returns_path` is `true`.\n\n```json\n{\"found_file\": \"src/config/runtime.ts\", \"function_name\": \"lynxHome\", \"returns_path\": true}\n```",
+      "responseHash": "ff366b82f52beb4d",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 4311,
+        "output_tokens": 386,
+        "cached_tokens": 4096,
+        "reasoning_tokens": 133,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 453,
+        "wall_time_ms": 5065,
+        "api_latency_ms": 5065,
+        "cost_usd": 0.00019552,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 2,
+        "efficiency_score": 1
+      },
+      "result": {
+        "found_file": "src/config/runtime.ts",
+        "function_name": "lynxHome",
+        "returns_path": true
+      },
+      "expected": {
+        "found_file": "runtime.ts",
+        "function_name": "lynxHome",
+        "returns_path": true
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_4_2fb21515dca2",
+      "task_id": "find_definition",
+      "condition": "without_lynx",
+      "order_position": 1,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find where the function \"lynxHome\" is defined. What file is it in? What does it return? Respond with JSON: {\"found_file\": \"<relative path>\", \"function_name\": \"lynxHome\", \"returns_path\": true/false}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_BYI4r2OrWdxxRlvRJ8F59828",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"lynxHome\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_n0WewoCQ4IzWQot95ppp4196",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on the investigation:\n\n- **Definition file**: `src/config/runtime.ts`\n- **Return value**: The function returns a `string` — specifically, the value of `process.env.LYNX_HOME` if set, otherwise `~/.lynx` (joined with the user's home directory). Since this is a file system path, `returns_path` is `true`.\n\n```json\n{\n  \"found_file\": \"src/config/runtime.ts\",\n  \"function_name\": \"lynxHome\",\n  \"returns_path\": true\n}\n```",
+      "responseHash": "9dcae0f2d6a2a773",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 3020,
+        "output_tokens": 330,
+        "cached_tokens": 2304,
+        "reasoning_tokens": 61,
+        "tool_call_count": 2,
+        "files_read": 1,
+        "bytes_read": 453,
+        "wall_time_ms": 4861,
+        "api_latency_ms": 4861,
+        "cost_usd": 0.0002249,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 2,
+        "efficiency_score": 1
+      },
+      "result": {
+        "found_file": "src/config/runtime.ts",
+        "function_name": "lynxHome",
+        "returns_path": true
+      },
+      "expected": {
+        "found_file": "runtime.ts",
+        "function_name": "lynxHome",
+        "returns_path": true
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_5_72793bed1c09",
+      "task_id": "locate_definitions",
+      "condition": "with_lynx",
+      "order_position": 2,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find the source locations (file and start line) for these three functions: lynxHome, openDb, formatPath. Respond with JSON: {\"definitions\": [{\"name\": \"...\", \"file_path\": \"...\", \"start_line\": N}]}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_vAaTJg79yfYvQVyyspuJ6812",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"lynxHome\", \"label\": \"Function\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_XzpxuierCvoC5WL0Rg1a3894",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"openDb\", \"label\": \"Function\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_GUlvINi1P0UF9MqAm9I63528",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"formatPath\", \"label\": \"Function\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"definitions\": [\n    {\n      \"name\": \"lynxHome\",\n      \"file_path\": \"src/config/runtime.ts\",\n      \"start_line\": 7\n    },\n    {\n      \"name\": \"openDb\",\n      \"file_path\": \"src/store/db.ts\",\n      \"start_line\": 9\n    },\n    {\n      \"name\": \"formatPath\",\n      \"file_path\": \"src/utils/helpers.ts\",\n      \"start_line\": 3\n    }\n  ]\n}\n```",
+      "responseHash": "e085cc4af339b716",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 3165,
+        "output_tokens": 356,
+        "cached_tokens": 2176,
+        "reasoning_tokens": 72,
+        "tool_call_count": 3,
+        "files_read": 0,
+        "bytes_read": 0,
+        "wall_time_ms": 3704,
+        "api_latency_ms": 3704,
+        "cost_usd": 0.0002686,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 1,
+        "efficiency_score": 1
+      },
+      "result": {
+        "definitions": [
+          {
+            "name": "lynxHome",
+            "file_path": "src/config/runtime.ts",
+            "start_line": 7
+          },
+          {
+            "name": "openDb",
+            "file_path": "src/store/db.ts",
+            "start_line": 9
+          },
+          {
+            "name": "formatPath",
+            "file_path": "src/utils/helpers.ts",
+            "start_line": 3
+          }
+        ]
+      },
+      "expected": {
+        "definitions": [
+          {
+            "name": "lynxHome",
+            "file_path": "runtime.ts"
+          },
+          {
+            "name": "openDb",
+            "file_path": "db.ts"
+          },
+          {
+            "name": "formatPath",
+            "file_path": "helpers.ts"
+          }
+        ]
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_6_17628ea77de1",
+      "task_id": "locate_definitions",
+      "condition": "without_lynx",
+      "order_position": 2,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find the source locations (file and start line) for these three functions: lynxHome, openDb, formatPath. Respond with JSON: {\"definitions\": [{\"name\": \"...\", \"file_path\": \"...\", \"start_line\": N}]}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_LVboIuJhw6Zv7K27xZTZ0935",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"function lynxHome\\\\b\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_tRi3f7Nikuh1TFYKC2Dj7920",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"function openDb\\\\b\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_gxN19O4dmugpmUZRqljv1500",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"function formatPath\\\\b\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_l4Boohf58eQpC77cpHlV8773",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/var/folders/8d/4195lkk93dnbt96lmhdhcldh0000gn/T/lynx-agent-ab-gbPlyq/ab-fixture/src/config/runtime.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_uCOOqS5KzhuazdHeC84m5618",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/var/folders/8d/4195lkk93dnbt96lmhdhcldh0000gn/T/lynx-agent-ab-gbPlyq/ab-fixture/src/store/db.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_g7CrHL4lCo4XXXotgMmK6162",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/var/folders/8d/4195lkk93dnbt96lmhdhcldh0000gn/T/lynx-agent-ab-gbPlyq/ab-fixture/src/utils/helpers.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_QJVZKVtW5CKIY57FgUwi0564",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"^  \\\"name\\\"\", \"include\": \"package.json\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"definitions\": [\n    {\n      \"name\": \"lynxHome\",\n      \"file_path\": \"src/config/runtime.ts\",\n      \"start_line\": 7\n    },\n    {\n      \"name\": \"openDb\",\n      \"file_path\": \"src/store/db.ts\",\n      \"start_line\": 9\n    },\n    {\n      \"name\": \"formatPath\",\n      \"file_path\": \"src/utils/helpers.ts\",\n      \"start_line\": 3\n    }\n  ]\n}\n```",
+      "responseHash": "e085cc4af339b716",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 5134,
+        "output_tokens": 789,
+        "cached_tokens": 4224,
+        "reasoning_tokens": 55,
+        "tool_call_count": 7,
+        "files_read": 3,
+        "bytes_read": 1464,
+        "wall_time_ms": 7115,
+        "api_latency_ms": 7115,
+        "cost_usd": 0.00040746,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 3,
+        "efficiency_score": 1
+      },
+      "result": {
+        "definitions": [
+          {
+            "name": "lynxHome",
+            "file_path": "src/config/runtime.ts",
+            "start_line": 7
+          },
+          {
+            "name": "openDb",
+            "file_path": "src/store/db.ts",
+            "start_line": 9
+          },
+          {
+            "name": "formatPath",
+            "file_path": "src/utils/helpers.ts",
+            "start_line": 3
+          }
+        ]
+      },
+      "expected": {
+        "definitions": [
+          {
+            "name": "lynxHome",
+            "file_path": "runtime.ts"
+          },
+          {
+            "name": "openDb",
+            "file_path": "db.ts"
+          },
+          {
+            "name": "formatPath",
+            "file_path": "helpers.ts"
+          }
+        ]
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_7_7ac967336f40",
+      "task_id": "trace_dependency_chain",
+      "condition": "without_lynx",
+      "order_position": 3,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Trace the runtime call path from \"searchGraph\" to \"lynxHome\". List the functions in call order, including both endpoints. Respond with JSON: {\"call_chain\": [\"searchGraph\", \"...\", \"lynxHome\"], \"hops\": N}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_RWg0csXw6oOSDYbbCwb96388",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"searchGraph\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_OEt21OM35G3tldSlwIrj8210",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"lynxHome\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_0UIwjBGOGUEQk416ddS45577",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/var/folders/8d/4195lkk93dnbt96lmhdhcldh0000gn/T/lynx-agent-ab-gbPlyq/ab-fixture/src/handlers/search.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_iBSBLFDWJQyLIw6vp9Zn3903",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/var/folders/8d/4195lkk93dnbt96lmhdhcldh0000gn/T/lynx-agent-ab-gbPlyq/ab-fixture/src/config/runtime.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_b8t5lJh0X9urToZf2Feq5205",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"/var/folders/8d/4195lkk93dnbt96lmhdhcldh0000gn/T/lynx-agent-ab-gbPlyq/ab-fixture/src/utils/helpers.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EmpOKJqsuF8kXlln7AQP2074",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"import.*searchGraph\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_RWQYRCE6NcL35Y36ENP52159",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \"formatPath\"}"
+          }
+        }
+      ],
+      "response": "Here is the traced runtime call path:\n\n```json\n{\n  \"call_chain\": [\"searchGraph\", \"formatPath\", \"lynxHome\"],\n  \"hops\": 2\n}\n```\n\n**Explanation:**\n\n1. **`searchGraph`** (`src/handlers/search.ts`) — entry point that builds search result paths.\n2. **`formatPath`** (`src/utils/helpers.ts`) — called by `searchGraph` (line 7) via `formatPath(...)`. It shortens the path against the home directory.\n3. **`lynxHome`** (`src/config/runtime.ts`) — called by `formatPath` (line 4) via `lynxHome()` to resolve the Lynx home directory.\n\nThere are 2 hops (`searchGraph` → `formatPath` → `lynxHome`).",
+      "responseHash": "1534814adcd59fd1",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 8196,
+        "output_tokens": 1002,
+        "cached_tokens": 6656,
+        "reasoning_tokens": 36,
+        "tool_call_count": 7,
+        "files_read": 3,
+        "bytes_read": 1236,
+        "wall_time_ms": 9478,
+        "api_latency_ms": 9478,
+        "cost_usd": 0.00058934,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 4,
+        "fixes_needed": 4,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 3,
+        "efficiency_score": 1
+      },
+      "result": {
+        "call_chain": [
+          "searchGraph",
+          "formatPath",
+          "lynxHome"
+        ],
+        "hops": 2
+      },
+      "expected": {
+        "call_chain": [
+          "searchGraph",
+          "openDb",
+          "readConfig",
+          "lynxHome"
+        ],
+        "hops": 3
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "Missing expected item in call_chain: openDb",
+        "Missing expected item in call_chain: readConfig",
+        "hops: expected 3, got 2"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_8_a4aeeb79db34",
+      "task_id": "trace_dependency_chain",
+      "condition": "with_lynx",
+      "order_position": 3,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Trace the runtime call path from \"searchGraph\" to \"lynxHome\". List the functions in call order, including both endpoints. Respond with JSON: {\"call_chain\": [\"searchGraph\", \"...\", \"lynxHome\"], \"hops\": N}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_dbQVWJli7JZub0ND9NPP6887",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"searchGraph\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ZvzPtdIb5gNeQ9hiQj0M4478",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"lynxHome\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_XbBuCcrekpS5jiiJQOGo4250",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"searchGraph\", \"direction\": \"outbound\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_qOEe7f4w45e6LQl7v0J88203",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/handlers/search.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ILQId7cOqKiaQ0ZnBLlf5970",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/store/db.ts\"}"
+          }
+        },
+        {
+          "index": 2,
+          "id": "call_02_xx8ZITGMOFKeuoipzowk0387",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          }
+        }
+      ],
+      "response": "Here is the verified runtime call chain from `searchGraph` to `lynxHome`.\n\n**Call chain (4 functions, 3 hops):**\n\n1. **`searchGraph`** (`src/handlers/search.ts:4`) — calls `openDb`\n2. **`openDb`** (`src/store/db.ts:7`) — calls `readConfig`\n3. **`readConfig`** (`src/config/runtime.ts:14`) — calls `lynxHome`\n4. **`lynxHome`** (`src/config/runtime.ts:7`) — no further calls (leaf function)\n\n```json\n{\n  \"call_chain\": [\"searchGraph\", \"openDb\", \"readConfig\", \"lynxHome\"],\n  \"hops\": 3\n}\n```",
+      "responseHash": "3b54f70c809a6ff0",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 8721,
+        "output_tokens": 883,
+        "cached_tokens": 6656,
+        "reasoning_tokens": 128,
+        "tool_call_count": 6,
+        "files_read": 3,
+        "bytes_read": 1451,
+        "wall_time_ms": 8637,
+        "api_latency_ms": 8637,
+        "cost_usd": 0.00062952,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 3,
+        "efficiency_score": 1
+      },
+      "result": {
+        "call_chain": [
+          "searchGraph",
+          "openDb",
+          "readConfig",
+          "lynxHome"
+        ],
+        "hops": 3
+      },
+      "expected": {
+        "call_chain": [
+          "searchGraph",
+          "openDb",
+          "readConfig",
+          "lynxHome"
+        ],
+        "hops": 3
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_9_38af6863b308",
+      "task_id": "change_impact",
+      "condition": "without_lynx",
+      "order_position": 4,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Determine what functions are impacted if the \"Config\" interface changes in the project. List the names of impacted functions. Respond with JSON: {\"impacted_functions\": [\"func1\", \"func2\"], \"references\": N}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_7hPAN3ye5zbfWnRc5cwZ1789",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"interface Config\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_dWm7QyWJkz7UcckhWCAl4118",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_kx9Sila5Y4gS7J6jM9N47499",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"\\\\bConfig\\\\b\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_tcKcjtHNpoBxWyGCYCEG4849",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"import.*Config.*from\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_Z8I6maqFFHsKmRujWd4A0237",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"readConfig\", \"include\": \"*.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_bZXt5gCFvNVG3NmuFXKi4690",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/store/db.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_3vCROqWkNh86ZPAVZW6X5696",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/config/runtime.test.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_AFfYuQgSlnxoz2RoqQdY3844",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"include\": \"*.ts\", \"pattern\": \": Config\\\\b\"}"
+          }
+        }
+      ],
+      "response": "Here is the analysis of functions impacted by a change to the `Config` interface.\n\nThe `Config` interface is defined in `src/config/runtime.ts`:\n\n```ts\nexport interface Config {\n  home: string;\n  debug: boolean;\n  port: number;\n}\n```\n\n**Impacted functions (directly depend on the Config shape):**\n\n1. **`readConfig`** (`src/config/runtime.ts`) — returns `Config` and constructs the object literal that must match the interface.\n2. **`openDb`** (`src/store/db.ts`) — calls `readConfig()` and accesses `config.home`.\n3. **`dbPath`** (`src/store/db.ts`) — calls `readConfig()` and accesses `config.home`.\n4. **`testReadConfigDefaultPort`** (`tests/config/runtime.test.ts`) — calls `readConfig()` and accesses `config.port`.\n\n**Functions NOT impacted:** `lynxHome`, `closeDb`, `testLynxHomeReturnsString`, `testLynxHomeRespectsEnv`, `testDefaultPortConstant` — these do not use the `Config` type or its return value.\n\n```json\n{\n  \"impacted_functions\": [\n    \"readConfig\",\n    \"openDb\",\n    \"dbPath\",\n    \"testReadConfigDefaultPort\"\n  ],\n  \"references\": 4\n}\n```",
+      "responseHash": "c6afe432603a01d0",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 9143,
+        "output_tokens": 1385,
+        "cached_tokens": 7552,
+        "reasoning_tokens": 225,
+        "tool_call_count": 8,
+        "files_read": 3,
+        "bytes_read": 2003,
+        "wall_time_ms": 13469,
+        "api_latency_ms": 13469,
+        "cost_usd": 0.00071627,
+        "cost_classification": "estimated",
+        "functional_success": false,
+        "defects_introduced": 2,
+        "fixes_needed": 2,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 3,
+        "efficiency_score": 1
+      },
+      "result": {},
+      "expected": {
+        "impacted_functions": [
+          "readConfig",
+          "openDb"
+        ],
+        "references": 2
+      },
+      "correct": false,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [
+        "Could not parse JSON from response"
+      ],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_a_b39b06018aca",
+      "task_id": "change_impact",
+      "condition": "with_lynx",
+      "order_position": 4,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Determine what functions are impacted if the \"Config\" interface changes in the project. List the names of impacted functions. Respond with JSON: {\"impacted_functions\": [\"func1\", \"func2\"], \"references\": N}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_QTgIJAzvNSbyzb88KvDl1630",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"Config\", \"label\": \"Interface\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_yqzCwwRVrc0kVWO3jnUk9880",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/config/runtime.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_exkjG3pAJbJ0jlEmwGXq5039",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"Config\", \"direction\": \"inbound\", \"depth\": 2}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_EcJYRdszuz0rCBqvFp6t5918",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"Config\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_n0xmwjiSlmlB67n1urKd1798",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"readConfig\", \"direction\": \"inbound\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_4VoObu8jkL41akdDSNbc2337",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/config/runtime.test.ts\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_GW3ovbs5iYwq8BjPxQjP7245",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/store/db.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_NZrFakAxUIFBTW31PBbr1472",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"Config\", \"limit\": 50}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_HrMITMz6wfcMsVPMNu507666",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"src/handlers/search.ts\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_nUUCE3VhuAERekMA6RnY5463",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"openDb\", \"direction\": \"inbound\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_ycoXObPjIdqF72tT6xx45989",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"dbPath\", \"direction\": \"inbound\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_og3SZWtqjCpfHG1Y0RXy9391",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"searchGraph\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_MBN2vO32LgytXtuOUGep5392",
+          "type": "function",
+          "function": {
+            "name": "trace_path",
+            "arguments": "{\"function_name\": \"searchGraph\", \"direction\": \"inbound\", \"depth\": 3}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_Fc0f0Si3OuambPscEZ7s9768",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"closeDb\", \"limit\": 20}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_JOr2LYSj5IAbcyfiBV7v2172",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"src/\", \"label\": \"Function\", \"limit\": 30}"
+          }
+        }
+      ],
+      "response": "Here is my analysis of the impact if the `Config` interface changes.\n\nThe `Config` interface is defined in `src/config/runtime.ts` with three fields: `home`, `debug`, and `port`.\n\n**Directly impacted functions** (produce or consume `Config`):\n- **`readConfig`** — returns a `Config` object; must match the interface shape.\n- **`openDb`** — calls `readConfig()` and accesses `config.home`.\n- **`dbPath`** — calls `readConfig()` and accesses `config.home`.\n- **`testReadConfigDefaultPort`** — calls `readConfig()` and accesses `config.port`.\n\n**Transitively impacted** (calls an impacted function):\n- **`searchGraph`** — calls `openDb()`.\n\nTotal distinct impacted functions: **5**.\n\n```json\n{\n  \"impacted_functions\": [\n    \"readConfig\",\n    \"openDb\",\n    \"dbPath\",\n    \"searchGraph\",\n    \"testReadConfigDefaultPort\"\n  ],\n  \"references\": 15\n}\n```\n\n*(`references: 15` reflects the `in_degree` count on the `Config` interface node — the total number of incoming references to the interface in the knowledge graph.)*",
+      "responseHash": "c3b8aa91003e2610",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 59641,
+        "output_tokens": 2242,
+        "cached_tokens": 52608,
+        "reasoning_tokens": 396,
+        "tool_call_count": 15,
+        "files_read": 4,
+        "bytes_read": 2388,
+        "wall_time_ms": 25878,
+        "api_latency_ms": 25878,
+        "cost_usd": 0.00234889,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 4,
+        "efficiency_score": 1
+      },
+      "result": {
+        "impacted_functions": [
+          "readConfig",
+          "openDb",
+          "dbPath",
+          "searchGraph",
+          "testReadConfigDefaultPort"
+        ],
+        "references": 15
+      },
+      "expected": {
+        "impacted_functions": [
+          "readConfig",
+          "openDb"
+        ],
+        "references": 2
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_b_708f38506764",
+      "task_id": "find_tests",
+      "condition": "without_lynx",
+      "order_position": 5,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find all test functions that test \"lynxHome\". List them as JSON: {\"test_functions\": [{\"name\": \"...\", \"file_path\": \"...\"}], \"total_tests\": N}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_Tdt9w50jxzn8rRad7qar7358",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"lynxHome\", \"include\": \"*test*\"}"
+          }
+        },
+        {
+          "index": 1,
+          "id": "call_01_3JSqdTSwnMQiS74xXenZ7744",
+          "type": "function",
+          "function": {
+            "name": "grep",
+            "arguments": "{\"pattern\": \"lynxHome\", \"include\": \"*.spec.*\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_PeR3sV5xN9504hFaEYGB4783",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/config/runtime.test.ts\"}"
+          }
+        }
+      ],
+      "response": "Based on the file `tests/config/runtime.test.ts`, there are two test functions that directly test `lynxHome`.\n\n```json\n{\n  \"test_functions\": [\n    {\n      \"name\": \"testLynxHomeReturnsString\",\n      \"file_path\": \"tests/config/runtime.test.ts\"\n    },\n    {\n      \"name\": \"testLynxHomeRespectsEnv\",\n      \"file_path\": \"tests/config/runtime.test.ts\"\n    }\n  ],\n  \"total_tests\": 2\n}\n```",
+      "responseHash": "6229b0cd5a34ec7f",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 2813,
+        "output_tokens": 510,
+        "cached_tokens": 2176,
+        "reasoning_tokens": 168,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 937,
+        "wall_time_ms": 5330,
+        "api_latency_ms": 5330,
+        "cost_usd": 0.00026244,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 2,
+        "efficiency_score": 1
+      },
+      "result": {
+        "test_functions": [
+          {
+            "name": "testLynxHomeReturnsString",
+            "file_path": "tests/config/runtime.test.ts"
+          },
+          {
+            "name": "testLynxHomeRespectsEnv",
+            "file_path": "tests/config/runtime.test.ts"
+          }
+        ],
+        "total_tests": 2
+      },
+      "expected": {
+        "test_functions": [
+          {
+            "name": "testLynxHomeReturnsString"
+          },
+          {
+            "name": "testLynxHomeRespectsEnv"
+          }
+        ]
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    },
+    {
+      "run_id": "run_c_3602d734ab01",
+      "task_id": "find_tests",
+      "condition": "with_lynx",
+      "order_position": 5,
+      "seed": 42,
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are a code intelligence agent. You help developers understand code by answering questions precisely and concisely.\n\nRules:\n- Answer based on the tools and information available.\n- When MCP tools are available, their names, descriptions, and argument schemas are authoritative. Choose the smallest relevant tool set needed for the requested evidence; do not assume undocumented behavior.\n- When using tools, call them one at a time. Wait for each result before proceeding.\n- Verify only material uncertainty, and reuse evidence already collected instead of repeating equivalent investigation.\n- When the available evidence is sufficient, stop investigating and provide a concise final answer.\n- Do NOT invent information. If you cannot find something, say so.\n- Output your final answer as a single JSON object with the exact fields requested. Nothing else."
+        },
+        {
+          "role": "user",
+          "content": "Find all test functions that test \"lynxHome\". List them as JSON: {\"test_functions\": [{\"name\": \"...\", \"file_path\": \"...\"}], \"total_tests\": N}"
+        }
+      ],
+      "toolCalls": [
+        {
+          "index": 0,
+          "id": "call_00_IXXKbZrjDV7UbycAtUWn2579",
+          "type": "function",
+          "function": {
+            "name": "search_graph",
+            "arguments": "{\"query\": \"lynxHome\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_DHdjHMwhoDlglYIsuiUm0820",
+          "type": "function",
+          "function": {
+            "name": "find_tests",
+            "arguments": "{\"name\": \"lynxHome\"}"
+          }
+        },
+        {
+          "index": 0,
+          "id": "call_00_cPHmGYcRznYx5pKlOWh21459",
+          "type": "function",
+          "function": {
+            "name": "read_file",
+            "arguments": "{\"path\": \"tests/config/runtime.test.ts\"}"
+          }
+        }
+      ],
+      "response": "```json\n{\n  \"test_functions\": [\n    {\n      \"name\": \"testLynxHomeReturnsString\",\n      \"file_path\": \"tests/config/runtime.test.ts\"\n    },\n    {\n      \"name\": \"testLynxHomeRespectsEnv\",\n      \"file_path\": \"tests/config/runtime.test.ts\"\n    }\n  ],\n  \"total_tests\": 2\n}\n```",
+      "responseHash": "c64c755e905aa183",
+      "metrics": {
+        "model": "deepseek-v4-flash",
+        "model_version": "deepseek-v4-flash",
+        "input_tokens": 6996,
+        "output_tokens": 418,
+        "cached_tokens": 5504,
+        "reasoning_tokens": 21,
+        "tool_call_count": 3,
+        "files_read": 1,
+        "bytes_read": 937,
+        "wall_time_ms": 5653,
+        "api_latency_ms": 5653,
+        "cost_usd": 0.00040298,
+        "cost_classification": "estimated",
+        "functional_success": true,
+        "defects_introduced": 0,
+        "fixes_needed": 0,
+        "not_executed": false,
+        "cold_start_index_ms": 0,
+        "tool_calls_unnecessary": 0,
+        "evidence_used": 3,
+        "efficiency_score": 1
+      },
+      "result": {
+        "test_functions": [
+          {
+            "name": "testLynxHomeReturnsString",
+            "file_path": "tests/config/runtime.test.ts"
+          },
+          {
+            "name": "testLynxHomeRespectsEnv",
+            "file_path": "tests/config/runtime.test.ts"
+          }
+        ],
+        "total_tests": 2
+      },
+      "expected": {
+        "test_functions": [
+          {
+            "name": "testLynxHomeReturnsString"
+          },
+          {
+            "name": "testLynxHomeRespectsEnv"
+          }
+        ]
+      },
+      "correct": true,
+      "evaluation_eligible": true,
+      "evaluation_kind": "deterministic",
+      "errors": [],
+      "not_executed": false,
+      "tool_loop_exhausted": false
+    }
+  ],
+  "summary": {
+    "with_lynx": {
+      "wall_time_ms": {
+        "median": 8637,
+        "p95": 25878
+      },
+      "input_tokens": {
+        "median": 8721,
+        "total": 96757
+      },
+      "output_tokens": {
+        "median": 883,
+        "total": 5620
+      },
+      "cached_tokens": {
+        "median": 6656,
+        "total": 82688
+      },
+      "reasoning_tokens": {
+        "median": 133,
+        "total": 997
+      },
+      "tool_calls": {
+        "median": 6,
+        "total": 37
+      },
+      "cost_usd": {
+        "median": 0.00062952,
+        "total": 0.00470088
+      },
+      "functional_success_rate": 1,
+      "evaluated_runs": 6,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 0,
+      "tool_calls_unnecessary": {
+        "median": 0,
+        "total": 0
+      },
+      "evidence_used": {
+        "median": 3,
+        "total": 17
+      },
+      "efficiency_score": {
+        "median": 1
+      }
+    },
+    "without_lynx": {
+      "wall_time_ms": {
+        "median": 8226,
+        "p95": 13469
+      },
+      "input_tokens": {
+        "median": 8033,
+        "total": 36339
+      },
+      "output_tokens": {
+        "median": 789,
+        "total": 4707
+      },
+      "cached_tokens": {
+        "median": 6144,
+        "total": 29056
+      },
+      "reasoning_tokens": {
+        "median": 65,
+        "total": 610
+      },
+      "tool_calls": {
+        "median": 7,
+        "total": 33
+      },
+      "cost_usd": {
+        "median": 0.00054396,
+        "total": 0.0027443700000000003
+      },
+      "functional_success_rate": 0.6666666666666666,
+      "evaluated_runs": 6,
+      "excluded_from_evaluation": 0,
+      "defects_per_task": 1,
+      "tool_calls_unnecessary": {
+        "median": 0,
+        "total": 2
+      },
+      "evidence_used": {
+        "median": 3,
+        "total": 15
+      },
+      "efficiency_score": {
+        "median": 1
+      }
+    },
+    "comparison": [
+      {
+        "metric": "Median wall time",
+        "class": "measured",
+        "with_lynx": "8637ms",
+        "without_lynx": "8226ms",
+        "delta": "5.0%",
+        "interpretation": "Wall time including API latency"
+      },
+      {
+        "metric": "Input tokens (median)",
+        "class": "measured",
+        "with_lynx": "8721",
+        "without_lynx": "8033",
+        "delta": "8.6%",
+        "interpretation": "Input tokens from API usage"
+      },
+      {
+        "metric": "Output tokens (median)",
+        "class": "measured",
+        "with_lynx": "883",
+        "without_lynx": "789",
+        "delta": "11.9%",
+        "interpretation": "Output tokens from API usage"
+      },
+      {
+        "metric": "Tool calls (median)",
+        "class": "measured",
+        "with_lynx": "6",
+        "without_lynx": "7",
+        "delta": "-14.3%",
+        "interpretation": "Number of tool call turns"
+      },
+      {
+        "metric": "Cost USD (median)",
+        "class": "estimated",
+        "with_lynx": "$0.000630",
+        "without_lynx": "$0.000544",
+        "delta": "15.7%",
+        "interpretation": "Estimated from token usage and published pricing"
+      },
+      {
+        "metric": "Unnecessary tool calls (median)",
+        "class": "measured",
+        "with_lynx": "0",
+        "without_lynx": "0",
+        "delta": "0%",
+        "interpretation": "Duplicate tool calls within the same run"
+      },
+      {
+        "metric": "Evidence used (median)",
+        "class": "measured",
+        "with_lynx": "3",
+        "without_lynx": "3",
+        "delta": "0.0%",
+        "interpretation": "Distinct tools returning non-trivial evidence payloads"
+      },
+      {
+        "metric": "Efficiency score (median)",
+        "class": "measured",
+        "with_lynx": "100.0%",
+        "without_lynx": "100.0%",
+        "delta": "0.0%",
+        "interpretation": "Composite efficiency: success × useful_tools / total_tools"
+      },
+      {
+        "metric": "Functional success rate",
+        "class": "measured",
+        "with_lynx": "100%",
+        "without_lynx": "67%",
+        "delta": "50.0%",
+        "interpretation": "Correctness of task results vs expected"
+      }
+    ],
+    "sample_size_note": "Based on 6 deterministic measured runs with real API calls (6 evaluated including partial assertions).",
+    "roi_blocked": false,
+    "roi_blocked_reason": null
+  },
+  "warnings": [
+    "Only 1 measured round(s). At least 3 recommended."
+  ]
+}

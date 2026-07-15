@@ -13,7 +13,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
+import { getProjectRoot } from '../paths.js';
 
 const HOME = os.homedir();
 
@@ -63,7 +64,7 @@ function fileExists(p: string): boolean {
 
 function binaryOnPath(name: string): boolean {
   try {
-    execSync(`which ${name}`, { stdio: 'ignore' });
+    execFileSync('which', [name], { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -306,11 +307,17 @@ export function getLynxCommand(): { command: string; args: string[] } {
   }
   const nodeBin = process.execPath;
   const cliPath = process.argv[1];
-  if (cliPath && cliPath.endsWith('cli.js')) {
+  if (cliPath && path.basename(cliPath) === 'cli.js') {
     return { command: nodeBin, args: [cliPath, 'serve'] };
   }
-  // Fallback: resolve relative to this install module
-  const installDir = path.dirname(process.argv[1] || process.cwd());
-  const inferredCli = path.resolve(installDir, '..', 'cli.js');
-  return { command: nodeBin, args: [inferredCli, 'serve'] };
+
+  const projectRoot = getProjectRoot();
+  const sourceCli = path.join(projectRoot, 'src', 'cli.ts');
+  const tsxCli = path.join(projectRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+  if (fs.existsSync(sourceCli) && fs.existsSync(tsxCli)) {
+    return { command: nodeBin, args: [tsxCli, sourceCli, 'serve'] };
+  }
+
+  const bundledCli = path.join(projectRoot, 'dist', 'cli.js');
+  return { command: nodeBin, args: [bundledCli, 'serve'] };
 }

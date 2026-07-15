@@ -18,25 +18,30 @@ export async function handleAnalyzeHotspots(
   args: Record<string, unknown>
 ): Promise<unknown> {
   const project = String(args.project || '');
-  const topN = args.limit !== undefined ? Number(args.limit) : (args.top_n ? Number(args.top_n) : 10);
+  const requestedTopN = args.limit !== undefined ? Number(args.limit) : (args.top_n ? Number(args.top_n) : 10);
+  const topN = Number.isFinite(requestedTopN) ? Math.max(1, Math.min(Math.floor(requestedTopN), 100)) : 10;
   const includeGod = args.include_god_components !== false;
+  const includeTests = args.include_tests === true;
 
   const db = getDb(project);
   const projectMeta = db.getProject(project);
   if (!projectMeta) return { ...projectNotIndexed(project) };
 
-  const hotspots = findHotspots(db, project, topN);
-  const godComponents = includeGod ? findGodComponents(db, project, 5) : [];
+  const hotspots = findHotspots(db, project, topN, includeTests);
+  // A god component must be materially large. Passing 5 here previously
+  // classified ordinary six-line functions as architectural risks.
+  const godComponents = includeGod ? findGodComponents(db, project) : [];
   const largestFiles = db.db.prepare(`
-    SELECT file_path AS file, end_line AS lines
-    FROM nodes
-    WHERE project = ? AND kind = 'File'
-      AND end_line > 10
-      AND (file_path LIKE '%.ts' OR file_path LIKE '%.tsx' OR file_path LIKE '%.js'
-        OR file_path LIKE '%.jsx' OR file_path LIKE '%.py' OR file_path LIKE '%.go'
-        OR file_path LIKE '%.kt' OR file_path LIKE '%.swift' OR file_path LIKE '%.rs'
-        OR file_path LIKE '%.java' OR file_path LIKE '%.rb')
-    ORDER BY end_line DESC
+    SELECT n.file_path AS file,
+           CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) AS lines
+    FROM nodes n
+    WHERE n.project = ? AND n.kind = 'Module'
+      AND CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) > 10
+      AND (n.file_path LIKE '%.ts' OR n.file_path LIKE '%.tsx' OR n.file_path LIKE '%.js'
+        OR n.file_path LIKE '%.jsx' OR n.file_path LIKE '%.py' OR n.file_path LIKE '%.go'
+        OR n.file_path LIKE '%.kt' OR n.file_path LIKE '%.swift' OR n.file_path LIKE '%.rs'
+        OR n.file_path LIKE '%.java' OR n.file_path LIKE '%.rb')
+    ORDER BY lines DESC
     LIMIT ?
   `).all(project, topN) as Array<{ file: string; lines: number }>;
 

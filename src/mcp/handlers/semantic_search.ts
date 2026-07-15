@@ -16,6 +16,7 @@ import { getDb } from '../server.js';
 import { expandTokens } from '../../store/search.js';
 import type { LynxDatabase } from '../../store/database.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 interface SemanticResult {
   name: string;
@@ -41,7 +42,11 @@ export async function handleSemanticSearch(
   const keywords = args.keywords as string[] | undefined;
   const kind = args.kind ? String(args.kind) : undefined;
   const filePattern = args.file_pattern ? String(args.file_pattern) : undefined;
-  const limit = args.limit !== undefined ? Number(args.limit) : 10;
+  const savingsMode = Boolean(readLynxConfig().agent_response?.enabled
+    && readLynxConfig().agent_response?.budget === 'max_savings');
+  const defaultLimit = savingsMode ? 5 : 10;
+  const requestedLimit = args.limit !== undefined ? Number(args.limit) : defaultLimit;
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 100)) : defaultLimit;
 
   if (!project) return { error: 'project is required' };
   if (!query && (!keywords || keywords.length === 0)) {
@@ -61,7 +66,7 @@ export async function handleSemanticSearch(
 
   return buildSemanticResponse(
     db, project, scored, limit, query, keywords,
-    meaningfulQueryTokens, started,
+    meaningfulQueryTokens, started, savingsMode,
   );
 }
 
@@ -168,10 +173,13 @@ function scoreCandidate(
 
   score += tokenMatches;
   const directMatches = meaningfulQueryTokens.filter(t =>
-    nameLower.includes(t) || qnLower.includes(t)
+    matchesDirectToken(nameLower, t) || matchesDirectToken(qnLower, t)
   );
   if (meaningfulQueryTokens.length > 0) {
-    score += (directMatches.length / meaningfulQueryTokens.length) * 12;
+    // Direct token coverage is stronger evidence of intent than popularity.
+    // Without this weight, large generic routes outrank a purpose-built symbol
+    // that matches most of the user's query.
+    score += (directMatches.length / meaningfulQueryTokens.length) * 48;
     reasons.push(`direct_coverage:${directMatches.length}/${meaningfulQueryTokens.length}`);
   }
 
@@ -240,6 +248,7 @@ function buildSemanticResponse(
   keywords?: string[],
   meaningfulQueryTokens: string[] = [],
   started: number = Date.now(),
+  savingsMode = false,
 ): unknown {
   const limited = scored.slice(0, limit);
   const total = scored.length;
@@ -251,16 +260,19 @@ function buildSemanticResponse(
            json_extract(properties, '$.lineCount') AS line_count
     FROM nodes
     WHERE project = ? AND kind IN ('Method', 'Function') AND qualified_name LIKE ?
-    ORDER BY start_line LIMIT 12
+    ORDER BY start_line LIMIT ${savingsMode ? 4 : 12}
   `);
   const enrichedLimited = limited.map(result => {
-    if (result.kind !== 'Class' && result.kind !== 'Interface') return result;
+    const compactResult = savingsMode
+      ? { ...result, match_reasons: result.match_reasons.slice(0, 3) }
+      : result;
+    if (result.kind !== 'Class' && result.kind !== 'Interface') return compactResult;
     const relatedMethods = relatedMethodsStmt.all(project, `${result.qualified_name}.%`);
-    return { ...result, related_methods: relatedMethods };
+    return { ...compactResult, related_methods: relatedMethods };
   });
 
   const directlyCoveredTokens = meaningfulQueryTokens.filter(token =>
-    scored.some(c => c.name.toLowerCase().includes(token) || c.qualified_name.toLowerCase().includes(token))
+    scored.some(c => matchesDirectToken(c.name.toLowerCase(), token) || matchesDirectToken(c.qualified_name.toLowerCase(), token))
   );
   const directCoverageRatio = meaningfulQueryTokens.length > 0
     ? directlyCoveredTokens.length / meaningfulQueryTokens.length
@@ -280,7 +292,10 @@ function buildSemanticResponse(
       ? `${total} results for "${searchTerm}".`
       : `${total} results, showing top ${limit} for "${searchTerm}".`;
 
-  const value = estimateTokensSaved(returnedResults.length, returnedTotal);
+  const resultFiles = [...new Set(returnedResults.map(r => r.file))];
+  const meta = db.getProject(project);
+  const rootPath = meta?.rootPath || process.cwd();
+  const value = estimateTokensSaved({ resultCount: returnedResults.length, candidateFiles: returnedTotal, files: resultFiles, rootPath, project });
   recordUsageEvent({
     type: 'search_graph',
     project,
@@ -309,7 +324,7 @@ function buildSemanticResponse(
     total_results: returnedTotal,
     results: returnedResults,
     fuzzy_suggestions: fuzzyOnlyDomainMatch ? enrichedLimited : [],
-    narrative,
+    ...(!savingsMode ? { narrative } : {}),
     value_metrics: {
       estimated_files_avoided: value.filesAvoided,
       estimated_tokens_saved: value.tokensSaved,
@@ -333,4 +348,10 @@ function trigramScore(nameLower: string, token: string): number {
   }
   const maxPossible = token.length - 2;
   return maxPossible > 0 ? overlap / maxPossible : 0;
+}
+
+/** Match exact query wording plus the safe singular form of an English plural. */
+function matchesDirectToken(haystack: string, token: string): boolean {
+  if (haystack.includes(token)) return true;
+  return token.length >= 4 && token.endsWith('s') && haystack.includes(token.slice(0, -1));
 }

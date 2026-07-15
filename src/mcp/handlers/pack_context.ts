@@ -18,12 +18,18 @@ import { searchFullText } from '../../store/search.js';
 import { getRecentFindings, getFindingsByQn } from '../../store/memory.js';
 import {
   estimateTokensSaved,
+  estimateRerankCostUsd,
   recordUsageEvent,
   summarizeUsage,
 } from '../../usage/metrics.js';
 import { computeRealSavings } from '../../usage/session.js';
 import * as child_process from 'node:child_process';
 import * as path from 'node:path';
+import { storedTimestampMs } from '../../store/time.js';
+import { rerankSearchWithMeta, type RerankMeta } from '../../llm/client.js';
+import { readLynxConfig } from '../../config/runtime.js';
+import { hasCapability } from '../../commercial/gate.js';
+import { getNodeEdgeEvidence } from '../../store/edge-evidence.js';
 
 interface GraphCandidate {
   name: string;
@@ -35,6 +41,7 @@ interface GraphCandidate {
   score: number;
   change_risk?: 'high' | 'medium' | 'low';
   fan_in?: number;
+  edge_evidence?: Array<{ type: string; direction: string; symbol: string; evidence_count: number }>;
   memory_findings?: Array<{
     title: string;
     severity: string;
@@ -61,14 +68,32 @@ interface PackContextResult {
     is_fresh: boolean;
   };
   value_metrics?: {
+    measurement?: string;
     estimated_files_avoided: number;
     estimated_tokens_saved: number;
+    full_file_potential_tokens?: number;
+    potential_basis?: string;
     confidence: string;
     session_tokens_saved: number;
     session_files_avoided: number;
     session_unique_files_avoided?: number;
   };
   memory_enriched?: number;
+  llm_usage?: {
+    enabled: boolean;
+    used: boolean;
+    provider: string | null;
+    model: string | null;
+    latency_ms: number;
+    fallback_used: boolean;
+    fallback_reason: string | null;
+  };
+  context_selection?: {
+    original_candidates: number;
+    selected_candidates: number;
+    estimated_tokens_avoided: number;
+    applied: boolean;
+  };
   token_budget: {
     estimated_pack_tokens: number;
     confidence: string;
@@ -79,6 +104,7 @@ interface PackContextResult {
 const MAX_CANDIDATES_COMPACT = 5;
 const MAX_CANDIDATES_FULL = 7;
 const MAX_TERMS = 4;
+const SELECTED_CANDIDATES_COMPACT = 3;
 
 export async function handlePackContext(
   args: Record<string, unknown>
@@ -86,6 +112,11 @@ export async function handlePackContext(
   const task = String(args.task || '');
   const project = String(args.project || '');
   const mode = String(args.mode || 'compact');
+  // Deterministic graph ranking is the default: it is immediate, private, and
+  // avoids spending provider tokens for ordinary discovery. Callers can opt in
+  // to reranking only when the task is genuinely ambiguous or high-risk.
+  const enableLlm = args.enable_llm === true;
+  const llmWasExplicitlySet = Object.prototype.hasOwnProperty.call(args, 'enable_llm');
 
   const constraints = buildConstraints(task);
 
@@ -99,7 +130,7 @@ export async function handlePackContext(
 
   // Standard mode with indexed project
   if (project) {
-    return buildProjectPackContext(project, task, mode, constraints);
+    return await buildProjectPackContext(project, task, mode, constraints, enableLlm, llmWasExplicitlySet);
   }
 
   return {
@@ -108,9 +139,9 @@ export async function handlePackContext(
     graph_candidates: [],
     recent_findings: [],
     recommended_next_calls: [
-      { tool: 'search_graph', why: 'Find relevant symbols (no project indexed)' },
+      { tool: 'list_projects', why: 'Choose an indexed project before requesting graph evidence.' },
     ],
-    token_budget: { estimated_pack_tokens: 100, confidence: 'low_no_index' },
+    token_budget: { estimated_pack_tokens: 100, confidence: 'low_no_project' },
   };
 }
 
@@ -133,12 +164,14 @@ function buildConstraints(task: string): string[] {
 
 // ── Main project context builder ───────────────────────
 
-function buildProjectPackContext(
+async function buildProjectPackContext(
   project: string,
   task: string,
   mode: string,
   constraints: string[],
-): PackContextResult {
+  enableLlm: boolean,
+  llmWasExplicitlySet: boolean,
+): Promise<PackContextResult> {
   const db = getDb(project);
   const isSpanish = /[áéíóúñ]/.test(task);
   const maxCandidates = mode === 'full' ? MAX_CANDIDATES_FULL : MAX_CANDIDATES_COMPACT;
@@ -158,16 +191,100 @@ function buildProjectPackContext(
         kind: r.node.kind,
         flow_area: area,
         why: explainCandidate(r.node.kind, r.node.filePath, taskLower, term, fanIn),
-        score: r.score,
+        score: r.score + r.tokenScore,
         change_risk: assessChangeRisk(fanIn, r.node.filePath),
         fan_in: fanIn,
       });
     }
   }
 
-  const dedupedCandidates = dedupeCandidates(candidates).slice(0, maxCandidates);
+  const candidatePool = dedupeCandidates(candidates);
+  const dedupedCandidates = candidatePool.slice(0, maxCandidates);
   let confidence = 'medium';
   if (dedupedCandidates.length === 0) confidence = 'low_no_index';
+
+  // ── LLM rerank ──────────────────────────────────────────
+  let llmReranked = false;
+  const llmUsage = {
+    enabled: enableLlm,
+    used: false,
+    provider: null as string | null,
+    model: null as string | null,
+    latency_ms: 0,
+    fallback_used: false,
+    fallback_reason: null as string | null,
+  };
+
+  const policy = readLynxConfig().decision_llm;
+  const autoSelect = !llmWasExplicitlySet && policy?.mode === 'adaptive' &&
+    candidatePool.length > maxCandidates && hasAmbiguousCandidatePool(candidatePool) &&
+    hasCapability('semantic_rerank');
+  const shouldSelectWithLlm = enableLlm || autoSelect;
+  const selectionLimit = mode === 'full' ? MAX_CANDIDATES_COMPACT : SELECTED_CANDIDATES_COMPACT;
+  llmUsage.enabled = shouldSelectWithLlm;
+
+  if (shouldSelectWithLlm && candidatePool.length >= 3) {
+    try {
+      const rerankStart = Date.now();
+      const rerankInput = candidatePool.slice(0, maxCandidates + 3).map((c, i) => ({
+        index: i,
+        name: c.name,
+        kind: c.kind || 'Function',
+        snippet: c.why,
+      }));
+      const rerank = await rerankSearchWithMeta(task, rerankInput);
+      llmUsage.used = rerank.provider !== 'heuristic' || !rerank.fallback;
+      llmUsage.provider = rerank.provider;
+      llmUsage.model = rerank.model || null;
+      llmUsage.latency_ms = Date.now() - rerankStart;
+      llmUsage.fallback_used = rerank.fallback;
+      llmUsage.fallback_reason = rerank.fallback
+        ? 'rerank fell back to heuristic — kept BM25 order'
+        : null;
+
+      if (rerank.items.length === rerankInput.length && rerank.provider !== 'heuristic') {
+        const reordered = rerank.items
+          .sort((a, b) => b.relevanceScore - a.relevanceScore)
+          .map(r => candidatePool[r.index])
+          .filter(Boolean);
+        if (reordered.length === rerankInput.length) {
+          // Replace in-place
+          dedupedCandidates.length = 0;
+          dedupedCandidates.push(...reordered.slice(0, selectionLimit));
+          llmReranked = true;
+          recordUsageEvent({
+            type: 'llm_rerank', project, query: task.slice(0, 240),
+            result_count: rerankInput.length, unique_files: new Set(reordered.map(c => c.file_path)).size,
+            files_avoided: 0, tokens_saved: 0, confidence: 'low',
+            llm_provider: rerank.provider, llm_latency_ms: llmUsage.latency_ms,
+            estimated_llm_cost_usd: estimateRerankCostUsd(rerankInput.length),
+            rank_changed: true, top_changed: reordered[0]?.qualified_name !== candidatePool[0]?.qualified_name,
+            tool_hint: 'pack_context selection', files: reordered.slice(0, selectionLimit).map(c => c.file_path),
+          });
+        }
+      }
+    } catch {
+      llmUsage.fallback_used = true;
+      llmUsage.fallback_reason = 'rerank exception, kept BM25 order';
+    }
+  } else if (!shouldSelectWithLlm) {
+    llmUsage.fallback_reason = 'enable_llm=false, skipped rerank';
+  }
+
+  // Enrich with graph edge evidence
+  for (const c of dedupedCandidates) {
+    try {
+      const node = db.db.prepare('SELECT id FROM nodes WHERE project = ? AND qualified_name = ? LIMIT 1').get(project, c.qualified_name) as { id?: number } | undefined;
+      if (node?.id) {
+c.edge_evidence = getNodeEdgeEvidence(db, project, node.id, 5).map((row) => ({
+type: row.type,
+direction: row.direction,
+symbol: row.symbol,
+evidence_count: row.evidence_count,
+}));
+      }
+    } catch { }
+  }
 
   // Enrich with memory findings
   let memoryEnriched = 0;
@@ -188,15 +305,23 @@ function buildProjectPackContext(
 
   const uniqueFiles = new Set(dedupedCandidates.map(c => c.file_path)).size;
   const fileList = dedupedCandidates.map(c => c.file_path);
-  const value = estimateTokensSaved(dedupedCandidates.length, Math.max(uniqueFiles * 4, 3));
+  // The pack returns a small, ranked set of pointers; it does not read the
+  // candidate files for the caller. Keep observed value to that delivered
+  // orientation and expose the wider exploration as potential only.
+  const observedTokens = dedupedCandidates.length === 0
+    ? 0
+    : Math.min(1_200, dedupedCandidates.length * 140 + uniqueFiles * 90);
+  const meta = db.getProject(project);
+  const rootPath = meta?.rootPath || process.cwd();
+  const potential = estimateTokensSaved({ resultCount: dedupedCandidates.length, candidateFiles: Math.max(uniqueFiles * 4, 3), files: fileList, rootPath, project });
   recordUsageEvent({
     type: 'pack_context', project,
     query: task.slice(0, 240),
     result_count: dedupedCandidates.length,
     unique_files: uniqueFiles,
-    files_avoided: value.filesAvoided,
-    tokens_saved: value.tokensSaved,
-    confidence: value.confidence,
+    files_avoided: 0,
+    tokens_saved: observedTokens,
+    confidence: 'low',
     files: fileList,
     tool_hint: 'pack_context',
   });
@@ -235,10 +360,22 @@ function buildProjectPackContext(
     recommended_next_calls: nextCalls,
     index_health: indexHealth,
     memory_enriched: memoryEnriched,
+    llm_usage: llmUsage,
+    context_selection: {
+      original_candidates: Math.min(candidatePool.length, maxCandidates),
+      selected_candidates: dedupedCandidates.length,
+      estimated_tokens_avoided: llmReranked
+        ? estimateCandidateTokens(candidatePool.slice(0, maxCandidates)) - estimateCandidateTokens(dedupedCandidates)
+        : 0,
+      applied: llmReranked,
+    },
     value_metrics: {
-      estimated_files_avoided: value.filesAvoided,
-      estimated_tokens_saved: value.tokensSaved,
-      confidence: value.confidence,
+      measurement: 'ranked_context_pointers',
+      estimated_files_avoided: 0,
+      estimated_tokens_saved: observedTokens,
+      full_file_potential_tokens: potential.tokensSaved,
+      potential_basis: 'broader task exploration from ranked candidates; not observed savings',
+      confidence: 'low',
       session_tokens_saved: usage.tokens_saved,
       session_files_avoided: usage.files_avoided,
       session_unique_files_avoided: usage.unique_files_avoided,
@@ -267,6 +404,17 @@ function dedupeCandidates(candidates: GraphCandidate[]): GraphCandidate[] {
     seen.add(candidate.qualified_name);
     return true;
   });
+}
+
+export function hasAmbiguousCandidatePool(candidates: readonly Pick<GraphCandidate, 'score'>[]): boolean {
+  if (candidates.length < 2) return false;
+  const scores = candidates.map(candidate => candidate.score).sort((a, b) => b - a);
+  const [top, runnerUp] = scores;
+  return top - runnerUp <= 1 || (top > 0 && (top - runnerUp) / top <= 0.15);
+}
+
+function estimateCandidateTokens(candidates: readonly GraphCandidate[]): number {
+  return Math.ceil(JSON.stringify(candidates).length / 4);
 }
 
 function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
@@ -335,6 +483,9 @@ function extractTerms(text: string, _isSpanish: boolean): string[] {
     'un', 'para', 'con', 'como', 'más', 'pero', 'sus', 'le', 'ya',
     'este', 'esta', 'entre', 'al', 'del', 'todo', 'muy', 'hay', 'ese',
     'analiza', 'analizar', 'proyecto', 'código', 'archivo', 'carpeta',
+    // Generic dev verbs — too common to be useful search terms
+    'add', 'new', 'make', 'use', 'get', 'set', 'put', 'the', 'not',
+    'its', 'also', 'just', 'will', 'need', 'want', 'into', 'our',
   ]);
 
   const tokens = text
@@ -359,11 +510,11 @@ function getIndexHealth(
       .prepare('SELECT indexed_at FROM projects WHERE name = ?')
       .get(project) as { indexed_at?: string } | undefined);
     const indexedAt = projectMeta?.indexed_at
-      ? new Date(projectMeta.indexed_at).getTime()
+      ? storedTimestampMs(projectMeta.indexed_at)
       : null;
     const now = Date.now();
     const hoursSinceIndex = indexedAt ? Math.round((now - indexedAt) / (1000 * 60 * 60)) : null;
-    const isFresh = hoursSinceIndex !== null && hoursSinceIndex < 24;
+    const isFresh = nodeCount > 0 && hoursSinceIndex !== null && hoursSinceIndex < 24;
 
     return { total_nodes: nodeCount, total_edges: edgeCount, hours_since_index: hoursSinceIndex, is_fresh: isFresh };
   } catch {

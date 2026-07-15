@@ -9,7 +9,7 @@ export function tabScript(): string {
     '  var ACTIVE_CLS="active";',
     '  var saved=null;',
     '  try{saved=localStorage.getItem(STORAGE_KEY);}catch(e){}',
-    '  var valid=["overview","savings","projects"];',
+    '  var valid=["overview","savings","projects","metrics","settings"];',
     '  var active=saved&&valid.indexOf(saved)!==-1?saved:"overview";',
     '',
     '  function switchTab(id){',

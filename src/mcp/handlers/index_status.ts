@@ -1,6 +1,8 @@
-import { getDb } from '../server.js';
+import { getDb, getResponseOptimizationMetrics } from '../server.js';
 import { readLynxConfig } from '../../config/runtime.js';
 import { isProjectLocked, listOrphanedLocks } from '../../store/lock.js';
+import { storedTimestampMs } from '../../store/time.js';
+import { discoverFiles } from '../../pipeline/phases/discover.js';
 
 type IndexFreshness = 'ready' | 'stale' | 'updating' | 'failed' | 'unknown';
 
@@ -58,7 +60,7 @@ export async function handleIndexStatus(
     } else if (locked || meta.status === 'updating') {
       freshness = 'updating';
     } else if (nodeCount.cnt > 0) {
-      const indexedMs = new Date(meta.indexedAt).getTime();
+      const indexedMs = storedTimestampMs(meta.indexedAt);
       const ageHours = (Date.now() - indexedMs) / (1000 * 60 * 60);
       freshness = ageHours > cfg.stale_threshold_hours ? 'stale' : 'ready';
     }
@@ -76,8 +78,24 @@ export async function handleIndexStatus(
 
   const indexedAt = meta?.indexedAt || null;
   const hoursSinceIndex = indexedAt
-    ? Math.round((Date.now() - new Date(indexedAt).getTime()) / (1000 * 60 * 60))
+    ? Math.round((Date.now() - storedTimestampMs(indexedAt)) / (1000 * 60 * 60))
     : null;
+  let coverage: Record<string, unknown> | null = null;
+  if (meta?.rootPath) {
+    try {
+      const discovery = discoverFiles(meta.rootPath, 'fast');
+      coverage = {
+        mode: 'fast',
+        discoverable_files: discovery.files.length,
+        indexed_files_with_nodes: fileCount.cnt,
+        indexed_file_ratio: discovery.files.length === 0 ? 1 : Number((fileCount.cnt / discovery.files.length).toFixed(3)),
+        excluded_directories: discovery.excludedDirs.slice(0, 100),
+        note: 'Freshness is temporal; coverage reports how much discoverable source has graph nodes.',
+      };
+    } catch {
+      coverage = { unavailable: true, note: 'Coverage scan could not read the project root.' };
+    }
+  }
 
   return {
     project,
@@ -92,9 +110,11 @@ export async function handleIndexStatus(
     nodes: nodeCount.cnt,
     edges: edgeCount.cnt,
     files: fileCount.cnt,
+    coverage,
     findings: findings.cnt,
     node_labels: Object.fromEntries(nodeLabels.map((r) => [r.kind, r.cnt])),
     edge_types: Object.fromEntries(edgeTypes.map((r) => [r.type, r.cnt])),
+    response_optimization: getResponseOptimizationMetrics(),
     last_run: lastRun ? {
       at: lastRun.run_at,
       mode: lastRun.mode,

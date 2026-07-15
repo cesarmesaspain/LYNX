@@ -56,4 +56,14 @@ describe('smart_review loop-depth evidence', () => {
     expect(performanceIssue?.description).not.toContain('possible O(n^4)');
     expect(performanceIssue?.suggestion).toContain('before claiming Big-O complexity');
   });
+
+  it('accepts target as a file alias for review workflow handoffs', async () => {
+    const result = await handleSmartReview({
+      project: PROJECT,
+      target: 'src/worker.ts',
+    }) as { target: { file?: string }; issues: unknown[] };
+
+    expect(result.target.file).toBe('src/worker.ts');
+    expect(result.issues.length).toBeGreaterThan(0);
+  });
 });

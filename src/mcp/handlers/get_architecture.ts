@@ -3,6 +3,7 @@ import type { LynxDatabase } from '../../store/database.js';
 import { analyze } from '../../pipeline/phases/analyze.js';
 import { explainArchitecture } from '../../intelligence/narrative.js';
 import { getProjectBrief } from '../../intelligence/project-brief.js';
+import { estimateArchitectureOverviewSavings, recordUsageEvent } from '../../usage/metrics.js';
 
 type Aspect =
   | 'languages' | 'hotspots' | 'clusters' | 'file_tree'
@@ -12,11 +13,14 @@ const ALL_ASPECTS: Aspect[] = [
   'languages', 'hotspots', 'clusters', 'file_tree',
   'entry_points', 'brief', 'narrative', 'node_labels', 'edge_types',
 ];
-const DEFAULT_ASPECTS: Aspect[] = ['brief', 'narrative', 'languages'];
+// A first overview must be cheap enough to guide the next call, not replace
+// it with a large cached essay. Ask for `brief` explicitly when needed.
+const DEFAULT_ASPECTS: Aspect[] = ['languages', 'narrative'];
 
 export async function handleGetArchitecture(
   args: Record<string, unknown>
 ): Promise<unknown> {
+  const started = Date.now();
   const project = String(args.project || '');
   const scopePath = args.path ? String(args.path) : undefined;
   const aspects: Aspect[] | undefined = args.aspects
@@ -36,6 +40,29 @@ export async function handleGetArchitecture(
 
   const { architecture } = analyze(db, project);
   const result = buildAspectSections(db, project, architecture, requestedAspects, scopePath);
+  const fileRows = db.db.prepare(
+    scopePath
+      ? "SELECT DISTINCT file_path FROM nodes WHERE project = ? AND TRIM(file_path) != '' AND file_path LIKE ?"
+      : "SELECT DISTINCT file_path FROM nodes WHERE project = ? AND TRIM(file_path) != ''",
+  ).all(...(scopePath ? [project, `${scopePath}%`] : [project])) as Array<{ file_path: string }>;
+  const files = fileRows.map((row) => row.file_path);
+  const projectMeta = db.getProject(project);
+  const value = estimateArchitectureOverviewSavings(files, projectMeta?.rootPath, project, requestedAspects.length);
+  recordUsageEvent({
+    type: 'architecture_overview',
+    project,
+    query: scopePath || 'project overview',
+    result_count: requestedAspects.length,
+    files,
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
+    latency_ms: Date.now() - started,
+    tool_hint: 'get_architecture',
+    // A repeated overview can still replace a fresh manual exploration. Count
+    // each completed request; archive event IDs remain the retry safeguard.
+    skip_session_dedup: true,
+  });
 
   // Omit message when aspects were filtered
   if (aspects && aspects.length > 0) {

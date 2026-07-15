@@ -22,6 +22,7 @@ import { passSemanticLight } from './pass-semantic.js';
 import { passChannelsFromSource } from './pass-channels.js';
 import { passDependencies } from './pass-dependencies.js';
 import { passDecorators } from './pass-decorators.js';
+import { passRegistryDispatch } from './pass-registry-dispatch.js';
 
 export interface ResolutionStats {
   unresolvedCalls: number;
@@ -55,6 +56,7 @@ export function resolveAll(
   passHeritage(idx, edges);
   passImports(batches, idx, edges);
   passCalls(db, batches, idx, edges, state);
+  passRegistryDispatch(batches, idx, edges);
   passRoutes(db, batches, idx, edges);
   passUsages(batches, idx, edges);
   passThrows(db, batches, idx, edges);

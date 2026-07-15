@@ -222,7 +222,7 @@ blocks from `AGENTS.md`. Original configs are backed up as `.lynx-bak`.
 
 ## Verification Checklist
 
-- [ ] `lynx doctor` shows 10/10
+- [ ] `lynx doctor` shows 11/11
 - [ ] `~/.codex/config.toml` has `[mcp_servers.lynx]` section
 - [ ] `search_graph` returns results for your project
 - [ ] `index_status` shows `freshness: "ready"`

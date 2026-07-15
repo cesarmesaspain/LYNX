@@ -12,7 +12,8 @@ import type { LynxHotspot } from '../types.js';
 export function findHotspots(
   db: LynxDatabase,
   project: string,
-  limit = 20
+  limit = 20,
+  includeTests = false,
 ): LynxHotspot[] {
   // Hotspot query: rank by fan_in weighted by distinct caller qualified_names.
   // A node with many callers sharing the same generic name (e.g. "handler")
@@ -31,11 +32,12 @@ export function findHotspots(
                    AND caller.qualified_name != '') as distinct_callers
          FROM nodes n
          WHERE n.project = ? AND n.kind IN ('Function', 'Method')
+           AND (? = 1 OR (n.is_test = 0 AND n.file_path NOT LIKE 'tests/%' AND n.file_path NOT LIKE '%/tests/%'))
        ) WHERE fan_in > 0
        ORDER BY (fan_in * 0.4 + distinct_callers * 0.6) DESC
        LIMIT ?`
     )
-    .all(project, limit) as {
+    .all(project, includeTests ? 1 : 0, limit) as {
     name: string;
     qualified_name: string;
     file_path: string;
@@ -67,14 +69,14 @@ export function findHotspots(
 export function findGodComponents(
   db: LynxDatabase,
   project: string,
-  minLines = 1000
+  minLines = 300
 ): LynxHotspot[] {
   const rows = db.db
     .prepare(
       `SELECT n.name, n.qualified_name, n.file_path, n.properties,
               json_extract(n.properties, '$.lineCount') as line_count
        FROM nodes n
-       WHERE n.project = ? AND n.kind IN ('Function', 'Class', 'Method')
+       WHERE n.project = ? AND n.kind IN ('Class', 'Module')
          AND CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) >= ?
        ORDER BY CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) DESC
        LIMIT 20`

@@ -16,7 +16,8 @@ import { lynxConfigPath, lynxHome, readLynxConfig } from '../config/runtime.js';
 import { readLicense } from '../commercial/license.js';
 import { verifyMcpServer } from './mcp-verify.js';
 import { listOrphanedLocks } from '../store/lock.js';
-import { LynxDatabase } from '../store/database.js';
+import { scanIndexedProjects } from '../mcp/project-catalog.js';
+import { storedTimestampMs } from '../store/time.js';
 import Database from 'better-sqlite3';
 
 const HOME = os.homedir();
@@ -57,53 +58,37 @@ function checkBinary(): DoctorCheck {
 }
 
 function checkDatabase(): DoctorCheck {
-  if (!fs.existsSync(DBS_DIR)) {
+  const projects = scanIndexedProjects();
+  if (projects.length === 0) {
     return {
       label: 'Database directory',
       ok: true,
-      detail: `${DBS_DIR} (no projects yet)`,
-    };
-  }
-  const files = fs.readdirSync(DBS_DIR).filter(f => f.endsWith('.db'));
-  if (files.length === 0) {
-    return {
-      label: 'Database directory',
-      ok: true,
-      detail: `${DBS_DIR} (no projects yet)`,
+      detail: `${DBS_DIR} (no indexed projects yet)`,
     };
   }
 
-  // Quick stats per DB
+  // Only report databases registered in their own project metadata. Test and
+  // interrupted-run files may exist in this directory but are not projects.
   const parts: string[] = [];
-  let totalNodes = 0;
-  let totalEdges = 0;
-  for (const f of files) {
+  for (const project of projects) {
     try {
-      // Lightweight: just stat the file
-      const st = fs.statSync(path.join(DBS_DIR, f));
+      const st = fs.statSync(path.join(DBS_DIR, `${project.name}.db`));
       const sizeMB = (st.size / (1024 * 1024)).toFixed(1);
-      parts.push(`${f.replace('.db', '')} (${sizeMB} MB)`);
+      parts.push(`${project.name} (${sizeMB} MB)`);
     } catch {
-      parts.push(f.replace('.db', ''));
+      parts.push(project.name);
     }
   }
   return {
     label: 'Database',
     ok: true,
-    detail: `${files.length} project(s): ${parts.join(', ')}`,
+    detail: `${projects.length} project(s): ${parts.join(', ')}`,
   };
 }
 
 function checkProjects(): DoctorCheck {
-  if (!fs.existsSync(DBS_DIR)) {
-    return {
-      label: 'Indexed projects',
-      ok: true,
-      detail: '0 (run lynx index or lynx init in a project)',
-    };
-  }
-  const files = fs.readdirSync(DBS_DIR).filter(f => f.endsWith('.db'));
-  if (files.length === 0) {
+  const projects = scanIndexedProjects();
+  if (projects.length === 0) {
     return {
       label: 'Indexed projects',
       ok: true,
@@ -113,14 +98,13 @@ function checkProjects(): DoctorCheck {
   return {
     label: 'Indexed projects',
     ok: true,
-    detail: `${files.length} project(s)`,
+    detail: `${projects.length} project(s)`,
   };
 }
 
 function checkIndexFreshness(): DoctorCheck {
-  if (!fs.existsSync(DBS_DIR)) return { label: 'Index freshness', ok: true, detail: 'No projects indexed' };
-  const dbs = fs.readdirSync(DBS_DIR).filter(f => f.endsWith('.db'));
-  if (dbs.length === 0) return { label: 'Index freshness', ok: true, detail: 'No projects indexed' };
+  const projects = scanIndexedProjects();
+  if (projects.length === 0) return { label: 'Index freshness', ok: true, detail: 'No projects indexed' };
 
   const cfg = readLynxConfig();
   let stale = 0;
@@ -128,22 +112,13 @@ function checkIndexFreshness(): DoctorCheck {
   let updating = 0;
   let ready = 0;
 
-  for (const f of dbs) {
-    const project = f.replace(/\.db$/, '');
-    try {
-      const db = LynxDatabase.openProject(project);
-      try {
-        const meta = db.getProject(project);
-        if (!meta) continue;
-        if (meta.status === 'failed') { failed++; continue; }
-        if (meta.status === 'updating') { updating++; continue; }
-        const cnt = (db.db.prepare('SELECT COUNT(*) as cnt FROM nodes WHERE project = ?').get(project) as { cnt: number }).cnt;
-        if (cnt === 0) continue;
-        const ageHours = (Date.now() - new Date(meta.indexedAt).getTime()) / (1000 * 60 * 60);
-        if (ageHours > cfg.stale_threshold_hours) stale++;
-        else ready++;
-      } finally { db.close(); }
-    } catch { /* skip unreadable DBs */ }
+  for (const project of projects) {
+    if (project.status === 'failed') { failed++; continue; }
+    if (project.status === 'updating') { updating++; continue; }
+    if (project.nodeCount === 0) continue;
+    const ageHours = (Date.now() - storedTimestampMs(project.indexedAt)) / (1000 * 60 * 60);
+    if (ageHours > cfg.stale_threshold_hours) stale++;
+    else ready++;
   }
 
   const parts: string[] = [];
@@ -337,11 +312,18 @@ function checkHooks(agents: AgentInfo[]): DoctorCheck {
 
     const sessionHookExists = fs.existsSync(sessionHook);
     const augmentHookExists = fs.existsSync(augmentHook);
-    if (sessionHookExists && sessionSettingsOk) {
+    let sessionHookIndexes = false;
+    try {
+      sessionHookIndexes = fs.readFileSync(sessionHook, 'utf-8').includes('lynx index "$PWD" --mode fast');
+    } catch {
+      // hook missing or unreadable
+    }
+    if (sessionHookExists && sessionSettingsOk && sessionHookIndexes) {
       details.push('Claude SessionStart ✓');
     } else {
       if (!sessionHookExists) missing.push('Claude SessionStart script');
       if (!sessionSettingsOk) missing.push('Claude SessionStart settings');
+      if (sessionHookExists && !sessionHookIndexes) missing.push('Claude SessionStart indexing');
     }
 
     if (augmentHookExists && augmentSettingsOk) {
@@ -359,9 +341,11 @@ function checkHooks(agents: AgentInfo[]): DoctorCheck {
     let codexOk = false;
     try {
       if (fs.existsSync(hooksJsonPath)) {
-        codexOk = fs.readFileSync(hooksJsonPath, 'utf-8').includes('LYNX code discovery protocol');
+        codexOk = fs.readFileSync(hooksJsonPath, 'utf-8').includes('lynx index') &&
+          fs.readFileSync(hooksJsonPath, 'utf-8').includes('--mode fast');
       } else {
-        codexOk = fs.readFileSync(configPath, 'utf-8').includes('# >>> lynx SessionStart >>>');
+        const raw = fs.readFileSync(configPath, 'utf-8');
+        codexOk = raw.includes('# >>> lynx SessionStart >>>') && raw.includes('lynx index') && raw.includes('--mode fast');
       }
     } catch {
       // config missing

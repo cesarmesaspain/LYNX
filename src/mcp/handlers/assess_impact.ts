@@ -43,6 +43,13 @@ function isCodeFilePath(file: string): boolean {
   return CODE_EXTENSIONS.has(ext);
 }
 
+function isTestFilePath(file: string): boolean {
+  const normalized = file.replace(/\\/g, '/').toLowerCase();
+  return normalized.includes('/tests/') || normalized.includes('/test/') ||
+    normalized.startsWith('tests/') || normalized.startsWith('test/') ||
+    normalized.includes('__tests__/') || normalized.includes('.test.') || normalized.includes('.spec.');
+}
+
 const DEFAULT_MAX_FINDINGS = 30;
 
 // ═══════════════════════════════════════════════════════════════
@@ -100,20 +107,37 @@ export interface AssessImpactResult {
 // Reusable helpers
 // ═══════════════════════════════════════════════════════════════
 
-function normalizeFileArg(raw: unknown): string[] | null {
+export function normalizeFileArg(raw: unknown): string[] | null {
   if (!raw) return null;
   if (typeof raw === 'string') {
     const parts = raw.split(',').map(f => f.trim()).filter(Boolean);
     return parts.length > 0 ? parts : null;
   }
   if (Array.isArray(raw)) {
-    const parts = (raw as string[]).map(f => f.trim()).filter(Boolean);
+    const parts = raw.flatMap(item => {
+      if (typeof item === 'string') return item.split(',').map(f => f.trim());
+      if (item && typeof item === 'object' && typeof (item as { file?: unknown }).file === 'string') {
+        return [(item as { file: string }).file.trim()];
+      }
+      return [];
+    }).filter(Boolean);
     return parts.length > 0 ? parts : null;
+  }
+  if (typeof raw === 'object' && typeof (raw as { file?: unknown }).file === 'string') {
+    return normalizeFileArg((raw as { file: string }).file);
   }
   return null;
 }
 
-function collectGitDiffFiles(rootPath: string, baseBranch: string): string[] {
+/** Accept the file-shaped output of detect_changes and singular natural aliases. */
+export function resolveRequestedFiles(args: Record<string, unknown>): string[] | null {
+  return normalizeFileArg(args.files)
+    || normalizeFileArg(args.file)
+    || normalizeFileArg(args.target)
+    || normalizeFileArg(args.changed_files);
+}
+
+export function collectGitDiffFiles(rootPath: string, baseBranch: string): string[] {
   const files = new Set<string>();
 
   function addFromNameStatus(stdout: string) {
@@ -130,25 +154,25 @@ function collectGitDiffFiles(rootPath: string, baseBranch: string): string[] {
 
   try {
     try {
-      const out = child_process.execSync(
-        `git diff --name-status ${baseBranch}...HEAD`,
-        { cwd: rootPath, encoding: 'utf-8', timeout: 15000 }
+      const out = child_process.execFileSync(
+        'git', ['diff', '--name-status', `${baseBranch}...HEAD`],
+        { cwd: rootPath, encoding: 'utf-8', timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] }
       );
       addFromNameStatus(out);
     } catch {
       try {
-        const out = child_process.execSync(
-          'git diff --name-status HEAD~1',
-          { cwd: rootPath, encoding: 'utf-8', timeout: 10000 }
+        const out = child_process.execFileSync(
+          'git', ['diff', '--name-status', 'HEAD~1'],
+          { cwd: rootPath, encoding: 'utf-8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] }
         );
         addFromNameStatus(out);
       } catch { /* no commits */ }
     }
 
     try {
-      const out = child_process.execSync(
-        'git diff --name-only',
-        { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
+      const out = child_process.execFileSync(
+        'git', ['diff', '--name-only'],
+        { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
       );
       for (const f of out.trim().split('\n')) {
         if (f.trim()) files.add(f.trim());
@@ -156,9 +180,9 @@ function collectGitDiffFiles(rootPath: string, baseBranch: string): string[] {
     } catch { /* ignore */ }
 
     try {
-      const out = child_process.execSync(
-        'git --no-optional-locks status --porcelain --untracked-files=normal',
-        { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
+      const out = child_process.execFileSync(
+        'git', ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=normal'],
+        { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
       );
       for (const rawLine of out.trim().split('\n')) {
         const line = rawLine.replace(/[\r\n]+$/, '');
@@ -195,6 +219,8 @@ export function queryTestsCoveringChanges(
   const findings: ImpactFinding[] = [];
 
   for (const file of diffFiles) {
+    // Test files are the evidence, not production code that needs its own coverage.
+    if (isTestFilePath(file)) continue;
     if (!isFileIndexed(db, project, file)) continue; // Query 5 handles unindexed
 
     const symbols = db.db.prepare(
@@ -273,22 +299,29 @@ export function queryUntestedFiles(
   const findings: ImpactFinding[] = [];
 
   for (const file of diffFiles) {
+    if (isTestFilePath(file)) continue;
     // Unindexed code files belong in queryUnindexedModified, not here.
     if (!isFileIndexed(db, project, file)) continue;
     // Non-code files are pre-filtered by the orchestrator — skip defensively.
     if (!isCodeFilePath(file)) continue;
 
-    const testFileEdges = db.db.prepare(
+    const testRelations = db.db.prepare(
       `SELECT COUNT(*) as cnt FROM edges e
        JOIN nodes src ON src.id = e.source_id
        JOIN nodes tgt ON tgt.id = e.target_id
        WHERE tgt.project = ? AND tgt.file_path = ? AND tgt.kind = 'File'
-         AND e.type = 'TESTS_FILE' AND src.is_test = 1`
-    ).get(project, file) as { cnt: number };
+         AND e.type = 'TESTS_FILE' AND src.is_test = 1
+       UNION ALL
+       SELECT COUNT(*) as cnt FROM edges e
+       JOIN nodes src ON src.id = e.source_id
+       JOIN nodes tgt ON tgt.id = e.target_id
+       WHERE tgt.project = ? AND tgt.file_path = ? AND tgt.kind IN ('Function', 'Method')
+         AND e.type = 'TESTS' AND src.is_test = 1`
+    ).all(project, file, project, file) as Array<{ cnt: number }>;
 
-    if (testFileEdges.cnt === 0) {
+    if (testRelations.every(relation => relation.cnt === 0)) {
       const relatedTests = db.db.prepare(
-        `SELECT file_path FROM nodes
+        `SELECT DISTINCT file_path FROM nodes
          WHERE project = ? AND is_test = 1
            AND file_path LIKE ?
          LIMIT 5`
@@ -296,7 +329,7 @@ export function queryUntestedFiles(
 
       const evidence: EvidenceItem[] = [{
         source: 'graph search',
-        detail: 'No TESTS_FILE edges with is_test=1 found',
+        detail: 'No TESTS or TESTS_FILE edges with is_test=1 found',
         strength: 'searched_not_found',
       }];
 
@@ -311,7 +344,7 @@ export function queryUntestedFiles(
       findings.push({
         category: 'untested_changes',
         file,
-        detail: `File has no test file connected via TESTS_FILE edge.`,
+        detail: 'File has no test coverage connected through TESTS or TESTS_FILE edges.',
         evidence,
         overall_confidence: relatedTests.length > 0 ? 'medium' : 'high',
         suggested_action: relatedTests.length > 0
@@ -341,10 +374,12 @@ export function queryNewSymbolsNoCallers(
     : '';
 
   const rows = db.db.prepare(
-    `SELECT n.id, n.name, n.qualified_name, n.file_path, n.is_exported, n.is_entry_point
+    `SELECT n.id, n.name, n.qualified_name, n.file_path, n.is_exported, n.is_entry_point,
+            json_extract(n.properties, '$.signature') AS signature
      FROM nodes n
      WHERE n.project = ? AND n.kind IN ('Function', 'Method')
        AND n.is_test = 0
+       AND n.name <> 'main'
        ${fileFilter}
        AND NOT EXISTS (
          SELECT 1 FROM edges e WHERE e.target_id = n.id AND e.type = 'CALLS'
@@ -353,7 +388,7 @@ export function queryNewSymbolsNoCallers(
      LIMIT 30`
   ).all(project, ...(scopedFiles || [])) as Array<{
     id: number; name: string; qualified_name: string; file_path: string;
-    is_exported: number; is_entry_point: number;
+    is_exported: number; is_entry_point: number; signature: string | null;
   }>;
 
   for (const r of rows) {
@@ -369,6 +404,10 @@ export function queryNewSymbolsNoCallers(
       evidence.push({ source: 'USAGE edges', detail: `${usageCnt.cnt} USAGE edge(s) found`, strength: 'heuristic' });
     }
     evidence.push({ source: 'CALLS edges', detail: 'Zero CALLS edges — no direct callers', strength: 'confirmed' });
+    const hasCallableSignature = Boolean(r.signature);
+    if (!hasCallableSignature) {
+      evidence.push({ source: 'extraction metadata', detail: 'No callable signature; extraction may represent a local value', strength: 'heuristic' });
+    }
 
     findings.push({
       category: 'new_symbols_no_callers',
@@ -377,10 +416,12 @@ export function queryNewSymbolsNoCallers(
       file: r.file_path,
       detail: `Zero CALLS edges${usageCnt.cnt > 0 ? `, ${usageCnt.cnt} USAGE edge(s)` : ' — potentially dead code'}.`,
       evidence,
-      overall_confidence: usageCnt.cnt > 0 ? 'medium' : 'high',
+      overall_confidence: usageCnt.cnt > 0 ? 'medium' : hasCallableSignature ? 'high' : 'low',
       suggested_action: usageCnt.cnt > 0
         ? 'Symbol is referenced indirectly. Verify it is still needed.'
-        : 'Consider removing — no callers detected.',
+        : hasCallableSignature
+          ? 'Consider removing — no callers detected.'
+          : 'Verify extraction before considering removal.',
     });
   }
 
@@ -652,7 +693,7 @@ export async function handleAssessImpact(
   args: Record<string, unknown>
 ): Promise<AssessImpactResult> {
   const project = String(args.project || '');
-  const requestedFiles = normalizeFileArg(args.files);
+  const requestedFiles = resolveRequestedFiles(args);
   const baseBranch = (args.base_branch as string) || 'main';
   const maxFindings = typeof args.max_findings === 'number' ? args.max_findings : DEFAULT_MAX_FINDINGS;
   const offset = typeof args.offset === 'number' ? Math.max(0, args.offset) : 0;

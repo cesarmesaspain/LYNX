@@ -91,6 +91,12 @@ describe('discover exclusion rules', () => {
     expect(hasFile(result, 'generated/types.ts')).toBe(false);
   });
 
+  it('includes application scripts in fast mode', () => {
+    writeFile(path.join(testDir, 'scripts/sync-production.ts'), 'export async function sync() {}');
+    const result = discoverFiles(testDir, 'fast');
+    expect(relFiles(result)).toContain('scripts/sync-production.ts');
+  });
+
   it('excludes coverage output', () => {
     writeFile(path.join(testDir, 'coverage/lcov-report/app.js'), '// lcov');
     writeFile(path.join(testDir, 'src/index.ts'), 'export const x = 1;');
@@ -158,13 +164,15 @@ describe('discover exclusion rules', () => {
     writeFile(path.join(testDir, 'src/index.ts'), 'export const x = 1;');
     writeFile(path.join(testDir, 'src/lib/math.ts'), 'export function add() {}');
     writeFile(path.join(testDir, 'tests/index.test.ts'), 'import { x } from "../src/index";');
+    writeFile(path.join(testDir, 'tests/integration/runtime.test.ts'), 'import { x } from "../../src/index";');
     writeFile(path.join(testDir, 'components/Button.tsx'), 'export const Button = () => null;');
 
-    const result = discoverFiles(testDir, 'moderate');
+    const result = discoverFiles(testDir, 'fast');
     const files = relFiles(result);
     expect(files).toContain('src/index.ts');
     expect(files).toContain('src/lib/math.ts');
     expect(files).toContain('tests/index.test.ts');
+    expect(files).toContain('tests/integration/runtime.test.ts');
     expect(files).toContain('components/Button.tsx');
   });
 });

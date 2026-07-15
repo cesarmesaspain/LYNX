@@ -62,6 +62,22 @@ describe('project locks', () => {
     expect(isProjectLocked('test-idem')).toBe(false);
   });
 
+  it('does not overwrite a lock created between inspection and acquisition', () => {
+    const project = 'atomic-create';
+    const lockDir = path.join(lynxHome, 'locks');
+    fs.mkdirSync(lockDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(lockDir, `${project}.lock`),
+      JSON.stringify({ pid: process.pid, timestamp: Date.now(), project })
+    );
+
+    const result = acquireProjectLock(project);
+
+    expect(result.acquired).toBe(false);
+    expect(result.reason).toContain('already being indexed');
+    releaseProjectLock(project);
+  });
+
   it('stale lock recovery: non-existent PID', () => {
     // Write a lock file with a PID that doesn't exist (large number unlikely to be live)
     const lockDir = path.join(lynxHome, 'locks');
@@ -105,5 +121,25 @@ describe('project locks', () => {
     const r = acquireProjectLock('recent-dead');
     expect(r.acquired).toBe(false);
     expect(r.reason).toContain('TTL');
+  });
+
+  it('keeps project lock files inside the lock directory', () => {
+    const project = '../outside-lock';
+    expect(acquireProjectLock(project).acquired).toBe(true);
+    expect(fs.existsSync(path.join(lynxHome, 'outside-lock.lock'))).toBe(false);
+    releaseProjectLock(project);
+  });
+
+  it('recovers an expired malformed lock', () => {
+    const project = 'malformed-expired';
+    const lockDir = path.join(lynxHome, 'locks');
+    fs.mkdirSync(lockDir, { recursive: true });
+    const lock = path.join(lockDir, `${project}.lock`);
+    fs.writeFileSync(lock, '{bad json');
+    const old = new Date(Date.now() - 10 * 60 * 1000);
+    fs.utimesSync(lock, old, old);
+
+    expect(acquireProjectLock(project).acquired).toBe(true);
+    releaseProjectLock(project);
   });
 });

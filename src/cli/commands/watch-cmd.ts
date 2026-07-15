@@ -32,7 +32,7 @@ export async function cmdWatch(args: string[]): Promise<void> {
   const db = LynxDatabase.openProject(projectName);
 
   console.log(`[lynx-watch] Initial index of ${resolvedPath} as "${projectName}" (mode: ${mode})...`);
-  const { status } = await runPipeline(db, resolvedPath, projectName, { mode, incremental: false, llmEnrichment });
+  const { status } = await runPipeline(db, resolvedPath, projectName, { mode, incremental: true, llmEnrichment });
   console.log(`[lynx-watch] Indexed: ${status.totalNodes} nodes, ${status.totalEdges} edges.`);
 
   const watcher = new FileWatcher(db, resolvedPath, projectName, mode);

@@ -22,8 +22,9 @@
  * Coverage estimate: < 0.1% collision rate.
  */
 
-import { readUsageEvents, type UsageEvent } from './metrics.js';
-import { readArchivedEvents, summarizeHistory } from '../store/metrics-db.js';
+import { attributeLegacyToolObservation, type UsageEvent } from './metrics.js';
+import { readArchivedEvents } from '../store/metrics-db.js';
+import { readLynxConfig } from '../config/runtime.js';
 import {
   type MetricPoint,
   type MetricProvenance,
@@ -67,6 +68,7 @@ export function getTimeWindows(_now?: string): WindowInfo[] {
 // ── Category assignment (mutually exclusive) ───────────────────
 
 const CATEGORY_BY_TYPE: Record<string, string> = {
+  architecture_overview: 'architecture_overview',
   search_graph: 'direct_discovery',
   search_code: 'direct_discovery',
   semantic_search: 'direct_discovery',
@@ -79,19 +81,41 @@ const CATEGORY_BY_TYPE: Record<string, string> = {
   find_tests: 'impact_analysis',
   llm_rerank: 'llm_rerank',
   hook_augment: 'hook_augment',
+  tool_observation: 'other',
+};
+
+const OBSERVATION_CATEGORY_BY_TOOL: Record<string, string> = {
+  detect_changes: 'impact_analysis',
+  assess_impact: 'impact_analysis',
+  analyze_hotspots: 'impact_analysis',
+  find_dead_code: 'impact_analysis',
+  pack_memory: 'context_packing',
+  get_graph_schema: 'context_packing',
+  compare_runs: 'impact_analysis',
+  index_repository: 'project_operations',
+  index_status: 'project_operations',
+  ingest_traces: 'project_operations',
+  watch_project: 'project_operations',
+  manage_adr: 'project_operations',
+  delete_project: 'project_operations',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
+  architecture_overview: 'Orientación de arquitectura',
   direct_discovery: 'Descubrimiento directo',
   smart_navigation: 'Navegación inteligente',
   context_packing: 'Empaquetado de contexto',
   impact_analysis: 'Análisis de impacto',
   llm_rerank: 'Reordenamiento semántico',
   hook_augment: 'Aumento por hook',
+  project_operations: 'Operaciones de proyecto',
   other: 'Otros',
 };
 
 function categoryForEvent(e: UsageEvent): string {
+  if (e.type === 'tool_observation' && e.tool_hint) {
+    return OBSERVATION_CATEGORY_BY_TOOL[e.tool_hint] || 'other';
+  }
   return CATEGORY_BY_TYPE[e.type] || 'other';
 }
 
@@ -155,6 +179,34 @@ export interface CategoryBreakdown {
   latency_ms: number;
 }
 
+/**
+ * Explains exactly which recorded tool activity contributed to the displayed
+ * savings.  Operational observations stay out of this object: they are real
+ * events, but are not presented as savings.
+ */
+export interface SavingsAttribution {
+  /** Events with a non-zero token or file saving estimate. */
+  saving_events: number;
+  /** Remaining recorded activity, deliberately excluded from the estimate. */
+  operational_events: number;
+  /** Confidence of the largest saving contribution. */
+  confidence: 'low' | 'medium' | 'high';
+  by_tool: Array<{
+    type: string;
+    events: number;
+    tokens_saved: number;
+    files_avoided: number;
+  }>;
+}
+
+export interface LlmBreakdown {
+  provider: string;
+  model: string | null;
+  calls: number;
+  estimated_cost_usd: number;
+  latency_ms: number;
+}
+
 export interface WindowedMetrics {
   window: TimeWindow;
   since: string;
@@ -174,6 +226,10 @@ export interface WindowedMetrics {
   };
   /** Mutually exclusive. CONTRACT: sum(categories.tokens_saved) === totals.tokens_saved */
   categories: CategoryBreakdown[];
+  /** Human-readable attribution for the savings total shown in the UI. */
+  savings_attribution: SavingsAttribution;
+  /** Real LLM calls grouped by the provider and model captured at event time. */
+  llm_breakdown: LlmBreakdown[];
   metrics: MetricPoint[];
   coverage: TelemetryCoverage;
   /** Historical aggregate data that cannot be broken into per-event categories. */
@@ -196,13 +252,13 @@ export function aggregateByWindow(
   const win = windows.find((w) => w.window === window)!;
   const now = win.until;
 
-  // Read from usage.jsonl (most recent events, always categorizable)
-  const allEvents = readUsageEvents(project, 10000);
+  // DB-only: read from events_archive.
+  const allEvents = readArchivedEvents(project, 10000);
   const inWindow = allEvents.filter(
     (e) => e.ts >= win.since && e.ts <= win.until
   );
 
-  return buildFromEvents(win, dedupEvents(inWindow), now);
+  return buildFromEvents(win, dedupEvents(inWindow.map(attributeLegacyToolObservation)), now);
 }
 
 /**
@@ -218,60 +274,11 @@ export function aggregateTotal(
   const win = windows.find((w) => w.window === 'total')!;
   const now = win.until;
 
-  // Primary: events_archive (persistent, complete history)
-  const archived = readArchivedEvents(project || undefined, 50000);
+  // DB-only: events_archive is the single source of truth.
+  const archived = readArchivedEvents(project, 50000);
+  const merged = dedupEvents(archived.map(attributeLegacyToolObservation));
 
-  // Secondary: recent JSONL events not yet in archive
-  const recent = readUsageEvents(project, 5000);
-
-  // Merge: archive first, then JSONL; dedup drops duplicates
-  const merged = dedupEvents([...archived, ...recent]);
-
-  const result = buildFromEvents(win, merged, now);
-
-  // Reconcile: compare per-event totals against daily_snapshots.
-  // Any snapshot tokens/files not represented in per-event data go to
-  // historical_unclassified (pre-v3 legacy, corrupted, or non-reconstructible).
-  if (project) {
-    try {
-      const history = summarizeHistory(project, 365);
-      const snapshotTokens = history.total_tokens_saved;
-      const snapshotFiles = history.total_files_avoided;
-      const snapshotEvents = history.total_events;
-
-      // If snapshots exceed per-event totals, the delta is unreconciled
-      const deltaTokens = snapshotTokens - result.totals.tokens_saved;
-      const deltaFiles = snapshotFiles - result.totals.files_avoided;
-      const deltaEvents = snapshotEvents - result.totals.events;
-
-      if (deltaTokens > 0 || deltaFiles > 0) {
-        result.historical_unclassified = {
-          tokens_saved: Math.max(0, deltaTokens),
-          files_avoided: Math.max(0, deltaFiles),
-          events: Math.max(0, deltaEvents),
-          provenance: {
-            kind: 'scenario',
-            source: 'daily_snapshots vs events_archive delta',
-            period: `${win.since}/${win.until}`,
-            computed_at: now,
-            formula: 'snapshot_total - per_event_total',
-            sample_size: 0,
-            confidence: 0.3,
-            session_id: null,
-            task_id: null,
-            event_id: null,
-            status: snapshotEvents === 0 ? 'no_snapshots' :
-                    result.totals.events === 0 && snapshotEvents > 0 ? 'legacy' :
-                    'unreconciled',
-          },
-        };
-      }
-    } catch {
-      // reconciliation is advisory; ignore failures
-    }
-  }
-
-  return result;
+  return buildFromEvents(win, merged, now);
 }
 
 // ── Build from events ──────────────────────────────────────────
@@ -286,6 +293,7 @@ function buildFromEvents(
   let llmEvents = 0;
   let llmCost = 0;
   let llmLatency = 0;
+  const llmBreakdown = new Map<string, LlmBreakdown>();
   const sessions = new Set<string>();
   const tasks = new Set<string>();
   let deterministicEvents = 0;
@@ -298,6 +306,19 @@ function buildFromEvents(
       llmEvents++;
       llmCost += e.estimated_llm_cost_usd || 0;
       llmLatency += e.llm_latency_ms || 0;
+      const model = e.llm_model || null;
+      const key = `${e.llm_provider}:${model || '__unknown__'}`;
+      const entry = llmBreakdown.get(key) || {
+        provider: e.llm_provider,
+        model,
+        calls: 0,
+        estimated_cost_usd: 0,
+        latency_ms: 0,
+      };
+      entry.calls++;
+      entry.estimated_cost_usd += e.estimated_llm_cost_usd || 0;
+      entry.latency_ms += e.llm_latency_ms || 0;
+      llmBreakdown.set(key, entry);
     }
     if (e.session_id) sessions.add(e.session_id);
     if (e.task_id) tasks.add(e.task_id);
@@ -334,8 +355,41 @@ function buildFromEvents(
     computed_at: now,
     totals,
     categories,
+    savings_attribution: buildSavingsAttribution(events),
+    llm_breakdown: [...llmBreakdown.values()]
+      .map((entry) => ({ ...entry, estimated_cost_usd: Number(entry.estimated_cost_usd.toFixed(6)) }))
+      .sort((a, b) => b.estimated_cost_usd - a.estimated_cost_usd),
     metrics: buildMetricPoints(totals, categories, now, win),
     coverage,
+  };
+}
+
+function buildSavingsAttribution(events: UsageEvent[]): SavingsAttribution {
+  const savings = events.filter((event) =>
+    Number(event.tokens_saved || 0) > 0 || Number(event.files_avoided || 0) > 0
+  );
+  const byTool = new Map<string, { events: number; tokens_saved: number; files_avoided: number }>();
+
+  for (const event of savings) {
+    const type = event.tool_hint || event.type || 'other';
+    const entry = byTool.get(type) || { events: 0, tokens_saved: 0, files_avoided: 0 };
+    entry.events++;
+    entry.tokens_saved += Number(event.tokens_saved || 0);
+    entry.files_avoided += Number(event.files_avoided || 0);
+    byTool.set(type, entry);
+  }
+
+  const leading = [...savings].sort((a, b) =>
+    Number(b.tokens_saved || 0) - Number(a.tokens_saved || 0)
+  )[0];
+
+  return {
+    saving_events: savings.length,
+    operational_events: Math.max(0, events.length - savings.length),
+    confidence: leading?.confidence || 'medium',
+    by_tool: [...byTool.entries()]
+      .map(([type, value]) => ({ type, ...value }))
+      .sort((a, b) => b.tokens_saved - a.tokens_saved),
   };
 }
 
@@ -358,12 +412,14 @@ function buildCategoryBreakdown(events: UsageEvent[]): CategoryBreakdown[] {
   }
 
   const allCats = [
+    'architecture_overview',
     'direct_discovery',
     'smart_navigation',
     'context_packing',
     'impact_analysis',
     'llm_rerank',
     'hook_augment',
+    'project_operations',
     'other',
   ];
 
@@ -406,8 +462,8 @@ function buildMetricPoints(
       value: totals.tokens_saved,
       unit: 'tokens',
       provenance: prov('estimated', {
-        source: 'events tokens_saved (heuristic: files_avoided*900 - results*180)',
-        formula: 'sum(event.tokens_saved); tokens are estimated via heuristic',
+        source: 'events tokens_saved (conservative returned-context attribution)',
+        formula: 'sum(event.tokens_saved); full-file exploration is kept out of observed savings',
         confidence: 0.7,
         sample_size: totals.events,
       }),
@@ -529,6 +585,8 @@ function computeCoverage(
   // event_coverage: events exist, but we don't know the denominator.
   // Use a baseline of 1 if events exist (coverage = we have data).
   const eventCov = events.length > 0 ? 1 : 0;
+  const cfg = readLynxConfig();
+  const hasLLMKey = !!(cfg?.api_keys?.deepseek || cfg?.api_keys?.vps_key);
 
   let summary: string;
   if (events.length === 0) {
@@ -540,7 +598,11 @@ function computeCoverage(
   } else if (!llmActive) {
     const sessPart = sessionsAvailable ? `${sessionsTracked} sesiones` : 'sesiones: no disponible';
     const taskPart = tasksAvailable ? `${tasksTracked} tareas` : 'tareas: no disponible';
-    summary = `Eventos registrados sin LLM (${sessPart}, ${taskPart}). Configura LYNX_DEEPSEEK_KEY o LYNX_API_KEY para activar reordenamiento semántico.`;
+    if (hasLLMKey) {
+      summary = `Eventos registrados sin LLM (${sessPart}, ${taskPart}). La API key está configurada pero enable_llm no se activó en las llamadas — el reranking semántico no fue solicitado.`;
+    } else {
+      summary = `Eventos registrados sin LLM (${sessPart}, ${taskPart}). Configura LYNX_DEEPSEEK_KEY o LYNX_API_KEY para activar reordenamiento semántico.`;
+    }
   } else {
     const sessPart = sessionsAvailable ? `${sessionsTracked} sesiones` : 'sesiones: no disponible';
     const taskPart = tasksAvailable ? `${tasksTracked} tareas` : 'tareas: no disponible';
@@ -554,6 +616,7 @@ function computeCoverage(
     tasks_tracked: tasksTracked,
     tasks_available: tasksAvailable,
     llm_tracking_active: llmActive,
+    has_llm_key: hasLLMKey,
     deterministic_mode: isDeterministic,
     summary,
   };

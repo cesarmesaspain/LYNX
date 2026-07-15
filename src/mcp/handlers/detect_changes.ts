@@ -21,6 +21,9 @@ import { getNeighborNames, bfsTraverse } from '../../store/traverse.js';
 import { explainHotspot } from '../../intelligence/narrative.js';
 import { assessRiskWithMeta, type LlmUsage } from '../../llm/client.js';
 import { projectNotIndexed } from '../diagnostics.js';
+import { buildEmptyResult, buildFilesOnlyResult } from './detect-changes-results.js';
+import { readLynxConfig } from '../../config/runtime.js';
+
 
 // ═══════════════════════════════════════════════════════════════
 // Public contract types (exported for consumers and tests)
@@ -30,6 +33,7 @@ export const DETECT_CHANGES_CONTRACT_VERSION = 2;
 
 /** Discriminated union for git status entries. */
 export type GitStatusEntry =
+  | { kind: 'committed'; file: string; status: string; oldPath?: string; isRename: boolean }
   | { kind: 'staged'; file: string; status: string; oldPath?: string; isRename: boolean }
   | { kind: 'unstaged'; file: string; status: string }
   | { kind: 'untracked'; file: string; status: '?' }
@@ -203,6 +207,26 @@ export function parseGitStatus(line: string): GitStatusEntry | null {
 }
 
 /**
+ * Parse `git diff --name-status` output. These entries describe changes
+ * already committed relative to the requested baseline; they are not staged
+ * in the current worktree. Keeping that distinction prevents an ahead branch
+ * from being reported as having files prepared for commit.
+ */
+export function parseGitDiffStatus(line: string): GitStatusEntry | null {
+  const raw = line.replace(/[\r\n]+$/, '');
+  if (!raw) return null;
+  const parts = raw.split('\t');
+  const code = parts[0] || '';
+  if (code.startsWith('R') && parts.length >= 3) {
+    return { kind: 'renamed', file: parts.slice(2).join('\t'), oldPath: parts[1], status: 'R' };
+  }
+  const file = parts.slice(1).join('\t');
+  if (!file) return null;
+  if (code === 'D') return { kind: 'deleted', file, status: 'D' };
+  return { kind: 'committed', file, status: code, isRename: false };
+}
+
+/**
  * Normalize the --files argument into a string array or null.
  * Accepts string (comma-separated), string[], or undefined.
  */
@@ -217,6 +241,15 @@ export function normalizeRequestedFiles(raw: unknown): string[] | null {
     return parts.length > 0 ? parts : null;
   }
   return null;
+}
+
+export function compilePathFilter(raw: unknown): { regex: RegExp | null; error?: string } {
+  if (raw === undefined || raw === null || raw === '') return { regex: null };
+  try {
+    return { regex: new RegExp(String(raw)) };
+  } catch {
+    return { regex: null, error: 'path_filter must be a valid regular expression.' };
+  }
 }
 
 /**
@@ -300,7 +333,7 @@ export function classifyGitEntries(changes: CanonicalChange[]): CategorisedChang
       // Also add as unstaged for completeness
       categories.unstaged_changes.push(c);
     } else {
-      // staged (M, A)
+      // committed baseline changes, or staged (M, A)
       categories.tracked_changes.push(c);
     }
   }
@@ -390,6 +423,10 @@ interface LlmRiskAssessment {
   latency_ms: number;
 }
 
+export function buildChangeSetAssessmentInput(nodes: readonly Pick<InternalChangedNode, 'name' | 'file_path' | 'caller_count' | 'impact_tier'>[]): string {
+  return nodes.map(node => `${node.file_path} :: ${node.name} :: ${node.impact_tier} impact :: ${node.caller_count} callers`).join('\n');
+}
+
 interface InternalChangedNode {
   name: string;
   qualified_name: string;
@@ -424,54 +461,47 @@ export function isGitWorkTree(rootPath: string): boolean {
 }
 
 /** Collect raw GitStatusEntry list from git porcelain + diff commands. */
-function collectGitEntries(rootPath: string, baseBranch: string, since?: string): {
+export function collectGitEntries(rootPath: string, baseBranch: string, since?: string, includeCommitted = true): {
   rawEntries: GitStatusEntry[];
   committedRef: string | null;
 } {
   const rawEntries: GitStatusEntry[] = [];
   let committedRef: string | null = null;
 
-  committedRef = since || `${baseBranch}...HEAD`;
-  try {
-    const out = child_process.execSync(
-      `git diff --name-status ${committedRef}`,
-      { cwd: rootPath, encoding: 'utf-8', timeout: 15000 }
-    );
-    for (const line of out.trim().split('\n')) {
-      const parsed = parseGitStatus(line);
-      if (parsed) rawEntries.push(parsed);
-    }
-  } catch {
+  if (includeCommitted) {
+    committedRef = since || `${baseBranch}...HEAD`;
     try {
-      const out = child_process.execSync(
-        'git diff --name-status HEAD~1',
-        { cwd: rootPath, encoding: 'utf-8', timeout: 10000 }
+      const out = child_process.execFileSync(
+        'git', ['diff', '--name-status', committedRef],
+        { cwd: rootPath, encoding: 'utf-8', timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] }
       );
       for (const line of out.trim().split('\n')) {
-        const parsed = parseGitStatus(line);
+        const parsed = parseGitDiffStatus(line);
         if (parsed) rawEntries.push(parsed);
       }
-      committedRef = 'HEAD~1';
-    } catch { /* no commits */ }
+    } catch {
+      try {
+        const out = child_process.execFileSync(
+          'git', ['diff', '--name-status', 'HEAD~1'],
+          { cwd: rootPath, encoding: 'utf-8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] }
+        );
+        for (const line of out.trim().split('\n')) {
+          const parsed = parseGitDiffStatus(line);
+          if (parsed) rawEntries.push(parsed);
+        }
+        committedRef = 'HEAD~1';
+      } catch { /* no commits */ }
+    }
   }
 
   try {
-    const out = child_process.execSync(
-      'git diff --name-only',
-      { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
+    const out = child_process.execFileSync(
+      'git', ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=normal'],
+      { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
     );
-    for (const rawLine of out.trim().split('\n')) {
-      const file = rawLine.trim();
-      if (file) rawEntries.push({ kind: 'unstaged', file, status: 'M' });
-    }
-  } catch { /* ignore */ }
-
-  try {
-    const out = child_process.execSync(
-      'git --no-optional-locks status --porcelain --untracked-files=normal',
-      { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
-    );
-    for (const line of out.trim().split('\n')) {
+    // Do not trim the whole output: the leading space in porcelain status is
+    // semantic (` M` means unstaged). A final empty line is harmless.
+    for (const line of out.split(/\r?\n/)) {
       const parsed = parseGitStatus(line);
       if (parsed) rawEntries.push(parsed);
     }
@@ -481,7 +511,7 @@ function collectGitEntries(rootPath: string, baseBranch: string, since?: string)
 }
 
 /** Collect per-file diffs for the given changes (up to 50 files). */
-function collectFileDiffs(
+export function collectFileDiffs(
   rootPath: string,
   allChanges: CanonicalChange[],
   committedRef: string | null,
@@ -492,16 +522,16 @@ function collectFileDiffs(
   for (const c of allChanges) {
     if (c.entries[0]?.kind === 'deleted' || c.entries[0]?.kind === 'renamed') continue;
     try {
-      const diffOut = child_process.execSync(
-        `git diff ${committedRef} -- "${c.file}"`,
+      const diffOut = child_process.execFileSync(
+        'git', ['diff', committedRef, '--', c.file],
         { cwd: rootPath, encoding: 'utf-8', timeout: 5000, maxBuffer: 1024 * 1024 }
       );
       if (diffOut.trim()) fileDiffMap.set(c.file, diffOut.trim());
     } catch { /* ignore */ }
     if (!fileDiffMap.has(c.file)) {
       try {
-        const diffOut = child_process.execSync(
-          `git diff -- "${c.file}"`,
+        const diffOut = child_process.execFileSync(
+          'git', ['diff', '--', c.file],
           { cwd: rootPath, encoding: 'utf-8', timeout: 5000, maxBuffer: 1024 * 1024 }
         );
         if (diffOut.trim()) fileDiffMap.set(c.file, diffOut.trim());
@@ -661,6 +691,37 @@ async function runLlmRiskAssessment(
   let llmTotalLatency = 0;
   let attemptedProvider = '';
 
+  // Large change sets get one compact decision instead of one paid request per
+  // symbol. The graph still determines the candidate set and impact evidence.
+  if (llmCandidates.length >= 3) {
+    const compactChangeSet = buildChangeSetAssessmentInput(llmCandidates);
+    const callers = [...new Set(llmCandidates.flatMap(node => node.callers))].slice(0, 12);
+    try {
+      const callStart = Date.now();
+      const result = await assessRiskWithMeta(
+        'change set', compactChangeSet, callers,
+        Math.max(...llmCandidates.map(node => node.caller_count)),
+        `Changed symbols (${llmCandidates.length}):\n${compactChangeSet}`,
+      );
+      const latency = Date.now() - callStart;
+      llmUsage.calls = 1;
+      llmUsage.used = true;
+      llmUsage.provider = result.provider;
+      llmUsage.model = result.model || null;
+      llmUsage.latency_ms = latency;
+      llmUsage.fallback_used = result.fallback;
+      for (const node of llmCandidates) {
+        node.llm_risk = { risk: result.risk, reason: result.reason, fan_in: node.caller_count, source: `${result.provider}_group`, latency_ms: latency };
+      }
+      if (result.fallback) llmUsage.fallback_reason = `${result.provider} grouped assessment fell back to deterministic evidence`;
+      return { llmUsage };
+    } catch {
+      llmUsage.fallback_used = true;
+      llmUsage.fallback_reason = 'grouped risk assessment failed; kept deterministic evidence';
+      return { llmUsage };
+    }
+  }
+
   for (const node of llmCandidates) {
     const fullPath = path.join(rootPath, node.file_path);
     let funcSource = '';
@@ -723,11 +784,44 @@ export async function handleDetectChanges(
   const baseBranch = (args.base_branch as string) || 'main';
   const since = args.since ? String(args.since) : undefined;
   const scope = (args.scope as string) === 'files' ? 'files' : 'symbols';
-  const depth = args.depth !== undefined ? Number(args.depth) : 2;
-  const enableLlm = args.enable_llm !== false;
-  const includeDiff = args.include_diff !== false;
+  const requestedDepth = args.depth !== undefined ? Number(args.depth) : 2;
+  const depth = Number.isFinite(requestedDepth) ? Math.max(1, Math.min(Math.floor(requestedDepth), 10)) : 2;
+  const agentResponse = readLynxConfig().agent_response;
+  const savingsMode = agentResponse?.enabled && agentResponse.budget === 'max_savings';
+  // Risk enrichment is useful when explicitly requested, but should not turn a
+  // deterministic change inspection into a paid LLM call by default.
+  const enableLlm = args.enable_llm === true;
+  // Diffs can dominate the response. In savings mode they stay available on
+  // demand, while the structural change evidence remains in the default reply.
+  const includeDiff = args.include_diff !== undefined
+    ? args.include_diff === true
+    : !savingsMode;
+  // During an active session, local worktree changes are the useful default.
+  // Branch history can be large, so in maximum-savings mode it is opt-in.
+  const includeCommitted = args.include_committed === true
+    || args.since !== undefined
+    || args.base_branch !== undefined
+    || !savingsMode;
   const requestedFiles = normalizeRequestedFiles(args.files);
-  const pathFilterRegex = args.path_filter ? new RegExp(String(args.path_filter)) : null;
+  const compiledPathFilter = compilePathFilter(args.path_filter);
+  const pathFilterRegex = compiledPathFilter.regex;
+  if (compiledPathFilter.error) {
+    return {
+      contract_version: DETECT_CHANGES_CONTRACT_VERSION,
+      project, base_branch: baseBranch, since: since || null, scope, depth,
+      error: compiledPathFilter.error,
+      hint: 'Use a valid JavaScript regular expression for path_filter.',
+      recoverable: true,
+      categories: {},
+      category_counts: { tracked_changes: 0, unstaged_changes: 0, untracked_files: 0, deleted_files: 0, renamed_files: 0, total: 0 },
+      impact_assessment: { confirmed_count: 0, probable_count: 0, nominal_count: 0, confirmed: [], probable: [], nominal: [] },
+      related_dependencies: [], related_dependencies_count: 0,
+      changed_files: [], changed_nodes: [], total_changed_files: 0, total_affected_nodes: 0,
+      by_severity: { critical: 0, high: 0, medium: 0, low: 0 }, indirect_callers_affected: 0,
+      impact_analysis: { summary: compiledPathFilter.error, risk_level: 'low', details: [] },
+      llm_usage: { enabled: enableLlm, used: false, provider: null, model: null, calls: 0, latency_ms: 0, fallback_used: false, fallback_reason: compiledPathFilter.error },
+    };
+  }
 
   const db = getDb(project);
   const projectMeta = db.getProject(project);
@@ -761,7 +855,7 @@ export async function handleDetectChanges(
   let rawEntries: GitStatusEntry[];
   let committedRef: string | null;
   try {
-    const collected = collectGitEntries(rootPath, baseBranch, since);
+    const collected = collectGitEntries(rootPath, baseBranch, since, includeCommitted);
     rawEntries = collected.rawEntries;
     committedRef = collected.committedRef;
   } catch {
@@ -913,67 +1007,6 @@ function classifySeverity(callers: number, isHotspot: boolean): 'critical' | 'hi
   if (callers >= 10) return 'high';
   if (callers >= 3) return 'medium';
   return 'low';
-}
-
-function buildEmptyResult(project: string, baseBranch: string, since: string | undefined, scope: 'files' | 'symbols', depth: number, enableLlm = true): DetectChangesResult {
-  return {
-    contract_version: DETECT_CHANGES_CONTRACT_VERSION,
-    project,
-    base_branch: baseBranch,
-    since: since || null,
-    scope,
-    depth,
-    categories: { tracked_changes: [], unstaged_changes: [], untracked_files: [], deleted_files: [], renamed_files: [] },
-    category_counts: { tracked_changes: 0, unstaged_changes: 0, untracked_files: 0, deleted_files: 0, renamed_files: 0, total: 0 },
-    impact_assessment: { confirmed_count: 0, probable_count: 0, nominal_count: 0, confirmed: [], probable: [], nominal: [] },
-    related_dependencies: [],
-    related_dependencies_count: 0,
-    changed_files: [],
-    changed_nodes: [],
-    total_changed_files: 0,
-    total_affected_nodes: 0,
-    by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
-    indirect_callers_affected: 0,
-    impact_analysis: { summary: 'No changes detected.', risk_level: 'low', details: ['No files changed.'] },
-    llm_usage: { enabled: enableLlm, used: false, provider: null, model: null, calls: 0, latency_ms: 0, fallback_used: false, fallback_reason: 'no changes detected' },
-  };
-}
-
-function buildFilesOnlyResult(project: string, baseBranch: string, since: string | undefined, categories: CategorisedChanges, total: number, enableLlm = true): DetectChangesResult {
-  return {
-    contract_version: DETECT_CHANGES_CONTRACT_VERSION,
-    project,
-    base_branch: baseBranch,
-    since: since || null,
-    scope: 'files',
-    depth: 0,
-    categories: {
-      tracked_changes: categories.tracked_changes.map(c => ({ file: c.file, status: 'M', old_path: c.oldPath || null })),
-      unstaged_changes: categories.unstaged_changes.map(c => ({ file: c.file, status: 'M (unstaged)', old_path: c.oldPath || null })),
-      untracked_files: categories.untracked_files.map(c => ({ file: c.file, status: '?', old_path: null })),
-      deleted_files: categories.deleted_files.map(c => ({ file: c.file, status: 'D', old_path: null })),
-      renamed_files: categories.renamed_files.map(c => ({ file: c.file, status: 'R', old_path: c.oldPath || null })),
-    },
-    category_counts: {
-      tracked_changes: categories.tracked_changes.length,
-      unstaged_changes: categories.unstaged_changes.length,
-      untracked_files: categories.untracked_files.length,
-      deleted_files: categories.deleted_files.length,
-      renamed_files: categories.renamed_files.length,
-      total,
-    },
-    impact_assessment: { confirmed_count: 0, probable_count: 0, nominal_count: 0, confirmed: [], probable: [], nominal: [] },
-    related_dependencies: [],
-    related_dependencies_count: 0,
-    changed_files: [],
-    changed_nodes: [],
-    total_changed_files: total,
-    total_affected_nodes: 0,
-    by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
-    indirect_callers_affected: 0,
-    impact_analysis: { summary: `${total} files changed (scope=files).`, risk_level: 'low', details: [] },
-    llm_usage: { enabled: enableLlm, used: false, provider: null, model: null, calls: 0, latency_ms: 0, fallback_used: false, fallback_reason: 'scope=files, skipped risk assessment' },
-  };
 }
 
 function buildNarrative(

@@ -45,7 +45,7 @@ describe('Native extractor integration', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-native-int-'));
     try {
       const tsPath = path.join(dir, 'sample.ts');
-      fs.writeFileSync(tsPath, "export function add(a: number, b: number): number {\n  return a + b;\n}\n");
+      fs.writeFileSync(tsPath, "// const phantom = () => 1;\nconst token = request.headers.authorization;\nexport const add = async (a: number, b: number): Promise<number> => a + b;\n");
 
       const input = JSON.stringify([
         { id: 0, project: 'test', relPath: 'sample.ts', absPath: tsPath },
@@ -59,6 +59,9 @@ describe('Native extractor integration', () => {
       const funcNode = r.result.nodes.find(n => n.name === 'add');
       expect(funcNode).toBeDefined();
       expect(funcNode!.kind).toBe('Function');
+      expect(funcNode!.isExported).toBe(true);
+      expect(r.result.nodes.find(n => n.name === 'token')?.kind).toBe('Variable');
+      expect(r.result.nodes.some(n => n.name === 'phantom')).toBe(false);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

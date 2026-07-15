@@ -9,9 +9,15 @@ export function startProjectWatcher(project: string, rootPath: string, mode: Lyn
   const existing = entries.get(project);
   if (existing) return { alreadyRunning: true, status: existing.watcher.status() };
   const db = LynxDatabase.openProject(project);
-  const watcher = new FileWatcher(db, rootPath, project, mode);
-  entries.set(project, { watcher, db });
-  return { alreadyRunning: false, status: watcher.start() };
+  try {
+    const watcher = new FileWatcher(db, rootPath, project, mode);
+    const status = watcher.start();
+    entries.set(project, { watcher, db });
+    return { alreadyRunning: false, status };
+  } catch (error) {
+    db.close();
+    throw error;
+  }
 }
 
 export function getProjectWatcherStatus(project: string): WatcherStatus | null {
@@ -28,6 +34,6 @@ export async function stopProjectWatcher(project: string): Promise<WatcherStatus
   return status;
 }
 
-export async function closeAllProjectWatchers(): Promise<void> {
+export async function closeAllProjectWatchers() {
   await Promise.all([...entries.keys()].map(stopProjectWatcher));
 }

@@ -7,7 +7,7 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 
-/** Full core schema: projects, nodes, edges, file_hashes, findings, index_runs, project_briefs. */
+/** Full core schema: projects, graph data, file hashes, persistent LLM summaries, and metrics. */
 export const CORE_SCHEMA = `
   CREATE TABLE IF NOT EXISTS projects (
     name TEXT PRIMARY KEY,
@@ -52,6 +52,25 @@ export const CORE_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_edges_target ON edges(target_id);
   CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(project, type);
 
+  CREATE TABLE IF NOT EXISTS edge_evidence (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project TEXT NOT NULL,
+    edge_id INTEGER NOT NULL REFERENCES edges(id) ON DELETE CASCADE,
+    evidence_type TEXT NOT NULL DEFAULT 'structural',
+    source_kind TEXT NOT NULL DEFAULT 'resolver',
+    source_path TEXT,
+    start_line INTEGER,
+    end_line INTEGER,
+    extractor TEXT NOT NULL DEFAULT 'resolve',
+    strength REAL NOT NULL DEFAULT 0.8,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_edge_evidence_project ON edge_evidence(project);
+  CREATE INDEX IF NOT EXISTS idx_edge_evidence_edge ON edge_evidence(edge_id);
+  CREATE INDEX IF NOT EXISTS idx_edge_evidence_type ON edge_evidence(project, evidence_type);
+
   CREATE TABLE IF NOT EXISTS file_hashes (
     project TEXT NOT NULL,
     rel_path TEXT NOT NULL,
@@ -60,6 +79,18 @@ export const CORE_SCHEMA = `
     size INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (project, rel_path)
   );
+
+  CREATE TABLE IF NOT EXISTS llm_summary_cache (
+    project TEXT NOT NULL,
+    source_hash TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    source_tokens_est INTEGER NOT NULL DEFAULT 0,
+    summary_tokens_est INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (project, source_hash)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_llm_summary_cache_project ON llm_summary_cache(project);
 
   CREATE TABLE IF NOT EXISTS findings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -130,7 +161,7 @@ export function migrateV01toV02(db: BetterSqlite3.Database): void {
     { col: 'status_error', def: 'TEXT' },
   ]) {
     try {
-      db.exec(`ALTER TABLE projects ADD COLUMN ${col} ${def}`);
+      db.exec('ALTER TABLE projects ADD COLUMN ' + col + ' ' + def);
     } catch {
       // Column already exists
     }

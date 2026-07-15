@@ -23,10 +23,10 @@ export function executeLocalSearchGraph(
   db: LynxDatabase,
   params: FederatedSearchParams
 ): LocalSearchResult {
-  const { project, query, label, namePattern, qnPattern, filePattern,
+  const { project, query, label, namePattern, qnPattern, nameLike, qnLike, filePattern,
           limit, offset, minDegree, maxDegree, excludeEntryPoints } = params;
 
-  const hasStructuredFilter = !!(namePattern || qnPattern || filePattern ||
+  const hasStructuredFilter = !!(namePattern || qnPattern || nameLike || qnLike || filePattern ||
     minDegree !== undefined || maxDegree !== undefined || excludeEntryPoints ||
     params.hasSemanticQuery);
 
@@ -49,6 +49,7 @@ export function executeLocalSearchGraph(
       is_test: r.node.isTest,
       provenance: 'local' as const,
       provider_count: 1,
+      deterministic_score: r.score + r.tokenScore,
     }));
     total = results.length;
   } else {
@@ -62,6 +63,8 @@ export function executeLocalSearchGraph(
     };
     if (namePattern) searchParams.namePattern = namePattern;
     if (qnPattern) searchParams.qnPattern = qnPattern;
+    if (nameLike) searchParams.nameLike = nameLike;
+    if (qnLike) searchParams.qnLike = qnLike;
     if (filePattern) searchParams.filePattern = filePattern;
     if (minDegree !== undefined) searchParams.minDegree = minDegree;
     if (maxDegree !== undefined) searchParams.maxDegree = maxDegree;
@@ -84,6 +87,7 @@ export function executeLocalSearchGraph(
       is_test: r.node.isTest,
       provenance: 'local' as const,
       provider_count: 1,
+      deterministic_score: r.score + r.tokenScore,
     }));
     total = results.total;
   }

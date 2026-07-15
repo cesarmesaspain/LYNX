@@ -21,6 +21,8 @@ export interface FederatedSearchParams {
   label?: string;
   namePattern?: string;
   qnPattern?: string;
+  nameLike?: string;
+  qnLike?: string;
   filePattern?: string;
   limit: number;
   offset: number;
@@ -47,6 +49,8 @@ export interface SearchNode {
   provenance: Provenance;
   /** Number of providers that contributed (1 or 2). */
   provider_count: number;
+  /** Local deterministic relevance, retained internally for policy decisions. */
+  deterministic_score?: number;
 }
 
 /** Pure local search result. */

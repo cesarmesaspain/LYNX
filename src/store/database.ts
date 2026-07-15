@@ -13,6 +13,12 @@ import * as fs from 'node:fs';
 import { lynxHome } from '../config/runtime.js';
 import { CORE_SCHEMA, DROP_EDGE_INDEXES, CREATE_EDGE_INDEXES, migrateV01toV02 } from './ddl.js';
 
+export function removeSqliteDatabaseFiles(dbPath: string): void {
+  for (const suffix of ['', '-wal', '-shm']) {
+    fs.rmSync(dbPath + suffix, { force: true });
+  }
+}
+
 export class LynxDatabase {
   readonly db: BetterSqlite3.Database;
   readonly dbPath: string;
@@ -45,6 +51,9 @@ export class LynxDatabase {
   }
 
   static openProject(projectName: string): LynxDatabase {
+    if (!projectName.trim() || projectName.length > 128 || /[\0/\\]/.test(projectName)) {
+      throw new Error('Invalid project name: use a non-empty name without path separators');
+    }
     const dbPath = path.join(lynxHome(), 'dbs', `${projectName}.db`);
     return LynxDatabase.openPath(dbPath);
   }
@@ -52,6 +61,10 @@ export class LynxDatabase {
   // ── Configuration ────────────────────────────────────────────
 
   private configure(): void {
+    // Let a concurrent writer finish a short transaction instead of failing
+    // immediately with SQLITE_BUSY. Project locks still prevent concurrent
+    // indexing; this only protects normal cross-process read/write overlap.
+    this.db.pragma('busy_timeout = 5000');
     this.db.pragma('journal_mode = WAL');
     this.db.pragma('synchronous = NORMAL');
     this.db.pragma('foreign_keys = ON');
@@ -139,6 +152,7 @@ export class LynxDatabase {
     this.db.prepare('DELETE FROM edges WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM nodes WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM file_hashes WHERE project = ?').run(name);
+    this.db.prepare('DELETE FROM llm_summary_cache WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM findings WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM project_briefs WHERE project = ?').run(name);
     this.db.prepare('DELETE FROM projects WHERE name = ?').run(name);

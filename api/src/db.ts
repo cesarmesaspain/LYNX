@@ -12,7 +12,7 @@ import Database, { type Database as DatabaseType } from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
 
-const DATA_DIR = path.resolve(import.meta.dirname, '../data');
+const DATA_DIR = process.env.LYNX_API_DATA_DIR || path.resolve(import.meta.dirname, '../data');
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -55,6 +55,19 @@ licensesDb.exec(`
     index_calls INTEGER DEFAULT 0,
     detect_changes_calls INTEGER DEFAULT 0,
     PRIMARY KEY (date, license_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS intelligence_daily_usage (
+    date TEXT NOT NULL,
+    license_id TEXT NOT NULL,
+    requests INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (date, license_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS stripe_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    received_at TEXT DEFAULT (datetime('now'))
   );
 `);
 

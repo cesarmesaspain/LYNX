@@ -229,7 +229,7 @@ describe('search_graph AND filter semantics', () => {
 // LLM boundary tests (enable_llm, LlmUsage contract)
 // ═══════════════════════════════════════════════════════════════
 
-import { handleSearchGraph } from '../../../src/mcp/handlers/search_graph.js';
+import { handleSearchGraph, hasAmbiguousDeterministicRanking } from '../../../src/mcp/handlers/search_graph.js';
 import { setDb, unsetDb } from '../../../src/mcp/server.js';
 
 const LLM_PROJECT = 'test-llm-boundary';
@@ -277,16 +277,24 @@ describe('search_graph LLM boundary', () => {
     expect(usage.provider).toBeNull();
   });
 
-  it('enable_llm=true defaults to enabled', async () => {
+  it('uses deterministic ranking by default', async () => {
     const result = await handleSearchGraph({ project: LLM_PROJECT, query: 'auth' }) as Record<string, unknown>;
     const usage = result.llm_usage as { enabled: boolean };
-    expect(usage.enabled).toBe(true);
+    expect(usage.enabled).toBe(false);
+  });
+
+  it('does not auto-rerank when enable_llm=false is explicit', async () => {
+    const result = await handleSearchGraph({ project: LLM_PROJECT, query: 'auth', enable_llm: false }) as Record<string, unknown>;
+    const usage = result.llm_usage as { enabled: boolean; used: boolean; calls: number };
+    expect(usage.enabled).toBe(false);
+    expect(usage.used).toBe(false);
+    expect(usage.calls).toBe(0);
   });
 
   it('no query skips rerank (llm_usage.used=false)', async () => {
     const result = await handleSearchGraph({ project: LLM_PROJECT, name_pattern: 'auth' }) as Record<string, unknown>;
     const usage = result.llm_usage as { enabled: boolean; used: boolean; calls: number };
-    expect(usage.enabled).toBe(true);
+    expect(usage.enabled).toBe(false);
     expect(usage.used).toBe(false);
     expect(usage.calls).toBe(0);
   });
@@ -295,18 +303,18 @@ describe('search_graph LLM boundary', () => {
     // "User" only matches the Class node (1 result), < 3
     const result = await handleSearchGraph({ project: LLM_PROJECT, query: 'User' }) as Record<string, unknown>;
     const usage = result.llm_usage as { enabled: boolean; used: boolean; calls: number };
-    expect(usage.enabled).toBe(true);
+    expect(usage.enabled).toBe(false);
     expect(usage.used).toBe(false);
   });
 
-  it('3+ candidates with query triggers LLM call', async () => {
+  it('3+ candidates with query stays deterministic unless LLM is requested', async () => {
     // "auth" matches 3 functions (authenticateUser, validatePassword, hashPassword)
     const result = await handleSearchGraph({ project: LLM_PROJECT, query: 'auth' }) as Record<string, unknown>;
     const usage = result.llm_usage as { enabled: boolean; used: boolean; calls: number; provider: string | null; latency_ms: number };
-    expect(usage.enabled).toBe(true);
-    expect(usage.used).toBe(true);
-    expect(usage.calls).toBe(1);
-    expect(usage.provider).toBeDefined();
+    expect(usage.enabled).toBe(false);
+    expect(usage.used).toBe(false);
+    expect(usage.calls).toBe(0);
+    expect(usage.provider).toBeNull();
     expect(usage.latency_ms).toBeGreaterThanOrEqual(0);
   });
 
@@ -331,5 +339,22 @@ describe('search_graph LLM boundary', () => {
     expect(names.some(n => n.includes('authenticateUser'))).toBe(true);
     expect(names.some(n => n.includes('validatePassword'))).toBe(true);
     expect(names.some(n => n.includes('hashPassword'))).toBe(true);
+  });
+});
+
+describe('automatic LLM decision policy', () => {
+  it('calls an LLM only for a close deterministic ranking', () => {
+    expect(hasAmbiguousDeterministicRanking([
+      { deterministic_score: 20 }, { deterministic_score: 19 }, { deterministic_score: 8 },
+    ], 'adaptive')).toBe(true);
+    expect(hasAmbiguousDeterministicRanking([
+      { deterministic_score: 20 }, { deterministic_score: 16 }, { deterministic_score: 8 },
+    ], 'adaptive')).toBe(false);
+  });
+
+  it('uses a narrower ambiguity margin in conservative mode', () => {
+    const candidates = [{ deterministic_score: 20 }, { deterministic_score: 18 }, { deterministic_score: 8 }];
+    expect(hasAmbiguousDeterministicRanking(candidates, 'adaptive')).toBe(true);
+    expect(hasAmbiguousDeterministicRanking(candidates, 'conservative')).toBe(false);
   });
 });

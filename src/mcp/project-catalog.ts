@@ -6,7 +6,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { LynxDatabase } from '../store/database.js';
 import { lynxHome } from '../config/runtime.js';
-
+import { storedTimestampMs } from '../store/time.js';
 export interface IndexedProject {
   name: string;
   rootPath: string;
@@ -14,6 +14,37 @@ export interface IndexedProject {
   status: string;
   statusError: string | null;
   nodeCount: number;
+}
+
+export interface DuplicateProjectRoot {
+  rootPath: string;
+  projects: string[];
+}
+
+function canonicalRoot(rootPath: string): string {
+  try {
+    return fs.realpathSync.native(path.resolve(rootPath));
+  } catch {
+    return path.resolve(rootPath);
+  }
+}
+
+/**
+ * Legacy installs can contain two database names for one checkout (for
+ * example LYNX.db and lynx.db). Surface that condition instead of silently
+ * routing depending on filesystem ordering. New indexing refuses to create it.
+ */
+export function findDuplicateProjectRoots(projects: IndexedProject[] = scanIndexedProjects()): DuplicateProjectRoot[] {
+  const byRoot = new Map<string, string[]>();
+  for (const project of projects) {
+    const root = canonicalRoot(project.rootPath);
+    const names = byRoot.get(root) || [];
+    names.push(project.name);
+    byRoot.set(root, names);
+  }
+  return [...byRoot.entries()]
+    .filter(([, names]) => names.length > 1)
+    .map(([rootPath, names]) => ({ rootPath, projects: names.sort((a, b) => a.localeCompare(b)) }));
 }
 
 export function scanIndexedProjects(): IndexedProject[] {
@@ -46,5 +77,5 @@ export function scanIndexedProjects(): IndexedProject[] {
     }
   }
 
-  return results.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
+  return results.sort((a, b) => storedTimestampMs(b.indexedAt) - storedTimestampMs(a.indexedAt));
 }

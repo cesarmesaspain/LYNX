@@ -43,6 +43,15 @@ export async function handleCompareRuns(
     };
   }
 
+  const [latestRun, previousRun] = comparison.runs;
+  const comparabilityReasons: string[] = [];
+  if (latestRun.mode !== previousRun.mode) {
+    comparabilityReasons.push(`index mode changed (${previousRun.mode} → ${latestRun.mode})`);
+  }
+  if (latestRun.filesProcessed === 0 || previousRun.filesProcessed === 0) {
+    comparabilityReasons.push('at least one run processed zero files');
+  }
+
   return {
     project,
     comparison: {
@@ -72,6 +81,10 @@ export async function handleCompareRuns(
         hotspots: comparison.deltaHotspots,
         avg_complexity: comparison.deltaAvgComplexity,
       },
+      comparable: comparabilityReasons.length === 0,
+      comparability_warning: comparabilityReasons.length > 0
+        ? `Structural deltas may reflect indexing conditions: ${comparabilityReasons.join('; ')}.`
+        : null,
       narrative: comparison.narrative,
     },
   };

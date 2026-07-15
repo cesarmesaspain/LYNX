@@ -6,6 +6,7 @@
  */
 
 import { getDb } from '../server.js';
+import { projectNotIndexed } from '../diagnostics.js';
 
 interface Trace {
   type: 'http_call' | 'async_call' | 'channel_message';
@@ -26,6 +27,7 @@ export async function handleIngestTraces(
   }
 
   const db = getDb(project);
+  if (!db.getProject(project)) return { ...projectNotIndexed(project) };
   let ingested = 0;
   let skipped = 0;
 

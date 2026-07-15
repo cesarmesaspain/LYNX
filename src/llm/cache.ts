@@ -15,7 +15,7 @@ export class LlmCache {
   private maxSize: number;
 
   constructor(maxSize = 5000) {
-    this.maxSize = maxSize;
+    this.maxSize = Number.isFinite(maxSize) ? Math.max(1, Math.floor(maxSize)) : 5000;
   }
 
   private key(hash: string, task: string): string {
@@ -23,19 +23,26 @@ export class LlmCache {
   }
 
   get<T>(hash: string, task: string): T | undefined {
-    const entry = this.store.get(this.key(hash, task));
-    if (entry) return entry.value as T;
-    return undefined;
+    const cacheKey = this.key(hash, task);
+    const entry = this.store.get(cacheKey);
+    if (!entry) return undefined;
+
+    this.store.delete(cacheKey);
+    this.store.set(cacheKey, { ...entry, ts: Date.now() });
+    return entry.value as T;
   }
 
   set<T>(hash: string, task: string, value: T): void {
+    const cacheKey = this.key(hash, task);
+    this.store.delete(cacheKey);
+
     if (this.store.size >= this.maxSize) {
-      // Evict oldest 20%
+      // Evict the oldest 20%, but always remove at least one entry.
       const keys = Array.from(this.store.keys());
-      const toDelete = keys.slice(0, Math.floor(this.maxSize * 0.2));
-      for (const k of toDelete) this.store.delete(k);
+      const deleteCount = Math.max(1, Math.floor(this.maxSize * 0.2));
+      for (const k of keys.slice(0, deleteCount)) this.store.delete(k);
     }
-    this.store.set(this.key(hash, task), { value, ts: Date.now() });
+    this.store.set(cacheKey, { value, ts: Date.now() });
   }
 
   has(hash: string, task: string): boolean {

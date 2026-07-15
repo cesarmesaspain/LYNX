@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import type { LynxDatabase } from '../store/database.js';
 import { isPkg } from '../paths.js';
-import { readLynxConfig } from '../config/runtime.js';
+import { readLynxConfig, getConfiguredApiKey } from '../config/runtime.js';
+import { getApiKey } from '../llm/shared.js';
 
 const FLASH_INPUT_USD_PER_M = 0.14;
 const FLASH_OUTPUT_USD_PER_M = 0.28;
@@ -60,25 +61,28 @@ export interface ProjectBriefResult {
 export async function ensureProjectBrief(
   db: LynxDatabase,
   project: string,
-  opts: { force?: boolean; changeThreshold?: number } = {}
+  opts: { force?: boolean; changeThreshold?: number; allowLlm?: boolean } = {}
 ): Promise<ProjectBriefResult | null> {
   const locale = readLynxConfig().locale;
   const digest = buildProjectDigest(db, project, locale);
   if (digest.metrics.nodes === 0) return null;
 
   const existing = getProjectBrief(db, project);
-  const threshold = opts.changeThreshold ?? 0.18;
   if (existing && !opts.force) {
     if (existing.digest_hash === digest.digestHash) {
       return { row: existing, generated: false };
     }
+    const threshold = opts.changeThreshold;
     const previousMetrics = safeParseMetrics(existing.metrics_json);
-    if (previousMetrics && changedRatio(previousMetrics, digest.metrics) < threshold) {
+    if (threshold !== undefined && previousMetrics && changedRatio(previousMetrics, digest.metrics) < threshold) {
       return { row: existing, generated: false };
     }
   }
 
-  const generated = await generateProjectBrief(digest);
+  // Briefs are refreshed after indexing and watch updates. Keep that hot path
+  // local by default; rich LLM prose is a deliberate, configurable opt-in.
+  const allowLlm = opts.allowLlm ?? readLynxConfig().project_brief?.llm_enrichment === true;
+  const generated = await generateProjectBrief(digest, allowLlm);
   const outputTokensEst = estimateTokens(generated.brief);
   const costUsdEst =
     (digest.inputTokensEst / 1_000_000) * FLASH_INPUT_USD_PER_M +
@@ -159,7 +163,11 @@ function buildProjectDigest(db: LynxDatabase, project: string, locale: 'es' | 'e
   const entryPoints = db.db.prepare(`
     SELECT name, kind, qualified_name, file_path
     FROM nodes
-    WHERE project = ? AND is_entry_point = 1
+    WHERE project = ?
+      AND is_entry_point = 1
+      AND kind <> 'Channel'
+      AND TRIM(file_path) <> ''
+      AND file_path NOT LIKE 'tests/%'
     ORDER BY kind, file_path
     LIMIT 20
   `).all(project) as DigestRow[];
@@ -242,14 +250,16 @@ function buildProjectDigest(db: LynxDatabase, project: string, locale: 'es' | 'e
   };
 }
 
-async function generateProjectBrief(digest: ProjectDigest): Promise<{ brief: string; source: string }> {
+async function generateProjectBrief(digest: ProjectDigest, allowLlm = true): Promise<{ brief: string; source: string }> {
   const locale = readLynxConfig().locale;
   const prompt = projectBriefPrompt(digest.digestText, locale);
-  const apiBrief = await callManagedIntelligence(prompt);
-  if (apiBrief) return { brief: sanitizeBrief(apiBrief), source: 'api' };
+  if (allowLlm) {
+    const apiBrief = await callManagedIntelligence(prompt);
+    if (apiBrief) return { brief: sanitizeBrief(apiBrief), source: 'api' };
 
-  const directBrief = await callDeepSeek(prompt);
-  if (directBrief) return { brief: sanitizeBrief(directBrief), source: 'deepseek' };
+    const directBrief = await callDeepSeek(prompt);
+    if (directBrief) return { brief: sanitizeBrief(directBrief), source: 'deepseek' };
+  }
 
   return { brief: heuristicProjectBrief(digest), source: 'local' };
 }
@@ -290,8 +300,8 @@ ${digestText}`;
 
 async function callManagedIntelligence(prompt: string): Promise<string | null> {
   if (isPkg()) return null;
-  const url = process.env.LYNX_API_URL || '';
-  const key = process.env.LYNX_API_KEY || '';
+  const url = process.env.LYNX_API_URL || getConfiguredApiKey('vps_url') || '';
+  const key = process.env.LYNX_API_KEY || getConfiguredApiKey('vps_key') || '';
   if (!url || !key) return null;
   try {
     const res = await fetch(`${url}/v1/intelligence`, {
@@ -310,7 +320,7 @@ async function callManagedIntelligence(prompt: string): Promise<string | null> {
 
 async function callDeepSeek(prompt: string): Promise<string | null> {
   if (isPkg()) return null;
-  const key = process.env.LYNX_DEEPSEEK_KEY || '';
+  const key = getApiKey();
   if (!key) return null;
   const locale = readLynxConfig().locale;
   const sysContent = locale === 'es'

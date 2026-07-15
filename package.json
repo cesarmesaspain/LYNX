@@ -14,6 +14,9 @@
     "cli": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:api": "npm --prefix api test",
+    "typecheck:api": "npm --prefix api run typecheck",
+    "validate": "npm run typecheck && npm test && npm run typecheck:api && npm run test:api",
     "test:coverage": "vitest run --coverage",
     "bundle": "npm run build && esbuild src/cli.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/pkg-cli.cjs --external:better-sqlite3 --external:web-tree-sitter --external:tree-sitter-wasm --external:ws && node scripts/fix-pkg-deps.js && node scripts/build-native-extractor.js && pkg dist/pkg-cli.cjs --public --targets node20-macos-arm64 --output dist/bin/lynx",
     "bundle:all": "npm run build && esbuild src/cli.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/pkg-cli.cjs --external:better-sqlite3 --external:web-tree-sitter --external:tree-sitter-wasm --external:ws && node scripts/fix-pkg-deps.js && node scripts/build-native-extractor.js --all && pkg dist/pkg-cli.cjs --public --targets node20-macos-arm64,node20-macos-x64,node20-linux-x64,node20-linux-arm64,node20-win-x64 --output dist/bin/lynx"

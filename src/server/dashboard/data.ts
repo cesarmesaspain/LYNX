@@ -9,6 +9,7 @@ import { summarizeUsage, computeSemanticROI, readUsageEvents } from '../../usage
 import { aggregateTotal } from '../../usage/aggregation.js';
 import { getCachedMetrics, invalidateProject } from '../../usage/cache.js';
 import { LynxDatabase } from '../../store/database.js';
+import { storedTimestampMs } from '../../store/time.js';
 import { summarizeHistory, flushTodayEvents } from '../../store/metrics-db.js';
 import { getProjectBrief, type ProjectBriefRow } from '../../intelligence/project-brief.js';
 import { isProjectLocked } from '../../store/lock.js';
@@ -147,7 +148,11 @@ export interface SavingsScenario {
   dimensions: Array<{ label: string; saving: string }>;
 }
 const _cardsCache = new Map<string, { cards: ProjectCard[]; ts: number }>();
-const CARDS_CACHE_TTL_MS = 2000;
+const CARDS_CACHE_TTL_MS = 500;
+
+export function invalidateCardsCache(): void {
+  _cardsCache.clear();
+}
 
 export function collectProjectCards(): ProjectCard[] {
   const cacheKey = '__global__';
@@ -241,7 +246,7 @@ let projectStatusError: string | null = null;
             freshness = 'updating';
           } else {
             const cfg = readLynxConfig();
-            const ageHours = (Date.now() - new Date(lastIndexed).getTime()) / (1000 * 60 * 60);
+            const ageHours = (Date.now() - storedTimestampMs(lastIndexed)) / (1000 * 60 * 60);
             freshness = ageHours > cfg.stale_threshold_hours ? 'stale' : 'ready';
           }
         }

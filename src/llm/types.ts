@@ -63,5 +63,5 @@ export interface LlmFileMetadata {
   summary?: string;
   suggestedEntryPoint?: boolean;
   suggestedTestFile?: boolean;
-  source: 'deepseek' | 'heuristic' | 'api';
+  source: 'deepseek' | 'heuristic' | 'api' | 'cache';
 }

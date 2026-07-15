@@ -181,6 +181,51 @@ export function deleteFileHash(db: LynxDatabase, project: string, relPath: strin
   db.db.prepare('DELETE FROM file_hashes WHERE project = ? AND rel_path = ?').run(project, relPath);
 }
 
+// ── Persistent LLM summary cache ───────────────────────────────
+
+export interface CachedLlmSummary {
+  summary: string;
+  sourceTokensEst: number;
+  summaryTokensEst: number;
+}
+
+export function getCachedLlmSummary(
+  db: LynxDatabase,
+  project: string,
+  sourceHash: string,
+): CachedLlmSummary | null {
+  const row = db.db.prepare(
+    `SELECT summary, source_tokens_est, summary_tokens_est
+     FROM llm_summary_cache WHERE project = ? AND source_hash = ?`,
+  ).get(project, sourceHash) as {
+    summary: string; source_tokens_est: number; summary_tokens_est: number;
+  } | undefined;
+  return row ? {
+    summary: row.summary,
+    sourceTokensEst: row.source_tokens_est,
+    summaryTokensEst: row.summary_tokens_est,
+  } : null;
+}
+
+export function upsertCachedLlmSummary(
+  db: LynxDatabase,
+  project: string,
+  sourceHash: string,
+  summary: string,
+  sourceTokensEst: number,
+  summaryTokensEst: number,
+): void {
+  db.db.prepare(
+    `INSERT INTO llm_summary_cache (project, source_hash, summary, source_tokens_est, summary_tokens_est)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(project, source_hash) DO UPDATE SET
+       summary = excluded.summary,
+       source_tokens_est = excluded.source_tokens_est,
+       summary_tokens_est = excluded.summary_tokens_est,
+       created_at = datetime('now')`,
+  ).run(project, sourceHash, summary, sourceTokensEst, summaryTokensEst);
+}
+
 export function deleteFindingsByFile(db: LynxDatabase, project: string, relPath: string): void {
   db.db.prepare('DELETE FROM findings WHERE project = ? AND target_file = ?').run(project, relPath);
 }

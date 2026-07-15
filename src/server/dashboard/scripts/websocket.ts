@@ -6,6 +6,7 @@ export function webSocketScript(): string {
   return String.raw`
 ;(() => {
   var isSpanish = document.documentElement.lang === 'es';
+  function fmt(n) { return Number(n || 0).toLocaleString(isSpanish ? 'es-ES' : 'en-US'); }
   var wsReconnectDelay = 1000;
   var wsMaxDelay = 30000;
   var wsTimer = null;
@@ -27,6 +28,9 @@ export function webSocketScript(): string {
         var msg = JSON.parse(ev.data);
         if (msg.type === 'cards_updated') {
           updateDashboardUI(msg.cards, msg.briefs);
+          // Metrics are aggregated independently from project cards. Refresh the
+          // currently selected project/window when the server detects new usage.
+          if (typeof loadMetrics === 'function') loadMetrics();
         }
       } catch (e) {}
     };
@@ -57,19 +61,18 @@ export function webSocketScript(): string {
 
   function renderCardHtml(c) {
     var h = projectHealth(c);
-    var html = '<button class="card project-card" type="button" data-project-card="' + esc(c.name) + '" aria-label="Show ' + esc(c.displayName) + ' graph">';
-    html += '<span class="card-delete-btn" role="button" tabindex="0" data-delete-project="' + esc(c.name) + '" data-delete-name="' + esc(c.displayName) + '" aria-label="' + (isSpanish ? 'Eliminar ' : 'Delete ') + esc(c.displayName) + '" title="' + (isSpanish ? 'Eliminar proyecto' : 'Delete project') + '">&#x2715;</span>';
+    var html = '<div class="project-card-wrap"><button class="card project-card" type="button" data-project-card="' + esc(c.name) + '" aria-label="Show ' + esc(c.displayName) + ' graph">';
     html += '<div class="project-topline"><div class="card-title">' + esc(c.displayName) + '</div><span class="health-pill ' + h.className + '">' + h.label + '</span></div>';
     html += '<div class="card-stats">';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Nodos' : 'Nodes') + '</span><span class="stat-value">' + c.nodes.toLocaleString() + '</span></div>';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Aristas' : 'Edges') + '</span><span class="stat-value">' + c.edges.toLocaleString() + '</span></div>';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Archivos' : 'Files') + '</span><span class="stat-value">' + c.filesIndexed.toLocaleString() + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Nodos' : 'Nodes') + '</span><span class="stat-value">' + fmt(c.nodes) + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Aristas' : 'Edges') + '</span><span class="stat-value">' + fmt(c.edges) + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Archivos' : 'Files') + '</span><span class="stat-value">' + fmt(c.filesIndexed) + '</span></div>';
     html += '</div><div class="card-stats">';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Críticos' : 'Hotspots') + '</span><span class="stat-value">' + c.hotspots.toLocaleString() + '</span></div>';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Riesgo' : 'Risky') + '</span><span class="stat-value">' + c.riskyNodes.toLocaleString() + '</span></div>';
-    html += '<div><span class="stat-label">' + (isSpanish ? 'Entrada' : 'Entry') + '</span><span class="stat-value">' + c.entryPoints.toLocaleString() + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Críticos' : 'Hotspots') + '</span><span class="stat-value">' + fmt(c.hotspots) + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Riesgo' : 'Risky') + '</span><span class="stat-value">' + fmt(c.riskyNodes) + '</span></div>';
+    html += '<div><span class="stat-label">' + (isSpanish ? 'Entrada' : 'Entry') + '</span><span class="stat-value">' + fmt(c.entryPoints) + '</span></div>';
     html += '</div>';
-    html += '<div class="project-impact">' + (isSpanish ? 'Tokens ahorrados' : 'Tokens saved') + ': <b>' + c.tokensSaved.toLocaleString() + '</b> · ' + (isSpanish ? 'Archivos evitados' : 'Files avoided') + ': <b>' + c.filesAvoided.toLocaleString() + '</b></div>';
+    html += '<div class="project-impact">' + (isSpanish ? 'Tokens ahorrados' : 'Tokens saved') + ': <b>' + fmt(c.tokensSaved) + '</b> · ' + (isSpanish ? 'Archivos evitados' : 'Files avoided') + ': <b>' + fmt(c.filesAvoided) + '</b></div>';
     if (c.semanticEvents > 0) {
       html += '<div class="semantic-note">' + (isSpanish ? 'Mejora semántica' : 'Semantic lift') + ': ' + c.semanticTopChanged + '/' + c.semanticEvents + ' ' + (isSpanish ? 'resultados principales mejorados' : 'top-results improved') + '</div>';
     }
@@ -77,6 +80,7 @@ export function webSocketScript(): string {
       html += '<div class="muted-text">' + (isSpanish ? 'Indexado' : 'Indexed') + ': ' + esc(c.lastIndexed) + ' · ' + c.edgeTypes + ' ' + (isSpanish ? 'tipos de arista' : 'edge types') + '</div>';
     }
     html += '<div class="open-graph">' + (isSpanish ? 'Abrir grafo' : 'Open graph') + '</div></button>';
+    html += '<button class="card-delete-btn" type="button" data-delete-project="' + esc(c.name) + '" data-delete-name="' + esc(c.displayName) + '" aria-label="' + (isSpanish ? 'Eliminar ' : 'Delete ') + esc(c.displayName) + '" title="' + (isSpanish ? 'Eliminar proyecto' : 'Delete project') + '">&#x2715;</button></div>';
     return html;
   }
 
@@ -109,8 +113,23 @@ export function webSocketScript(): string {
       }
     }
 
+    // Keep Metrics in sync with project indexes created after the page loaded.
+    // Unlike the graph selector, it has an "All projects" option that must
+    // remain selected unless the user had chosen a project that was removed.
+    var metricsSel = document.getElementById('metricsProject');
+    if (metricsSel) {
+      var currentMetricsProject = metricsSel.value;
+      var allProjectsLabel = isSpanish ? 'Todos los proyectos' : 'All projects';
+      metricsSel.innerHTML = '<option value="">' + allProjectsLabel + '</option>' + cards.map(function(c) {
+        return '<option value="' + esc(c.name) + '">' + esc(c.displayName) + '</option>';
+      }).join('');
+      metricsSel.value = cards.some(function(c) { return c.name === currentMetricsProject; })
+        ? currentMetricsProject
+        : '';
+    }
+
     var summaryCards = document.querySelectorAll('.summary-card .value');
-    var vals = [String(cards.length), totalNodes.toLocaleString(), totalEdges.toLocaleString(), totalIndexedFiles.toLocaleString(), totalTokens.toLocaleString(), totalFiles.toLocaleString()];
+    var vals = [String(cards.length), fmt(totalNodes), fmt(totalEdges), fmt(totalIndexedFiles), fmt(totalTokens), fmt(totalFiles)];
     for (var i = 0; i < summaryCards.length && i < vals.length; i++) {
       summaryCards[i].innerHTML = vals[i];
     }

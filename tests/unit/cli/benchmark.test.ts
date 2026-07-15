@@ -1,4 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { getBenchmarkRerankProvider } from '../../../src/cli/benchmark.js';
+
+vi.mock('../../../src/llm/client.js', () => ({
+  getRerankProviderMode: vi.fn(() => 'api'),
+  rerankSearch: vi.fn(),
+}));
 
 // Test the percentile helper used by the benchmark
 function percentile(sorted: number[], p: number): number {
@@ -12,6 +18,19 @@ function median(sorted: number[]): number {
 }
 
 describe('benchmark statistics', () => {
+  describe('semantic provider', () => {
+    it('keeps --no-llm local to this benchmark invocation', () => {
+      const before = process.env.LYNX_NO_LLM;
+
+      expect(getBenchmarkRerankProvider(['--no-llm'])).toBe('heuristic');
+      expect(process.env.LYNX_NO_LLM).toBe(before);
+    });
+
+    it('uses the configured provider when semantic ranking is enabled', () => {
+      expect(getBenchmarkRerankProvider([])).toBe('api');
+    });
+  });
+
   describe('percentile', () => {
     it('p50 of [1,2,3,4,5] is 3', () => {
       expect(percentile([1, 2, 3, 4, 5], 50)).toBe(3);

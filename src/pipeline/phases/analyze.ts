@@ -54,7 +54,16 @@ export function analyze(
   // Entry points
   const entryPointRows = db.db
     .prepare(
-      "SELECT name, qualified_name, file_path FROM nodes WHERE project = ? AND is_entry_point = 1 LIMIT 20"
+      `SELECT name, qualified_name, file_path FROM nodes
+       WHERE project = ?
+         AND is_entry_point = 1
+         AND file_path <> ''
+         AND kind IN ('Function', 'Method', 'Class', 'Module', 'Route')
+       ORDER BY
+         CASE WHEN kind = 'Route' THEN 0 ELSE 1 END,
+         CASE WHEN file_path LIKE 'index.%' OR file_path LIKE '%/index.%' THEN 0 ELSE 1 END,
+         file_path, start_line
+       LIMIT 20`
     )
     .all(project) as { name: string; qualified_name: string; file_path: string }[];
   const entryPoints: LynxEntryPoint[] = entryPointRows.map((r) => ({

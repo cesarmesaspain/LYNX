@@ -23,6 +23,42 @@ import { getFederatedConfig } from '../../federation/handler-bridge.js';
 import type { SearchNode } from '../../federation/types.js';
 import type { LynxDatabase } from '../../store/database.js';
 import { hasCapability } from '../../commercial/gate.js';
+import { readLynxConfig } from '../../config/runtime.js';
+
+const decisionLlmCalls = new Map<string, number>();
+
+export function hasAmbiguousDeterministicRanking(
+  candidates: readonly Pick<SearchNode, 'deterministic_score'>[],
+  mode: 'conservative' | 'adaptive',
+): boolean {
+  if (candidates.length < 2) return false;
+  const scores = candidates
+    .map(candidate => candidate.deterministic_score)
+    .filter((score): score is number => Number.isFinite(score))
+    .sort((a, b) => b - a);
+  if (scores.length < 2) return false;
+
+  const [top, runnerUp] = scores;
+  const margin = top - runnerUp;
+  const relativeMargin = top > 0 ? margin / top : 1;
+  const maxRelativeMargin = mode === 'conservative' ? 0.05 : 0.15;
+  return margin <= 1 || relativeMargin <= maxRelativeMargin;
+}
+
+function mayAutoRerank(candidates: readonly SearchNode[]): boolean {
+  const policy = readLynxConfig().decision_llm;
+  if (!policy || policy.mode === 'off') return false;
+  const minimum = policy.mode === 'conservative' ? 6 : 3;
+  if (candidates.length < minimum || policy.max_calls_per_hour < 1) return false;
+  if (!hasAmbiguousDeterministicRanking(candidates, policy.mode)) return false;
+  const hour = new Date().toISOString().slice(0, 13);
+  return (decisionLlmCalls.get(hour) || 0) < policy.max_calls_per_hour;
+}
+
+function recordAutoRerankCall(): void {
+  const hour = new Date().toISOString().slice(0, 13);
+  decisionLlmCalls.set(hour, (decisionLlmCalls.get(hour) || 0) + 1);
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Private helpers
@@ -82,6 +118,7 @@ async function applyLlmRerank(
     });
 
     const { items: ranked, provider, model, fallback } = await rerankSearchWithMeta(query, candidates);
+    if (provider !== 'heuristic') recordAutoRerankCall();
     const llmLatency = Date.now() - llmStart;
 
     llmUsage.used = true;
@@ -118,7 +155,7 @@ async function applyLlmRerank(
         };
         recordUsageEvent({
           type: 'llm_rerank', project, query, result_count: candidates.length,
-          latency_ms: llmLatency, llm_provider: provider, llm_latency_ms: llmLatency,
+          latency_ms: llmLatency, llm_provider: provider, llm_model: model || undefined, llm_latency_ms: llmLatency,
           estimated_llm_cost_usd: provider === 'heuristic' ? 0 : estimateRerankCostUsd(candidates.length),
           rank_changed: rankChanged, top_changed: topChanged, tool_hint: 'search_graph rerank',
         });
@@ -189,7 +226,16 @@ interface SearchGraphArgs {
 function parseSearchGraphArgs(args: Record<string, unknown>): SearchGraphArgs | { error: string } {
   const query = args.query ? String(args.query) : undefined;
   if (query === '') return { error: 'query must not be empty. Provide at least one search term, or use name_pattern/qn_pattern for structural queries.' };
-  const limit = args.limit !== undefined ? Number(args.limit) : 10;
+  const savingsMode = readLynxConfig().agent_response?.enabled && readLynxConfig().agent_response?.budget === 'max_savings';
+  const defaultLimit = savingsMode ? 5 : 10;
+  const requestedLimit = args.limit !== undefined ? Number(args.limit) : defaultLimit;
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 1000)) : defaultLimit;
+  const requestedOffset = args.offset !== undefined ? Number(args.offset) : 0;
+  const offset = Number.isFinite(requestedOffset) ? Math.max(0, Math.floor(requestedOffset)) : 0;
+  const unsupportedPattern = [args.name_pattern, args.qn_pattern]
+    .map(value => value === undefined ? '' : String(value))
+    .find(value => /[\[\](){}|?]/.test(value));
+  if (unsupportedPattern) return { error: `Unsupported regex construct in '${unsupportedPattern}'. Use name_like/qn_like for SQL LIKE patterns.` };
   return {
     project: String(args.project || ''),
     query,
@@ -200,14 +246,18 @@ function parseSearchGraphArgs(args: Record<string, unknown>): SearchGraphArgs | 
     qnLike: args.qn_like ? String(args.qn_like) : undefined,
     filePattern: args.file_pattern ? String(args.file_pattern) : undefined,
     limit,
-    offset: args.offset !== undefined ? Number(args.offset) : 0,
+    offset,
     minDegree: args.min_degree !== undefined ? Number(args.min_degree) : undefined,
     maxDegree: args.max_degree !== undefined ? Number(args.max_degree) : undefined,
     excludeEntryPoints: args.exclude_entry_points === true,
-    includeNarrative: args.narrative !== false,
+    // The structured results are the primary evidence. Narrative, snippets,
+    // and reranking remain opt-in in the token-saving profile.
+    includeNarrative: savingsMode ? args.narrative === true : args.narrative !== false,
     semanticQuery: args.semantic_query as string[] | undefined,
-    enableLlm: args.enable_llm !== false,
-    includeSnippets: args.include_snippets === true || (args.include_snippets !== false && limit <= 5),
+    enableLlm: args.enable_llm === true,
+    includeSnippets: savingsMode
+      ? args.include_snippets === true
+      : args.include_snippets === true || (args.include_snippets !== false && limit <= 5),
   };
 }
 
@@ -227,6 +277,7 @@ function buildSearchResponse(
   llmUsage: LlmUsage,
   db: LynxDatabase,
   project: string,
+  graphQueryLatencyMs: number,
 ): Record<string, unknown> {
   const hasMore = a.offset + a.limit < total;
   const limitedResults = deduped.slice(a.offset, a.offset + a.limit);
@@ -268,13 +319,27 @@ function buildSearchResponse(
   if (projectCheck) response.diagnostic = projectCheck;
   if (provenanceSummary) response.provenance_summary = provenanceSummary;
 
-  const value = estimateTokensSaved(resultsArray.length, Math.max(total, resultsArray.length));
+  // A search response supplies locations and a small symbol summary. It does
+  // not supply the contents of every matching file, so its observed layer must
+  // not be based on the full result set or on hypothetical file reads.
+  const uniqueResultFiles = new Set(resultsArray.map(result => String(result.file))).size;
+  const observedTokens = resultsArray.length === 0
+    ? 0
+    : Math.min(1_500, resultsArray.length * 180 + uniqueResultFiles * 90);
+  const resultFiles = [...new Set(resultsArray.map(r => String(r.file)))];
+  const projectMeta = db.getProject(project);
+  const rootPath = projectMeta?.rootPath || process.cwd();
+  const potential = estimateTokensSaved({ resultCount: resultsArray.length, candidateFiles: Math.max(total, resultsArray.length), files: resultFiles, rootPath, project });
   response.value_metrics = {
-    measurement: 'estimated',
-    estimated_files_avoided: value.filesAvoided,
-    estimated_tokens_saved: value.tokensSaved,
-    confidence: value.confidence,
+    measurement: 'symbol_discovery_context',
+    estimated_files_avoided: 0,
+    estimated_tokens_saved: observedTokens,
+    full_file_potential_tokens: potential.tokensSaved,
+    potential_basis: 'broader manual exploration of indexed matches; not observed savings',
+    confidence: 'low',
     latency_ms: Date.now() - started,
+    graph_query_latency_ms: graphQueryLatencyMs,
+    llm_rerank_latency_ms: llmUsage.latency_ms,
   };
 
   try {
@@ -337,8 +402,9 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
   let { project, query, label, namePattern, qnPattern, nameLike, qnLike, filePattern,
         limit, offset, minDegree, maxDegree, excludeEntryPoints,
         semanticQuery, enableLlm } = parsed;
-
-  // Free tier: LLM rerank degrades to heuristic silently
+  // Free tier: an explicitly requested LLM rerank degrades to heuristic.
+  // Ordinary graph search stays deterministic and local: an implicit network
+  // call makes a fast lookup feel stalled and can surprise the caller.
   if (enableLlm && !hasCapability('semantic_rerank')) {
     enableLlm = false;
   }
@@ -369,13 +435,14 @@ export async function handleSearchGraph(args: Record<string, unknown>): Promise<
     deduped = localResult.results;
     total = localResult.total;
   }
+  const graphQueryLatencyMs = Date.now() - started;
 
   const { deduped: reRanked, llmReranked, llmMetrics, llmUsage } =
     await applyLlmRerank(db, project, deduped, query, enableLlm);
 
   const response = buildSearchResponse(
     parsed, started, reRanked, total, provenanceSummary,
-    projectCheck, llmReranked, llmMetrics, llmUsage, db, project,
+    projectCheck, llmReranked, llmMetrics, llmUsage, db, project, graphQueryLatencyMs,
   );
 
   const resultsArray = response.results as Array<Record<string, unknown>>;

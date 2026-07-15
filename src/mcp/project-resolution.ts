@@ -28,7 +28,12 @@ export function resolveProjectReference(
   projects: IndexedProject[] = scanIndexedProjects(),
 ): ProjectResolution {
   const project = input.trim();
-  const byName = projects.find(candidate => candidate.name === project);
+  // Case-insensitive lookup prevents LYNX/lynx from becoming separate logical
+  // identities.  scanIndexedProjects is newest-first; use a deterministic
+  // tie-breaker so a legacy duplicate cannot make routing random.
+  const byName = canonicalCandidate(projects.filter(candidate =>
+    candidate.name.toLocaleLowerCase() === project.toLocaleLowerCase(),
+  ));
   if (byName) return { resolved: true, project: byName.name, matchedBy: 'name' };
 
   // Do not guess from a basename: two indexed repositories may share one.
@@ -40,14 +45,24 @@ export function resolveProjectReference(
   const explicitAbsoluteMatches = projects.filter(candidate =>
     path.isAbsolute(candidate.rootPath) && path.normalize(candidate.rootPath) === path.normalize(project),
   );
-  if (explicitAbsoluteMatches.length === 1) {
-    return { resolved: true, project: explicitAbsoluteMatches[0].name, matchedBy: 'root_path' };
+  if (explicitAbsoluteMatches.length > 0) {
+    return { resolved: true, project: canonicalCandidate(explicitAbsoluteMatches)!.name, matchedBy: 'root_path' };
   }
 
   const normalizedInput = normalizedPath(project);
   const matches = projects.filter(candidate => normalizedPath(candidate.rootPath) === normalizedInput);
-  if (matches.length === 1) {
-    return { resolved: true, project: matches[0].name, matchedBy: 'root_path' };
+  if (matches.length > 0) {
+    return { resolved: true, project: canonicalCandidate(matches)!.name, matchedBy: 'root_path' };
   }
   return { resolved: false, project };
+}
+
+function canonicalCandidate(candidates: IndexedProject[]): IndexedProject | undefined {
+  return [...candidates].sort((a, b) => {
+    const byTime = Date.parse(b.indexedAt) - Date.parse(a.indexedAt);
+    if (Number.isFinite(byTime) && byTime !== 0) return byTime;
+    const byNodes = b.nodeCount - a.nodeCount;
+    if (byNodes !== 0) return byNodes;
+    return a.name.localeCompare(b.name);
+  })[0];
 }

@@ -7,18 +7,171 @@
  * All pure — no git, no filesystem, no LYNX DB.
  */
 
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import {
   parseGitStatus,
+  parseGitDiffStatus,
   normalizeRequestedFiles,
+  compilePathFilter,
   canonicalizeAndDeduplicatePaths,
   classifyGitEntries,
   filterPrimaryScope,
   classifyImpactEvidence,
   deduplicateRelatedDependencies,
   isGitWorkTree,
+  collectFileDiffs,
+  collectGitEntries,
+  buildChangeSetAssessmentInput,
 } from '../../../src/mcp/handlers/detect_changes.js';
+import { buildFilesOnlyResult } from '../../../src/mcp/handlers/detect-changes-results.js';
 import type { GitStatusEntry, CanonicalChange, RelatedDependency } from '../../../src/mcp/handlers/detect_changes.js';
+
+const tempDirs: string[] = [];
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+});
+
+describe('grouped LLM change assessment', () => {
+  it('builds a compact structural summary instead of source payloads per symbol', () => {
+    const summary = buildChangeSetAssessmentInput([
+      { name: 'saveConfig', file_path: 'src/config.ts', caller_count: 12, impact_tier: 'confirmed' },
+      { name: 'readConfig', file_path: 'src/config.ts', caller_count: 9, impact_tier: 'probable' },
+    ]);
+    expect(summary).toContain('src/config.ts :: saveConfig :: confirmed impact :: 12 callers');
+    expect(summary).toContain('src/config.ts :: readConfig :: probable impact :: 9 callers');
+    expect(summary.length).toBeLessThan(200);
+  });
+});
+
+describe('buildFilesOnlyResult', () => {
+  it('keeps the normalized changed_files list populated for file-scope consumers', () => {
+    const categories: Parameters<typeof buildFilesOnlyResult>[3] = {
+      tracked_changes: [{
+        file: 'src/mixed.ts',
+        entries: [{ kind: 'mixed', file: 'src/mixed.ts', staged: 'M', unstaged: 'M' }],
+        hasMixedState: true,
+      }],
+      unstaged_changes: [{
+        file: 'src/mixed.ts',
+        entries: [{ kind: 'mixed', file: 'src/mixed.ts', staged: 'M', unstaged: 'M' }],
+        hasMixedState: true,
+      }, {
+        file: 'src/local.ts',
+        entries: [{ kind: 'unstaged', file: 'src/local.ts', status: 'M' }],
+        hasMixedState: false,
+      }],
+      untracked_files: [{ file: 'src/new.ts', entries: [{ kind: 'untracked', file: 'src/new.ts', status: '?' }], hasMixedState: false }],
+      deleted_files: [],
+      renamed_files: [{ file: 'src/renamed.ts', oldPath: 'src/old.ts', entries: [{ kind: 'renamed', file: 'src/renamed.ts', oldPath: 'src/old.ts' }], hasMixedState: false }],
+    };
+
+    const result = buildFilesOnlyResult('project', 'main', undefined, categories, 4, false);
+
+    expect(result.changed_files).toEqual([
+      { file: 'src/mixed.ts', status: 'MM' },
+      { file: 'src/local.ts', status: 'M (unstaged)' },
+      { file: 'src/new.ts', status: '?' },
+      { file: 'src/renamed.ts', status: 'R', old_path: 'src/old.ts' },
+    ]);
+  });
+});
+
+describe('collectFileDiffs shell safety', () => {
+  it('treats a shell-looking filename as a git argument', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-diff-safe-'));
+    tempDirs.push(root);
+    const file = '$(touch injected).ts';
+    fs.writeFileSync(path.join(root, file), 'export const value = 1;\n');
+    for (const args of [
+      ['init'], ['config', 'user.email', 'test@lynx.local'], ['config', 'user.name', 'LYNX Test'],
+      ['add', '.'], ['commit', '-m', 'baseline'],
+    ]) execFileSync('git', args, { cwd: root });
+    fs.writeFileSync(path.join(root, file), 'export const value = 2;\n');
+
+    const diffs = collectFileDiffs(root, [{
+      file,
+      entries: [{ kind: 'unstaged', file, status: 'M' }],
+      hasMixedState: false,
+    }], 'HEAD');
+
+    expect(diffs.get(file)).toContain('value = 2');
+    expect(fs.existsSync(path.join(root, 'injected'))).toBe(false);
+  });
+});
+
+describe('compilePathFilter', () => {
+  it('returns a controlled error for invalid regular expressions', () => {
+    expect(compilePathFilter('[')).toEqual({
+      regex: null,
+      error: 'path_filter must be a valid regular expression.',
+    });
+  });
+
+  it('compiles valid filters and accepts an omitted filter', () => {
+    expect(compilePathFilter('\\.ts$').regex?.test('src/file.ts')).toBe(true);
+    expect(compilePathFilter(undefined)).toEqual({ regex: null });
+  });
+});
+
+describe('collectGitEntries shell safety', () => {
+  it('treats a shell-looking base branch as a git argument', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-git-entries-safe-'));
+    tempDirs.push(root);
+    const marker = path.join(root, 'injected');
+    fs.writeFileSync(path.join(root, 'sample.ts'), 'export const value = 1;\n');
+    for (const args of [
+      ['init'], ['config', 'user.email', 'test@lynx.local'], ['config', 'user.name', 'LYNX Test'],
+      ['add', '.'], ['commit', '-m', 'baseline'],
+    ]) execFileSync('git', args, { cwd: root });
+
+    const result = collectGitEntries(root, `main; touch ${marker}`);
+
+    expect(result.rawEntries).toEqual([]);
+    expect(fs.existsSync(marker)).toBe(false);
+  });
+
+  it('does not report committed branch changes as staged in the current worktree', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-git-baseline-'));
+    tempDirs.push(root);
+    fs.writeFileSync(path.join(root, 'sample.ts'), 'export const value = 1;\n');
+    for (const args of [
+      ['init', '-b', 'main'], ['config', 'user.email', 'test@lynx.local'], ['config', 'user.name', 'LYNX Test'],
+      ['add', '.'], ['commit', '-m', 'baseline'],
+    ]) execFileSync('git', args, { cwd: root });
+    execFileSync('git', ['checkout', '-b', 'feature'], { cwd: root });
+    fs.writeFileSync(path.join(root, 'sample.ts'), 'export const value = 2;\n');
+    execFileSync('git', ['commit', '-am', 'feature change'], { cwd: root });
+
+    const result = collectGitEntries(root, 'main');
+
+    expect(result.rawEntries).toContainEqual({
+      kind: 'committed', file: 'sample.ts', status: 'M', isRename: false,
+    });
+    expect(result.rawEntries.some(entry => entry.kind === 'staged')).toBe(false);
+
+    const localOnly = collectGitEntries(root, 'main', undefined, false);
+    expect(localOnly.rawEntries).toEqual([]);
+  });
+
+  it('preserves an unstaged hidden filename from porcelain output', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-git-dotfile-'));
+    tempDirs.push(root);
+    fs.writeFileSync(path.join(root, '.sample'), 'one\n');
+    for (const args of [
+      ['init'], ['config', 'user.email', 'test@lynx.local'], ['config', 'user.name', 'LYNX Test'],
+      ['add', '.'], ['commit', '-m', 'baseline'],
+    ]) execFileSync('git', args, { cwd: root });
+    fs.writeFileSync(path.join(root, '.sample'), 'two\n');
+
+    expect(collectGitEntries(root, 'main', undefined, false).rawEntries).toContainEqual({
+      kind: 'unstaged', file: '.sample', status: 'M',
+    });
+  });
+});
 
 // ═══════════════════════════════════════════════════════════════
 // parseGitStatus
@@ -146,6 +299,22 @@ describe('parseGitStatus', () => {
 
   it('returns null for too-short line', () => {
     expect(parseGitStatus('M')).toBeNull();
+  });
+});
+
+describe('parseGitDiffStatus', () => {
+  it('keeps committed baseline diffs distinct from the staging area', () => {
+    const r = parseGitDiffStatus('M\tsrc/index.ts');
+    expect(r).toMatchObject({ kind: 'committed', file: 'src/index.ts', status: 'M' });
+  });
+
+  it('preserves rename and deletion semantics from a baseline diff', () => {
+    expect(parseGitDiffStatus('R100\told.ts\tnew.ts')).toMatchObject({
+      kind: 'renamed', file: 'new.ts', oldPath: 'old.ts', status: 'R',
+    });
+    expect(parseGitDiffStatus('D\tremoved.ts')).toMatchObject({
+      kind: 'deleted', file: 'removed.ts', status: 'D',
+    });
   });
 });
 

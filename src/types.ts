@@ -179,6 +179,8 @@ export type LynxEdgeType =
   | 'GRPC_CALLS'
   | 'GRAPHQL_CALLS'
   | 'TRPC_CALLS'
+  /** Probable call through a statically declared handler registry/map. */
+  | 'REGISTRY_DISPATCH'
   | 'INHERITS'
   | 'IMPLEMENTS'
   | 'DECORATES'

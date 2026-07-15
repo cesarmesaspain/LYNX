@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { decayCounter, isProjectScopedAction, readCounterState } from './hook-augment.js';
 
 const TEST_THRESHOLD = 4;
 const TEST_DECAY = 2;
@@ -124,6 +125,26 @@ describe('decay counter logic', () => {
       count = simulateTouch(count);
     }
     expect(simulateBlocked(count, threshold, true)).toBe(true);
+  });
+});
+
+describe('project-scoped strict state', () => {
+  beforeEach(() => { process.env.LYNX_HOME = tempHome; });
+  afterEach(() => { delete process.env.LYNX_HOME; });
+
+  it('does not treat a file outside the project root as code discovery', () => {
+    expect(isProjectScopedAction('read', { file_path: '/Users/admin/Desktop/LYNX/src/mcp/server.ts' }, '/Users/admin/Desktop/MENTESIA/NEW_WEBSITE', '/Users/admin/Desktop/MENTESIA/NEW_WEBSITE')).toBe(false);
+    expect(isProjectScopedAction('read', { file_path: '/Users/admin/Desktop/MENTESIA/NEW_WEBSITE/src/app.ts' }, '/Users/admin/Desktop/MENTESIA/NEW_WEBSITE', '/Users/admin/Desktop/MENTESIA/NEW_WEBSITE')).toBe(true);
+  });
+
+  it('resets only the project that used a LYNX tool', () => {
+    fs.writeFileSync(counterPath, JSON.stringify({ version: 2, projects: {
+      alpha: { count: 4, lastTouch: Date.now(), strictMode: true, lynxUsed: false },
+      beta: { count: 3, lastTouch: Date.now(), strictMode: true, lynxUsed: false },
+    } }) + '\n');
+    decayCounter('alpha');
+    expect(readCounterState('alpha')).toMatchObject({ count: 0, lynxUsed: true });
+    expect(readCounterState('beta')).toMatchObject({ count: 3, lynxUsed: false });
   });
 });
 

@@ -19,13 +19,32 @@ interface EdgeRow {
 
 // ── Insert ──────────────────────────────────────────────────────
 
+function insertStructuralEvidence(db: LynxDatabase, edgeId: number, edge: LynxEdge): void {
+  const line = typeof edge.properties.line === 'number' ? edge.properties.line : null;
+  const confidence = typeof edge.properties.confidence === 'number' ? edge.properties.confidence : 0.8;
+  const resolution = typeof edge.properties.resolution === 'string' ? edge.properties.resolution : 'structural';
+  db.db.prepare('INSERT INTO edge_evidence (project, edge_id, evidence_type, source_kind, start_line, end_line, extractor, strength, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+    edge.project,
+    edgeId,
+    'structural',
+    resolution,
+    line,
+    line,
+    'resolve',
+    Math.max(0, Math.min(1, confidence)),
+    JSON.stringify(edge.properties),
+  );
+}
+
 export function insertEdge(db: LynxDatabase, edge: LynxEdge): number {
   const result = db.db
     .prepare(
       'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, ?, ?)'
     )
     .run(edge.project, edge.sourceId, edge.targetId, edge.type, JSON.stringify(edge.properties));
-  return Number(result.lastInsertRowid);
+  const edgeId = Number(result.lastInsertRowid);
+  insertStructuralEvidence(db, edgeId, edge);
+  return edgeId;
 }
 
 export function insertEdgesBatch(db: LynxDatabase, edges: LynxEdge[]): void {
@@ -35,7 +54,8 @@ export function insertEdgesBatch(db: LynxDatabase, edges: LynxEdge[]): void {
 
   const insert = db.db.transaction(() => {
     for (const edge of edges) {
-      stmt.run(edge.project, edge.sourceId, edge.targetId, edge.type, JSON.stringify(edge.properties));
+      const result = stmt.run(edge.project, edge.sourceId, edge.targetId, edge.type, JSON.stringify(edge.properties));
+      insertStructuralEvidence(db, Number(result.lastInsertRowid), edge);
     }
   });
   insert();

@@ -5,6 +5,7 @@ import { rebuildDailySnapshots, readArchivedEvents, closeMetricsDb } from '../..
 import { runDoctor } from '../../install/doctor.js';
 import { lynxHome, readLynxConfig } from '../../config/runtime.js';
 import { LynxDatabase } from '../../store/database.js';
+import { storedTimestampMs } from '../../store/time.js';
 
 function readPkgVersion(): string {
   try {
@@ -98,7 +99,7 @@ export async function cmdUpgrade(args: string[]): Promise<void> {
         try {
           const meta = projDb.getProject(project);
           if (!meta || meta.status === 'failed') continue;
-          const ageHours = (Date.now() - new Date(meta.indexedAt).getTime()) / (1000 * 60 * 60);
+          const ageHours = (Date.now() - storedTimestampMs(meta.indexedAt)) / (1000 * 60 * 60);
           if (ageHours > cfg.stale_threshold_hours) {
             staleCount++;
             console.log(`   Stale: ${project} (${Math.round(ageHours)}h). Re-index with: lynx index ${meta.rootPath}`);

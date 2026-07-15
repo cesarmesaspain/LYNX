@@ -224,8 +224,18 @@ export async function federatedTracePath(
           .filter((r): r is NonNullable<typeof r> => r !== null)
           .map(r => ({ ...r, provenance: 'shared' as Provenance }));
 
-        // Edges don't have file_path — pass through unfiltered
-        sharedEdges = sharedResult.edges;
+        // Trace edges have no file path and therefore cannot be authorized on
+        // their own. Return only relationships whose two endpoints survived
+        // the node-level authorization filter; otherwise an edge could reveal
+        // names from an inaccessible shared project.
+        const visibleSharedSymbols = new Set([
+          localResult.root.qualified_name,
+          ...sharedCallers.map(r => r.qualified_name),
+          ...sharedCallees.map(r => r.qualified_name),
+        ]);
+        sharedEdges = sharedResult.edges.filter(edge =>
+          visibleSharedSymbols.has(edge.fromName) && visibleSharedSymbols.has(edge.toName)
+        );
       }
     } catch (err) {
       sharedError = err instanceof Error ? err.message : String(err);

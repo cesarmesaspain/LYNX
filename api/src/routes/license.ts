@@ -8,39 +8,58 @@
 
 import type { FastifyInstance } from 'fastify';
 import { v4 as uuid } from 'uuid';
-import { signLicense, verifyLicense, signLicenseWithExpiry } from '../jwt.js';
+import Stripe from 'stripe';
+import { signLicense, verifyLicense } from '../jwt.js';
+import { resolveLicenseAccess } from '../license-access.js';
 import { licensesDb } from '../db.js';
 import type { LicenseActivateRequest, LicenseValidateRequest } from '../types.js';
 
 export function licenseRoutes(app: FastifyInstance): void {
   // ── Activate ──────────────────────────────────────
   app.post('/v1/license/activate', async (request, reply) => {
-    const { email, stripe_session_id } = request.body as LicenseActivateRequest;
-
-    if (!email || !email.includes('@')) {
-      return reply.status(400).send({ error: 'invalid_email' });
+    const { stripe_session_id } = request.body as LicenseActivateRequest;
+    if (!stripe_session_id || typeof stripe_session_id !== 'string') {
+      return reply.status(400).send({ error: 'missing_stripe_session' });
     }
+
+    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecret) return reply.status(503).send({ error: 'stripe_not_configured' });
+
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await new Stripe(stripeSecret).checkout.sessions.retrieve(stripe_session_id);
+    } catch {
+      return reply.status(400).send({ error: 'invalid_stripe_session' });
+    }
+
+    const email = session.customer_details?.email || session.customer_email;
+    if (!email || session.status !== 'complete' || !['paid', 'no_payment_required'].includes(session.payment_status)) {
+      return reply.status(403).send({ error: 'unverified_purchase' });
+    }
+    const tier = tierFromMetadata(session);
+    if (!tier) return reply.status(422).send({ error: 'unknown_purchase_tier' });
 
     // Upsert user
     const existing = licensesDb.prepare('SELECT id, tier FROM users WHERE email = ?').get(email) as any;
     let userId: string;
-    let tier = 'free';
-
     if (existing) {
       userId = existing.id;
-      tier = existing.tier;
     } else {
       userId = uuid();
       licensesDb.prepare(
         'INSERT INTO users (id, email, tier, billing_status) VALUES (?, ?, ?, ?)'
-      ).run(userId, email, 'free', 'trialing');
+      ).run(userId, email, tier, 'active');
     }
+
+    licensesDb.prepare(
+      'UPDATE users SET tier = ?, billing_status = ?, stripe_customer_id = ? WHERE id = ?'
+    ).run(tier, 'active', typeof session.customer === 'string' ? session.customer : null, userId);
 
     // Generate license JWT (30 days)
     const jwt = signLicense({
       sub: userId,
       email,
-      tier: tier as 'free' | 'pro' | 'team' | 'enterprise',
+      tier,
       machines: [],
     });
 
@@ -115,10 +134,11 @@ export function licenseRoutes(app: FastifyInstance): void {
   app.post('/v1/license/validate', async (request, reply) => {
     const { license_jwt, machine_fingerprint } = request.body as LicenseValidateRequest;
 
-    const license = verifyLicense(license_jwt);
-    if (!license) {
+    const access = resolveLicenseAccess(license_jwt);
+    if (!access.license) {
       return reply.send({ valid: false, tier: 'free', reason: 'Licencia invalida o expirada.' });
     }
+    const license = access.license;
 
     // Check if this specific JWT was revoked
     const revoked = licensesDb.prepare(
@@ -129,8 +149,11 @@ export function licenseRoutes(app: FastifyInstance): void {
     }
 
     // Register machine if not already known
-    // Note: this is a soft limit — we don't block, just track
-    if (machine_fingerprint && !license.machines.includes(machine_fingerprint)) {
+    if (machine_fingerprint && (machine_fingerprint.length > 512 || !/^[A-Za-z0-9._:-]+$/.test(machine_fingerprint))) {
+      return reply.status(400).send({ valid: false, tier: 'free', reason: 'Huella de máquina no válida.' });
+    }
+
+    if (machine_fingerprint) {
       const user = licensesDb.prepare(
         'SELECT machine_fingerprints, max_machines FROM users WHERE id = ?'
       ).get(license.sub) as any;
@@ -142,6 +165,9 @@ export function licenseRoutes(app: FastifyInstance): void {
         } catch { machines = []; }
 
         if (!machines.includes(machine_fingerprint)) {
+          if (machines.length >= user.max_machines) {
+            return reply.status(403).send({ valid: false, tier: 'free', reason: 'Límite de máquinas alcanzado.' });
+          }
           machines.push(machine_fingerprint);
           licensesDb.prepare(
             'UPDATE users SET machine_fingerprints = ? WHERE id = ?'
@@ -152,4 +178,9 @@ export function licenseRoutes(app: FastifyInstance): void {
 
     return reply.send({ valid: true, tier: license.tier });
   });
+}
+
+export function tierFromMetadata(session: Stripe.Checkout.Session): 'pro' | 'team' | 'enterprise' | null {
+  const tier = session.metadata?.tier;
+  return tier === 'pro' || tier === 'team' || tier === 'enterprise' ? tier : null;
 }

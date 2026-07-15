@@ -31,4 +31,55 @@ describe('tree-sitter JavaScript definition identity', () => {
     expect(result.nodes.length).toBeGreaterThan(0);
     expect(result.nodes.every((node) => node.isTest)).toBe(true);
   });
+
+  it('does not promote TypeScript local values to top-level definitions', async () => {
+    const result = await extractFile(
+      `async function load(response: Response) {
+         const json = (await response.json()) as { ok: boolean };
+         const key = json.ok ? 'ok' : 'missing';
+         const callback = () => key;
+         return callback();
+       }`,
+      'fixture',
+      'sample.ts',
+      'sample',
+    );
+
+    const names = result.nodes.map((node) => node.name);
+    expect(names).not.toContain('json');
+    expect(names).not.toContain('key');
+    expect(names).not.toContain('callback');
+  });
+
+  it('marks the index module as an entry point', async () => {
+    const result = await extractFile(
+      'export function main() { return true; }',
+      'fixture',
+      'src/index.ts',
+      'index',
+    );
+
+    expect(result.nodes.find(node => node.kind === 'Module')).toMatchObject({
+      filePath: 'src/index.ts',
+      isEntryPoint: true,
+    });
+  });
+
+  it('extracts a same-file TypeScript call from a multiline async function', async () => {
+    const result = await extractFile(
+      `export async function runScenarioDev(input: { flowKey: string }): Promise<void> {
+         await executeNode(input.flowKey);
+       }
+       async function executeNode(flowKey: string): Promise<void> { }
+      `,
+      'fixture',
+      'src/scenarioRuntimeDev.ts',
+      'scenarioRuntimeDev',
+    );
+
+    expect(result.calls).toContainEqual(expect.objectContaining({
+      calleeName: 'executeNode',
+      enclosingFuncQn: 'scenarioRuntimeDev.runScenarioDev',
+    }));
+  });
 });

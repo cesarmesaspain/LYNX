@@ -47,9 +47,12 @@ export async function handleSmartReview(
 ): Promise<unknown> {
   const started = Date.now();
   const project = String(args.project || '');
-  const filePath = args.file ? String(args.file) : undefined;
+  // `target` is used by assess_impact and is a natural handoff from a review
+  // queue. Keep `file` as the canonical smart_review argument.
+  const filePath = args.file ? String(args.file) : args.target ? String(args.target) : undefined;
   const qualifiedName = args.qualified_name ? String(args.qualified_name) : undefined;
-  const limit = args.limit !== undefined ? Number(args.limit) : 20;
+  const requestedLimit = args.limit !== undefined ? Number(args.limit) : 20;
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 100)) : 20;
 
   if (!project) return { error: 'project is required' };
   if (!filePath && !qualifiedName) return { error: 'file or qualified_name is required' };
@@ -233,15 +236,17 @@ function buildReviewResponse(
             ? `Review returned ${Math.min(issues.length, limit)} of ${issues.length} issues — increase limit to see all.`
             : 'Clean: no issues detected in this review.';
 
+  const rootPath = project ? (getDb(project).getProject(project)?.rootPath || process.cwd()) : process.cwd();
+  const value = estimateTokensSaved({ resultCount: nodes.length, candidateFiles: new Set(nodes.map(n => n.file_path)).size, files: [...new Set(nodes.map(n => n.file_path))], rootPath, project });
   recordUsageEvent({
     type: 'search_graph',
     project,
     query: qualifiedName || filePath || '',
     result_count: nodes.length,
     unique_files: new Set(nodes.map(n => n.file_path)).size,
-    files_avoided: nodes.length * 3,
-    tokens_saved: nodes.length * 900,
-    confidence: nodes.length >= 4 ? 'high' as const : nodes.length >= 2 ? 'medium' as const : 'low' as const,
+    files_avoided: value.filesAvoided,
+    tokens_saved: value.tokensSaved,
+    confidence: value.confidence,
     latency_ms: Date.now() - started,
     tool_hint: 'smart_review',
   });
@@ -266,9 +271,9 @@ function buildReviewResponse(
     })),
     remaining_issues: Math.max(0, issues.length - limitedIssues.length),
     value_metrics: {
-      estimated_files_avoided: nodes.length * 3,
-      estimated_tokens_saved: nodes.length * 900,
-      confidence: nodes.length >= 4 ? 'high' as const : nodes.length >= 2 ? 'medium' as const : 'low' as const,
+      estimated_files_avoided: value.filesAvoided,
+      estimated_tokens_saved: value.tokensSaved,
+      confidence: value.confidence,
       latency_ms: Date.now() - started,
     },
   };

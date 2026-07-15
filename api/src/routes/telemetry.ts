@@ -6,22 +6,35 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { verifyLicense } from '../jwt.js';
 import { licensesDb } from '../db.js';
+import { resolveLicenseAccess } from '../license-access.js';
 import type { TelemetryRequest } from '../types.js';
 
 export function telemetryRoutes(app: FastifyInstance): void {
   app.post('/v1/telemetry', async (request, reply) => {
     const { license_jwt, events } = request.body as TelemetryRequest;
 
-    if (!events || !Array.isArray(events) || events.length === 0) {
-      return reply.status(400).send({ error: 'empty_events' });
+    if (
+      !events ||
+      !Array.isArray(events) ||
+      events.length === 0 ||
+      events.length > 1000 ||
+      events.some(event =>
+        !event ||
+        typeof event.tool !== 'string' ||
+        !Number.isSafeInteger(event.count) ||
+        event.count < 0 ||
+        event.count > 1_000_000
+      )
+    ) {
+      return reply.status(400).send({ error: 'invalid_events' });
     }
 
-    const license = verifyLicense(license_jwt);
-    if (!license) {
-      return reply.status(401).send({ error: 'invalid_license' });
+    const access = resolveLicenseAccess(license_jwt);
+    if (!access.license) {
+      return reply.status(401).send({ error: access.reason });
     }
+    const license = access.license;
 
     const today = new Date().toISOString().slice(0, 10);
     const upsert = licensesDb.prepare(`

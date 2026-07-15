@@ -344,6 +344,29 @@ describe('FederatedGateway — trace_path', () => {
     expect(remoteCaller!.provenance).toBe('shared');
   });
 
+  it('returns shared edges only when both endpoints are visible', async () => {
+    const sharedCaller: TraceEntry = {
+      name: 'remoteCaller', qualified_name: 'remote.remoteCaller',
+      file_path: 'remote/caller.ts', hop: 1, provenance: 'shared',
+    };
+    shared.setTraceResult(PROJECT, 'handleSearch', {
+      root: { name: 'handleSearch', qualified_name: 'src.handler.handleSearch', file_path: 'src/handler.ts', kind: 'Function' },
+      callers: [sharedCaller],
+      callees: [],
+      edges: [
+        { fromName: 'src.handler.handleSearch', toName: 'remote.remoteCaller', type: 'CALLS' },
+        { fromName: 'secret.internal', toName: 'secret.database', type: 'CALLS' },
+      ],
+    });
+
+    const result = await federatedTracePath(db, traceParams, makeConfig({ localProvider: local, sharedProvider: shared, authorizer }));
+    expect(result).not.toBeNull();
+    if (!result) return;
+
+    expect(result.edges).toContainEqual({ fromName: 'src.handler.handleSearch', toName: 'remote.remoteCaller', type: 'CALLS' });
+    expect(result.edges.some(edge => edge.fromName === 'secret.internal' || edge.toName === 'secret.database')).toBe(false);
+  });
+
   it('auth denied trace: no shared results, no local_fallback', async () => {
     const denyAuth = new DenyAllAuthorizer('test');
     shared.setTraceResult(PROJECT, 'handleSearch', {

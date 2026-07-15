@@ -147,7 +147,7 @@ src/
 npm run typecheck   # 0 errors
 npm run build       # 0 errors
 npm test            # all tests pass
-node dist/cli.js doctor  # 7/7 checks
+node dist/cli.js doctor  # 11/11 checks
 ```
 
 ### Agent A/B benchmark results

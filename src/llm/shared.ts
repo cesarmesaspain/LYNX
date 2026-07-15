@@ -7,6 +7,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { getConfiguredApiKey } from '../config/runtime.js';
 
 export const DEFAULT_BASE_URL = 'https://api.deepseek.com/v1';
 export const DEFAULT_MODEL = 'deepseek-chat';
@@ -31,7 +32,7 @@ export function redactSecrets(text: string): string {
   return result;
 }
 
-/** Resolve API key: LYNX_DEEPSEEK_KEY → DEEPSEEK_API_KEY → null. */
+/** Resolve API key: LYNX_DEEPSEEK_KEY → DEEPSEEK_API_KEY → config.json → null. */
 export function getApiKey(): string | null {
   const lynx = process.env.LYNX_DEEPSEEK_KEY;
   if (lynx && lynx.trim() !== '' && lynx !== PLACEHOLDER_KEY) {
@@ -41,7 +42,7 @@ export function getApiKey(): string | null {
   if (deepseek && deepseek.trim() !== '') {
     return deepseek.trim();
   }
-  return null;
+  return getConfiguredApiKey('deepseek');
 }
 
 export function sha256Hash(text: string): string {

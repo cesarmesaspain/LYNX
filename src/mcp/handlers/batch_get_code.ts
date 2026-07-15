@@ -9,8 +9,10 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getDb } from '../server.js';
+import { projectNotIndexed } from '../diagnostics.js';
 import { findNodeByQn } from '../../store/nodes.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
+import { readLynxConfig } from '../../config/runtime.js';
 
 interface BatchSnippet {
   name: string;
@@ -20,6 +22,7 @@ interface BatchSnippet {
   start_line: number;
   end_line: number;
   source: string;
+  source_truncated?: boolean;
 }
 
 export async function handleBatchGetCode(
@@ -30,13 +33,19 @@ export async function handleBatchGetCode(
   const qualifiedNames: string[] = Array.isArray(args.qualified_names)
     ? (args.qualified_names as string[]).map(String)
     : [];
-  const limit = typeof args.limit === 'number' && args.limit > 0 ? Math.min(args.limit, 30) : 20;
+  const savingsMode = readLynxConfig().agent_response?.enabled
+    && readLynxConfig().agent_response?.budget === 'max_savings';
+  const limit = typeof args.limit === 'number' && args.limit > 0
+    ? Math.min(args.limit, 30)
+    : (savingsMode ? 8 : 20);
+  const maxLinesPerSnippet = savingsMode ? 40 : 60;
 
   if (!project) return { error: 'project is required' };
   if (qualifiedNames.length === 0) return { error: 'qualified_names (array) is required' };
 
   const db = getDb(project);
   const projectMeta = db.getProject(project);
+  if (!projectMeta) return { ...projectNotIndexed(project) };
   const rootPath = projectMeta?.rootPath || process.cwd();
 
   // Deduplicate and respect limit
@@ -77,7 +86,8 @@ export async function handleBatchGetCode(
       if (end - start <= 1 && start < lines.length) {
         end = Math.min(lines.length, start + 20);
       }
-      const source = lines.slice(start, end).slice(0, 60).join('\n');
+      const sourceTruncated = end - start > maxLinesPerSnippet;
+      const source = lines.slice(start, end).slice(0, maxLinesPerSnippet).join('\n');
 
       results.push({
         name: node.name,
@@ -87,6 +97,7 @@ export async function handleBatchGetCode(
         start_line: node.start_line,
         end_line: node.end_line,
         source,
+        ...(sourceTruncated ? { source_truncated: true } : {}),
       });
     } catch {
       results.push({ qualified_name: qn, error: `Cannot read file: ${node.file_path}` });
@@ -94,7 +105,7 @@ export async function handleBatchGetCode(
   }
 
   const returned = results.filter((r) => 'name' in r).length;
-  const value = estimateTokensSaved(returned, unique.length);
+  const value = estimateTokensSaved({ resultCount: returned, candidateFiles: unique.length, files: unique, rootPath, project });
   recordUsageEvent({
     type: 'search_graph', // batch_get_code is a search_graph variant
     project,
@@ -113,6 +124,9 @@ export async function handleBatchGetCode(
     requested: unique.length,
     returned,
     results,
+    ...(qualifiedNames.length > unique.length || results.some((result) => 'source_truncated' in result)
+      ? { next_step: 'Pass an explicit limit or request the individual symbol with max_lines to expand context.' }
+      : {}),
     value_metrics: {
       estimated_files_avoided: value.filesAvoided,
       estimated_tokens_saved: value.tokensSaved,

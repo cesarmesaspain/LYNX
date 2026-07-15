@@ -7,9 +7,12 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { type PricingConfig, defaultPricingConfig } from '../usage/provenance.js';
 
 export interface LynxRuntimeConfig {
+  /** Master switch: when false, LYNX does not serve MCP operations or background work. */
+  enabled: boolean;
   auto_index: boolean;
   auto_index_limit: number;
   auto_watch: boolean;
@@ -20,6 +23,37 @@ export interface LynxRuntimeConfig {
   lock_ttl_minutes: number;
   /** UI and generated-brief language, detected during installation. */
   locale: 'es' | 'en';
+  /** Agent response verbosity and style preferences injected by LYNX. */
+  agent_response?: {
+    enabled: boolean;
+    length: 'short' | 'medium' | 'long';
+    style: 'concise' | 'balanced' | 'detailed';
+    /** Controls how aggressively LYNX asks agents to conserve output tokens. */
+    budget: 'max_savings' | 'balanced' | 'thorough';
+    reminder_interval_minutes: number;
+  };
+  /** Optional LLM enrichment for cached architecture briefs. Off keeps reindexing local. */
+  project_brief?: {
+    llm_enrichment: boolean;
+  };
+  /** Optional low-cost LLM arbitration for genuinely ambiguous tool results. */
+  decision_llm?: {
+    mode: 'off' | 'conservative' | 'adaptive';
+    max_calls_per_hour: number;
+  };
+  /** Estimated input-token price of the primary agent model LYNX helps avoid. */
+  savings_pricing?: {
+    avoided_input_usd_per_1m: number;
+  };
+  /** MCP registry breadth. Core reduces client startup context; full keeps every tool visible. */
+  mcp_tool_profile?: 'full' | 'core';
+  agent_policy?: Record<string, unknown>;
+  /** API keys for LLM providers. Stored alongside runtime config. Env vars take priority. */
+  api_keys?: {
+    deepseek?: string;
+    vps_url?: string;
+    vps_key?: string;
+  };
   /** Configurable pricing for token/cost estimation. null = use built-in defaults. */
   pricing?: import('../usage/provenance.js').PricingConfig | null;
   /**
@@ -37,6 +71,7 @@ export function detectSystemLocale(): 'es' | 'en' {
 }
 
 const DEFAULT_CONFIG: LynxRuntimeConfig = {
+  enabled: true,
   auto_index: true,
   auto_index_limit: 50_000,
   auto_watch: true,
@@ -44,9 +79,44 @@ const DEFAULT_CONFIG: LynxRuntimeConfig = {
   stale_threshold_hours: 24,
   lock_ttl_minutes: 5,
   locale: detectSystemLocale(),
+  agent_response: { enabled: false, length: 'short', style: 'concise', budget: 'balanced', reminder_interval_minutes: 30 },
+  project_brief: { llm_enrichment: false },
+  decision_llm: { mode: 'off', max_calls_per_hour: 10 },
+  // A visible, editable baseline. It is an estimate, never a provider invoice.
+  savings_pricing: { avoided_input_usd_per_1m: 10 },
+  mcp_tool_profile: 'full',
 };
 
+function boundedRuntimeNumber(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || (parsed === 0 && value !== 0)) return fallback;
+  return Math.max(0, Math.min(1000, parsed));
+}
+
+function defaultRuntimeConfig(): LynxRuntimeConfig {
+  return {
+    ...DEFAULT_CONFIG,
+    agent_response: DEFAULT_CONFIG.agent_response ? { ...DEFAULT_CONFIG.agent_response } : undefined,
+    project_brief: DEFAULT_CONFIG.project_brief ? { ...DEFAULT_CONFIG.project_brief } : undefined,
+    decision_llm: DEFAULT_CONFIG.decision_llm ? { ...DEFAULT_CONFIG.decision_llm } : undefined,
+    savings_pricing: DEFAULT_CONFIG.savings_pricing ? { ...DEFAULT_CONFIG.savings_pricing } : undefined,
+  };
+}
+
+/**
+ * Per-async-operation home override. This avoids mutating process.env when a
+ * workflow needs isolated storage (for example, benchmarks running in
+ * parallel with the MCP server or another benchmark).
+ */
+const lynxHomeContext = new AsyncLocalStorage<string>();
+
+export function withLynxHome<T>(home: string, run: () => T): T {
+  return lynxHomeContext.run(home, run);
+}
+
 export function lynxHome(): string {
+  const scopedHome = lynxHomeContext.getStore();
+  if (scopedHome) return scopedHome;
   if (process.env.LYNX_HOME) return process.env.LYNX_HOME;
   return path.join(os.homedir(), '.lynx');
 }
@@ -56,28 +126,56 @@ export function lynxConfigPath(): string {
 }
 
 export function readLynxConfig(): LynxRuntimeConfig {
+  const defaults = defaultRuntimeConfig();
   const filePath = lynxConfigPath();
-  if (!fs.existsSync(filePath)) return { ...DEFAULT_CONFIG };
+  if (!fs.existsSync(filePath)) return defaults;
   try {
     const raw = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
     return {
-      auto_index: typeof raw.auto_index === 'boolean' ? raw.auto_index : DEFAULT_CONFIG.auto_index,
+      enabled: raw.enabled !== false,
+      auto_index: typeof raw.auto_index === 'boolean' ? raw.auto_index : defaults.auto_index,
       auto_index_limit: typeof raw.auto_index_limit === 'number'
         ? raw.auto_index_limit
-        : DEFAULT_CONFIG.auto_index_limit,
-      auto_watch: typeof raw.auto_watch === 'boolean' ? raw.auto_watch : DEFAULT_CONFIG.auto_watch,
-      auto_dashboard: typeof raw.auto_dashboard === 'boolean' ? raw.auto_dashboard : DEFAULT_CONFIG.auto_dashboard,
+        : defaults.auto_index_limit,
+      auto_watch: typeof raw.auto_watch === 'boolean' ? raw.auto_watch : defaults.auto_watch,
+      auto_dashboard: typeof raw.auto_dashboard === 'boolean' ? raw.auto_dashboard : defaults.auto_dashboard,
       stale_threshold_hours: typeof raw.stale_threshold_hours === 'number'
         ? raw.stale_threshold_hours
-        : DEFAULT_CONFIG.stale_threshold_hours,
+        : defaults.stale_threshold_hours,
       lock_ttl_minutes: typeof raw.lock_ttl_minutes === 'number'
         ? raw.lock_ttl_minutes
-        : DEFAULT_CONFIG.lock_ttl_minutes,
-      locale: raw.locale === 'es' || raw.locale === 'en' ? (raw.locale as 'es' | 'en') : DEFAULT_CONFIG.locale,
+        : defaults.lock_ttl_minutes,
+      locale: raw.locale === 'es' || raw.locale === 'en' ? raw.locale : defaults.locale,
+      agent_response: raw.agent_response && typeof raw.agent_response === 'object' ? raw.agent_response as LynxRuntimeConfig['agent_response'] : defaults.agent_response,
+      project_brief: raw.project_brief && typeof raw.project_brief === 'object' ? {
+        llm_enrichment: (raw.project_brief as Record<string, unknown>).llm_enrichment === true,
+      } : defaults.project_brief,
+      decision_llm: raw.decision_llm && typeof raw.decision_llm === 'object' ? {
+        mode: ['off', 'conservative', 'adaptive'].includes(String((raw.decision_llm as Record<string, unknown>).mode))
+          ? (raw.decision_llm as { mode: 'off' | 'conservative' | 'adaptive' }).mode
+          : 'off',
+        max_calls_per_hour: boundedRuntimeNumber((raw.decision_llm as Record<string, unknown>).max_calls_per_hour, 10),
+      } : defaults.decision_llm,
+      savings_pricing: raw.savings_pricing && typeof raw.savings_pricing === 'object' ? {
+        avoided_input_usd_per_1m: boundedRuntimeNumber((raw.savings_pricing as Record<string, unknown>).avoided_input_usd_per_1m, 0),
+      } : defaults.savings_pricing,
+      mcp_tool_profile: raw.mcp_tool_profile === 'core' || raw.mcp_tool_profile === 'full'
+        ? raw.mcp_tool_profile
+        : defaults.mcp_tool_profile,
+      project_aliases: raw.project_aliases && typeof raw.project_aliases === 'object'
+        ? Object.fromEntries(Object.entries(raw.project_aliases as Record<string, unknown>)
+          .filter(([, aliases]) => Array.isArray(aliases) && aliases.every(alias => typeof alias === 'string'))
+          .map(([canonical, aliases]) => [canonical, aliases as string[]]))
+        : undefined,
+      api_keys: raw.api_keys && typeof raw.api_keys === 'object' ? {
+        deepseek: typeof (raw.api_keys as Record<string,unknown>).deepseek === 'string' ? (raw.api_keys as Record<string,unknown>).deepseek as string : undefined,
+        vps_url: typeof (raw.api_keys as Record<string,unknown>).vps_url === 'string' ? (raw.api_keys as Record<string,unknown>).vps_url as string : undefined,
+        vps_key: typeof (raw.api_keys as Record<string,unknown>).vps_key === 'string' ? (raw.api_keys as Record<string,unknown>).vps_key as string : undefined,
+      } : undefined,
       pricing: raw.pricing != null ? (raw.pricing as PricingConfig) : undefined,
     };
   } catch {
-    return { ...DEFAULT_CONFIG };
+    return defaultRuntimeConfig();
   }
 }
 
@@ -122,7 +220,43 @@ export function writeLynxConfig(config: LynxRuntimeConfig): void {
 }
 
 export function upsertLynxConfig(values: Partial<LynxRuntimeConfig>): LynxRuntimeConfig {
-  const next = { ...readLynxConfig(), ...values };
+  const current = readLynxConfig();
+  const next: LynxRuntimeConfig = {
+    ...current,
+    ...values,
+    ...(values.agent_response ? { agent_response: { ...current.agent_response, ...values.agent_response } } : {}),
+    ...(values.project_brief ? { project_brief: { ...current.project_brief, ...values.project_brief } } : {}),
+    ...(values.decision_llm ? { decision_llm: { ...current.decision_llm, ...values.decision_llm } } : {}),
+    ...(values.savings_pricing ? { savings_pricing: { ...current.savings_pricing, ...values.savings_pricing } } : {}),
+    ...(values.api_keys ? { api_keys: { ...current.api_keys, ...values.api_keys } } : {}),
+  };
   writeLynxConfig(next);
   return next;
+}
+
+/** Read a configured API key. Env vars are NOT checked — callers combine this with env. */
+export function getConfiguredApiKey(provider: 'deepseek' | 'vps_url' | 'vps_key'): string | null {
+  const cfg = readLynxConfig();
+  const keys = cfg.api_keys;
+  if (!keys) return null;
+  if (provider === 'deepseek') return keys.deepseek?.trim() || null;
+  if (provider === 'vps_url') return keys.vps_url?.trim() || null;
+  if (provider === 'vps_key') return keys.vps_key?.trim() || null;
+  return null;
+}
+
+/** Mask an API key for display — keep last 4 chars, e.g. "sk-...****abcd". */
+export function maskApiKey(key: string): string {
+  if (key.length <= 8) return '****';
+  return key.slice(0, 4) + '...****' + key.slice(-4);
+}
+
+/** Deep-clone the config but mask api_keys values for safe display. */
+export function readLynxConfigSafe(): LynxRuntimeConfig {
+  const cfg = readLynxConfig();
+  if (!cfg.api_keys) return cfg;
+  const masked = { ...cfg.api_keys };
+  if (masked.deepseek) masked.deepseek = maskApiKey(masked.deepseek);
+  if (masked.vps_key) masked.vps_key = maskApiKey(masked.vps_key);
+  return { ...cfg, api_keys: masked };
 }

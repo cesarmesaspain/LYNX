@@ -1,9 +1,9 @@
 import * as path from 'node:path';
-import { getDb, setDb } from '../server.js';
-import { LynxDatabase } from '../../store/database.js';
+import { getDb } from '../server.js';
 import { runPipeline } from '../../pipeline/orchestrator.js';
 import { acquireProjectLock, releaseProjectLock } from '../../store/lock.js';
 import { projectLocked } from '../diagnostics.js';
+import { resolveProjectReference } from '../project-resolution.js';
 
 export async function handleIndexRepository(
   args: Record<string, unknown>
@@ -18,15 +18,26 @@ export async function handleIndexRepository(
   }
 
   const resolvedPath = path.resolve(repoPath);
-  const projectName = name || path.basename(resolvedPath);
+  const existingForRoot = resolveProjectReference(resolvedPath);
+  const requestedName = name?.trim();
+  const nameResolution = requestedName ? resolveProjectReference(requestedName) : undefined;
+  if (requestedName && existingForRoot.resolved && requestedName !== existingForRoot.project &&
+    (!nameResolution?.resolved || nameResolution.project !== existingForRoot.project)) {
+    return {
+      error: 'PROJECT_IDENTITY_CONFLICT',
+      message: `"${resolvedPath}" is already indexed as "${existingForRoot.project}".`,
+      project: existingForRoot.project,
+      hint: 'Use the existing canonical project name, or delete that project before assigning a different name.',
+    };
+  }
+  const projectName = existingForRoot.resolved
+    ? existingForRoot.project
+    : nameResolution?.resolved
+      ? nameResolution.project
+      : requestedName || path.basename(resolvedPath);
 
   // Initialize DB for this project if not cached
-  let db = getDb(projectName);
-  if (!db) {
-    db = LynxDatabase.openProject(projectName);
-    db.upsertProject(projectName, resolvedPath);
-    setDb(projectName, db);
-  }
+  const db = getDb(projectName, { createPersistent: true });
 
   // ── Lock acquisition ──────────────────────────────────────
   if (!forceLock) {
@@ -45,8 +56,7 @@ export async function handleIndexRepository(
 
   const startTime = Date.now();
 
-  const incremental = args.incremental === true;
-  const incrementalFeatureFlag = args.incremental_feature_flag === true;
+  const incremental = args.incremental !== false;
 
   let result: Awaited<ReturnType<typeof runPipeline>>;
   try {
@@ -55,7 +65,7 @@ export async function handleIndexRepository(
       resolvedPath,
       projectName,
       {
-        mode: mode as 'full' | 'moderate' | 'fast', incremental, incrementalFeatureFlag,
+        mode: mode as 'full' | 'moderate' | 'fast', incremental,
         testSkipProjectBrief: process.env.VITEST === 'true' && args.__test_skip_project_brief === true,
         testFailAt: process.env.VITEST === 'true' ? args.__test_fail_at as never : undefined,
       }
@@ -98,5 +108,6 @@ export async function handleIndexRepository(
     files_skipped: filesSkipped,
     duration_ms: elapsed,
     duration_human: `${(elapsed / 1000).toFixed(2)}s`,
+    coverage: result.coverage,
   };
 }

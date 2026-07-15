@@ -7,20 +7,44 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { URL } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { lynxHome, readLynxConfig, upsertLynxConfig } from '../../config/runtime.js';
-import { LynxDatabase } from '../../store/database.js';
+import { lynxHome, readLynxConfig, readLynxConfigSafe, upsertLynxConfig } from '../../config/runtime.js';
+import { LynxDatabase, removeSqliteDatabaseFiles } from '../../store/database.js';
 import { runPipeline } from '../../pipeline/orchestrator.js';
-import { collectProjectCards, collectActionGraph, getSavingsLabScenarios } from './data.js';
+import { collectProjectCards, collectActionGraph, getSavingsLabScenarios, invalidateCardsCache } from './data.js';
 import { renderDashboard } from './html.js';
 import { readRequestBody, pickFolderNative, RequestBodyTooLargeError } from './utils.js';
 import { getTimeWindows, type TimeWindow } from '../../usage/aggregation.js';
 import { getCachedMetrics } from '../../usage/cache.js';
+import { closeAllProjectWatchers } from '../../watcher/watcher-manager.js';
+import { clearProjectMetrics } from '../../store/metrics-db.js';
+import { clearUsageEvents } from '../../usage/metrics.js';
+import { invalidateProject } from '../../usage/cache.js';
 
 const PORT = parseInt(process.env.LYNX_DASHBOARD_PORT || '9191', 10);
 let _server: http.Server | null = null;
 let _wss: WebSocketServer | null = null;
 let _watchFs: fs.FSWatcher | null = null;
 let _watchHome: fs.FSWatcher | null = null;
+let _dashboardRetry: ReturnType<typeof setTimeout> | null = null;
+
+// A short, bounded recovery window covers the common case where an agent is
+// restarting while an older dashboard process is still releasing the port.
+// It deliberately is not an infinite loop: another application may own 9191.
+const DASHBOARD_RETRY_DELAYS_MS = [500, 1_000, 2_000, 5_000];
+
+function retryDashboard(port: number, attempt: number): void {
+  if (_server || _dashboardRetry) return;
+  const delay = DASHBOARD_RETRY_DELAYS_MS[attempt];
+  if (delay === undefined) {
+    console.error(`[lynx] Dashboard port ${port} remained unavailable after ${attempt} retries.`);
+    return;
+  }
+  _dashboardRetry = setTimeout(() => {
+    _dashboardRetry = null;
+    if (!_server) startDashboard(port, attempt + 1);
+  }, delay);
+  _dashboardRetry.unref();
+}
 
 // ── Rate limiter: max 1 req/sec per IP for /api/projects ──────────
 const _rateMap = new Map<string, number>();
@@ -108,13 +132,16 @@ async function handleApiProjectsDelete(req: http.IncomingMessage, res: http.Serv
     return;
   }
   const db = LynxDatabase.openProject(project_name);
+  let deleted = false;
   try {
     const nodeCount = (db.db.prepare('SELECT COUNT(*) as cnt FROM nodes WHERE project = ?').get(project_name) as { cnt: number }).cnt;
     const edgeCount = (db.db.prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ?').get(project_name) as { cnt: number }).cnt;
     db.deleteProject(project_name);
+    deleted = true;
     writeJson(res, 200, { ok: true, deleted: project_name, nodes_removed: nodeCount, edges_removed: edgeCount });
   } finally {
     db.close();
+    if (deleted) removeSqliteDatabaseFiles(dbPath);
   }
 }
 
@@ -127,6 +154,13 @@ async function handleApiMetrics(res: http.ServerResponse, url: URL): Promise<voi
 
   try {
     const data = getCachedMetrics(project, window);
+    const avoidedInputUsdPer1m = readLynxConfig().savings_pricing?.avoided_input_usd_per_1m || 0;
+    const avoidedCostUsd = (Number(data.totals.tokens_saved || 0) / 1_000_000) * avoidedInputUsdPer1m;
+    const monetary = {
+      avoided_input_usd_per_1m: avoidedInputUsdPer1m,
+      avoided_cost_usd: avoidedCostUsd,
+      net_savings_usd: avoidedCostUsd - Number(data.totals.llm_cost_usd || 0),
+    };
 
     if (format === 'csv') {
       const csv = metricsToCsv(data);
@@ -145,6 +179,7 @@ async function handleApiMetrics(res: http.ServerResponse, url: URL): Promise<voi
 
     writeJson(res, 200, {
       ...data,
+      monetary,
       categories: pagedCategories,
       pagination: {
         page,
@@ -262,17 +297,87 @@ async function routeRequest(
     return;
   }
 
+  if (url.pathname === '/api/config' && req.method === 'GET') {
+    writeJson(res, 200, readLynxConfigSafe());
+    return;
+  }
+
   // Fallback: render dashboard HTML
   writeHtml(res, renderDashboard(collectProjectCards()));
 }
 
 async function handleMutationRoute(req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<boolean> {
+  if (url.pathname === '/api/lynx-enabled' && req.method === 'POST') {
+    const body = await readRequestBody(req);
+    try {
+      const value = JSON.parse(body) as { enabled?: unknown };
+      if (typeof value.enabled !== 'boolean') throw new Error('enabled must be boolean');
+      upsertLynxConfig({ enabled: value.enabled });
+      if (!value.enabled) await closeAllProjectWatchers();
+      writeJson(res, 200, { ok: true, enabled: value.enabled, restart_required: true });
+    } catch {
+      writeJson(res, 400, { error: 'Invalid enabled value' });
+    }
+    return true;
+  }
   if (url.pathname === '/api/projects/add' && req.method === 'POST') {
     await handleApiProjectsAdd(req, res);
     return true;
   }
   if (url.pathname === '/api/projects/delete' && req.method === 'POST') {
     await handleApiProjectsDelete(req, res);
+    return true;
+  }
+  if (url.pathname === '/api/agent-response' && req.method === 'GET') {
+    writeJson(res, 200, readLynxConfig().agent_response || null);
+    return true;
+  }
+  if (url.pathname === '/api/agent-response' && req.method === 'POST') {
+    const body = await readRequestBody(req);
+    try {
+      const value = JSON.parse(body);
+      upsertLynxConfig({ agent_response: value });
+      writeJson(res, 200, { ok: true, agent_response: value });
+    } catch {
+      writeJson(res, 400, { error: 'Invalid JSON body' });
+    }
+    return true;
+  }
+  if (url.pathname === '/api/config' && req.method === 'POST') {
+    const body = await readRequestBody(req);
+    try {
+      const values = JSON.parse(body);
+      upsertLynxConfig(values);
+      writeJson(res, 200, { ok: true });
+    } catch {
+      writeJson(res, 400, { error: 'Invalid JSON body' });
+    }
+    return true;
+  }
+  if (url.pathname === '/api/metrics/clear' && req.method === 'POST') {
+    const body = await readRequestBody(req);
+    let parsed: { project?: string };
+    try { parsed = JSON.parse(body); } catch {
+      writeJson(res, 400, { error: 'Invalid JSON body' });
+      return true;
+    }
+    const project = parsed.project || undefined;
+    if (project && !isValidProjectName(project)) {
+      writeJson(res, 400, { error: 'Invalid project name' });
+      return true;
+    }
+    try {
+      const dbResult = clearProjectMetrics(project);
+      const jsonlRemoved = clearUsageEvents(project);
+      if (project) invalidateProject(project);
+      writeJson(res, 200, {
+        ok: true,
+        project: project || null,
+        deleted: { events_archive: dbResult.events, daily_snapshots: dbResult.snapshots, usage_jsonl: jsonlRemoved },
+      });
+    } catch (err) {
+      writeJson(res, 500, { error: 'Failed to clear metrics: ' + String(err) });
+    }
     return true;
   }
   if (url.pathname === '/api/locale' && req.method === 'POST') {
@@ -287,10 +392,13 @@ async function handleMutationRoute(req: http.IncomingMessage, res: http.ServerRe
   return false;
 }
 
-export function startDashboard(port = PORT): http.Server {
+export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
   if (_server) return _server;
 
   const server = http.createServer(handleRequest);
+  // Claim startup immediately so concurrent callers (for example a retry and
+  // the service health loop) cannot create competing HTTP servers.
+  _server = server;
 
   function setupRealtime() {
     // WebSocket server sharing the same HTTP server.
@@ -306,6 +414,7 @@ export function startDashboard(port = PORT): http.Server {
 
     function broadcastUpdate() {
       if (clients.size === 0) return;
+      invalidateCardsCache();
       const cards = collectProjectCards();
       const briefPayload = Object.fromEntries(cards
         .filter((c) => c.brief)
@@ -329,7 +438,7 @@ export function startDashboard(port = PORT): http.Server {
     let watchDebounce: ReturnType<typeof setTimeout> | null = null;
     const scheduleBroadcast = () => {
       if (watchDebounce) clearTimeout(watchDebounce);
-      watchDebounce = setTimeout(broadcastUpdate, 800);
+      watchDebounce = setTimeout(broadcastUpdate, 100);
     };
     _watchFs = fs.watch(dbsDir, (_eventType, filename) => {
       if (!filename || (!filename.endsWith('.db') && !filename.endsWith('.db-wal'))) return;
@@ -347,8 +456,9 @@ export function startDashboard(port = PORT): http.Server {
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(`[lynx] Dashboard port ${port} in use — skipping.`);
-      _server = null;
+      console.error(`[lynx] Dashboard port ${port} in use — retrying when it is released.`);
+      if (_server === server) _server = null;
+      retryDashboard(port, retryAttempt);
       return;
     }
     console.error(`[lynx] Dashboard error:`, err.message);
@@ -361,16 +471,29 @@ export function startDashboard(port = PORT): http.Server {
     _watchFs = null;
     _watchHome?.close();
     _watchHome = null;
-    _server = null;
+    if (_server === server) _server = null;
   });
 
   server.listen(port, '127.0.0.1', () => {
     console.error(`[lynx] Dashboard: http://localhost:${port}  ws://localhost:${port}/ws`);
-    _server = server;
     setupRealtime();
   });
 
   return server;
+}
+
+export function isDashboardListening(): boolean {
+  return _server?.listening === true;
+}
+
+export function stopDashboard(): void {
+  if (_dashboardRetry) {
+    clearTimeout(_dashboardRetry);
+    _dashboardRetry = null;
+  }
+  const server = _server;
+  _server = null;
+  if (server?.listening) server.close();
 }
 
 // ── CSV export ─────────────────────────────────────────────────

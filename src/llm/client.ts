@@ -30,9 +30,10 @@ import {
 
 import * as deepseekProvider from './provider-deepseek.js';
 import { isPkg } from '../paths.js';
+import { getConfiguredApiKey } from '../config/runtime.js';
 
-const VPS_URL = process.env.LYNX_API_URL || '';
-const VPS_KEY = process.env.LYNX_API_KEY || '';
+const VPS_URL = process.env.LYNX_API_URL || getConfiguredApiKey('vps_url') || '';
+const VPS_KEY = process.env.LYNX_API_KEY || getConfiguredApiKey('vps_key') || '';
 
 function hasVps(): boolean {
   if (isPkg()) return false;
@@ -40,8 +41,9 @@ function hasVps(): boolean {
 }
 
 function hasDeepSeek(): boolean {
+  if (process.env.LYNX_NO_LLM === '1') return false;
   if (isPkg()) return false;
-  return !!process.env.LYNX_DEEPSEEK_KEY;
+  return !!(process.env.LYNX_DEEPSEEK_KEY || getConfiguredApiKey('deepseek'));
 }
 
 export function getRerankProviderMode(): 'api' | 'deepseek' | 'heuristic' {
@@ -81,7 +83,8 @@ export async function enrichFile(
   hash: string,
   relPath: string,
   language: string,
-  nodes: LynxNode[]
+  nodes: LynxNode[],
+  options: { cachedSummary?: string } = {},
 ): Promise<LlmEnrichResult> {
   const exports = nodes.filter(n => n.isExported).map(n => n.name);
   const metadata: LlmFileMetadata = { source: 'heuristic' };
@@ -89,9 +92,10 @@ export async function enrichFile(
   const ds = !vps && hasDeepSeek();
 
   // Summarize
-  const cachedSummary = llmCache.get<string>(hash, 'summarize_module');
+  const cachedSummary = options.cachedSummary ?? llmCache.get<string>(hash, 'summarize_module');
   if (cachedSummary !== undefined) {
     metadata.summary = cachedSummary;
+    if (options.cachedSummary !== undefined) metadata.source = 'cache';
   } else {
     // Try VPS first
     if (vps) {

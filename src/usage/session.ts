@@ -11,6 +11,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { lynxHome } from '../config/runtime.js';
+import { storedTimestampMs } from '../store/time.js';
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -83,7 +84,7 @@ function loadSession(filePath: string): SessionData | null {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const data = JSON.parse(raw) as SessionData;
     // Expire stale sessions
-    const age = Date.now() - new Date(data.lastUpdated).getTime();
+    const age = Date.now() - storedTimestampMs(data.lastUpdated);
     if (age > SESSION_TTL_MS) {
       try { fs.unlinkSync(filePath); } catch { /* ignore */ }
       return null;
@@ -291,7 +292,7 @@ export function getSessionStats(
   const fp = sessionFilePath(project, cwd);
   const session = loadSession(fp);
   if (!session) return null;
-  const age = Date.now() - new Date(session.startedAt).getTime();
+  const age = Date.now() - storedTimestampMs(session.startedAt);
   return {
     suggestions: session.suggestions.length,
     reads: session.reads.length,

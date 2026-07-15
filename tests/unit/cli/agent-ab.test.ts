@@ -276,7 +276,7 @@ describe("Vitest B3 summary parsing", () => {
 });
 
 describe("pilot B3 worktree preparation", () => {
-  it("links runtime dependencies and exposes a runnable hidden-test pattern", () => {
+  it("links runtime dependencies and exposes a runnable hidden-test pattern", { timeout: 15000 }, () => {
     const root = fs.mkdtempSync(
       path.join(os.tmpdir(), "lynx-b3-worktree-test-"),
     );

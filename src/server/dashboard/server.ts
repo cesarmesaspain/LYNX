@@ -10,7 +10,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { lynxHome, readLynxConfig, readLynxConfigSafe, upsertLynxConfig } from '../../config/runtime.js';
 import { LynxDatabase, removeSqliteDatabaseFiles } from '../../store/database.js';
 import { runPipeline } from '../../pipeline/orchestrator.js';
-import { collectProjectCards, collectActionGraph, getSavingsLabScenarios } from './data.js';
+import { collectProjectCards, collectActionGraph, getSavingsLabScenarios, invalidateCardsCache } from './data.js';
 import { renderDashboard } from './html.js';
 import { readRequestBody, pickFolderNative, RequestBodyTooLargeError } from './utils.js';
 import { getTimeWindows, type TimeWindow } from '../../usage/aggregation.js';
@@ -414,6 +414,7 @@ export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
 
     function broadcastUpdate() {
       if (clients.size === 0) return;
+      invalidateCardsCache();
       const cards = collectProjectCards();
       const briefPayload = Object.fromEntries(cards
         .filter((c) => c.brief)
@@ -437,7 +438,7 @@ export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
     let watchDebounce: ReturnType<typeof setTimeout> | null = null;
     const scheduleBroadcast = () => {
       if (watchDebounce) clearTimeout(watchDebounce);
-      watchDebounce = setTimeout(broadcastUpdate, 800);
+      watchDebounce = setTimeout(broadcastUpdate, 100);
     };
     _watchFs = fs.watch(dbsDir, (_eventType, filename) => {
       if (!filename || (!filename.endsWith('.db') && !filename.endsWith('.db-wal'))) return;

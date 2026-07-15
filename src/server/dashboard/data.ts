@@ -148,7 +148,11 @@ export interface SavingsScenario {
   dimensions: Array<{ label: string; saving: string }>;
 }
 const _cardsCache = new Map<string, { cards: ProjectCard[]; ts: number }>();
-const CARDS_CACHE_TTL_MS = 2000;
+const CARDS_CACHE_TTL_MS = 500;
+
+export function invalidateCardsCache(): void {
+  _cardsCache.clear();
+}
 
 export function collectProjectCards(): ProjectCard[] {
   const cacheKey = '__global__';

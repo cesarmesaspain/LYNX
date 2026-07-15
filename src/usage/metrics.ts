@@ -313,6 +313,9 @@ export function estimateToolOperationSavings(
     manage_adr:      { base: 600, perItem: Math.round(AVG_FILE_TOKENS * 0.2),  items: count('sections', 'adrs') },
     delete_project:  { base: 400, perItem: Math.round(AVG_FILE_TOKENS * 0.05), items: data.deleted ? 1 : 0 },
     list_projects:   { base: 400, perItem: Math.round(AVG_FILE_TOKENS * 0.12), items: count('projects', 'count') },
+    get_edge_evidence:  { base: 700, perItem: Math.round(AVG_FILE_TOKENS * 0.2),  items: count('evidence', 'records') },
+    investigate_symbol: { base: 1800, perItem: Math.round(AVG_FILE_TOKENS * 0.6), items: count('callers', 'callees', 'tests') },
+    tool_catalog:   { base: 500, perItem: Math.round(AVG_FILE_TOKENS * 0.08), items: count('categories', 'tools') },
   };
   const selected = policy[toolName];
   if (!selected) return { tokensSaved: 0, filesAvoided: 0, confidence: 'low' };

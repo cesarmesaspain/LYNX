@@ -22,10 +22,12 @@ describe('managed LYNX instruction blocks', () => {
     for (const block of blocks) {
       expect(block).not.toContain('NO USES grep');
       expect(block).not.toContain('has violado esta regla');
-      expect(block).toContain('consulta mas pequena');
+      expect(block).toContain('REGLA BLOQUEANTE');
       expect(block).toContain('primera accion');
-      expect(block).toContain('cuando');
+      expect(block).toContain('consulta mas pequena');
       expect(block).toContain('tool_search');
+      expect(block).toContain('No puedes usar Bash, Read, Grep ni Glob');
+      expect(block).toContain('cuando');
     }
   });
 

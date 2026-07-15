@@ -69,10 +69,21 @@ import {
 } from "../../../src/cli/agent-ab/pilot-suite.js";
 import {
   ensureB3VitestConfig,
+  evaluateResponse,
   resolveB3BuildCommand,
   resolveB3TestPattern,
   runB3Tests,
 } from "../../../src/cli/agent-ab/execution-support.js";
+
+describe("evaluateResponse JSON extraction", () => {
+  it("prefers explicit JSON fences over earlier code fences", () => {
+    const fence = String.fromCharCode(96).repeat(3);
+    const response = [fence + "typescript", "export interface Config { home: string }", fence, "", fence + "json", '{"impacted_functions":["readConfig","openDb"],"references":2}', fence].join("\n");
+    const evaluated = evaluateResponse(response, { impacted_functions: ["readConfig", "openDb"], references: 2 });
+    expect(evaluated.correct).toBe(true);
+    expect(evaluated.errors).toEqual([]);
+  });
+});
 
 // ── Helpers ───────────────────────────────────────────────────
 

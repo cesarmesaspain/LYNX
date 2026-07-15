@@ -471,8 +471,13 @@ export function evaluateResponse(
   const errors: string[] = [];
   let result: Record<string, unknown> = {};
 
-  const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const jsonText = jsonMatch ? jsonMatch[1].trim() : responseText.trim();
+  const explicitJsonMatch = responseText.match(/```json\s*([\s\S]*?)```/i);
+  const genericFenceMatch = responseText.match(/```\s*([\s\S]*?)```/);
+  const jsonText = explicitJsonMatch
+    ? explicitJsonMatch[1].trim()
+    : genericFenceMatch
+      ? genericFenceMatch[1].trim()
+      : responseText.trim();
 
   try {
     result = JSON.parse(jsonText);

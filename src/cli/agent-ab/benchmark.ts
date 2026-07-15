@@ -1,7 +1,7 @@
 /*
  * agent-ab/benchmark.ts — LLM agent A/B benchmark.
  *
- * 5 deterministic tasks through DeepSeek LLM agent.
+ * Deterministic tasks through a DeepSeek LLM agent.
  * ONLY difference between conditions: LYNX tools exposed or not.
  *
  * Fresh conversation per task × condition × run. No shared history or cache.
@@ -377,6 +377,21 @@ export async function runAgentABBenchmark(
       tasks = config.taskIds
         ? TASKS.filter((t) => config.taskIds!.includes(t.id))
         : TASKS;
+      const defaultProfiles: Record<string, readonly string[]> = {
+        find_definition: ["search_graph", "read_file"],
+        find_callers: ["search_graph", "trace_path", "read_file"],
+        change_impact: ["search_graph", "trace_path", "read_file"],
+        find_tests: ["find_tests", "read_file"],
+        locate_definitions: ["search_graph", "read_file"],
+        trace_dependency_chain: ["search_graph", "trace_path", "read_file"],
+      };
+      const allTools = makeLynxTools();
+      suiteOverrides = {
+        lynxToolsForTask: (task) =>
+          allTools.filter((tool) =>
+            (defaultProfiles[task.id] || ["read_file"]).includes(tool.function.name),
+          ),
+      };
     }
 
     // Allow taskIds to further filter the selected suite
@@ -783,7 +798,7 @@ export async function runAgentABBenchmark(
             ? config.tier === "screening"
               ? `with_lynx: LLM has access to a task-specific compact LYNX profile (${screeningToolNames}).`
               : "with_lynx: LLM has access only to the task-specific LYNX tool profile plus read_file."
-            : "with_lynx: LLM has access to LYNX graph tools (search_graph, trace_path, explain_symbol, find_tests) + read_file.",
+            : "with_lynx: LLM has access to a task-specific minimal LYNX graph-tool profile plus read_file.",
           "without_lynx: LLM has access to read_file + grep only.",
           "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
           config.tier === "screening"

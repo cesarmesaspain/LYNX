@@ -442,6 +442,19 @@ export const TASKS: BenchmarkTask[] = [
     },
     evaluation_kind: "deterministic",
   },
+  {
+    id: "trace_dependency_chain",
+    name: "Trace searchGraph dependency chain",
+    userPrompt:
+      'Trace the runtime call path from "searchGraph" to "lynxHome". ' +
+      "List the functions in call order, including both endpoints. " +
+      'Respond with JSON: {"call_chain": ["searchGraph", "...", "lynxHome"], "hops": N}',
+    expected: {
+      call_chain: ["searchGraph", "openDb", "readConfig", "lynxHome"],
+      hops: 3,
+    },
+    evaluation_kind: "deterministic",
+  },
 ];
 
 // ── Evaluation ────────────────────────────────────────────────

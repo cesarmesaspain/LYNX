@@ -778,7 +778,7 @@ export async function runAgentABBenchmark(
             ? `One read-only external-project analysis task executed through a ${config.tier === "screening" ? "screening" : "DeepSeek"} LLM agent; it is operationally measured but not success-scored.`
             : isRealistic
               ? `${tasks.filter((t) => evaluationKind(t) === "deterministic").length} deterministic, ${tasks.filter((t) => evaluationKind(t) === "partial").length} partial, and ${tasks.filter((t) => evaluationKind(t) === "designed-only").length} designed-only tasks (5 core + 10 workflow) executed through a ${config.tier === "screening" ? "screening" : "DeepSeek"} LLM agent.`
-              : `5 deterministic tasks executed through a ${config.tier === "screening" ? "screening" : "DeepSeek"} LLM agent.`,
+              : `${tasks.length} deterministic tasks executed through a ${config.tier === "screening" ? "screening" : "DeepSeek"} LLM agent.`,
           isRealistic || isExternalProject
             ? config.tier === "screening"
               ? `with_lynx: LLM has access to a task-specific compact LYNX profile (${screeningToolNames}).`

@@ -2419,7 +2419,7 @@ describe("suite contract", () => {
 
   // ── Default suite shape ─────────────────────────────────────
 
-  it("default suite has exactly 5 core tasks", { timeout: 15000 }, async () => {
+  it("default suite has exactly 6 core tasks", { timeout: 15000 }, async () => {
     const prevKey = process.env.LYNX_DEEPSEEK_KEY;
     delete process.env.LYNX_DEEPSEEK_KEY;
 
@@ -2431,13 +2431,14 @@ describe("suite contract", () => {
     if (prevKey !== undefined) process.env.LYNX_DEEPSEEK_KEY = prevKey;
 
     const taskIds = [...new Set(result.tasks.map((t) => t.task_id))];
-    expect(taskIds.length).toBe(5);
+    expect(taskIds.length).toBe(6);
     expect(taskIds.sort()).toEqual([
       "change_impact",
       "find_callers",
       "find_definition",
       "find_tests",
       "locate_definitions",
+      "trace_dependency_chain",
     ]);
   });
 
@@ -2455,7 +2456,7 @@ describe("suite contract", () => {
   });
 
   it(
-    "omitting --suite uses default (5 tasks, 5 tools)",
+    "omitting --suite uses default (6 tasks, 6 tools)",
     { timeout: 15000 },
     async () => {
       const prevKey = process.env.LYNX_DEEPSEEK_KEY;
@@ -2469,10 +2470,10 @@ describe("suite contract", () => {
       if (prevKey !== undefined) process.env.LYNX_DEEPSEEK_KEY = prevKey;
 
       const taskIds = [...new Set(result.tasks.map((t) => t.task_id))];
-      expect(taskIds.length).toBe(5);
-      // Methodology must mention "5" not "15"
+      expect(taskIds.length).toBe(6);
+      // Methodology must mention "6" not "15"
       expect(
-        result.methodology.some((m) => m.includes("5 deterministic")),
+        result.methodology.some((m) => m.includes("6 deterministic")),
       ).toBe(true);
       expect(
         result.methodology.some((m) => m.includes("15 deterministic")),
@@ -2585,7 +2586,7 @@ describe("suite contract", () => {
       const prevKey = process.env.LYNX_DEEPSEEK_KEY;
       delete process.env.LYNX_DEEPSEEK_KEY;
 
-      // Default: no suite flag → 5 tasks
+      // Default: no suite flag → 6 tasks
       const def = await runAgentABBenchmark({
         seed: 42,
         dryRun: true,
@@ -2599,7 +2600,7 @@ describe("suite contract", () => {
 
       if (prevKey !== undefined) process.env.LYNX_DEEPSEEK_KEY = prevKey;
 
-      expect([...new Set(def.tasks.map((t) => t.task_id))].length).toBe(5);
+      expect([...new Set(def.tasks.map((t) => t.task_id))].length).toBe(6);
       expect([...new Set(real.tasks.map((t) => t.task_id))].length).toBe(17);
       // Default methodology does NOT mention realistic
       expect(def.methodology.some((m) => m.includes("realistic"))).toBe(false);

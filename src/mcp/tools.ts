@@ -1,7 +1,7 @@
 /*
  * tools.ts — LYNX MCP tool registry.
  *
- * Defines all 11 tools with their input schemas.
+ * Defines all tools with their input schemas.
  * Each tool maps to a handler function in handlers/.
  */
 

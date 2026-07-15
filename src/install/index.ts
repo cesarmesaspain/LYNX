@@ -16,10 +16,14 @@ import {
   removeBlock,
   installInstructionsBlock,
   initInstructionsBlock,
+  toolsCatalogBlock,
+  TOOLS_CATALOG_START,
+  TOOLS_CATALOG_END,
   type ProjectStats,
 } from './instructions.js';
 import { LynxDatabase } from '../store/database.js';
 import { findNearestProject } from '../discovery/project-scanner.js';
+import { TOOLS } from '../mcp/tools.js';
 import { lynxConfigPath, detectSystemLocale, readLynxConfig, upsertLynxConfig } from '../config/runtime.js';
 import { verifyMcpServer } from './mcp-verify.js';
 import { startDashboardService, stopDashboardService } from '../server/dashboard/service.js';
@@ -427,6 +431,8 @@ export function runInit(dryRun: boolean): void {
 
   // Step 3: Generate block with real stats and inject into instruction files
   const block = initInstructionsBlock(stats);
+  const toolCount = stats.toolCount ?? TOOLS.length;
+  const toolsBlock = toolsCatalogBlock(toolCount);
   const instructionPaths = detectProjectInstructionPaths(detected.rootPath);
 
   console.log('\nInstructions:');
@@ -437,6 +443,8 @@ export function runInit(dryRun: boolean): void {
     for (const p of instructionPaths) {
       const result = upsertBlock(p, block, dryRun);
       log(result);
+      const toolsResult = upsertBlock(p, toolsBlock, dryRun, TOOLS_CATALOG_START, TOOLS_CATALOG_END);
+      log(toolsResult);
     }
   }
 
@@ -504,6 +512,8 @@ export function runUninstall(dryRun: boolean): void {
     if (!agent.instructionsPath) continue;
     const result = removeBlock(agent.instructionsPath, dryRun);
     log(result);
+    const toolsResult = removeBlock(agent.instructionsPath, dryRun, TOOLS_CATALOG_START, TOOLS_CATALOG_END);
+    log(toolsResult);
   }
 
   // Phase 3: Remove hooks
@@ -707,7 +717,7 @@ function readStats(projectName: string): ProjectStats {
     withComplexity.sort((a, b) => b.complexity - a.complexity);
     const topHotspots = withComplexity.slice(0, 5).map(r => `${r.name} (${r.complexity})`);
 
-    return { projectName, nodes: nodeCount, edges: edgeCount, languages, topHotspots, fileCount };
+    return { projectName, nodes: nodeCount, edges: edgeCount, languages, topHotspots, fileCount, toolCount: TOOLS.length };
   } finally {
     db.close();
   }

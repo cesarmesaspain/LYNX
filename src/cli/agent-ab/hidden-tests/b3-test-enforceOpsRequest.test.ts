@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
  */
 
 const hiddenTestsDir = path.dirname(fileURLToPath(import.meta.url));
- const apiPath = path.resolve(hiddenTestsDir, "../src/lib/ops/api.ts"); 
+ const apiPath = path.resolve(hiddenTestsDir, "../src/lib/ops/api.ts");
 
 describe("enforceOpsRequest token authentication (B3 hidden tests)", () => {
   it("returns machine: true only for token-authenticated requests", () => {

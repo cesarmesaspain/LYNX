@@ -151,6 +151,7 @@ describe('project indexed commit metadata', () => {
       expect(migrations).toEqual([
         { version: 1, name: 'project freshness columns' },
         { version: 2, name: 'project indexed commit' },
+        { version: 3, name: 'SACG vertical slice tables' },
       ]);
       db.upsertProject('legacy', dir);
       expect(db.getProject('legacy')?.indexedCommit).toBeNull();

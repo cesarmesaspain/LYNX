@@ -7,6 +7,7 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 import type { SchemaMigration } from './migrations.js';
+import { createSacgVerticalSliceSchema } from './sacg-schema.js';
 
 /** Full core schema: projects, graph data, file hashes, persistent LLM summaries, and metrics. */
 export const CORE_SCHEMA = `
@@ -188,4 +189,5 @@ export function migrateV02toV03(db: BetterSqlite3.Database): void {
 export const GRAPH_SCHEMA_MIGRATIONS: readonly SchemaMigration[] = [
   { version: 1, name: 'project freshness columns', up: migrateV01toV02 },
   { version: 2, name: 'project indexed commit', up: migrateV02toV03 },
+  { version: 3, name: 'SACG vertical slice tables', up: createSacgVerticalSliceSchema },
 ];

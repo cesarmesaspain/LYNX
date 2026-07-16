@@ -469,6 +469,369 @@ Después ejecuta un plan con presupuesto:
 
 El ranking combinará relevancia, confianza, frescura, diversidad de evidencia, distancia de grafo y prioridad local.
 
+### 12.1 Reciprocal Rank Fusion (RRF) — pendiente de implementación
+
+Las piezas existen por separado: BM25 (`search_graph`), vectores (`semantic_search`), rerank LLM (`applyLlmRerank`). Pero el agente hoy hace 2-3 llamadas secuenciales cuando una búsqueda no da en el clavo.
+
+RRF unifica las tres fuentes en una sola llamada:
+
+```
+score(doc) = Σ 1/(k + rank_i(doc))  para cada ranker i
+```
+
+Donde `k=60` (constante de suavizado estándar). Los rankers son:
+1. BM25 sobre nombres, qualified names y snippets.
+2. Cosine similarity sobre embeddings locales (si están disponibles).
+3. Rerank LLM (DeepSeek V4 Flash, opcional, con cache LRU por SHA256).
+
+Beneficio esperado: misma latencia, resultados más certeros, un round-trip MCP menos por búsqueda ambigua. Medible directamente en el benchmark agent A/B.
+
+### 12.2 Context-Flow — Grafo de Contexto Activo para `pack_context` — pendiente de implementación
+
+El agente hoy gasta el 80% de su tiempo explorando a ciegas: `pack_context` → `search_graph` → `get_code_snippet` → `trace_path` → más búsquedas. Son 4-8 round-trips MCP por tarea.
+
+Context-Flow invierte el modelo: `pack_context` deja de ser un índice pasivo que sugiere "qué buscar después" y se convierte en un **estratega que pre-computa y sirve el camino de menor resistencia** en la primera llamada.
+
+**Principio rector:** El servidor MCP predice el contexto necesario; el agente ejecuta, no explora.
+
+#### Fase 1 — Pre-computo de trazas críticas
+
+`pack_context` ejecuta `trace_path(depth=2)` automáticamente sobre sus top 2-3 candidatos y devuelve el critical path resuelto:
+
+```json
+{
+  "recommended_focus_zone": {
+    "entry_point": { "file": "src/db/pool.ts", "symbol": "ConnectionPool.acquire" },
+    "critical_path": [
+      "pool.ts:ConnectionPool.acquire() → connection.ts:ConnectionManager.connect()",
+      "connection.ts:ConnectionManager.connect() → socket.ts:SocketFactory.create()"
+    ]
+  },
+  "precomputed_traces": { /* resultado de trace_path(depth=2) ya ejecutado */ },
+  "related_tests": ["tests/unit/db/pool.test.ts"]
+}
+```
+
+Depende de: `only_diff_intersect` (priorizar zona caliente del diff), Graph Drift Detector (alertar índice stale), y Skeleton mode (los snippets referenciados usan plegado AST, no código completo). (~150 líneas.)
+
+**Beneficio:** De 6-8 llamadas MCP a 2-3. El agente recibe el trace ya resuelto y los snippets ya plegados en una sola respuesta.
+
+#### Fase 2 — Cruce con diff activo
+
+`pack_context` consulta `detect_changes` internamente en cada invocación. Si el diff actual toca `pool.ts` y `connection.ts`, los candidatos en esos archivos reciben boost automático de ranking sin que el agente tenga que pedir el diff por separado. (~60 líneas.)
+
+**Beneficio:** El agente ya no necesita correlacionar diff + grafo manualmente. `pack_context` sabe qué se está tocando ahora mismo y prioriza en consecuencia.
+
+#### Fase 3 — Co-change mining histórico
+
+`pack_context` analiza `git log --follow --numstat` para detectar pares de archivos que históricamente se modifican juntos (>80% co-occurrencia). Opcional bajo flag `include_cochange=true` porque añade ~500ms-2s de latencia. (~200 líneas.)
+
+**Riesgo:** False positives por refactors masivos (linting, renames). Pendiente de validación de señal/ruido antes de activar por defecto.
+
+#### Comparación: antes vs después
+
+| Métrica | Hoy (`pack_context` pasivo) | Context-Flow Fase 1+2 |
+|---------|---------------------------|----------------------|
+| Llamadas MCP por tarea | 6-8 | 2-3 |
+| Trazas pre-computadas | 0 (el agente las pide después) | 2-3 (servidas en la respuesta) |
+| Snippets | 0 (el agente los pide después) | Top 2-3 en modo skeleton ya incluidos |
+| Conciencia de diff | No (el agente correlaciona manualmente) | Sí (boost automático + zone prioritization) |
+| Latencia añadida | ~220ms | ~160ms extra (trace + skeleton), compensada por -4 round-trips MCP |
+| Dependencias nuevas | Ninguna | `only_diff_intersect`, Drift Detector, Skeleton mode |
+
+#### Lo que NO se incluye
+
+- Co-change mining no va en el hot path (solo bajo flag explícito).
+- No se pre-fetchean snippets completos — se usan referencias skeleton.
+- No se reemplaza la capacidad del agente de hacer búsquedas ad-hoc si el critical path falla.
+- `pack_context` sigue funcionando 100% offline sin LLM (el pre-cómputo de trazas es determinista).
+
+### 12.3 Sibling Call Invariant Checker (`check_invariants`) — pendiente de implementación
+
+Las bases de código acumulan "reglas invisibles": patrones de uso acoplados que ningún linter, compilador ni analizador estático captura. Por ejemplo: *"cada vez que llamas a `paymentGateway.charge()`, debes llamar a `auditLog.recordTransaction()` en el mismo bloque"*. El compilador no se queja, pero el código en producción tiene un agujero de auditoría.
+
+LYNX ya tiene todas las aristas `CALLS` indexadas en `edges`. El Sibling Call Invariant Checker las convierte en un **linter de arquitectura semántica** sin reglas manuales.
+
+#### Algoritmo (3 pasos SQL puro, <30ms)
+
+```
+Paso 1 — Padres de A:
+  SELECT source_node_id FROM edges
+  WHERE target_node_id = <symbol_A> AND type = 'CALLS'
+
+Paso 2 — Hermanos recurrentes (mismo scope de función):
+  SELECT e2.target_node_id, COUNT(*) AS freq
+  FROM edges e2
+  WHERE e2.source_node_id IN (<padres_de_A>)
+    AND e2.target_node_id != <symbol_A>
+    AND e2.type = 'CALLS'
+    AND e2.scope_parent = <mismo_nodo_padre>
+  GROUP BY e2.target_node_id
+
+Paso 3 — Confianza del invariante:
+  confidence = freq / total_padres
+  Si confidence >= 0.85 → invariante arquitectónico descubierto
+```
+
+#### Filtros anti-ruido (obligatorios)
+
+1. **Exclusión de utilidades transversales**: nodos con `fan_out > 5%` de todos los nodos del proyecto (`logger.info`, `console.log`, `metrics.increment`, funciones `t()` de i18n) se excluyen automáticamente.
+2. **Scope de co-ocurrencia estricto**: solo se consideran hermanas dos llamadas que comparten el mismo nodo padre (misma función contenedora). Esto evita falsos positivos de inicialización global (`setupDB` + `startServer` en `main.ts`).
+3. **Threshold configurable**: `min_confidence` (default 0.85) y `min_occurrences` (default 5, para filtrar patrones espurios en proyectos pequeños).
+
+#### Tool: `check_invariants(project, file?)`
+
+Herramienta independiente — no sobrecarga `assess_impact`. Si se pasa `file`, verifica solo los símbolos modificados en ese archivo. Sin `file`, escanea todo el repositorio.
+
+Output:
+```json
+{
+  "invariants": [{
+    "symbol": "paymentGateway.charge",
+    "missing_sibling": "auditLog.recordTransaction",
+    "confidence": 0.94,
+    "observed": "17/18 co-occurrences",
+    "examples": ["src/services/invoice.ts:45", "src/jobs/renewals.ts:102"],
+    "severity": "high"
+  }],
+  "stats": {
+    "invariants_checked": 342,
+    "violations_found": 1,
+    "false_positive_risk": "low",
+    "latency_ms": 18
+  }
+}
+```
+
+#### Ciclo de uso con el agente
+
+```
+agente edita billing.ts añadiendo charge()
+  → watcher reindexa (~300ms)
+  → agente: check_invariants(project, file="billing.ts")
+  → "Has añadido charge() pero te falta recordTransaction() (94%)"
+  → agente corrige antes del commit
+```
+
+#### Integración con Context-Flow
+
+`pack_context` incluye invariantes en su pre-cómputo: para cada símbolo en la zona de enfoque, verifica si tiene siblings obligatorios y los incluye como advertencias en `recommended_focus_zone.invariants`. El agente recibe las reglas invisibles antes de escribir la primera línea.
+
+### 12.4 Event-Bridge Edge Resolver — Trazador de Flujos Asíncronos (`TRIGGERS`) — pendiente de implementación
+
+**Problema detectado:** `passSemanticLight` ya extrae canales (`emits`, `listens_on`) con precisión, pero los asocia al nodo `File` en lugar de a la función contenedora. `edgeTypesForMode` en `trace-core.ts` ya soporta `CROSS_CHANNEL` en modo `cross_service`, pero `trace_path` no puede seguir `EMITS` → `LISTENS_ON` porque esos edges no conectan funciones entre sí. Un `trace_path` sobre `registerUser()` no descubre `sendWelcomeEmail()` aunque exista un canal `user.registered` entre ambos.
+
+**Solución:** tres cambios quirúrgicos sobre infraestructura ya existente (~100 líneas total):
+
+#### (1) Upgrade de `passSemanticLight` — asociación función→canal
+
+Cambio en `src/pipeline/phases/resolve/pass-semantic.ts` (~40 líneas):
+
+```ts
+// ANTES: edge file→channel
+addEdge(edges, idx.project, fileNode.id, channelId, 'EMITS', {...});
+
+// DESPUÉS: edge función→channel (cuando el canal se emite dentro de una función)
+const enclosingFn = findEnclosingFunction(db, idx, batch.file, channel.line);
+if (enclosingFn) {
+  addEdge(edges, idx.project, enclosingFn.id, channelId, 'EMITS', {
+    file_path: batch.file,
+    line: channel.line,
+    confidence: 0.9
+  });
+}
+```
+
+Misma lógica para `LISTENS_ON` (subscriptores).
+
+#### (2) Virtual Edge Resolver — JOIN publishers↔subscribers
+
+Nuevo pass post-resolución (~50 líneas):
+
+```sql
+INSERT OR IGNORE INTO edges (project, source_id, target_id, type, properties)
+SELECT 
+  e1.project,
+  e1.source_id AS publisher_fn_id,
+  e2.source_id AS subscriber_fn_id,
+  'TRIGGERS' AS type,
+  json_object(
+    'channel', c.name,
+    'transport', c.transport,
+    'confidence', 0.7,
+    'resolver', 'event_bridge'
+  ) AS properties
+FROM edges e1
+JOIN edges e2 ON e1.target_id = e2.target_id AND e1.project = e2.project
+JOIN nodes c ON c.id = e1.target_id AND c.kind = 'Channel'
+WHERE e1.type = 'EMITS'
+  AND e2.type = 'LISTENS_ON'
+  AND e1.source_id != e2.source_id;
+```
+
+El JOIN es determinista: mismo `target_id` (el nodo Channel) + tipos de edge complementarios. Confianza 0.7 porque hay falsos positivos (canales con nombre genérico como `"error"` o `"data"`). El campo `resolver: 'event_bridge'` permite al agente distinguir edges directos de inferidos.
+
+#### (3) Activar tipos de edge en `trace_path`
+
+Cambio en `src/federation/trace-core.ts` (~5 líneas):
+
+```ts
+// Añadir a data_flow y cross_service:
+'EMITS',
+'LISTENS_ON', 
+'TRIGGERS',
+```
+
+#### Tool `resolve_async_flows`
+
+Herramienta ligera que ejecuta el JOIN on-the-fly sin esperar a la siguiente indexación completa:
+
+```
+resolve_async_flows(project, channel_name?)
+  → lista de pares (publisher, subscriber, channel, confidence)
+```
+
+Útil para el agente cuando quiere verificar flujos asíncronos sobre un canal específico sin reindexar.
+
+#### Resultado
+
+```
+registerUser() ──EMITS──▶ user.registered ◀──LISTENS_ON── sendWelcomeEmail()
+                                    │
+                                    └── TRIGGERS ──▶ sendWelcomeEmail()
+```
+
+`trace_path` ya no se detiene en `.emit()` o `.add()` — sigue el flujo completo a través de eventos, colas y dispatchers. Determinista, offline, <15ms en consulta.
+
+#### Sinergia con el resto de la Fase 11
+
+- **SACG-028 (Sibling Call Invariants):** `check_invariants` detecta que `sendWelcomeEmail()` es un sibling obligatorio de `registerUser()`. SACG-029 añade el *por qué*: están conectados por un canal de eventos. La evidencia se complementa.
+- **Context-Flow (SACG-022):** `pack_context` incluye los suscriptores downstream en su pre-cómputo de trazas, enriqueciendo `recommended_focus_zone` con los consumidores de eventos.
+- **SACG-027 (Blast Radius):** `assess_impact` incluye suscriptores de eventos en `direct_dependent_files` — si cambias el payload de `user.registered`, todos los suscriptores están en el radio de impacto.
+
+#### No incluido
+
+- Inferencia de schemas de payload (JSON Schema del evento) — requiere Tier 2 (runtime traces).
+- Validación de compatibilidad de payloads entre publisher y subscriber — requiere Tier 4 (LLM).
+- Dead letter queues, retry patterns, circuit breakers — son patrones de infraestructura, no de código.
+
+### 12.5 Architecture Drift Prevention — Validador de Fronteras Arquitectónicas (`lynx-rules.json`) — pendiente de implementación
+
+**Problema detectado:** los agentes de IA escriben código que compila pero viola la arquitectura del proyecto. Importan servicios directamente desde capas de presentación, saltan capas de abstracción, y acoplan módulos que deberían permanecer independientes. LYNX hoy no se queja porque el código es sintácticamente válido. Pero el desarrollador senior que revisa el PR sí se queja — y el daño ya está hecho.
+
+**Solución:** un validador de fronteras estático integrado en `assess_impact` (~250-350 líneas total).
+
+#### Configuración: `lynx-rules.json`
+
+```json
+{
+  "version": 1,
+  "layers": {
+    "view": ["controller"],
+    "controller": ["service", "model"],
+    "service": ["db", "model"],
+    "db": ["model"]
+  },
+  "layerMap": {
+    "view": "src/ui/**",
+    "controller": "src/controllers/**",
+    "service": "src/services/**",
+    "db": "src/data/**",
+    "model": "src/models/**"
+  }
+}
+```
+
+Las reglas son direccionales: `"view": ["controller"]` significa "view PUEDE llamar a controller". Cualquier edge que conecte view → service directamente es una violación. Las capas no listadas en el array de una capa están implícitamente prohibidas.
+
+#### Mecanismo de detección
+
+Séptima consulta en el pipeline de `assess_impact` (~70 líneas):
+
+```sql
+SELECT DISTINCT
+  e.type AS edge_type,
+  src.name AS from_symbol,
+  src.file_path AS from_file,
+  src_layer.layer AS from_layer,
+  tgt.name AS to_symbol,
+  tgt.file_path AS to_file,
+  tgt_layer.layer AS to_layer,
+  r.allowed_layers AS rule_allows
+FROM edges e
+JOIN nodes src ON e.source_id = src.id
+JOIN nodes tgt ON e.target_id = tgt.id
+JOIN layer_assignments src_layer ON src.file_path GLOB src_layer.glob
+JOIN layer_assignments tgt_layer ON tgt.file_path GLOB tgt_layer.glob
+JOIN layer_rules r ON src_layer.layer = r.from_layer
+WHERE e.type IN ('CALLS', 'IMPORTS', 'USAGE')
+  AND src.file_path IN (modified_files)
+  AND tgt_layer.layer NOT IN (SELECT value FROM json_each(r.allowed_layers))
+```
+
+La consulta es puro SQL — no necesita LLM, no necesita runtime, no necesita red. <15ms incluso en proyectos grandes.
+
+#### Output en `assess_impact`
+
+```json
+{
+  "architecture_violations": [
+    {
+      "from": "src/ui/login.ts:24",
+      "to": "src/services/auth.ts:87",
+      "rule": "view → service",
+      "severity": "error",
+      "message": "La capa 'view' no puede llamar directamente a la capa 'service'. Debe pasar por 'controller'."
+    },
+    {
+      "from": "src/services/payment.ts:142",
+      "to": "src/ui/toast.ts:15",
+      "rule": "service → view",
+      "severity": "error",
+      "message": "La capa 'service' no puede importar de 'view' (violación de dependencia unidireccional)."
+    }
+  ],
+  "violation_count": 2,
+  "layers_checked": ["view", "controller", "service", "db", "model"]
+}
+```
+
+#### Integración con el ciclo del agente
+
+```
+agente edita src/ui/login.ts añadiendo import de AuthService
+  → watcher reindexa (~300ms)
+  → agente: assess_impact(project)
+  → "2 violaciones arquitectónicas detectadas:
+     view/login.ts → services/auth.ts VIOLA 'view → controller → service'"
+  → agente corrige: importa el controller en vez del servicio directo
+```
+
+El agente recibe la "bofetada arquitectónica" de forma pasiva — no necesita aprender una herramienta nueva. `assess_impact` ya es la herramienta que usa para verificar cambios.
+
+#### Tool independiente: `check_rules`
+
+Herramienta ligera para validación rápida sin ejecutar `assess_impact` completo:
+
+```
+check_rules(project, file?, layer?)
+  → lista de violaciones activas en el estado actual del grafo
+```
+
+Útil para CI/CD o para el desarrollador que quiere verificar el estado global de la arquitectura sin esperar un diff.
+
+#### Sinergia con la Trinidad de Validación
+
+- **SACG-027 (Blast Radius):** `assess_impact` responde "¿qué rompo?" (dependientes downstream) + "¿qué reglas violo?" (fronteras cruzadas). Dos dimensiones de impacto en una sola llamada.
+- **SACG-028 (Sibling Call Invariants):** `check_invariants` responde "¿qué me falta?" (reglas implícitas del código). SACG-030 responde "¿qué no debería haber hecho?" (reglas explícitas del diseño). Complementarios.
+- **SACG-029 (Event-Bridge):** los triggers de eventos también se validan contra las reglas de capas — si `view` emite un evento que solo `controller` debería emitir, se detecta.
+
+#### No incluido
+
+- Dependencias circulares entre capas — requiere análisis de grafo completo (posible extensión SACG-031).
+- Reglas de acoplamiento por afinidad semántica ("este módulo solo debería importar de estos 3 módulos") — requiere DSL más expresivo.
+- Autocompletado de `lynx-rules.json` a partir de la estructura de directorios — posible asistente en `lynx init`.
+
 ## 13. Rendimiento y SLO
 
 Objetivos locales para proyecto indexado:
@@ -649,9 +1012,45 @@ SACG-012 tests contractuales.
 SACG-013 benchmark baseline.
 SACG-014 métricas y doctor checks.
 SACG-015 documentación de migración y rollback.
+SACG-016 **Graph Drift Detector** — comparar `git rev-parse HEAD` + timestamps de `file_hashes` contra `stat()` del disco. Alerta si el índice está desactualizado antes de trazar rutas o devolver resultados (~50–100ms, sin reindexar). Red de seguridad contra watcher caído o índice stale. Relacionado con capa 4.1.F (Temporal Graph Layer).
+SACG-017 **RRF Búsqueda Híbrida Unificada** — fusionar BM25 + vectores + rerank LLM en una sola llamada con Reciprocal Rank Fusion (ver §12.1). Elimina 1-2 round-trips MCP por búsqueda ambigua.
+SACG-018 **Recorte Inteligente de Contexto en `investigate_symbol`** — colapsar cuerpos de funciones que superen un presupuesto de tokens (solo firmas y tipos), con flag `max_tokens` y modo `signatures_only`. Evita que God Objects saturen el contexto del agente. Relacionado con §1.1 (reducir tokens de entrada).
+SACG-019 **Filtro de Impacto Activo (`only_diff_intersect`)** — parámetro booleano opcional en `trace_path`, `search_graph` y `query_graph` que filtra resultados a nodos/caminos que intersectan archivos modificados en `git diff`. Intersección entre grafo y diff real (~50 líneas). Conecta `detect_changes` con las herramientas de grafo. Ahorro estimado del 80-90% de tokens en trazados sobre cambios activos. Relacionado con capa 4.1.A (Source State Layer).
+SACG-020 **Esqueleto AST (`skeleton` mode en `get_code_snippet`)** — modo de lectura que devuelve la función solicitada completa pero colapsa cuerpos de funciones hermanas a `{ ... }`. Usa start_line/end_line ya indexados en `nodes`. Conserva contexto estructural del archivo (herencia, firmas vecinas) a ~10% del coste en tokens. Relacionado con §1.1 y complementario a SACG-018.
+SACG-021 **Mapa de Fronteras (`lynx-services.json`)** — archivo de configuración opcional que resuelve endpoints HTTP/gRPC/GraphQL a repositorios externos. `trace_path` en modo `cross_service` ya extrae `CROSS_HTTP_CALLS`, `CROSS_GRPC_CALLS`, etc.; este item añade hints cross-repo sin analizar red (~100 líneas). Relacionado con capa 4.1.H (Federation Layer).
+SACG-022 **Context-Flow Fase 1 — pre-computo de trazas en `pack_context`**: ejecutar `trace_path(depth=2)` automáticamente sobre top 2-3 candidatos y devolver critical path resuelto en vez de solo sugerirlo (~150 líneas). Ver §12.2. Depende de SACG-019 y SACG-020.
+SACG-023 **Context-Flow Fase 2 — cruce con diff activo en `pack_context`**: consultar `detect_changes` internamente en cada invocación de `pack_context` para boost automático de candidatos en archivos modificados (~60 líneas). Ver §12.2. Depende de SACG-019 y SACG-022.
+SACG-024 **Context-Flow Fase 3 — co-change mining**: `git log --follow --numstat` para detectar archivos co-modificados históricamente. Flag `include_cochange=true`, fuera del hot path por defecto (~200 líneas). Ver §12.2. Pendiente de validación de señal/ruido.
+SACG-025 **Entrypoint Mapping — Extracción multienfoque**: ampliar el extractor de entrypoints más allá de Next.js App Router. Añadir patrones AST para Express (`app.get('/path')`), Fastify (`fastify.get('/path')`), NestJS (`@Get('/path')`), Koa, Hono. La columna `is_entry_point` y `passRoutes` ya existen; esto generaliza el concepto. (~200 líneas). Relacionado con capa 4.1.B (Structural Graph Layer).
+SACG-026 **Entrypoint Mapping — Tool + enriquecimiento**: nueva tool `list_entrypoints(project, method?, path_pattern?)`. Enriquecer `trace_path` con `entrypoint_path` cuando un nodo es alcanzable transitivamente desde un entrypoint. Enriquecer `search_graph` con filtro `is_entry_point`. (~100 líneas). Relacionado con capa 4.1.G (Semantic Query Layer).
+SACG-027 **Blast Radius — `queryDownstreamDependents` en `assess_impact`**: sexta consulta en el pipeline de `assess_impact`. SQL directa `SELECT target_file FROM edges WHERE source_file IN (modified_files) AND type IN ('CALLS','IMPORTS','USAGE')` → campo `direct_dependent_files` con radio de impacto en <20ms. Responde "¿qué rompo si cambio esto?" antes del commit. (~50 líneas). Relacionado con capa 4.1.B (Structural Graph Layer).
+SACG-028 **Sibling Call Invariant Checker (`check_invariants`)**: herramienta independiente que detecta reglas arquitectónicas invisibles mediante co-ocurrencia de llamadas en el mismo ámbito. Algoritmo SQL en 3 pasos: (1) padres que llaman al símbolo A, (2) otros símbolos B llamados por los mismos padres, (3) confianza = frecuencia / total. Filtros: exclusión de nodos con fan_out > 5% (utilidades transversales) y scope estricto de función. Tool `check_invariants(project, file?)`. (~150-200 líneas). Ver §12.3. Relacionado con capa 4.1.C (Semantic Claim Layer) y capa 4.1.E (Confidence Engine).
+SACG-029 **Event-Bridge Edge Resolver — Trazador de Flujos Asíncronos (`TRIGGERS`)**: tres cambios quirúrgicos sobre infraestructura ya existente. (1) Upgrade de `passSemanticLight` para asociar `EMITS`/`LISTENS_ON` a la función contenedora. (2) Virtual Edge Resolver con SQL JOIN publishers↔subscribers → `TRIGGERS`. (3) Activar `EMITS`/`LISTENS_ON`/`TRIGGERS` en `trace_path` modos `data_flow` y `cross_service`. Nueva tool `resolve_async_flows(project, channel_name?)`. (~100 líneas). Ver §12.4. Relacionado con capa 4.1.B (Structural Graph Layer) y capa 4.1.D (Query & Reasoning Layer).
+SACG-030 **Architecture Drift Prevention — Validador de Fronteras Arquitectónicas (`lynx-rules.json`)**: séptima consulta en `assess_impact` que cruza edges del diff contra reglas de capas definidas en archivo de configuración. `lynx-rules.json` con mapeo simple de capas + reglas de dependencia permitidas + asignación de archivos a capas por glob. Nueva tool `check_rules(project, file?, layer?)`. Cierra la Trinidad Definitiva de Validación de Contexto: Blast Radius (qué rompo) + Sibling Invariants (qué me falta) + Architecture Rules (qué violo). (~250-350 líneas). Ver §12.5. Relacionado con capa 4.1.B (Structural Graph Layer) y capa 4.1.D (Query & Reasoning Layer).
 
 Orden obligatorio:
 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 → 012 → 013 → 014 → 015.
+
+016–030 son independientes entre sí y del pipeline SACG principal; pueden ejecutarse en paralelo o intercalarse en cualquier momento.
+
+Orden recomendado por ROI:
+1. **SACG-019** (diff intersect) — prerequisite para Context-Flow
+2. **SACG-016** (drift detector) — red de seguridad transversal
+3. **SACG-027** (Blast Radius) — menor esfuerzo (~50 líneas), mayor valor inmediato para el ciclo de edición
+4. **SACG-028** (Sibling Call Invariants) — categoría nueva de análisis; ningún competidor lo ofrece
+5. **SACG-029** (Event-Bridge Edge Resolver) — ~100 líneas, cierra el triángulo de flujos con SACG-027 y SACG-028
+6. **SACG-030** (Architecture Drift Prevention) — ~300 líneas, la joya de la corona: Trinity Definitiva completa (027+028+030)
+7. **SACG-020** (AST skeleton) — prerequisite para SACG-022 y entrypoints
+8. **SACG-025** (Entrypoint Mapping — extracción) — amplía `passRoutes` a 6+ frameworks
+9. **SACG-026** (Entrypoint Mapping — tool + enriquecimiento) — `list_entrypoints` + `entrypoint_path` en `trace_path`
+10. **SACG-022** (Context-Flow F1: pre-computo trazas) — depende de 019 + 020 + 026 + 028 + 029 + 030
+11. **SACG-023** (Context-Flow F2: cruce diff) — depende de 019 + 022
+12. **SACG-018** (context collapse)
+13. **SACG-017** (RRF)
+14. **SACG-021** (service map)
+15. **SACG-024** (co-change mining) — último; requiere validación previa de señal/ruido
+
+Las piezas de entrada de la Fase 11 (019, 016, 027, 028, 029, 030, 020, 025, 026) construyen una base de inteligencia de código tan rica que Context-Flow (022/023) se implementa sobre rieles: `pack_context` pre-computa trazas síncronas y asíncronas (TRIGGERS), `trace_path` enriquece con entrypoints, `assess_impact` muestra el blast radius de cada cambio incluyendo suscriptores de eventos y validando reglas arquitectónicas (`lynx-rules.json`), `check_invariants` alerta sobre reglas arquitectónicas invisibles con evidencia cross-canal, y el agente recibe en la primera respuesta el critical path completo con puertas de entrada HTTP, flujos de eventos, validación de fronteras de capas, snippets plegados, y conciencia del diff activo — todo en <300ms.
 
 ## 19. Definition of Done global
 

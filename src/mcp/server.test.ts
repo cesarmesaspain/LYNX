@@ -8,7 +8,7 @@ import { handleInvestigateSymbol } from './handlers/investigate_symbol.js';
 
 describe('MCP tool registry', () => {
   it('returns the complete registry in one tools/list response', () => {
-    expect(TOOLS).toHaveLength(32);
+    expect(TOOLS).toHaveLength(33);
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
     expect(TOOLS.map((tool) => tool.name)).toContain('find_dead_code');
     expect(TOOLS.map((tool) => tool.name)).toContain('diagnose');

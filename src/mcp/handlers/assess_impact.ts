@@ -22,6 +22,7 @@ import * as path from 'node:path';
 import { getDb } from '../server.js';
 import { getModifiedFiles } from '../../git/diff.js';
 import { discoverInvariants, checkInvariantsBroken, type InvariantViolation } from './check_invariants.js';
+import { loadRules, detectArchitectureViolations, type RuleViolation } from '../../rules/engine.js';
 
 const CODE_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
@@ -103,6 +104,7 @@ export interface AssessImpactResult {
   direct_dependent_files: string[];
   async_dependent_files: string[];
   sibling_invariants_broken: InvariantViolation[];
+  architecture_rules_broken: RuleViolation[];
   ignored_files?: { count: number; examples: string[]; reason: string };
   uncertainties: string[];
   recommended_inspection: string[];
@@ -747,6 +749,7 @@ export async function handleAssessImpact(
       direct_dependent_files: [],
       async_dependent_files: [],
       sibling_invariants_broken: [],
+      architecture_rules_broken: [],
       uncertainties: ['Project not found in index.'],
       recommended_inspection: ['Run index_repository first.'],
       confidence_note: 'Cannot assess impact without indexed project.',
@@ -799,6 +802,13 @@ export async function handleAssessImpact(
   // Query 8: Sibling-call invariants broken in modified code
   const allInvariants = discoverInvariants(db, project);
   const invariantsBroken = checkInvariantsBroken(db, project, allInvariants, scopedFiles);
+
+  // Query 9: Architecture rules broken in modified code
+  let architectureViolations: RuleViolation[] = [];
+  const rules = loadRules(rootPath);
+  if (rules) {
+    architectureViolations = detectArchitectureViolations(db, project, rules, scopedFiles);
+  }
 
   // Apply optional category filter (before count, before truncation)
   const filteredFindings = categoryFilter
@@ -861,6 +871,7 @@ export async function handleAssessImpact(
     direct_dependent_files: dependents,
     async_dependent_files: asyncDeps,
     sibling_invariants_broken: invariantsBroken,
+    architecture_rules_broken: architectureViolations,
     ...(ignoredFiles ? { ignored_files: ignoredFiles } : {}),
     uncertainties: uncertainties.length > 0 ? uncertainties : ['Assessment completed with no blockers.'],
     recommended_inspection: recommended,

@@ -41,6 +41,7 @@ import { handleUsageSummary } from './handlers/usage_summary.js';
 import { handleGetEdgeEvidence } from './handlers/get_edge_evidence.js';
 import { handleInvestigateSymbol } from './handlers/investigate_symbol.js';
 import { handleCheckInvariants } from './handlers/check_invariants.js';
+import { handleCheckRules } from '../rules/engine.js';
 import { decayCounter } from '../cli/hook-augment.js';
 import { cleanupNativeExtractor } from '../paths.js';
 import { LynxDatabase } from '../store/database.js';
@@ -150,6 +151,7 @@ const HANDLERS: Record<string, Handler> = {
   get_edge_evidence: handleGetEdgeEvidence,
   investigate_symbol: handleInvestigateSymbol,
   check_invariants: handleCheckInvariants,
+  check_rules: handleCheckRules,
 };
 
 const CORE_TOOL_NAMES = new Set([

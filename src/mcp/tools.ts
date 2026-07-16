@@ -30,7 +30,7 @@ const EVIDENCE_TOOLS = new Set([
   'find_dead_code', 'compare_runs', 'explain_symbol', 'smart_review',
   'semantic_search', 'find_tests', 'batch_get_code', 'check_invariants',
   'diagnose', 'usage_summary', 'get_edge_evidence',
-  'investigate_symbol',
+  'investigate_symbol', 'check_rules',
 ]);
 
 /** Tools which only inspect an already indexed project or its working tree. */
@@ -41,7 +41,7 @@ export const READ_ONLY_TOOL_NAMES = new Set([
   'assess_impact', 'pack_memory', 'analyze_hotspots', 'find_dead_code',
   'compare_runs', 'explain_symbol', 'smart_review', 'semantic_search',
   'find_tests', 'batch_get_code', 'diagnose', 'usage_summary',
-  'check_invariants', 'investigate_symbol',
+  'check_invariants', 'investigate_symbol', 'check_rules',
 ]);
 
 const DESTRUCTIVE_TOOL_NAMES = new Set(['delete_project']);
@@ -580,6 +580,21 @@ export const TOOLS: LynxToolDef[] = [
         limit: { type: 'integer', description: 'Max results (default 20, max 30).' },
       },
       required: ['project', 'qualified_names'],
+    },
+  },
+  {
+    name: 'check_rules',
+    description:
+      'Check architecture rules defined in lynx-rules.json against the indexed dependency graph. ' +
+      'Detects forbidden cross-layer imports and returns violations with source/target file and symbol details. ' +
+      'Use to enforce layer boundaries (e.g. domain must not import infrastructure).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string' },
+        files: { type: 'array', items: { type: 'string' }, description: 'Optional file list to scope violation detection. If omitted, all indexed files are checked.' },
+      },
+      required: ['project'],
     },
   },
 ];

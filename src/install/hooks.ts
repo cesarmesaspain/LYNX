@@ -41,13 +41,20 @@ function lynxDiscoveryReminder(): string {
  * or Claude while still covering projects initialized by `lynx init`.
  */
 function sessionStartIndexCommand(): string {
-  return 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --mode fast --incremental; fi';
+  // Do not force a fast discovery pass here. A project may have been indexed
+  // in full mode, whose manifest intentionally includes docs, fixtures and
+  // other non-fast inputs. Re-running it as fast makes those files look
+  // deleted and replaces a richer graph with a smaller one. The CLI default
+  // is full, so an unchanged project becomes a cheap incremental no-op while
+  // preserving the existing graph depth.
+  return 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --incremental; fi';
 }
 
 function isLynxCodexSessionStartHook(hook: Record<string, unknown>): boolean {
   const command = String(hook.command || '');
   return command.includes('LYNX code discovery protocol') ||
-    command.includes('lynx index "$PWD" --mode fast');
+    command.includes('lynx index "$PWD" --mode fast') ||
+    command.includes('lynx index "$PWD" --incremental');
 }
 
 // ── Hooks (Claude Code) ────────────────────────────────────────────

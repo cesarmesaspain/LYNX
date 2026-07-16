@@ -178,25 +178,30 @@ async function reviewNodes(
       });
     }
 
-    // No tests nearby
+    // Test coverage is a graph relationship, not a directory convention.
+    // Tests commonly live under a separate tests/ tree, so checking only the
+    // production directory contradicts find_tests and creates false warnings.
     const testFile = node.file_path.includes('.test.') || node.file_path.includes('.spec.') || node.file_path.includes('__tests__');
     if (node.is_test !== 1 && !testFile) {
-      const hasTestInDir = db.db
+      const coverage = db.db
         .prepare(
-          `SELECT COUNT(*) as cnt FROM nodes WHERE project = ?
-           AND file_path LIKE ? AND kind = 'Function' AND is_test = 1 LIMIT 1`
+          `SELECT COUNT(*) AS cnt FROM edges e
+           JOIN nodes target ON target.id = e.target_id AND target.project = e.project
+           WHERE e.project = ?
+             AND e.type IN ('TESTS', 'TESTS_FILE')
+             AND (target.id = ? OR target.file_path = ?)`
         )
-        .get(project, path.dirname(node.file_path) + '%') as { cnt: number };
+        .get(project, node.id, node.file_path) as { cnt: number };
 
-      if (hasTestInDir.cnt === 0 && (cyclomatic > 10 || fanIn.cnt > 5)) {
-        const key = `notest:${path.dirname(node.file_path)}`;
+      if (coverage.cnt === 0 && (cyclomatic > 10 || fanIn.cnt > 5)) {
+        const key = `notest:${node.file_path}`;
         if (!seenWarnings.has(key)) {
           seenWarnings.add(key);
           issues.push({
             severity: 'medium', category: 'test-coverage',
-            title: 'No tests in this directory',
-            description: `No test files found in ${path.dirname(node.file_path)} for a function with complexity ${cyclomatic} and ${fanIn.cnt} callers.`,
-            location: path.dirname(node.file_path),
+            title: 'No linked tests found',
+            description: `No TESTS or TESTS_FILE graph relationship covers ${node.file_path} for a function with complexity ${cyclomatic} and ${fanIn.cnt} callers.`,
+            location: node.file_path,
             suggestion: `Add unit tests for \`${node.name}\` covering base cases and edge cases.`,
           });
         }

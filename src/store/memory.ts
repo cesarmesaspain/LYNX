@@ -336,8 +336,8 @@ export function getComplexityTrend(
       firstValue: valid[0]?.complexity ?? null,
       lastValue: valid[0]?.complexity ?? null,
       narrative: valid.length === 0
-        ? 'Sin historial de complejidad registrado.'
-        : 'Solo hay un snapshot de complejidad — se necesita al menos un segundo para calcular la tendencia.',
+        ? 'No complexity history recorded.'
+        : 'Only one complexity snapshot exists — at least two are required to calculate a trend.',
     };
     return fallback;
   }
@@ -351,13 +351,13 @@ export function getComplexityTrend(
 
   if (delta < -5) {
     direction = 'improving';
-    narrative = `Mejorando — complejidad bajó de ${first} a ${last} (${Math.abs(delta)} puntos) en ${valid.length} snapshots.`;
+    narrative = `Improving — complexity decreased from ${first} to ${last} (${Math.abs(delta)} points) across ${valid.length} snapshots.`;
   } else if (delta > 5) {
     direction = 'worsening';
-    narrative = `Empeorando — complejidad subió de ${first} a ${last} (+${delta} puntos) en ${valid.length} snapshots.`;
+    narrative = `Worsening — complexity increased from ${first} to ${last} (+${delta} points) across ${valid.length} snapshots.`;
   } else {
     direction = 'stable';
-    narrative = `Estable — complejidad oscila cerca de ${last} (±${Math.abs(delta)} puntos) sobre ${valid.length} snapshots.`;
+    narrative = `Stable — complexity remains near ${last} (±${Math.abs(delta)} points) across ${valid.length} snapshots.`;
   }
 
   return {

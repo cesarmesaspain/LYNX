@@ -258,7 +258,31 @@ interface BuildTraceResponseParams {
   project: string; functionName: string; started: number;
 }
 
+interface AggregatedTraceEdge extends TraceEdge {
+  occurrenceCount: number;
+}
+
+/**
+ * A call graph can legitimately contain several call sites between the same
+ * two symbols. Present that as one relationship with an occurrence count,
+ * while retaining every captured evidence location for the relationship.
+ */
+export function aggregateTraceEdges(edges: TraceEdge[]): AggregatedTraceEdge[] {
+  const grouped = new Map<string, AggregatedTraceEdge>();
+  for (const edge of edges) {
+    const key = `${edge.fromName}\u0000${edge.toName}\u0000${edge.type}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.occurrenceCount += 1;
+    } else {
+      grouped.set(key, { ...edge, occurrenceCount: 1 });
+    }
+  }
+  return [...grouped.values()];
+}
+
 function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown> {
+  const aggregatedEdges = aggregateTraceEdges(p.allEdges);
   const relationshipFor = (entry: TraceEntry): { types: string[]; kind: string } => {
     const types = [...new Set(p.allEdges
       .filter(edge => edge.fromName === entry.name || edge.toName === entry.name)
@@ -289,44 +313,41 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
   const pagedCallers = callers.slice(p.page * p.pageSize, (p.page + 1) * p.pageSize);
   const pagedCallees = callees.slice(p.page * p.pageSize, (p.page + 1) * p.pageSize);
 
-  const edges = p.allEdges.slice(0, p.pageSize).map((e: TraceEdge) => ({
+  const edges = aggregatedEdges.slice(0, p.pageSize).map((e: AggregatedTraceEdge) => ({
     fromName: e.fromName, toName: e.toName, type: e.type,
+    ...(e.occurrenceCount > 1 ? { occurrence_count: e.occurrenceCount } : {}),
   }));
 
   // ── Evidence enrichment (improvement #2) ──────────────────
-  let edgeEvidenceMap: Map<number, Array<Record<string, unknown>>> | undefined;
+  let edgeEvidenceMap: Map<string, Array<Record<string, unknown>>> | undefined;
   if (p.includeEvidence) {
     edgeEvidenceMap = new Map();
     try {
       const evidenceDb = getDb(p.project);
       // Batch lookup edge IDs from (fromName, toName, type)
-      const uniqueEdges = new Map<string, TraceEdge>();
-      for (const e of p.allEdges) {
-        uniqueEdges.set(`${e.fromName}|${e.toName}|${e.type}`, e);
-      }
+      const uniqueEdges = new Map<string, AggregatedTraceEdge>();
+      for (const e of aggregatedEdges) uniqueEdges.set(`${e.fromName}|${e.toName}|${e.type}`, e);
       const edgeIds: number[] = [];
-      const edgeIdByKey = new Map<string, number>();
+      const edgeIdsByKey = new Map<string, number[]>();
       for (const [key, e] of uniqueEdges) {
-        const row = evidenceDb.db.prepare(
+        const rows = evidenceDb.db.prepare(
           `SELECT e.id FROM edges e
            JOIN nodes ns ON e.source_id = ns.id
            JOIN nodes nt ON e.target_id = nt.id
            WHERE e.project = ? AND ns.name = ? AND nt.name = ? AND e.type = ?
-           LIMIT 1`
-        ).get(p.project, e.fromName, e.toName, e.type) as { id: number } | undefined;
-        if (row) {
-          edgeIds.push(row.id);
-          edgeIdByKey.set(key, row.id);
+           ORDER BY e.id`
+        ).all(p.project, e.fromName, e.toName, e.type) as Array<{ id: number }>;
+        if (rows.length > 0) {
+          const ids = rows.map(row => row.id);
+          edgeIds.push(...ids);
+          edgeIdsByKey.set(key, ids);
         }
       }
       if (edgeIds.length > 0) {
         const rawEvidence = getBulkEdgeEvidence(evidenceDb, p.project, edgeIds);
-        // Convert to key-based map: fromName|toName|type → evidence records
-        for (const [eId, records] of rawEvidence) {
-          // Find the key for this edge ID
-          for (const [key, id] of edgeIdByKey) {
-            if (id === eId) {
-              const compactRecords = records.map(r => ({
+        // Convert all call-site records to a relationship-keyed map.
+        for (const [key, ids] of edgeIdsByKey) {
+          const compactRecords = ids.flatMap(id => (rawEvidence.get(id) || []).map(r => ({
                 evidence_type: r.evidence_type,
                 source_path: r.source_path,
                 start_line: r.start_line,
@@ -338,11 +359,8 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
                   ? `${r.source_path}${r.start_line ? `:${r.start_line}${r.end_line && r.end_line !== r.start_line ? `-${r.end_line}` : ''}` : ''}`
                   : null,
                 payload: r.payload,
-              }));
-              edgeEvidenceMap!.set(eId, compactRecords as Array<Record<string, unknown>>);
-              break;
-            }
-          }
+              })));
+          edgeEvidenceMap.set(key, compactRecords as Array<Record<string, unknown>>);
         }
       }
     } catch { /* evidence unavailable — omit gracefully */ }
@@ -351,24 +369,11 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
   // Enrich edges with evidence annotations
   const enrichedEdges = edgeEvidenceMap
     ? edges.map(e => {
-        // Look up edge ID by key
-        const row = (() => {
-          try {
-            const evidenceDb = getDb(p.project);
-            return evidenceDb.db.prepare(
-              `SELECT e.id FROM edges e
-               JOIN nodes ns ON e.source_id = ns.id
-               JOIN nodes nt ON e.target_id = nt.id
-               WHERE e.project = ? AND ns.name = ? AND nt.name = ? AND e.type = ?
-               LIMIT 1`
-            ).get(p.project, e.fromName, e.toName, e.type) as { id: number } | undefined;
-          } catch { return undefined; }
-        })();
-        const evidenceRecords = row ? edgeEvidenceMap!.get(row.id) : undefined;
+        const evidenceRecords = edgeEvidenceMap!.get(`${e.fromName}|${e.toName}|${e.type}`);
         return {
           ...e,
           ...(evidenceRecords && evidenceRecords.length > 0
-            ? { evidence: evidenceRecords.slice(0, 3) }
+            ? { evidence: evidenceRecords }
             : {}),
         };
       })
@@ -410,10 +415,11 @@ function buildTraceResponse(p: BuildTraceResponseParams): Record<string, unknown
 
   if (p.includeEdges) {
     response.edges = responseEdges;
-    response.edges_truncated = p.allEdges.length > edges.length;
+    response.edges_truncated = aggregatedEdges.length > edges.length;
   } else {
     response.edge_summary = {
       total_edges_seen: p.allEdges.length,
+      unique_relationships_seen: aggregatedEdges.length,
       omitted_by_default: true,
       hint: 'Pass include_edges=true to include a compact edge page.',
     };

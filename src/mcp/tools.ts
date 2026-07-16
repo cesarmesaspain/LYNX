@@ -486,7 +486,7 @@ export const TOOLS: LynxToolDef[] = [
     name: 'explain_symbol',
     description:
       'Get a detailed explanation of a code symbol (function, class, method). Returns source code, ' +
-      'callers, callees, complexity metrics, risk assessment, related findings, and a Spanish narrative.',
+      'callers, callees, complexity metrics, risk assessment, related findings, and a concise narrative.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -1,7 +1,7 @@
 /*
  * analyze_hotspots — LYNX's KEY DIFFERENTIATOR.
  *
- * Hotspot analysis with narrative explanations in Spanish.
+ * Hotspot analysis with concise narrative explanations.
  * Returns the N riskiest functions/classes with:
  *  - Fan-in score (how many things depend on this)
  *  - Complexity metrics (cyclomatic, cognitive, loop depth)
@@ -114,7 +114,7 @@ export async function handleAnalyzeHotspots(
     file_path: g.filePath,
     lines: g.complexity,
     risk_level: 'GOD_COMPONENT',
-    explanation: `Componente de ${g.complexity} lineas — extremadamente grande y dificil de mantener. Considera dividirlo en modulos mas pequenos.`,
+    explanation: `Component with ${g.complexity} lines — extremely large and difficult to maintain. Consider splitting it into smaller modules.`,
   }));
 
   return {
@@ -138,17 +138,17 @@ function generateSummary(
   hotspots: Array<{ risk_level: string; summary: string }>,
   godComponents: Array<{ risk_level: string; explanation: string }>
 ): string {
-  const critical = hotspots.filter((h) => h.risk_level === 'critico').length;
-  const high = hotspots.filter((h) => h.risk_level === 'alto').length;
-  const medium = hotspots.filter((h) => h.risk_level === 'medio').length;
+  const critical = hotspots.filter((h) => h.risk_level === 'critical').length;
+  const high = hotspots.filter((h) => h.risk_level === 'high').length;
+  const medium = hotspots.filter((h) => h.risk_level === 'medium').length;
 
   const parts: string[] = [];
-  if (critical > 0) parts.push(`${critical} hotspots CRÍTICOS requieren atención inmediata`);
-  if (high > 0) parts.push(`${high} hotspots de riesgo ALTO`);
-  if (medium > 0) parts.push(`${medium} hotspots de riesgo MEDIO`);
+  if (critical > 0) parts.push(`${critical} critical hotspots require immediate attention`);
+  if (high > 0) parts.push(`${high} high-risk hotspots`);
+  if (medium > 0) parts.push(`${medium} medium-risk hotspots`);
   if (godComponents.length > 0)
-    parts.push(`${godComponents.length} god components detectados`);
+    parts.push(`${godComponents.length} god components detected`);
 
-  if (parts.length === 0) return 'El proyecto luce saludable — sin hotspots críticos detectados.';
+  if (parts.length === 0) return 'The project looks healthy — no critical hotspots detected.';
   return parts.join('. ') + '.';
 }

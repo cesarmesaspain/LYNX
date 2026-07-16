@@ -15,11 +15,26 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { LynxDatabase } from '../../../src/store/database.js';
 import { executeLocalTracePath } from '../../../src/federation/trace-core.js';
-import { handleTracePath, isLikelyCallableSignature } from '../../../src/mcp/handlers/trace_path.js';
+import { aggregateTraceEdges, handleTracePath, isLikelyCallableSignature } from '../../../src/mcp/handlers/trace_path.js';
 import { edgeTypesForMode } from '../../../src/federation/trace-core.js';
 import { setDb, unsetDb } from '../../../src/mcp/server.js';
 
 const PROJECT = 'test-trace-core';
+
+describe('trace relationship aggregation', () => {
+  it('groups repeated call sites without discarding their occurrence count', () => {
+    const grouped = aggregateTraceEdges([
+      { fromName: 'caller', toName: 'target', type: 'CALLS' },
+      { fromName: 'caller', toName: 'target', type: 'CALLS' },
+      { fromName: 'caller', toName: 'target', type: 'READS' },
+    ]);
+
+    expect(grouped).toEqual([
+      { fromName: 'caller', toName: 'target', type: 'CALLS', occurrenceCount: 2 },
+      { fromName: 'caller', toName: 'target', type: 'READS', occurrenceCount: 1 },
+    ]);
+  });
+});
 
 function seedDb(db: LynxDatabase) {
   const nodes: Array<{

@@ -20,10 +20,10 @@ import {
   queryUnindexedModified,
   stableSort,
   fairTruncate,
-  collectGitDiffFiles,
   normalizeFileArg,
   resolveRequestedFiles,
 } from '../../../src/mcp/handlers/assess_impact.js';
+import { getModifiedFiles } from '../../../src/git/diff.js';
 import type { ImpactFinding } from '../../../src/mcp/handlers/assess_impact.js';
 
 function seedDb(db: LynxDatabase, project: string) {
@@ -352,7 +352,7 @@ describe('assess_impact input compatibility', () => {
   });
 });
 
-describe('collectGitDiffFiles', () => {
+describe('getModifiedFiles', () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {
@@ -370,7 +370,7 @@ describe('collectGitDiffFiles', () => {
     execFileSync('git', ['add', 'sample.ts'], { cwd: repo });
     execFileSync('git', ['commit', '-m', 'initial'], { cwd: repo });
 
-    const files = collectGitDiffFiles(repo, `main; touch ${marker}`);
+    const files = getModifiedFiles(repo, `main; touch ${marker}`);
 
     expect(files).toEqual([]);
     expect(fs.existsSync(marker)).toBe(false);

@@ -23,8 +23,8 @@ import {
   summarizeUsage,
 } from '../../usage/metrics.js';
 import { computeRealSavings } from '../../usage/session.js';
-import * as child_process from 'node:child_process';
 import * as path from 'node:path';
+import { getModifiedFiles } from '../../git/diff.js';
 import { storedTimestampMs } from '../../store/time.js';
 import { rerankSearchWithMeta, type RerankMeta } from '../../llm/client.js';
 import { readLynxConfig } from '../../config/runtime.js';
@@ -554,35 +554,7 @@ function shortestUniqueSuffix(target: string, all: string[]): string {
   return target;
 }
 
-function collectGitDiffFiles(rootPath: string): string[] {
-  const files = new Set<string>();
-  try {
-    const out = child_process.execSync(
-      'git diff --name-only',
-      { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
-    );
-    for (const f of out.trim().split('\n')) {
-      if (f.trim()) files.add(f.trim());
-    }
-  } catch { /* no git or no changes */ }
-
-  try {
-    const out = child_process.execSync(
-      'git --no-optional-locks status --porcelain --untracked-files=normal',
-      { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
-    );
-    for (const rawLine of out.trim().split('\n')) {
-      const line = rawLine.replace(/[\r\n]+$/, '');
-      if (line.length < 3) continue;
-      let file = line.slice(3).trim();
-      const arrow = file.indexOf(' -> ');
-      if (arrow > 0) file = file.substring(arrow + 4);
-      if (file) files.add(file);
-    }
-  } catch { /* ignore */ }
-
-  return Array.from(files);
-}
+// getModifiedFiles is shared in src/git/diff.ts
 
 function buildDecisionSummary(project: string, task: string): string {
   const db = getDb(project);
@@ -590,7 +562,7 @@ function buildDecisionSummary(project: string, task: string): string {
   if (!meta) return 'Project not indexed. Run index_repository first for decision support.';
 
   const rootPath = meta.rootPath;
-  const diffFiles = collectGitDiffFiles(rootPath);
+  const diffFiles = getModifiedFiles(rootPath);
 
   if (diffFiles.length === 0) {
     return 'No uncommitted changes detected. The working tree is clean. If a material question remains, re-run with a specific task description so LYNX can target only the relevant code areas.';

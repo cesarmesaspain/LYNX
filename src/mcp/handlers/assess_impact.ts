@@ -17,10 +17,10 @@
  *   5. unindexed_modified_files  — git diff files not in graph
  */
 
-import * as child_process from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getDb } from '../server.js';
+import { getModifiedFiles } from '../../git/diff.js';
 
 const CODE_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
@@ -137,68 +137,7 @@ export function resolveRequestedFiles(args: Record<string, unknown>): string[] |
     || normalizeFileArg(args.changed_files);
 }
 
-export function collectGitDiffFiles(rootPath: string, baseBranch: string): string[] {
-  const files = new Set<string>();
-
-  function addFromNameStatus(stdout: string) {
-    for (const line of stdout.trim().split('\n')) {
-      if (!line.trim()) continue;
-      const parts = line.split('\t');
-      if (parts.length >= 3 && parts[0].startsWith('R')) {
-        files.add(parts[2].trim());
-      } else if (parts.length >= 2) {
-        files.add(parts.slice(1).join('\t'));
-      }
-    }
-  }
-
-  try {
-    try {
-      const out = child_process.execFileSync(
-        'git', ['diff', '--name-status', `${baseBranch}...HEAD`],
-        { cwd: rootPath, encoding: 'utf-8', timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] }
-      );
-      addFromNameStatus(out);
-    } catch {
-      try {
-        const out = child_process.execFileSync(
-          'git', ['diff', '--name-status', 'HEAD~1'],
-          { cwd: rootPath, encoding: 'utf-8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] }
-        );
-        addFromNameStatus(out);
-      } catch { /* no commits */ }
-    }
-
-    try {
-      const out = child_process.execFileSync(
-        'git', ['diff', '--name-only'],
-        { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
-      );
-      for (const f of out.trim().split('\n')) {
-        if (f.trim()) files.add(f.trim());
-      }
-    } catch { /* ignore */ }
-
-    try {
-      const out = child_process.execFileSync(
-        'git', ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=normal'],
-        { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
-      );
-      for (const rawLine of out.trim().split('\n')) {
-        const line = rawLine.replace(/[\r\n]+$/, '');
-        if (line.length < 3) continue;
-        let file = line.slice(3).trim();
-        const arrow = file.indexOf(' -> ');
-        if (arrow > 0) file = file.substring(arrow + 4);
-        if (file) files.add(file);
-      }
-    } catch { /* ignore */ }
-  } catch {
-    return [];
-  }
-
-  return Array.from(files).sort();
-}
+// getModifiedFiles is shared in src/git/diff.ts
 
 function isFileIndexed(db: ReturnType<typeof getDb>, project: string, relPath: string): boolean {
   const cnt = db.db.prepare(
@@ -720,7 +659,7 @@ export async function handleAssessImpact(
   }
   const rootPath = projectMeta.rootPath;
 
-  let diffFiles = collectGitDiffFiles(rootPath, baseBranch);
+  let diffFiles = getModifiedFiles(rootPath, baseBranch);
   const uncertainties: string[] = [];
   let ignoredFiles: { count: number; examples: string[]; reason: string } | undefined;
 

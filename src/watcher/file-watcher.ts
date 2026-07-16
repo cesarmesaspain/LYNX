@@ -15,7 +15,7 @@ import { createHash } from 'node:crypto';
 import { watch, FSWatcher } from 'chokidar';
 import type { LynxDatabase } from '../store/database.js';
 import { upsertNode, upsertNodesBatch, deleteNodesByFile } from '../store/nodes.js';
-import { deleteEdgesForNodesInFile } from '../store/edges.js';
+import { deleteEdgesForNodesInFile, deleteOutgoingEdgesForNodesInFile } from '../store/edges.js';
 import { upsertFileHash } from '../store/memory.js';
 import { extractFile } from '../extraction/extractor.js';
 import { fileToModuleQn } from '../pipeline/phases/extract.js';
@@ -279,7 +279,7 @@ export class FileWatcher {
     };
 
     const dependentBatches = await this.extractDependentBatches(dependentFiles);
-    resolveAll(this.db, [batch, ...dependentBatches], this.project);
+    this.resolveBatchesReplacingOutbound([batch, ...dependentBatches]);
 
     // Update file hash cache
     let mtimeNs = 0;
@@ -311,7 +311,21 @@ export class FileWatcher {
 
   private async resolveDependentFiles(relPaths: string[]): Promise<void> {
     const batches = await this.extractDependentBatches(relPaths);
-    if (batches.length > 0) resolveAll(this.db, batches, this.project);
+    this.resolveBatchesReplacingOutbound(batches);
+  }
+
+  private resolveBatchesReplacingOutbound(batches: ExtractionBatch[]): void {
+    if (batches.length === 0) return;
+    // These files are being re-resolved because one of their targets changed.
+    // Remove only relationships they produced first; retaining incoming edges
+    // avoids recursively invalidating unrelated callers while making both
+    // changed-file and deleted-file watcher paths idempotent.
+    this.db.transaction(() => {
+      for (const batch of batches) {
+        deleteOutgoingEdgesForNodesInFile(this.db, this.project, batch.file.relPath);
+      }
+    });
+    resolveAll(this.db, batches, this.project);
   }
 
   private checkIdle(): void {

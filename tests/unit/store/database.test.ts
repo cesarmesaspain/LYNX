@@ -101,6 +101,28 @@ describe('LynxDatabase project paths', () => {
 
 
 describe('edge evidence ledger', () => {
+  it('stores an identical structural edge and its evidence only once', () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const insertNode = db.db.prepare('INSERT INTO nodes (project, kind, name, qualified_name, file_path) VALUES (?, ?, ?, ?, ?)');
+      const sourceId = Number(insertNode.run('unique-edge', 'Function', 'source', 'mod.source', 'src/mod.ts').lastInsertRowid);
+      const targetId = Number(insertNode.run('unique-edge', 'Function', 'target', 'mod.target', 'src/mod.ts').lastInsertRowid);
+      const edge = {
+        project: 'unique-edge', sourceId, targetId, type: 'CALLS' as const,
+        properties: { line: 12, resolution: 'same-file', confidence: 0.9 },
+      };
+
+      const first = insertEdge(db, edge);
+      const second = insertEdge(db, edge);
+
+      expect(second).toBe(first);
+      expect((db.db.prepare('SELECT COUNT(*) AS count FROM edges WHERE project = ?').get('unique-edge') as { count: number }).count).toBe(1);
+      expect((db.db.prepare('SELECT COUNT(*) AS count FROM edge_evidence WHERE project = ?').get('unique-edge') as { count: number }).count).toBe(1);
+    } finally {
+      db.close();
+    }
+  });
+
   it('persists structural evidence for an edge and removes it with the edge', () => {
     const db = LynxDatabase.openMemory();
     try {

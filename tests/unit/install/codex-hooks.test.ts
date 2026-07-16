@@ -24,8 +24,7 @@ describe('Codex SessionStart installation', () => {
 
     const config = fs.readFileSync(path.join(configDir, 'config.toml'), 'utf-8');
     expect(config).toContain('matcher = "startup"');
-    expect(config).toContain('lynx index \\"$PWD\\" --incremental');
-    expect(config).not.toContain('--mode fast');
+    expect(config).toContain('lynx index \\"$PWD\\" --mode full --incremental');
     expect(config).toContain('[ -f \\"$PWD/CLAUDE.md\\" ] || [ -f \\"$PWD/AGENTS.md\\" ]');
   });
 
@@ -50,7 +49,7 @@ describe('Codex SessionStart installation', () => {
       matcher: 'startup',
       hooks: [{
         type: 'command',
-        command: 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --incremental; fi',
+        command: 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --mode full --incremental; fi',
       }],
     }]);
   });

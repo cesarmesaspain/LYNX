@@ -315,7 +315,7 @@ function checkHooks(agents: AgentInfo[]): DoctorCheck {
     let sessionHookIndexes = false;
     try {
       const sessionSource = fs.readFileSync(sessionHook, 'utf-8');
-      sessionHookIndexes = sessionSource.includes('lynx index "$PWD" --incremental') ||
+      sessionHookIndexes = sessionSource.includes('lynx index "$PWD" --mode full --incremental') ||
         sessionSource.includes('lynx index "$PWD" --mode fast');
     } catch {
       // hook missing or unreadable
@@ -344,10 +344,10 @@ function checkHooks(agents: AgentInfo[]): DoctorCheck {
     try {
       if (fs.existsSync(hooksJsonPath)) {
         codexOk = fs.readFileSync(hooksJsonPath, 'utf-8').includes('lynx index') &&
-          fs.readFileSync(hooksJsonPath, 'utf-8').includes('--incremental');
+          fs.readFileSync(hooksJsonPath, 'utf-8').includes('--mode full --incremental');
       } else {
         const raw = fs.readFileSync(configPath, 'utf-8');
-        codexOk = raw.includes('# >>> lynx SessionStart >>>') && raw.includes('lynx index') && raw.includes('--incremental');
+        codexOk = raw.includes('# >>> lynx SessionStart >>>') && raw.includes('lynx index') && raw.includes('--mode full --incremental');
       }
     } catch {
       // config missing

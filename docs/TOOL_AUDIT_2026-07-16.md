@@ -20,7 +20,7 @@ Exercise the complete 33-tool MCP surface against the LYNX repository, identify 
 
 The installed SessionStart hook forced `--mode fast --incremental`. A full index had 623 manifest files, while fast discovery selected 370. On the next Codex startup, the mode mismatch made the richer inputs appear deleted and replaced the graph (6,101 nodes / 29,064 edges) with a smaller fast graph (5,545 / 28,219).
 
-The hook now invokes the default full mode with `--incremental`. An unchanged full index is a low-cost no-op and retains its discovery depth. The installer also recognizes and replaces both legacy and current hook forms.
+The hook now invokes `--mode full --incremental` explicitly because the CLI default is fast. An unchanged full index is a low-cost no-op and retains its discovery depth. The installer also recognizes and replaces legacy hook forms.
 
 ### Review coverage contradicted `find_tests`
 
@@ -60,6 +60,12 @@ The shared Git collector intentionally combines committed branch changes with lo
 
 Scoped invariant checks returned every discovered global invariant, even when the actionable result was the scoped violation list. The response now exposes discovered, returned and truncated counts, defaults to 30 returned invariants, supports a bounded `limit`, and never truncates violations.
 
+The discovery implementation also issued one SQLite query for every callee pair. It now computes all co-occurrences in one relational self-join. On the installed LYNX graph, the same 96-invariant result dropped from about 6,100 ms to 81 ms.
+
+### Watcher updates accumulated exact relationships
+
+Partial watcher resolution recalculated unchanged dependent files and global passes without first replacing all relationships they produced. Repeated edits therefore inflated edge counts. The watcher now replaces outbound relationships for every re-resolved batch, including deleted-target recovery. The edge persistence API also deduplicates exact structural identities against both the existing graph and the current batch. Distinct call sites remain distinct because their line-bearing properties differ.
+
 ### Dashboard timestamp and file count
 
 SQLite timestamps are UTC. The dashboard previously parsed them as local time, creating a two-hour freshness error in Spain (UTC+2). It also counted graph `File` nodes rather than the indexed file manifest.
@@ -71,6 +77,7 @@ Dashboard freshness now parses stored timestamps as UTC and manifest cards count
 - Focused regression suite: 30/30 tests passed.
 - Complete suite after the first audit fixes: 124 files, 997/997 tests passed.
 - Complete suite after the final contract fixes: 124 files, 999/999 tests passed.
+- Complete suite after watcher idempotency and invariant optimization: 124 files, 1,001/1,001 tests passed.
 - TypeScript validation passed.
 - MCP runtime before the final reinstall exposed 33/33 tools.
 - Installer doctor before this audit passed 11/11 checks.

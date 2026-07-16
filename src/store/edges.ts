@@ -37,11 +37,18 @@ function insertStructuralEvidence(db: LynxDatabase, edgeId: number, edge: LynxEd
 }
 
 export function insertEdge(db: LynxDatabase, edge: LynxEdge): number {
+  const properties = JSON.stringify(edge.properties);
+  const existing = db.db.prepare(
+    `SELECT id FROM edges
+     WHERE project = ? AND source_id = ? AND target_id = ? AND type = ? AND properties = ?
+     LIMIT 1`
+  ).get(edge.project, edge.sourceId, edge.targetId, edge.type, properties) as { id: number } | undefined;
+  if (existing) return existing.id;
   const result = db.db
     .prepare(
       'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, ?, ?)'
     )
-    .run(edge.project, edge.sourceId, edge.targetId, edge.type, JSON.stringify(edge.properties));
+    .run(edge.project, edge.sourceId, edge.targetId, edge.type, properties);
   const edgeId = Number(result.lastInsertRowid);
   insertStructuralEvidence(db, edgeId, edge);
   return edgeId;
@@ -56,9 +63,24 @@ export function insertEdgesBatch(db: LynxDatabase, edges: LynxEdge[]): void {
   );
 
   const insert = db.db.transaction(() => {
+    const identitiesByProject = new Map<string, Set<string>>();
+    const identityFor = (sourceId: number, targetId: number, type: string, properties: string) =>
+      `${sourceId}\u0000${targetId}\u0000${type}\u0000${properties}`;
+    for (const project of new Set(edges.map(edge => edge.project))) {
+      const rows = db.db.prepare(
+        'SELECT source_id, target_id, type, properties FROM edges WHERE project = ?'
+      ).all(project) as Array<{ source_id: number; target_id: number; type: string; properties: string }>;
+      identitiesByProject.set(project, new Set(rows.map(row =>
+        identityFor(row.source_id, row.target_id, row.type, row.properties)
+      )));
+    }
     for (const edge of edges) {
       const payload = JSON.stringify(edge.properties);
+      const identity = identityFor(edge.sourceId, edge.targetId, edge.type, payload);
+      const identities = identitiesByProject.get(edge.project)!;
+      if (identities.has(identity)) continue;
       const result = stmt.run(edge.project, edge.sourceId, edge.targetId, edge.type, payload);
+      identities.add(identity);
       const line = typeof edge.properties.line === 'number' ? edge.properties.line : null;
       const confidence = typeof edge.properties.confidence === 'number' ? edge.properties.confidence : 0.8;
       const resolution = typeof edge.properties.resolution === 'string' ? edge.properties.resolution : 'structural';
@@ -218,4 +240,24 @@ export function deleteEdgesForNodesInFile(db: LynxDatabase, project: string, fil
        )`
     )
     .run(project, project, filePath, project, filePath);
+}
+
+/**
+ * Remove relationships produced by symbols in one file without invalidating
+ * incoming relationships from other files. Incremental resolution uses this
+ * before rebuilding an unchanged dependent file; otherwise every watcher
+ * pass appends a second copy of all of that file's outbound relationships.
+ */
+export function deleteOutgoingEdgesForNodesInFile(
+  db: LynxDatabase,
+  project: string,
+  filePath: string,
+): void {
+  db.db.prepare(
+    `DELETE FROM edges
+     WHERE project = ?
+       AND source_id IN (
+         SELECT id FROM nodes WHERE project = ? AND file_path = ?
+       )`
+  ).run(project, project, filePath);
 }

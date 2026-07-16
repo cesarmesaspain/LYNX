@@ -79,29 +79,32 @@ export function discoverInvariants(
 
   const soloIds = [...soloMap.keys()];
 
-  // Step 2: find co-occurring pairs among qualified callees
-  const pairs: Array<{
+  // Step 2: compute every co-occurring pair in one relational aggregation.
+  // The previous implementation issued one SQL statement per pair of
+  // callees, causing thousands of synchronous SQLite round-trips on a medium
+  // graph. SQLite can perform the same set operation directly and count each
+  // shared caller once even when several call sites exist.
+  const pairRows = db.db.prepare(
+    `SELECT e1.target_id AS callee_a,
+            e2.target_id AS callee_b,
+            COUNT(DISTINCT e1.source_id) AS joint
+     FROM edges e1
+     JOIN edges e2
+       ON e2.project = e1.project
+      AND e2.source_id = e1.source_id
+      AND e2.type = 'CALLS'
+      AND e1.target_id < e2.target_id
+     JOIN nodes n1 ON n1.id = e1.target_id
+     JOIN nodes n2 ON n2.id = e2.target_id
+     WHERE e1.project = ? AND e1.type = 'CALLS'
+       AND n1.is_test = 0 AND n1.kind IN ('Function', 'Method')
+       AND n2.is_test = 0 AND n2.kind IN ('Function', 'Method')
+     GROUP BY e1.target_id, e2.target_id
+     HAVING joint >= ?`
+  ).all(project, MIN_CALLERS) as Array<{
     callee_a: number; callee_b: number; joint: number;
-  }> = [];
-
-  // Batch in chunks to avoid cartesian explosion
-  for (let i = 0; i < soloIds.length; i++) {
-    for (let j = i + 1; j < soloIds.length; j++) {
-      const a = soloIds[i];
-      const b = soloIds[j];
-      const jointRow = db.db.prepare(
-        `SELECT COUNT(DISTINCT e1.source_id) AS cnt
-         FROM edges e1
-         JOIN edges e2 ON e1.source_id = e2.source_id
-           AND e2.target_id = ?
-           AND e2.type = 'CALLS'
-         WHERE e1.project = ? AND e1.type = 'CALLS' AND e1.target_id = ?`
-      ).get(b, project, a) as { cnt: number };
-      if (jointRow.cnt >= MIN_CALLERS) {
-        pairs.push({ callee_a: a, callee_b: b, joint: jointRow.cnt });
-      }
-    }
-  }
+  }>;
+  const pairs = pairRows.filter(pair => soloMap.has(pair.callee_a) && soloMap.has(pair.callee_b));
 
   if (pairs.length === 0) return [];
 

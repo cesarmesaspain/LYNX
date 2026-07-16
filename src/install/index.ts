@@ -348,12 +348,12 @@ function buildInstallPlan(
     hooks_planned: [
       ...agents.some((a) => a.key === 'claude-code')
         ? [
-            { agent: 'claude-code', event: 'SessionStart', blocking: false, command_source: 'guarded lynx index --mode fast' },
+            { agent: 'claude-code', event: 'SessionStart', blocking: false, command_source: 'guarded depth-preserving incremental index' },
             { agent: 'claude-code', event: 'PreToolUse', matcher: 'Grep|Glob|Read|Bash', blocking: true, command_source: 'lynx-code-discovery-augment' },
           ]
         : [],
       ...agents.some((a) => a.key === 'codex')
-        ? [{ agent: 'codex', event: 'SessionStart', blocking: false, command_source: 'guarded lynx index --mode fast' }]
+        ? [{ agent: 'codex', event: 'SessionStart', blocking: false, command_source: 'guarded depth-preserving incremental index' }]
         : [],
       ...agents.some((a) => a.key === 'gemini')
         ? [

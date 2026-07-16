@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 import { withLynxHome } from '../../../src/config/runtime.js';
 import { LynxDatabase } from '../../../src/store/database.js';
+import { getBulkEdgeEvidence } from '../../../src/store/edge-evidence.js';
 import { insertEdge } from '../../../src/store/edges.js';
 import { runSchemaMigrations } from '../../../src/store/migrations.js';
 
@@ -119,6 +120,38 @@ describe('edge evidence ledger', () => {
       db.db.prepare('DELETE FROM edges WHERE id = ?').run(edgeId);
       const remaining = db.db.prepare('SELECT COUNT(*) AS count FROM edge_evidence WHERE edge_id = ?').get(edgeId) as { count: number };
       expect(remaining.count).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('bulk-fetches evidence across bounded SQLite parameter batches', () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const edgeIds = db.db.transaction(() => {
+        const insertNode = db.db.prepare('INSERT INTO nodes (project, kind, name, qualified_name, file_path) VALUES (?, ?, ?, ?, ?)');
+        const sourceId = Number(insertNode.run('bulk-evidence', 'Function', 'source', 'mod.source', 'src/mod.ts').lastInsertRowid);
+        const ids: number[] = [];
+        for (let index = 0; index < 1_201; index++) {
+          const targetId = Number(insertNode.run('bulk-evidence', 'Function', `target${index}`, `mod.target${index}`, 'src/mod.ts').lastInsertRowid);
+          ids.push(insertEdge(db, {
+            project: 'bulk-evidence', sourceId, targetId, type: 'CALLS',
+            properties: { line: index + 1, resolution: 'same-file', confidence: 0.9 },
+          }));
+        }
+        return ids;
+      })();
+
+      const evidence = getBulkEdgeEvidence(
+        db,
+        'bulk-evidence',
+        [...edgeIds, edgeIds[0], Number.MAX_SAFE_INTEGER],
+      );
+
+      expect(evidence.size).toBe(edgeIds.length);
+      expect(evidence.get(edgeIds[0])).toHaveLength(1);
+      expect(evidence.get(edgeIds.at(-1)!)).toHaveLength(1);
+      expect(evidence.get(Number.MAX_SAFE_INTEGER)).toBeUndefined();
     } finally {
       db.close();
     }

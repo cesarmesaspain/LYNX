@@ -252,6 +252,10 @@ export const TOOLS: LynxToolDef[] = [
         type: { type: 'string', description: 'Optional edge type filter.' },
       },
       required: ['project'],
+      anyOf: [
+        { required: ['edge_id'] },
+        { required: ['source_name', 'target_name'] },
+      ],
     },
   },
   {
@@ -270,7 +274,12 @@ export const TOOLS: LynxToolDef[] = [
         include_evidence: { type: 'boolean', description: 'Include edge evidence in traces (default true).' },
         verbose: { type: 'boolean', description: 'Include value_metrics, llm_usage, and index context (default false — compact agent-friendly output).' },
       },
-      required: ['project', 'symbol'],
+      required: ['project'],
+      anyOf: [
+        { required: ['symbol'] },
+        { required: ['name'] },
+        { required: ['qualified_name'] },
+      ],
     },
   },
   {

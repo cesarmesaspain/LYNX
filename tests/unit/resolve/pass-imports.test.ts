@@ -86,6 +86,59 @@ describe('passImports', () => {
     expect(selfEdges.length).toBe(0);
   });
 
+  it('makes all declarations in an included C header reachable to call resolution', () => {
+    const sourceFile = makeFileNode(1, 'src/run.c');
+    const headerFile = makeFileNode(2, 'include/api.h');
+    const declared = makeFuncNode(3, 'client_open', 'include/api.h');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [sourceFile, headerFile, declared]);
+
+    const batch = makeBatch(
+      'src/run.c', '/fake/src/run.c', makeImportResult('apih', '../include/api.h'),
+    );
+    passImports([batch], idx, []);
+
+    expect(idx.importedQnByFile.get('src/run.c')).toContain(declared.qualified_name);
+  });
+
+  it('resolves a bare C include through a unique repository header suffix', () => {
+    const sourceFile = makeFileNode(1, 'tests/test_cbm.c');
+    const headerFile = makeFileNode(2, 'internal/cbm/cbm.h');
+    const declared = makeFuncNode(3, 'cbm_open', 'internal/cbm/cbm.h');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [sourceFile, headerFile, declared]);
+
+    const batch = makeBatch(
+      'tests/test_cbm.c', '/fake/tests/test_cbm.c', makeImportResult('cbmh', 'cbm.h'),
+    );
+    const edges: LynxEdge[] = [];
+    passImports([batch], idx, edges);
+
+    expect(idx.importedQnByFile.get('tests/test_cbm.c')).toContain(declared.qualified_name);
+    expect(getEdgesByType(edges, 'IMPORTS')).toContainEqual(
+      expect.objectContaining({ sourceId: sourceFile.id, targetId: headerFile.id }),
+    );
+  });
+
+  it('does not guess when a bare C header include is ambiguous', () => {
+    const sourceFile = makeFileNode(1, 'tests/test_common.c');
+    const firstHeader = makeFileNode(2, 'lib/a/common.h');
+    const secondHeader = makeFileNode(3, 'lib/b/common.h');
+    const firstFn = makeFuncNode(4, 'common_open', 'lib/a/common.h');
+    const secondFn = makeFuncNode(5, 'common_open', 'lib/b/common.h');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [sourceFile, firstHeader, secondHeader, firstFn, secondFn]);
+
+    const batch = makeBatch(
+      'tests/test_common.c', '/fake/tests/test_common.c', makeImportResult('commonh', 'common.h'),
+    );
+    const edges: LynxEdge[] = [];
+    passImports([batch], idx, edges);
+
+    expect(idx.importedQnByFile.get('tests/test_common.c')).toEqual(new Set());
+    expect(getEdgesByType(edges, 'IMPORTS')).toHaveLength(0);
+  });
+
   it('skip when file node not found', () => {
     const idx = createEmptyIndexes();
     const batch = makeBatch('src/ghost.ts', '/fake/src/ghost.ts', makeImportResult('x', './y'));

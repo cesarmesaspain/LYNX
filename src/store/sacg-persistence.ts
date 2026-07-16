@@ -22,6 +22,17 @@ export interface PersistSacgSnapshotResult {
   evidence: number;
 }
 
+export interface PersistSacgSnapshotOptions {
+  /**
+   * Skip recursive JSON normalization when the bundle was produced by the
+   * trusted SACG projector, which already normalizes every payload. External
+   * callers should keep the safe default.
+   */
+  canonicalPayloads?: boolean;
+  /** Content-addressed projectors may treat an existing snapshot as immutable. */
+  skipExistingSnapshot?: boolean;
+}
+
 function assertSnapshotBundle(input: SacgSnapshotWrite): void {
   const { project, snapshotId } = input.snapshot;
 
@@ -75,8 +86,26 @@ function assertSnapshotBundle(input: SacgSnapshotWrite): void {
 export function persistSacgSnapshot(
   db: LynxDatabase,
   input: SacgSnapshotWrite,
+  options: PersistSacgSnapshotOptions = {},
 ): PersistSacgSnapshotResult {
   assertSnapshotBundle(input);
+  if (options.skipExistingSnapshot) {
+    const existing = db.db.prepare(
+      'SELECT 1 FROM graph_snapshots WHERE project = ? AND snapshot_id = ?',
+    ).get(input.snapshot.project, input.snapshot.snapshotId);
+    if (existing) {
+      return {
+        project: input.snapshot.project,
+        snapshotId: input.snapshot.snapshotId,
+        entities: input.entities.length,
+        relations: input.relations.length,
+        evidence: input.evidence.length,
+      };
+    }
+  }
+  const serialize = options.canonicalPayloads
+    ? (value: unknown): string => JSON.stringify(value)
+    : serializeEvidencePayload;
 
   const insertSnapshot = db.db.prepare(`
     INSERT INTO graph_snapshots (
@@ -189,7 +218,7 @@ export function persistSacgSnapshot(
       valid_to: snapshot.validTo,
       created_at: snapshot.createdAt,
       completed_at: snapshot.completedAt,
-      metadata_json: serializeEvidencePayload(snapshot.metadata),
+      metadata_json: serialize(snapshot.metadata),
     });
 
     for (const entity of input.entities) {
@@ -201,7 +230,7 @@ export function persistSacgSnapshot(
         qualified_name: entity.qualifiedName,
         normalized_signature: entity.normalizedSignature,
         structural_context: entity.structuralContext,
-        properties_json: serializeEvidencePayload(entity.properties),
+        properties_json: serialize(entity.properties),
         first_seen_snapshot: entity.firstSeenSnapshot,
         last_seen_snapshot: entity.lastSeenSnapshot,
         valid_from: entity.validFrom,
@@ -218,8 +247,8 @@ export function persistSacgSnapshot(
         source_semantic_id: relation.sourceSemanticId,
         relation_type: relation.relationType,
         target_semantic_id: relation.targetSemanticId,
-        scope_json: serializeEvidencePayload(relation.scope),
-        properties_json: serializeEvidencePayload(relation.properties),
+        scope_json: serialize(relation.scope),
+        properties_json: serialize(relation.properties),
         confidence: relation.confidence,
         confidence_level: relation.confidenceLevel,
         first_seen_snapshot: relation.firstSeenSnapshot,
@@ -245,7 +274,7 @@ export function persistSacgSnapshot(
         symbol_semantic_id: item.symbolSemanticId,
         extractor: item.extractor,
         extractor_version: item.extractorVersion,
-        payload_json: serializeEvidencePayload(item.payload),
+        payload_json: serialize(item.payload),
         strength: item.strength,
         independence_group: item.independenceGroup,
         observed_at: item.observedAt,

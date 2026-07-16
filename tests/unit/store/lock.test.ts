@@ -4,6 +4,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   acquireProjectLock,
+  forceAcquireProjectLock,
+  releaseDeadProjectLockOwnedBy,
   releaseProjectLock,
   isProjectLocked,
   listOrphanedLocks,
@@ -121,6 +123,45 @@ describe('project locks', () => {
     const r = acquireProjectLock('recent-dead');
     expect(r.acquired).toBe(false);
     expect(r.reason).toContain('TTL');
+  });
+
+  it('force acquisition recovers a recent dead owner without waiting for TTL', () => {
+    const project = 'force-dead';
+    const lockDir = path.join(lynxHome, 'locks');
+    fs.mkdirSync(lockDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(lockDir, `${project}.lock`),
+      JSON.stringify({ pid: 99996, timestamp: Date.now(), project })
+    );
+
+    expect(forceAcquireProjectLock(project).acquired).toBe(true);
+    releaseProjectLock(project);
+  });
+
+  it('force acquisition never bypasses a live owner', () => {
+    const project = 'force-live';
+    expect(acquireProjectLock(project).acquired).toBe(true);
+
+    const forced = forceAcquireProjectLock(project);
+    expect(forced.acquired).toBe(false);
+    expect(forced.reason).toContain('live pid');
+    releaseProjectLock(project);
+  });
+
+  it('cleans only the exact dead supervised-worker lock', () => {
+    const project = 'supervised-dead';
+    const deadPid = 2_000_000_000;
+    const lockDir = path.join(lynxHome, 'locks');
+    fs.mkdirSync(lockDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(lockDir, `${project}.lock`),
+      JSON.stringify({ pid: deadPid, timestamp: Date.now(), project }),
+    );
+
+    expect(releaseDeadProjectLockOwnedBy(project, deadPid - 1)).toBe(false);
+    expect(isProjectLocked(project)).toBe(true);
+    expect(releaseDeadProjectLockOwnedBy(project, deadPid)).toBe(true);
+    expect(isProjectLocked(project)).toBe(false);
   });
 
   it('keeps project lock files inside the lock directory', () => {

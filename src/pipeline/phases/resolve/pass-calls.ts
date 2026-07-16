@@ -10,6 +10,18 @@ import type { ExtractionBatch } from '../extract.js';
 import type { NodeRef, ResolverIndexes, ResolverState } from './indexes.js';
 import { addEdge, hashString, resolveCaller, resolveCallee } from './utils.js';
 
+const HTTP_METHOD_BY_CALL = new Map<string, string>([
+  ['fetch', 'GET'], ['request', 'GET'],
+  ['get', 'GET'], ['post', 'POST'], ['put', 'PUT'],
+  ['patch', 'PATCH'], ['delete', 'DELETE'], ['del', 'DELETE'],
+  ['head', 'HEAD'], ['options', 'OPTIONS'],
+]);
+
+const KNOWN_HTTP_CLIENTS = new Set([
+  'axios', 'ky', 'got', 'undici', 'ofetch', '$fetch',
+  'api', 'httpClient', 'client', 'supabase',
+]);
+
 function resolveHttpRoute(
   db: LynxDatabase,
   idx: ResolverIndexes,
@@ -17,24 +29,13 @@ function resolveHttpRoute(
   args: string[]
 ): (NodeRef & { urlPath: string; httpMethod: string }) | undefined {
   const methodPart = calleeName.split('.').pop()?.toLowerCase() || calleeName.toLowerCase();
-  const httpMethodMap: Record<string, string> = {
-    fetch: 'GET', request: 'GET',
-    get: 'GET', post: 'POST', put: 'PUT',
-    patch: 'PATCH', delete: 'DELETE', del: 'DELETE',
-    head: 'HEAD', options: 'OPTIONS',
-  };
-  const httpMethod = httpMethodMap[methodPart];
+  const httpMethod = HTTP_METHOD_BY_CALL.get(methodPart);
   if (!httpMethod) return undefined;
-
-  const knownHttpClients = new Set([
-    'axios', 'ky', 'got', 'undici', 'ofetch', '$fetch',
-    'api', 'httpClient', 'client', 'supabase',
-  ]);
   const dotIdx = calleeName.indexOf('.');
   if (dotIdx > 0) {
     const prefixed = calleeName.slice(0, dotIdx);
     const clientPrefix = prefixed.split('.').pop() || '';
-    if (!knownHttpClients.has(clientPrefix) && !knownHttpClients.has(prefixed)) {
+    if (!KNOWN_HTTP_CLIENTS.has(clientPrefix) && !KNOWN_HTTP_CLIENTS.has(prefixed)) {
       const maybeUrl = extractUrl(args);
       if (!maybeUrl) return undefined;
     }

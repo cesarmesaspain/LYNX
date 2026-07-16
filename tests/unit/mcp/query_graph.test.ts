@@ -47,6 +47,23 @@ describe('query_graph Cypher aggregation', () => {
     db.close();
   });
 
+  it('supports Cypher CONTAINS for indexed string fields', async () => {
+    const db = LynxDatabase.openMemory();
+    db.upsertProject(PROJECT, process.cwd());
+    db.db.prepare(`INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
+      VALUES (1, ?, 'Function', 'first', 'app.first', 'src/mcp/handlers/query_graph.ts', 1, 1, 0, 0, 0, '{}'),
+             (2, ?, 'Function', 'second', 'app.second', 'src/store/database.ts', 1, 1, 0, 0, 0, '{}')`).run(PROJECT, PROJECT);
+    setDb(PROJECT, db);
+
+    const result = await handleQueryGraph({
+      project: PROJECT,
+      query: "MATCH (n) WHERE n.file_path CONTAINS 'src/mcp/handlers' RETURN n.name AS name",
+    }) as { rows: Array<{ name: string }> };
+
+    expect(result.rows).toEqual([{ name: 'first' }]);
+    db.close();
+  });
+
   it('scopes direct SQL to the requested project', async () => {
     const db = LynxDatabase.openMemory();
     db.upsertProject(PROJECT, process.cwd());

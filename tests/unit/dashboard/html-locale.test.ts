@@ -26,6 +26,8 @@ describe('dashboard locale contract', () => {
     expect(html).toContain('id="mtTasks"');
     expect(html).toContain('Measured impact and efficiency');
     expect(html).toContain('Activity breakdown');
+    expect(html).toContain('id="exportMetricsCsv"');
+    expect(html).toContain('>Download CSV</a>');
     expect(html).toContain('> Add project</button>');
     expect(html).not.toContain('LOCAL CODE INTELLIGENCE');
     expect(html).not.toContain('> Proyecto</button>');

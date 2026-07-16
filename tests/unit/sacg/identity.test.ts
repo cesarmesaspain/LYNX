@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildEvidenceIdentityMaterial,
   buildSemanticIdentityMaterial,
+  buildSemanticRelationIdentityMaterial,
+  generateEvidenceId,
   generateSemanticId,
+  generateSemanticRelationId,
+  type EvidenceIdentityComponents,
   type SemanticIdentityComponents,
+  type SemanticRelationIdentityComponents,
 } from "../../../src/sacg/index.js";
 
 const BASE_IDENTITY: SemanticIdentityComponents = {
@@ -79,5 +85,114 @@ describe("SACG semantic ID generation", () => {
         projectNamespace: "",
       }),
     ).toThrow("projectNamespace must not be empty");
+  });
+});
+
+const SOURCE_SEMANTIC_ID = "a".repeat(64);
+const TARGET_SEMANTIC_ID = "b".repeat(64);
+
+const BASE_RELATION_IDENTITY: SemanticRelationIdentityComponents = {
+  projectNamespace: "acme/payments",
+  sourceSemanticId: SOURCE_SEMANTIC_ID,
+  relationType: "CALLS",
+  targetSemanticId: TARGET_SEMANTIC_ID,
+  scope: { kind: "direct", file: "src/a.ts" },
+};
+
+describe("SACG semantic relation ID generation", () => {
+  it("matches a stable full SHA-256 vector", () => {
+    expect(generateSemanticRelationId(BASE_RELATION_IDENTITY)).toBe(
+      "23ae1d2a3b07fc7b170da034db112d0b667e9546bddfbdad31908b4ccdb947ae",
+    );
+  });
+
+  it("canonicalizes scope key order", () => {
+    expect(buildSemanticRelationIdentityMaterial(BASE_RELATION_IDENTITY)).toBe(
+      JSON.stringify([
+        "acme/payments",
+        SOURCE_SEMANTIC_ID,
+        "CALLS",
+        TARGET_SEMANTIC_ID,
+        JSON.stringify({ file: "src/a.ts", kind: "direct" }),
+      ]),
+    );
+
+    expect(
+      generateSemanticRelationId({
+        ...BASE_RELATION_IDENTITY,
+        scope: { file: "src/a.ts", kind: "direct" },
+      }),
+    ).toBe(generateSemanticRelationId(BASE_RELATION_IDENTITY));
+  });
+
+  it("isolates logical relation components", () => {
+    expect(
+      generateSemanticRelationId({
+        ...BASE_RELATION_IDENTITY,
+        relationType: "IMPORTS",
+      }),
+    ).not.toBe(generateSemanticRelationId(BASE_RELATION_IDENTITY));
+  });
+
+  it("rejects empty endpoint identities", () => {
+    expect(() =>
+      generateSemanticRelationId({
+        ...BASE_RELATION_IDENTITY,
+        sourceSemanticId: "",
+      }),
+    ).toThrow("sourceSemanticId must not be empty");
+  });
+});
+
+const BASE_EVIDENCE_IDENTITY: EvidenceIdentityComponents = {
+  projectNamespace: "acme/payments",
+  evidenceType: "structural",
+  sourceHash: "c".repeat(64),
+  sourcePath: "src/a.ts",
+  startLine: 12,
+  endLine: 12,
+  symbolSemanticId: SOURCE_SEMANTIC_ID,
+  extractorVersion: "resolve@1",
+};
+
+describe("SACG evidence ID generation", () => {
+  it("matches a stable full SHA-256 vector", () => {
+    expect(generateEvidenceId(BASE_EVIDENCE_IDENTITY)).toBe(
+      "07b6dabe04aa80a2e604f70a241616f1fe9e396aec709c673b352c6dc3e7d17f",
+    );
+  });
+
+  it("frames nullable location fields explicitly", () => {
+    expect(buildEvidenceIdentityMaterial(BASE_EVIDENCE_IDENTITY)).toBe(
+      JSON.stringify([
+        "acme/payments",
+        "structural",
+        "c".repeat(64),
+        "src/a.ts",
+        12,
+        12,
+        SOURCE_SEMANTIC_ID,
+        "resolve@1",
+      ]),
+    );
+  });
+
+  it("isolates location fields", () => {
+    expect(
+      generateEvidenceId({
+        ...BASE_EVIDENCE_IDENTITY,
+        startLine: 13,
+        endLine: 13,
+      }),
+    ).not.toBe(generateEvidenceId(BASE_EVIDENCE_IDENTITY));
+  });
+
+  it("rejects an empty source hash", () => {
+    expect(() =>
+      generateEvidenceId({
+        ...BASE_EVIDENCE_IDENTITY,
+        sourceHash: "",
+      }),
+    ).toThrow("sourceHash must not be empty");
   });
 });

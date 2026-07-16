@@ -67,6 +67,8 @@ export interface ExtractionResult {
   errorMsg: string | null;
   isTestFile: boolean;
   language: string;
+  /** Non-fatal coverage limits applied while extracting a dense source file. */
+  partialReasons?: string[];
   /** LLM-enriched metadata (summary, entry point detection, test detection) */
   llmMetadata?: import('../llm/types.js').LlmFileMetadata;
 }
@@ -118,6 +120,7 @@ export async function extractFile(
       errorMsg: result.errorMsg,
       isTestFile: result.isTestFile,
       language: result.language,
+      partialReasons: result.partialReasons,
     };
   }
 

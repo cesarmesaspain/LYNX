@@ -26,7 +26,7 @@ export async function handleIndexStatus(
     .get(project) as { cnt: number };
 
   const fileCount = db.db
-    .prepare('SELECT COUNT(DISTINCT file_path) as cnt FROM nodes WHERE project = ?')
+    .prepare("SELECT COUNT(DISTINCT file_path) as cnt FROM nodes WHERE project = ? AND kind = 'File'")
     .get(project) as { cnt: number };
 
   const nodeLabels = db.db

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handlers = vi.hoisted(() => ({
   runPipeline: vi.fn(async () => ({ status: { totalNodes: 1, totalEdges: 1 }, architecture: { hotspots: [], clusters: [] } })),
-  openProject: vi.fn(() => ({ close: vi.fn() })),
+  openProject: vi.fn(() => ({ close: vi.fn(), setProjectStatus: vi.fn() })),
   cleanupNativeExtractor: vi.fn(),
   resolveProjectPath: vi.fn(() => ({ rootPath: process.cwd(), name: "LYNX" })),
 }));

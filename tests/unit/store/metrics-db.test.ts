@@ -9,6 +9,7 @@ import {
   rebuildDailySnapshots,
   summarizeHistory,
   readArchivedEvents,
+  countArchivedEvents,
   closeMetricsDb,
 } from '../../../src/store/metrics-db.js';
 import type { UsageEvent } from '../../../src/usage/metrics.js';
@@ -259,6 +260,23 @@ describe('LLM model telemetry', () => {
     const [event] = readArchivedEvents(project);
     expect(event.llm_provider).toBe('deepseek');
     expect(event.llm_model).toBe('deepseek-v4-flash');
+  });
+});
+
+describe('archived event count', () => {
+  const project = 'test-metrics-count';
+
+  beforeEach(() => cleanupTestProject(project));
+  afterEach(() => {
+    closeMetricsDb();
+    cleanupTestProject(project);
+  });
+
+  it('counts a project without loading archived event payloads', () => {
+    archiveEvent({ ts: NOW, type: 'search_graph', project, event_id: 'count-1' });
+    archiveEvent({ ts: NOW, type: 'trace_path', project, event_id: 'count-2' });
+
+    expect(countArchivedEvents(project)).toBe(2);
   });
 });
 

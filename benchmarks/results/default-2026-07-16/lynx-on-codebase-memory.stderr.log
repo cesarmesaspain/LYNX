@@ -1,0 +1,21 @@
+[complexity] Computed metrics for 12941/12941 functions
+real 10.72
+user 28.23
+sys 1.96
+          1251803136  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+              183665  page reclaims
+                  59  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   9  messages sent
+                   4  messages received
+                   1  signals received
+                 118  voluntary context switches
+               34227  involuntary context switches
+        404325858676  instructions retired
+        100632247324  cycles elapsed
+          1262530544  peak memory footprint

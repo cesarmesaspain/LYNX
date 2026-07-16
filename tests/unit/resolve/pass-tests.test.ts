@@ -119,6 +119,20 @@ describe('passTests', () => {
     expect(testEdges.length).toBe(0);
   });
 
+  it('does not classify a production helper with a test-like name as a test', () => {
+    const productionFile = makeFileNode(1, 'src/pipeline/pass_tests.c');
+    const helper = makeFuncNode(2, 'test_to_prod_path', 'src/pipeline/pass_tests.c');
+    const target = makeFuncNode(3, 'build_path', 'src/pipeline/pass_tests.c');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [productionFile, helper, target]);
+    const edges: LynxEdge[] = [{
+      sourceId: helper.id, targetId: target.id, type: 'CALLS', project: idx.project, properties: {},
+    }];
+
+    passTests([], idx, edges);
+    expect(getEdgesByType(edges, 'TESTS')).toHaveLength(0);
+  });
+
   it('skip when file node not found', () => {
     const idx = createEmptyIndexes();
     const batch = makeTestBatch('tests/ghost.test.ts');

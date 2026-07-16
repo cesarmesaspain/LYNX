@@ -91,8 +91,35 @@ export function acquireProjectLock(project: string): { acquired: boolean; reason
   }
 }
 
+/**
+ * Break a stale lock immediately, but never bypass a live owner. This is the
+ * safe implementation behind MCP `force_lock`: it shortens stale-lock TTL
+ * recovery without permitting two indexers to mutate one project together.
+ */
+export function forceAcquireProjectLock(project: string): { acquired: boolean; reason?: string } {
+  const filePath = lockPath(project);
+  const existing = readLockInfo(project);
+  if (existing && isProcessAlive(existing.pid)) {
+    return {
+      acquired: false,
+      reason: `Project ${project} is already being indexed by live pid ${existing.pid}; force_lock cannot bypass an active owner.`,
+    };
+  }
+  if (fs.existsSync(filePath)) releaseProjectLock(project);
+  return acquireProjectLock(project);
+}
+
 export function releaseProjectLock(project: string): void {
   try { fs.rmSync(lockPath(project), { force: true }); } catch { /* ok */ }
+}
+
+/** Remove a supervised worker's orphaned lock without touching any successor. */
+export function releaseDeadProjectLockOwnedBy(project: string, pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  const info = readLockInfo(project);
+  if (!info || info.pid !== pid || isProcessAlive(pid)) return false;
+  releaseProjectLock(project);
+  return true;
 }
 
 export function isProjectLocked(project: string): boolean {

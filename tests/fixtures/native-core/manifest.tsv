@@ -1,0 +1,8 @@
+c	include/math.h	tests/fixtures/native-core/include/math.h
+c	src/math.c	tests/fixtures/native-core/src/math.c
+c	src/consumer.c	tests/fixtures/native-core/src/consumer.c
+cpp	src/widget.cpp	tests/fixtures/native-core/src/widget.cpp
+c	src/local_api.h	tests/fixtures/native-core/src/local_api.h
+c	src/local_api.c	tests/fixtures/native-core/src/local_api.c
+c	other/local_api.c	tests/fixtures/native-core/other/local_api.c
+c	src/local_consumer.c	tests/fixtures/native-core/src/local_consumer.c

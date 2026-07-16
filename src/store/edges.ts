@@ -51,11 +51,28 @@ export function insertEdgesBatch(db: LynxDatabase, edges: LynxEdge[]): void {
   const stmt = db.db.prepare(
     'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, ?, ?)'
   );
+  const evidenceStmt = db.db.prepare(
+    'INSERT INTO edge_evidence (project, edge_id, evidence_type, source_kind, start_line, end_line, extractor, strength, payload_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  );
 
   const insert = db.db.transaction(() => {
     for (const edge of edges) {
-      const result = stmt.run(edge.project, edge.sourceId, edge.targetId, edge.type, JSON.stringify(edge.properties));
-      insertStructuralEvidence(db, Number(result.lastInsertRowid), edge);
+      const payload = JSON.stringify(edge.properties);
+      const result = stmt.run(edge.project, edge.sourceId, edge.targetId, edge.type, payload);
+      const line = typeof edge.properties.line === 'number' ? edge.properties.line : null;
+      const confidence = typeof edge.properties.confidence === 'number' ? edge.properties.confidence : 0.8;
+      const resolution = typeof edge.properties.resolution === 'string' ? edge.properties.resolution : 'structural';
+      evidenceStmt.run(
+        edge.project,
+        Number(result.lastInsertRowid),
+        'structural',
+        resolution,
+        line,
+        line,
+        'resolve',
+        Math.max(0, Math.min(1, confidence)),
+        payload,
+      );
     }
   });
   insert();

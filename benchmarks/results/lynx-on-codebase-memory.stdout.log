@@ -1,0 +1,4 @@
+Indexing /tmp/codebase-memory-mcp-analysis.vewvDp as "ab-codebase-memory" (mode: full)...
+Done. 17598 nodes, 112481 edges.
+Hotspots: 20, Clusters: 12
+Phases: {"discover":16,"extract":10390,"resolve":1802,"complexity":391,"analyze":116,"persist":4901,"total":18937}

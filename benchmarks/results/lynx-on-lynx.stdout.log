@@ -1,0 +1,4 @@
+Indexing /Users/admin/Desktop/LYNX as "ab-lynx" (mode: full)...
+Done. 4880 nodes, 26343 edges.
+Hotspots: 20, Clusters: 12
+Phases: {"discover":12,"extract":2220,"resolve":411,"complexity":78,"analyze":22,"persist":806,"total":3609}

@@ -1,0 +1,4650 @@
+{
+  "schema_version": 1,
+  "repository": "/tmp/codebase-memory-mcp-analysis.vewvDp",
+  "canonical_database": "/tmp/lynx-native-parity.gtZcxx/dbs/parity-codebase.db",
+  "workers": 10,
+  "native_validation": {
+    "valid": true,
+    "errors": [],
+    "counts": {
+      "files": 567,
+      "nodes": 69693,
+      "calls": 161694,
+      "imports": 3181,
+      "usages": 333795,
+      "edges": 321555,
+      "partialFiles": 567
+    }
+  },
+  "warning": "Native-only symbols are coverage candidates, not automatically correct. Canonical-only symbols are gaps or identity disagreements requiring source-level adjudication.",
+  "totals": {
+    "canonical": 14660,
+    "native": 69693,
+    "matched": 13753,
+    "canonical_only": 907,
+    "native_only": 55927
+  },
+  "by_family": {
+    "callable": {
+      "canonical": 12554,
+      "native": 13045,
+      "matched": 12087,
+      "identity_matched_ignoring_line": 12122,
+      "canonical_recall": 0.9628,
+      "identity_recall_ignoring_line": 0.9656,
+      "native_agreement": 0.9266
+    },
+    "macro": {
+      "canonical": 0,
+      "native": 976,
+      "matched": 0,
+      "identity_matched_ignoring_line": 0,
+      "canonical_recall": null,
+      "identity_recall_ignoring_line": null,
+      "native_agreement": 0
+    },
+    "type": {
+      "canonical": 532,
+      "native": 794,
+      "matched": 104,
+      "identity_matched_ignoring_line": 176,
+      "canonical_recall": 0.1955,
+      "identity_recall_ignoring_line": 0.3308,
+      "native_agreement": 0.131
+    },
+    "value": {
+      "canonical": 1574,
+      "native": 54878,
+      "matched": 1562,
+      "identity_matched_ignoring_line": 1572,
+      "canonical_recall": 0.9924,
+      "identity_recall_ignoring_line": 0.9987,
+      "native_agreement": 0.0285
+    }
+  },
+  "canonical_only_by_family": {
+    "type": 428,
+    "value": 12,
+    "callable": 467
+  },
+  "native_only_by_family": {
+    "macro": 976,
+    "value": 53316,
+    "type": 677,
+    "callable": 958
+  },
+  "canonical_callable_gaps_by_extension": {
+    ".c": 437,
+    ".h": 26,
+    ".cpp": 4
+  },
+  "canonical_callable_gap_files": [
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "count": 159
+    },
+    {
+      "file_path": "tests/test_main.c",
+      "count": 103
+    },
+    {
+      "file_path": "tests/repro/repro_main.c",
+      "count": 57
+    },
+    {
+      "file_path": "tests/test_stack_overflow.c",
+      "count": 12
+    },
+    {
+      "file_path": "src/foundation/compat_fs.c",
+      "count": 11
+    },
+    {
+      "file_path": "src/foundation/compat_thread.c",
+      "count": 11
+    },
+    {
+      "file_path": "tests/test_ac.c",
+      "count": 11
+    },
+    {
+      "file_path": "src/foundation/platform.c",
+      "count": 9
+    },
+    {
+      "file_path": "src/foundation/slab_alloc.c",
+      "count": 5
+    },
+    {
+      "file_path": "internal/cbm/preprocessor.cpp",
+      "count": 4
+    },
+    {
+      "file_path": "internal/cbm/sqlite_writer.c",
+      "count": 4
+    },
+    {
+      "file_path": "tools/tree-sitter-form/src/tree_sitter/alloc.h",
+      "count": 4
+    },
+    {
+      "file_path": "tools/tree-sitter-magma/src/tree_sitter/alloc.h",
+      "count": 4
+    },
+    {
+      "file_path": "internal/cbm/lsp/c_lsp.c",
+      "count": 3
+    },
+    {
+      "file_path": "internal/cbm/lsp/ts_lsp.c",
+      "count": 3
+    },
+    {
+      "file_path": "src/cli/cli.c",
+      "count": 3
+    },
+    {
+      "file_path": "src/foundation/compat_regex.c",
+      "count": 3
+    },
+    {
+      "file_path": "tests/test_config_text_edit.c",
+      "count": 3
+    },
+    {
+      "file_path": "tests/test_config_yaml_edit.c",
+      "count": 3
+    },
+    {
+      "file_path": "tests/test_lz4.c",
+      "count": 3
+    }
+  ],
+  "native_callable_gap_files": [
+    {
+      "file_path": "tests/test_c_lsp.c",
+      "count": 755
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "count": 90
+    },
+    {
+      "file_path": "src/discover/discover.c",
+      "count": 40
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "count": 15
+    },
+    {
+      "file_path": "src/foundation/compat_fs.c",
+      "count": 10
+    },
+    {
+      "file_path": "src/foundation/compat_thread.c",
+      "count": 9
+    },
+    {
+      "file_path": "src/foundation/platform.c",
+      "count": 9
+    },
+    {
+      "file_path": "tools/tree-sitter-form/src/tree_sitter/array.h",
+      "count": 6
+    },
+    {
+      "file_path": "tools/tree-sitter-magma/src/tree_sitter/array.h",
+      "count": 6
+    },
+    {
+      "file_path": "src/foundation/compat_regex.c",
+      "count": 3
+    },
+    {
+      "file_path": "tools/tree-sitter-form/src/parser.c",
+      "count": 3
+    },
+    {
+      "file_path": "tools/tree-sitter-magma/src/parser.c",
+      "count": 3
+    },
+    {
+      "file_path": "internal/cbm/lsp/generated/go_stdlib_data.c",
+      "count": 1
+    },
+    {
+      "file_path": "internal/cbm/lsp/generated/java_stdlib_data.c",
+      "count": 1
+    },
+    {
+      "file_path": "internal/cbm/lsp/generated/python_stdlib_data.c",
+      "count": 1
+    },
+    {
+      "file_path": "internal/cbm/lsp/generated/rust_stdlib_data.c",
+      "count": 1
+    },
+    {
+      "file_path": "src/cli/hook_augment.c",
+      "count": 1
+    },
+    {
+      "file_path": "src/ui/http_server.c",
+      "count": 1
+    },
+    {
+      "file_path": "tests/test_cli.c",
+      "count": 1
+    },
+    {
+      "file_path": "tests/test_py_lsp_stress.c",
+      "count": 1
+    }
+  ],
+  "canonical_only_sample": [
+    {
+      "file_path": "internal/cbm/arena.h",
+      "kind": "Class",
+      "name": "CBM_ARENA_MAX_BLOCKS",
+      "start_line": 13,
+      "qualified_name": "internal.cbm.arena.__header.CBM_ARENA_MAX_BLOCKS",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.c",
+      "kind": "Enum",
+      "name": "CBM_INIT_DONE",
+      "start_line": 328,
+      "qualified_name": "internal.cbm.cbm.CBM_INIT_DONE",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.c",
+      "kind": "Enum",
+      "name": "CBM_QSET_UNINIT",
+      "start_line": 586,
+      "qualified_name": "internal.cbm.cbm.CBM_QSET_UNINIT",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.c",
+      "kind": "Class",
+      "name": "CBM_MAX_ERROR_REGIONS",
+      "start_line": 731,
+      "qualified_name": "internal.cbm.cbm.CBM_MAX_ERROR_REGIONS",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.c",
+      "kind": "Enum",
+      "name": "MAX_COVER_DEFS",
+      "start_line": 771,
+      "qualified_name": "internal.cbm.cbm.MAX_COVER_DEFS",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.c",
+      "kind": "Enum",
+      "name": "RANGE_MAX",
+      "start_line": 964,
+      "qualified_name": "internal.cbm.cbm.RANGE_MAX",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.c",
+      "kind": "Enum",
+      "name": "SINGLE",
+      "start_line": 996,
+      "qualified_name": "internal.cbm.cbm.SINGLE",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.h",
+      "kind": "Enum",
+      "name": "CBM_LANG_GO",
+      "start_line": 11,
+      "qualified_name": "internal.cbm.cbm.__header.CBM_LANG_GO",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.h",
+      "kind": "Class",
+      "name": "CBM_MAX_CALL_ARGS",
+      "start_line": 233,
+      "qualified_name": "internal.cbm.cbm.__header.CBM_MAX_CALL_ARGS",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.h",
+      "kind": "Enum",
+      "name": "CBM_STRREF_URL",
+      "start_line": 287,
+      "qualified_name": "internal.cbm.cbm.__header.CBM_STRREF_URL",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.h",
+      "kind": "Enum",
+      "name": "CBM_CHANNEL_EMIT",
+      "start_line": 314,
+      "qualified_name": "internal.cbm.cbm.__header.CBM_CHANNEL_EMIT",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.h",
+      "kind": "Class",
+      "name": "EFC_SIZE",
+      "start_line": 490,
+      "qualified_name": "internal.cbm.cbm.__header.EFC_SIZE",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.h",
+      "kind": "Class",
+      "name": "CBM_MAX_STRING_CONSTANTS",
+      "start_line": 499,
+      "qualified_name": "internal.cbm.cbm.__header.CBM_MAX_STRING_CONSTANTS",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/cbm.h",
+      "kind": "Class",
+      "name": "CBM_RETURN_TYPE_TABLE_CAP",
+      "start_line": 518,
+      "qualified_name": "internal.cbm.cbm.__header.CBM_RETURN_TYPE_TABLE_CAP",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "LEAN_MAX_PARENT_DEPTH",
+      "start_line": 18,
+      "qualified_name": "internal.cbm.extract_calls.LEAN_MAX_PARENT_DEPTH",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "MAX_POSITIONAL_SCAN",
+      "start_line": 20,
+      "qualified_name": "internal.cbm.extract_calls.MAX_POSITIONAL_SCAN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "MAX_HANDLER_SCAN",
+      "start_line": 22,
+      "qualified_name": "internal.cbm.extract_calls.MAX_HANDLER_SCAN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "MAX_STRING_ARG_LEN",
+      "start_line": 24,
+      "qualified_name": "internal.cbm.extract_calls.MAX_STRING_ARG_LEN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "MIN_PRINTABLE",
+      "start_line": 26,
+      "qualified_name": "internal.cbm.extract_calls.MIN_PRINTABLE",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "HANDLER_START_IDX",
+      "start_line": 28,
+      "qualified_name": "internal.cbm.extract_calls.HANDLER_START_IDX",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "MAX_CHAIN_DEPTH",
+      "start_line": 142,
+      "qualified_name": "internal.cbm.extract_calls.MAX_CHAIN_DEPTH",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "INFIX_MIN_CHILDREN",
+      "start_line": 352,
+      "qualified_name": "internal.cbm.extract_calls.INFIX_MIN_CHILDREN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "NICKEL_APPLY_DEPTH",
+      "start_line": 768,
+      "qualified_name": "internal.cbm.extract_calls.NICKEL_APPLY_DEPTH",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_calls.c",
+      "kind": "Enum",
+      "name": "PHP_GROUP_WALK_MAX",
+      "start_line": 1233,
+      "qualified_name": "internal.cbm.extract_calls.PHP_GROUP_WALK_MAX",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_channels.c",
+      "kind": "Class",
+      "name": "CHAN_CONST_CAP",
+      "start_line": 44,
+      "qualified_name": "internal.cbm.extract_channels.CHAN_CONST_CAP",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_defs.c",
+      "kind": "Enum",
+      "name": "TEMPLATE_DEPTH_LIMIT",
+      "start_line": 28,
+      "qualified_name": "internal.cbm.extract_defs.TEMPLATE_DEPTH_LIMIT",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_defs.c",
+      "kind": "Enum",
+      "name": "BT_STACK",
+      "start_line": 85,
+      "qualified_name": "internal.cbm.extract_defs.BT_STACK",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_defs.c",
+      "kind": "Enum",
+      "name": "NULL_TERM",
+      "start_line": 173,
+      "qualified_name": "internal.cbm.extract_defs.NULL_TERM",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_defs.c",
+      "kind": "Enum",
+      "name": "SKIP_CHAR",
+      "start_line": 176,
+      "qualified_name": "internal.cbm.extract_defs.SKIP_CHAR",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_defs.c",
+      "kind": "Enum",
+      "name": "RT_PAIR_SIZE",
+      "start_line": 184,
+      "qualified_name": "internal.cbm.extract_defs.RT_PAIR_SIZE",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_defs.c",
+      "kind": "Enum",
+      "name": "CBM_DESCENDANT_MAX_DEPTH",
+      "start_line": 557,
+      "qualified_name": "internal.cbm.extract_defs.CBM_DESCENDANT_MAX_DEPTH",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_defs.c",
+      "kind": "Enum",
+      "name": "MAX_TEMPLATE_DEPTH",
+      "start_line": 678,
+      "qualified_name": "internal.cbm.extract_defs.MAX_TEMPLATE_DEPTH",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_defs.c",
+      "kind": "Enum",
+      "name": "WD_CURSOR_MIN_CHILDREN",
+      "start_line": 6133,
+      "qualified_name": "internal.cbm.extract_defs.WD_CURSOR_MIN_CHILDREN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_env_accesses.c",
+      "kind": "Enum",
+      "name": "MIN_ENV_NAME_LEN",
+      "start_line": 14,
+      "qualified_name": "internal.cbm.extract_env_accesses.MIN_ENV_NAME_LEN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_imports.c",
+      "kind": "Enum",
+      "name": "USE_PREFIX_LEN",
+      "start_line": 13,
+      "qualified_name": "internal.cbm.extract_imports.USE_PREFIX_LEN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_imports.c",
+      "kind": "Enum",
+      "name": "EMBED_STACK_CAP",
+      "start_line": 1392,
+      "qualified_name": "internal.cbm.extract_imports.EMBED_STACK_CAP",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_imports.c",
+      "kind": "Enum",
+      "name": "MAX_EMBEDDED_BLOCKS",
+      "start_line": 1431,
+      "qualified_name": "internal.cbm.extract_imports.MAX_EMBEDDED_BLOCKS",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_k8s.c",
+      "kind": "Enum",
+      "name": "K8S_BUF_SIZE",
+      "start_line": 21,
+      "qualified_name": "internal.cbm.extract_k8s.K8S_BUF_SIZE",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_k8s.c",
+      "kind": "Enum",
+      "name": "MAX_UNWRAP",
+      "start_line": 36,
+      "qualified_name": "internal.cbm.extract_k8s.MAX_UNWRAP",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_semantic.c",
+      "kind": "Enum",
+      "name": "MAX_EXCEPTION_NAME_LEN",
+      "start_line": 10,
+      "qualified_name": "internal.cbm.extract_semantic.MAX_EXCEPTION_NAME_LEN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_type_refs.c",
+      "kind": "Enum",
+      "name": "MIN_TYPE_LEN",
+      "start_line": 10,
+      "qualified_name": "internal.cbm.extract_type_refs.MIN_TYPE_LEN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_type_refs.c",
+      "kind": "Enum",
+      "name": "MAX_UNWRAP",
+      "start_line": 75,
+      "qualified_name": "internal.cbm.extract_type_refs.MAX_UNWRAP",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_unified.c",
+      "kind": "Enum",
+      "name": "MAX_INFRA_BINDINGS",
+      "start_line": 9,
+      "qualified_name": "internal.cbm.extract_unified.MAX_INFRA_BINDINGS",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_unified.c",
+      "kind": "Enum",
+      "name": "HCL_MAX_UNWRAP",
+      "start_line": 1115,
+      "qualified_name": "internal.cbm.extract_unified.HCL_MAX_UNWRAP",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_unified.h",
+      "kind": "Class",
+      "name": "OS_TYPE_MAP_CAP",
+      "start_line": 25,
+      "qualified_name": "internal.cbm.extract_unified.__header.OS_TYPE_MAP_CAP",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_unified.h",
+      "kind": "Class",
+      "name": "MAX_SCOPES",
+      "start_line": 33,
+      "qualified_name": "internal.cbm.extract_unified.__header.MAX_SCOPES",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/extract_usages.c",
+      "kind": "Enum",
+      "name": "MAX_PARENT_DEPTH",
+      "start_line": 9,
+      "qualified_name": "internal.cbm.extract_usages.MAX_PARENT_DEPTH",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/helpers.c",
+      "kind": "Enum",
+      "name": "MIN_ROUTE_LEN",
+      "start_line": 10,
+      "qualified_name": "internal.cbm.helpers.MIN_ROUTE_LEN",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/helpers.c",
+      "kind": "Enum",
+      "name": "KS_SLOTS",
+      "start_line": 385,
+      "qualified_name": "internal.cbm.helpers.KS_SLOTS",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/helpers.c",
+      "kind": "Variable",
+      "name": "ks_slot_t",
+      "start_line": 386,
+      "qualified_name": "internal.cbm.helpers.ks_slot_t",
+      "family": "value"
+    }
+  ],
+  "native_only_sample": [
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Macro",
+      "name": "CBM_AC_MAX_BITMASK",
+      "start_line": 22,
+      "qualified_name": "internal.cbm.ac.__macro.CBM_AC_MAX_BITMASK.L22",
+      "family": "macro"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Macro",
+      "name": "CBM_AC_BYTE_RANGE",
+      "start_line": 24,
+      "qualified_name": "internal.cbm.ac.__macro.CBM_AC_BYTE_RANGE.L24",
+      "family": "macro"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Macro",
+      "name": "CBM_AC_NO_STATE",
+      "start_line": 25,
+      "qualified_name": "internal.cbm.ac.__macro.CBM_AC_NO_STATE.L25",
+      "family": "macro"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Macro",
+      "name": "CBM_AC_ROOT_STATES",
+      "start_line": 26,
+      "qualified_name": "internal.cbm.ac.__macro.CBM_AC_ROOT_STATES.L26",
+      "family": "macro"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Macro",
+      "name": "CBM_AC_ALLOC_ONE",
+      "start_line": 27,
+      "qualified_name": "internal.cbm.ac.__macro.CBM_AC_ALLOC_ONE.L27",
+      "family": "macro"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Macro",
+      "name": "CBM_AC_PATTERN_BIT",
+      "start_line": 28,
+      "qualified_name": "internal.cbm.ac.__macro.CBM_AC_PATTERN_BIT.L28",
+      "family": "macro"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Macro",
+      "name": "CBM_AC_CLEAR_LOW_BIT",
+      "start_line": 29,
+      "qualified_name": "internal.cbm.ac.__macro.CBM_AC_CLEAR_LOW_BIT.L29",
+      "family": "macro"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Macro",
+      "name": "DECOMP_BUF_ALIGN_MASK",
+      "start_line": 32,
+      "qualified_name": "internal.cbm.ac.__macro.DECOMP_BUF_ALIGN_MASK.L32",
+      "family": "macro"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Field",
+      "name": "num_states",
+      "start_line": 35,
+      "qualified_name": "internal.cbm.ac.__tag.CBMAutomaton.num_states",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Field",
+      "name": "num_patterns",
+      "start_line": 36,
+      "qualified_name": "internal.cbm.ac.__tag.CBMAutomaton.num_patterns",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Field",
+      "name": "alpha_size",
+      "start_line": 37,
+      "qualified_name": "internal.cbm.ac.__tag.CBMAutomaton.alpha_size",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Field",
+      "name": "alpha_map",
+      "start_line": 38,
+      "qualified_name": "internal.cbm.ac.__tag.CBMAutomaton.alpha_map",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Field",
+      "name": "go_table",
+      "start_line": 39,
+      "qualified_name": "internal.cbm.ac.__tag.CBMAutomaton.go_table",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Field",
+      "name": "output",
+      "start_line": 40,
+      "qualified_name": "internal.cbm.ac.__tag.CBMAutomaton.output",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Field",
+      "name": "output_list",
+      "start_line": 41,
+      "qualified_name": "internal.cbm.ac.__tag.CBMAutomaton.output_list",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Field",
+      "name": "output_next",
+      "start_line": 42,
+      "qualified_name": "internal.cbm.ac.__tag.CBMAutomaton.output_next",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "TypeAlias",
+      "name": "Queue",
+      "start_line": 48,
+      "qualified_name": "internal.cbm.ac.Queue",
+      "family": "type"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "q",
+      "start_line": 53,
+      "qualified_name": "internal.cbm.ac.queue_init.q",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "cap",
+      "start_line": 53,
+      "qualified_name": "internal.cbm.ac.queue_init.cap",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "q",
+      "start_line": 58,
+      "qualified_name": "internal.cbm.ac.queue_push.q",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "v",
+      "start_line": 58,
+      "qualified_name": "internal.cbm.ac.queue_push.v",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "q",
+      "start_line": 61,
+      "qualified_name": "internal.cbm.ac.queue_pop.q",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "q",
+      "start_line": 64,
+      "qualified_name": "internal.cbm.ac.queue_empty.q",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "q",
+      "start_line": 67,
+      "qualified_name": "internal.cbm.ac.queue_free.q",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "ac",
+      "start_line": 72,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.ac",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "lengths",
+      "start_line": 72,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.lengths",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "patterns",
+      "start_line": 72,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.patterns",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "count",
+      "start_line": 72,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.count",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "alpha_size",
+      "start_line": 73,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.alpha_size",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "num_states",
+      "start_line": 74,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.num_states",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "p",
+      "start_line": 76,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.p",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "state",
+      "start_line": 77,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.state",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "j",
+      "start_line": 78,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.j",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "c",
+      "start_line": 79,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.c",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "idx",
+      "start_line": 80,
+      "qualified_name": "internal.cbm.ac.ac_build_trie.idx",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "ac",
+      "start_line": 102,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.ac",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "num_states",
+      "start_line": 102,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.num_states",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "alpha_size",
+      "start_line": 103,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.alpha_size",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "fail",
+      "start_line": 104,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.fail",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "q",
+      "start_line": 106,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.q",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "c",
+      "start_line": 109,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.c",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "s",
+      "start_line": 110,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.s",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "r",
+      "start_line": 118,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.r",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "idx",
+      "start_line": 120,
+      "qualified_name": "internal.cbm.ac.ac_build_failure.idx",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "ac",
+      "start_line": 141,
+      "qualified_name": "internal.cbm.ac.ac_shrink_tables.ac",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "max_states",
+      "start_line": 141,
+      "qualified_name": "internal.cbm.ac.ac_shrink_tables.max_states",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "num_states",
+      "start_line": 141,
+      "qualified_name": "internal.cbm.ac.ac_shrink_tables.num_states",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "Variable",
+      "name": "alpha_size",
+      "start_line": 145,
+      "qualified_name": "internal.cbm.ac.ac_shrink_tables.alpha_size",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "tmp",
+      "start_line": 146,
+      "qualified_name": "internal.cbm.ac.ac_shrink_tables.tmp",
+      "family": "value"
+    },
+    {
+      "file_path": "internal/cbm/ac.c",
+      "kind": "FunctionPointer",
+      "name": "lengths",
+      "start_line": 176,
+      "qualified_name": "internal.cbm.ac.cbm_ac_build.lengths",
+      "family": "value"
+    }
+  ],
+  "canonical_callable_only_sample": [
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_go",
+      "start_line": 7,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_go",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_python",
+      "start_line": 8,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_python",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_javascript",
+      "start_line": 9,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_javascript",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_typescript",
+      "start_line": 10,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_typescript",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_tsx",
+      "start_line": 11,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_tsx",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_rust",
+      "start_line": 12,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_rust",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_java",
+      "start_line": 13,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_java",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_cpp",
+      "start_line": 14,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_cpp",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_c_sharp",
+      "start_line": 15,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_c_sharp",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_php_only",
+      "start_line": 16,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_php_only",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_lua",
+      "start_line": 17,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_lua",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_scala",
+      "start_line": 18,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_scala",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_kotlin",
+      "start_line": 19,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_kotlin",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_ruby",
+      "start_line": 20,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_ruby",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_c",
+      "start_line": 21,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_c",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_bash",
+      "start_line": 22,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_bash",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_zig",
+      "start_line": 23,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_zig",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_elixir",
+      "start_line": 24,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_elixir",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_haskell",
+      "start_line": 25,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_haskell",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_ocaml",
+      "start_line": 26,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_ocaml",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_objc",
+      "start_line": 27,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_objc",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_swift",
+      "start_line": 28,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_swift",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_dart",
+      "start_line": 29,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_dart",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_perl",
+      "start_line": 30,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_perl",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_groovy",
+      "start_line": 31,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_groovy",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_erlang",
+      "start_line": 32,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_erlang",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_r",
+      "start_line": 33,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_r",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_html",
+      "start_line": 34,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_html",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_css",
+      "start_line": 35,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_css",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_scss",
+      "start_line": 36,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_scss",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_yaml",
+      "start_line": 37,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_yaml",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_toml",
+      "start_line": 38,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_toml",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_hcl",
+      "start_line": 39,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_hcl",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_sql",
+      "start_line": 40,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_sql",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_dockerfile",
+      "start_line": 41,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_dockerfile",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_clojure",
+      "start_line": 43,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_clojure",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_fsharp",
+      "start_line": 44,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_fsharp",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_julia",
+      "start_line": 45,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_julia",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_vim",
+      "start_line": 46,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_vim",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_nix",
+      "start_line": 47,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_nix",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_commonlisp",
+      "start_line": 48,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_commonlisp",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_elm",
+      "start_line": 49,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_elm",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_fortran",
+      "start_line": 50,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_fortran",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_cuda",
+      "start_line": 51,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_cuda",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_COBOL",
+      "start_line": 52,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_COBOL",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_verilog",
+      "start_line": 53,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_verilog",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_elisp",
+      "start_line": 54,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_elisp",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_json",
+      "start_line": 55,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_json",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_xml",
+      "start_line": 56,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_xml",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lang_specs.c",
+      "kind": "Function",
+      "name": "tree_sitter_markdown",
+      "start_line": 57,
+      "qualified_name": "internal.cbm.lang_specs.tree_sitter_markdown",
+      "family": "callable"
+    }
+  ],
+  "native_callable_only_sample": [
+    {
+      "file_path": "internal/cbm/lsp/generated/go_stdlib_data.c",
+      "kind": "Function",
+      "name": "cbm_go_stdlib_register",
+      "start_line": 10,
+      "qualified_name": "internal.cbm.lsp.generated.go_stdlib_data.cbm_go_stdlib_register",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/generated/java_stdlib_data.c",
+      "kind": "Function",
+      "name": "cbm_java_stdlib_register",
+      "start_line": 90,
+      "qualified_name": "internal.cbm.lsp.generated.java_stdlib_data.cbm_java_stdlib_register",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/generated/python_stdlib_data.c",
+      "kind": "Function",
+      "name": "cbm_python_stdlib_register",
+      "start_line": 19,
+      "qualified_name": "internal.cbm.lsp.generated.python_stdlib_data.cbm_python_stdlib_register",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/generated/rust_stdlib_data.c",
+      "kind": "Function",
+      "name": "cbm_rust_stdlib_register",
+      "start_line": 68,
+      "qualified_name": "internal.cbm.lsp.generated.rust_stdlib_data.cbm_rust_stdlib_register",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "go_lsp_init",
+      "start_line": 38,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.go_lsp_init",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "go_lsp_add_import",
+      "start_line": 42,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.go_lsp_add_import",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "go_lsp_process_file",
+      "start_line": 46,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.go_lsp_process_file",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "go_eval_expr_type",
+      "start_line": 49,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.go_eval_expr_type",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "go_parse_type_node",
+      "start_line": 52,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.go_parse_type_node",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "go_process_statement",
+      "start_line": 55,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.go_process_statement",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "go_eval_builtin_call",
+      "start_line": 58,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.go_eval_builtin_call",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "go_lookup_field_or_method",
+      "start_line": 61,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.go_lookup_field_or_method",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "cbm_run_go_lsp",
+      "start_line": 66,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.cbm_run_go_lsp",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "cbm_go_stdlib_register",
+      "start_line": 71,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.cbm_go_stdlib_register",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "cbm_run_go_lsp_cross",
+      "start_line": 97,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.cbm_run_go_lsp_cross",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "cbm_go_build_cross_registry",
+      "start_line": 112,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.cbm_go_build_cross_registry",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "cbm_run_go_lsp_cross_with_registry",
+      "start_line": 115,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.cbm_run_go_lsp_cross_with_registry",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "cbm_go_fast_resolve_qualified_calls",
+      "start_line": 132,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.cbm_go_fast_resolve_qualified_calls",
+      "family": "callable"
+    },
+    {
+      "file_path": "internal/cbm/lsp/go_lsp.h",
+      "kind": "Function",
+      "name": "cbm_batch_go_lsp_cross",
+      "start_line": 155,
+      "qualified_name": "internal.cbm.lsp.go_lsp.__header.cbm_batch_go_lsp_cross",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_cli_set_version",
+      "start_line": 18,
+      "qualified_name": "cli.cli.__header.cbm_cli_set_version",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_cli_get_version",
+      "start_line": 21,
+      "qualified_name": "cli.cli.__header.cbm_cli_get_version",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_cli_build_args_json",
+      "start_line": 32,
+      "qualified_name": "cli.cli.__header.cbm_cli_build_args_json",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_cli_print_tool_help",
+      "start_line": 37,
+      "qualified_name": "cli.cli.__header.cbm_cli_print_tool_help",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_compare_versions",
+      "start_line": 44,
+      "qualified_name": "cli.cli.__header.cbm_compare_versions",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_detect_shell_rc",
+      "start_line": 51,
+      "qualified_name": "cli.cli.__header.cbm_detect_shell_rc",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_find_cli",
+      "start_line": 58,
+      "qualified_name": "cli.cli.__header.cbm_find_cli",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_copy_file",
+      "start_line": 63,
+      "qualified_name": "cli.cli.__header.cbm_copy_file",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_copy_binary_to_target",
+      "start_line": 69,
+      "qualified_name": "cli.cli.__header.cbm_copy_binary_to_target",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_replace_binary",
+      "start_line": 74,
+      "qualified_name": "cli.cli.__header.cbm_replace_binary",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_get_skills",
+      "start_line": 88,
+      "qualified_name": "cli.cli.__header.cbm_get_skills",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_install_skills",
+      "start_line": 93,
+      "qualified_name": "cli.cli.__header.cbm_install_skills",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_skills",
+      "start_line": 97,
+      "qualified_name": "cli.cli.__header.cbm_remove_skills",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_old_monolithic_skill",
+      "start_line": 101,
+      "qualified_name": "cli.cli.__header.cbm_remove_old_monolithic_skill",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_install_editor_mcp",
+      "start_line": 108,
+      "qualified_name": "cli.cli.__header.cbm_install_editor_mcp",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_editor_mcp",
+      "start_line": 112,
+      "qualified_name": "cli.cli.__header.cbm_remove_editor_mcp",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_editor_mcp_owned",
+      "start_line": 113,
+      "qualified_name": "cli.cli.__header.cbm_remove_editor_mcp_owned",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_install_openclaw_mcp",
+      "start_line": 119,
+      "qualified_name": "cli.cli.__header.cbm_install_openclaw_mcp",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_openclaw_mcp",
+      "start_line": 123,
+      "qualified_name": "cli.cli.__header.cbm_remove_openclaw_mcp",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_openclaw_mcp_owned",
+      "start_line": 124,
+      "qualified_name": "cli.cli.__header.cbm_remove_openclaw_mcp_owned",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_install_vscode_mcp",
+      "start_line": 129,
+      "qualified_name": "cli.cli.__header.cbm_install_vscode_mcp",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_vscode_mcp",
+      "start_line": 133,
+      "qualified_name": "cli.cli.__header.cbm_remove_vscode_mcp",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_vscode_mcp_owned",
+      "start_line": 134,
+      "qualified_name": "cli.cli.__header.cbm_remove_vscode_mcp_owned",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_install_zed_mcp",
+      "start_line": 139,
+      "qualified_name": "cli.cli.__header.cbm_install_zed_mcp",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_zed_mcp",
+      "start_line": 143,
+      "qualified_name": "cli.cli.__header.cbm_remove_zed_mcp",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_remove_zed_mcp_owned",
+      "start_line": 144,
+      "qualified_name": "cli.cli.__header.cbm_remove_zed_mcp_owned",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_detect_agents",
+      "start_line": 179,
+      "qualified_name": "cli.cli.__header.cbm_detect_agents",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_install_agent_configs",
+      "start_line": 182,
+      "qualified_name": "cli.cli.__header.cbm_install_agent_configs",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_build_qwen_hook_command_for_testing",
+      "start_line": 185,
+      "qualified_name": "cli.cli.__header.cbm_build_qwen_hook_command_for_testing",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_build_qoder_hook_command_for_testing",
+      "start_line": 187,
+      "qualified_name": "cli.cli.__header.cbm_build_qoder_hook_command_for_testing",
+      "family": "callable"
+    },
+    {
+      "file_path": "src/cli/cli.h",
+      "kind": "Function",
+      "name": "cbm_resolve_claude_hook_command_for_testing",
+      "start_line": 189,
+      "qualified_name": "cli.cli.__header.cbm_resolve_claude_hook_command_for_testing",
+      "family": "callable"
+    }
+  ],
+  "competitor": {
+    "database": "/tmp/codebase-parity.47b4AR/private-tmp-codebase-memory-mcp-analysis.vewvDp.db",
+    "totals": {
+      "reference": 13715,
+      "native": 69693,
+      "matched": 13645,
+      "reference_only": 70
+    },
+    "by_family": {
+      "callable": {
+        "reference": 11912,
+        "native": 13045,
+        "exact": 11879,
+        "identity_ignoring_line": 11912,
+        "reference_recall": 0.9972
+      },
+      "macro": {
+        "reference": 898,
+        "native": 976,
+        "exact": 898,
+        "identity_ignoring_line": 898,
+        "reference_recall": 1
+      },
+      "type": {
+        "reference": 77,
+        "native": 794,
+        "exact": 59,
+        "identity_ignoring_line": 77,
+        "reference_recall": 0.7662
+      },
+      "value": {
+        "reference": 828,
+        "native": 54878,
+        "exact": 809,
+        "identity_ignoring_line": 811,
+        "reference_recall": 0.9771
+      }
+    },
+    "reference_only_sample": [
+      {
+        "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+        "kind": "Field",
+        "name": "*import_locals",
+        "start_line": 87,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.kotlin_lsp.KotlinLSPContext.*import_locals",
+        "family": "value"
+      },
+      {
+        "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+        "kind": "Field",
+        "name": "*import_targets",
+        "start_line": 88,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.kotlin_lsp.KotlinLSPContext.*import_targets",
+        "family": "value"
+      },
+      {
+        "file_path": "internal/cbm/lsp/rust_lsp.h",
+        "kind": "Class",
+        "name": "CBMCargoManifest",
+        "start_line": 130,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.rust_lsp.CBMCargoManifest",
+        "family": "type"
+      },
+      {
+        "file_path": "internal/cbm/lsp/scope.h",
+        "kind": "Class",
+        "name": "CBMScopeChunk",
+        "start_line": 18,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.scope.CBMScopeChunk.CBMScopeChunk",
+        "family": "type"
+      },
+      {
+        "file_path": "internal/cbm/lsp/scope.h",
+        "kind": "Class",
+        "name": "CBMScope",
+        "start_line": 22,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.scope.CBMScope.CBMScope",
+        "family": "type"
+      },
+      {
+        "file_path": "internal/cbm/lsp/type_registry.h",
+        "kind": "Class",
+        "name": "CBMTypeRegistry",
+        "start_line": 84,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.type_registry.CBMTypeRegistry.CBMTypeRegistry",
+        "family": "type"
+      },
+      {
+        "file_path": "internal/cbm/lsp/type_rep.h",
+        "kind": "Class",
+        "name": "CBMType",
+        "start_line": 55,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.type_rep.CBMType",
+        "family": "type"
+      },
+      {
+        "file_path": "src/cli/cli.c",
+        "kind": "Class",
+        "name": "stat",
+        "start_line": 7896,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.cli.cli.stat",
+        "family": "type"
+      },
+      {
+        "file_path": "src/cli/hook_augment.c",
+        "kind": "Function",
+        "name": "ha_arm_deadline",
+        "start_line": 148,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.cli.hook_augment.ha_arm_deadline",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/cypher/cypher.h",
+        "kind": "Class",
+        "name": "cbm_expr",
+        "start_line": 225,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.cypher.cypher.cbm_expr",
+        "family": "type"
+      },
+      {
+        "file_path": "src/cypher/cypher.h",
+        "kind": "Class",
+        "name": "cbm_query",
+        "start_line": 278,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.cypher.cypher.cbm_query",
+        "family": "type"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Class",
+        "name": "cbm_dir",
+        "start_line": 621,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_dir",
+        "family": "type"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Field",
+        "name": "entry",
+        "start_line": 623,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_dir.entry",
+        "family": "value"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_opendir",
+        "start_line": 626,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_opendir",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_readdir",
+        "start_line": 643,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_readdir",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_closedir",
+        "start_line": 668,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_closedir",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_popen",
+        "start_line": 677,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_popen",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_pclose",
+        "start_line": 681,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_pclose",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_fopen",
+        "start_line": 685,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_fopen",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_mkdir_p",
+        "start_line": 703,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_mkdir_p",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_unlink",
+        "start_line": 769,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_unlink",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_rmdir",
+        "start_line": 773,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_rmdir",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "kind": "Function",
+        "name": "cbm_exec_no_shell",
+        "start_line": 777,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_fs.cbm_exec_no_shell",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_regex.c",
+        "kind": "Function",
+        "name": "cbm_regcomp",
+        "start_line": 90,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_regex.cbm_regcomp",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_regex.c",
+        "kind": "Function",
+        "name": "cbm_regexec",
+        "start_line": 96,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_regex.cbm_regexec",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_regex.c",
+        "kind": "Function",
+        "name": "cbm_regfree",
+        "start_line": 120,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_regex.cbm_regfree",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_thread_create",
+        "start_line": 73,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_thread_create",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_thread_join",
+        "start_line": 85,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_thread_join",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_thread_detach",
+        "start_line": 93,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_thread_detach",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_mutex_init",
+        "start_line": 125,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_mutex_init",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_mutex_lock",
+        "start_line": 129,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_mutex_lock",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_mutex_unlock",
+        "start_line": 133,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_mutex_unlock",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_mutex_destroy",
+        "start_line": 137,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_mutex_destroy",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_aligned_alloc",
+        "start_line": 158,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_aligned_alloc",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "kind": "Function",
+        "name": "cbm_aligned_free",
+        "start_line": 162,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.compat_thread.cbm_aligned_free",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_mmap_read",
+        "start_line": 175,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_mmap_read",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_munmap",
+        "start_line": 202,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_munmap",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_now_ns",
+        "start_line": 223,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_now_ns",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_now_ms",
+        "start_line": 232,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_now_ms",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_nprocs",
+        "start_line": 238,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_nprocs",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_file_exists",
+        "start_line": 255,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_file_exists",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_is_dir",
+        "start_line": 260,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_is_dir",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_file_size",
+        "start_line": 265,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_file_size",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "kind": "Function",
+        "name": "cbm_normalize_path_sep",
+        "start_line": 273,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.platform.cbm_normalize_path_sep",
+        "family": "callable"
+      },
+      {
+        "file_path": "src/foundation/slab_alloc.c",
+        "kind": "Class",
+        "name": "slab_free_node",
+        "start_line": 71,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.slab_alloc.slab_free_node.slab_free_node",
+        "family": "type"
+      },
+      {
+        "file_path": "src/foundation/slab_alloc.c",
+        "kind": "Class",
+        "name": "slab_page",
+        "start_line": 79,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.slab_alloc.slab_page.slab_page",
+        "family": "type"
+      },
+      {
+        "file_path": "src/foundation/slab_alloc.c",
+        "kind": "Class",
+        "name": "slab_state",
+        "start_line": 90,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.slab_alloc.slab_state",
+        "family": "type"
+      },
+      {
+        "file_path": "src/foundation/slab_alloc.c",
+        "kind": "Variable",
+        "name": "slab_state_t",
+        "start_line": 96,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.slab_alloc.slab_state_t",
+        "family": "value"
+      },
+      {
+        "file_path": "src/foundation/yaml.c",
+        "kind": "Field",
+        "name": "*children",
+        "start_line": 38,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.yaml.cbm_yaml_node.*children",
+        "family": "value"
+      },
+      {
+        "file_path": "src/graph_buffer/graph_buffer.c",
+        "kind": "Field",
+        "name": "*by_id",
+        "start_line": 83,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.graph_buffer.graph_buffer.cbm_gbuf.*by_id",
+        "family": "value"
+      }
+    ],
+    "identity_only_sample": [
+      {
+        "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+        "kind": "Field",
+        "name": "*import_locals",
+        "start_line": 87,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.kotlin_lsp.KotlinLSPContext.*import_locals",
+        "family": "value"
+      },
+      {
+        "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+        "kind": "Field",
+        "name": "*import_targets",
+        "start_line": 88,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.kotlin_lsp.KotlinLSPContext.*import_targets",
+        "family": "value"
+      },
+      {
+        "file_path": "src/foundation/slab_alloc.c",
+        "kind": "Variable",
+        "name": "slab_state_t",
+        "start_line": 96,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.slab_alloc.slab_state_t",
+        "family": "value"
+      },
+      {
+        "file_path": "src/foundation/yaml.c",
+        "kind": "Field",
+        "name": "*children",
+        "start_line": 38,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.yaml.cbm_yaml_node.*children",
+        "family": "value"
+      },
+      {
+        "file_path": "src/graph_buffer/graph_buffer.c",
+        "kind": "Field",
+        "name": "*by_id",
+        "start_line": 83,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.graph_buffer.graph_buffer.cbm_gbuf.*by_id",
+        "family": "value"
+      },
+      {
+        "file_path": "src/pipeline/pipeline.c",
+        "kind": "Field",
+        "name": "*excluded_dirs",
+        "start_line": 94,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.pipeline.pipeline.cbm_pipeline.*excluded_dirs",
+        "family": "value"
+      },
+      {
+        "file_path": "src/pipeline/registry.c",
+        "kind": "Field",
+        "name": "label_pool[64]",
+        "start_line": 81,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.pipeline.registry.cbm_registry.label_pool[64]",
+        "family": "value"
+      },
+      {
+        "file_path": "src/pipeline/registry.c",
+        "kind": "Field",
+        "name": "*results",
+        "start_line": 987,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.pipeline.registry.few_ctx.*results",
+        "family": "value"
+      },
+      {
+        "file_path": "src/semantic/semantic.c",
+        "kind": "Field",
+        "name": "*doc_token_ids",
+        "start_line": 512,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.semantic.semantic.cbm_sem_corpus.*doc_token_ids",
+        "family": "value"
+      },
+      {
+        "file_path": "src/simhash/minhash.c",
+        "kind": "Field",
+        "name": "bands[CBM_LSH_BANDS]",
+        "start_line": 331,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.simhash.minhash.cbm_lsh_index.bands[CBM_LSH_BANDS]",
+        "family": "value"
+      },
+      {
+        "file_path": "src/simhash/minhash.c",
+        "kind": "Field",
+        "name": "*result_buf",
+        "start_line": 337,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.simhash.minhash.cbm_lsh_index.*result_buf",
+        "family": "value"
+      },
+      {
+        "file_path": "src/ui/layout3d.c",
+        "kind": "Field",
+        "name": "children[8]",
+        "start_line": 216,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.ui.layout3d.octree_node.children[8]",
+        "family": "value"
+      },
+      {
+        "file_path": "src/watcher/watcher.c",
+        "kind": "Field",
+        "name": "*pending_free",
+        "start_line": 75,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.watcher.watcher.cbm_watcher.*pending_free",
+        "family": "value"
+      },
+      {
+        "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+        "kind": "Field",
+        "name": "*symbol_names",
+        "start_line": 122,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.tools.tree-sitter-form.src.tree_sitter.parser.TSLanguage.*symbol_names",
+        "family": "value"
+      },
+      {
+        "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+        "kind": "Field",
+        "name": "*field_names",
+        "start_line": 123,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.tools.tree-sitter-form.src.tree_sitter.parser.TSLanguage.*field_names",
+        "family": "value"
+      },
+      {
+        "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+        "kind": "Field",
+        "name": "*symbol_names",
+        "start_line": 122,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.tools.tree-sitter-magma.src.tree_sitter.parser.TSLanguage.*symbol_names",
+        "family": "value"
+      },
+      {
+        "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+        "kind": "Field",
+        "name": "*field_names",
+        "start_line": 123,
+        "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.tools.tree-sitter-magma.src.tree_sitter.parser.TSLanguage.*field_names",
+        "family": "value"
+      }
+    ],
+    "identity_gap_nearby": [
+      {
+        "gap": {
+          "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+          "kind": "Field",
+          "name": "*import_locals",
+          "start_line": 87,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.kotlin_lsp.KotlinLSPContext.*import_locals",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+            "kind": "Field",
+            "name": "import_locals",
+            "start_line": 87,
+            "qualified_name": "internal.cbm.lsp.kotlin_lsp.__header.__tag.KotlinLSPContext.import_locals",
+            "family": "value"
+          },
+          {
+            "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+            "kind": "Field",
+            "name": "import_targets",
+            "start_line": 88,
+            "qualified_name": "internal.cbm.lsp.kotlin_lsp.__header.__tag.KotlinLSPContext.import_targets",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+          "kind": "Field",
+          "name": "*import_targets",
+          "start_line": 88,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.internal.cbm.lsp.kotlin_lsp.KotlinLSPContext.*import_targets",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+            "kind": "Field",
+            "name": "import_locals",
+            "start_line": 87,
+            "qualified_name": "internal.cbm.lsp.kotlin_lsp.__header.__tag.KotlinLSPContext.import_locals",
+            "family": "value"
+          },
+          {
+            "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+            "kind": "Field",
+            "name": "import_targets",
+            "start_line": 88,
+            "qualified_name": "internal.cbm.lsp.kotlin_lsp.__header.__tag.KotlinLSPContext.import_targets",
+            "family": "value"
+          },
+          {
+            "file_path": "internal/cbm/lsp/kotlin_lsp.h",
+            "kind": "Field",
+            "name": "import_kinds",
+            "start_line": 89,
+            "qualified_name": "internal.cbm.lsp.kotlin_lsp.__header.__tag.KotlinLSPContext.import_kinds",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/foundation/slab_alloc.c",
+          "kind": "Variable",
+          "name": "slab_state_t",
+          "start_line": 96,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.slab_alloc.slab_state_t",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/foundation/slab_alloc.c",
+            "kind": "Variable",
+            "name": "tls_slab",
+            "start_line": 96,
+            "qualified_name": "foundation.slab_alloc.tls_slab",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/foundation/yaml.c",
+          "kind": "Field",
+          "name": "*children",
+          "start_line": 38,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.foundation.yaml.cbm_yaml_node.*children",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/foundation/yaml.c",
+            "kind": "Field",
+            "name": "children",
+            "start_line": 38,
+            "qualified_name": "foundation.yaml.__tag.cbm_yaml_node.children",
+            "family": "value"
+          },
+          {
+            "file_path": "src/foundation/yaml.c",
+            "kind": "Field",
+            "name": "child_count",
+            "start_line": 39,
+            "qualified_name": "foundation.yaml.__tag.cbm_yaml_node.child_count",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/graph_buffer/graph_buffer.c",
+          "kind": "Field",
+          "name": "*by_id",
+          "start_line": 83,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.graph_buffer.graph_buffer.cbm_gbuf.*by_id",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/graph_buffer/graph_buffer.c",
+            "kind": "Field",
+            "name": "by_id",
+            "start_line": 83,
+            "qualified_name": "graph_buffer.graph_buffer.__tag.cbm_gbuf.by_id",
+            "family": "value"
+          },
+          {
+            "file_path": "src/graph_buffer/graph_buffer.c",
+            "kind": "Field",
+            "name": "by_id_cap",
+            "start_line": 84,
+            "qualified_name": "graph_buffer.graph_buffer.__tag.cbm_gbuf.by_id_cap",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/pipeline/pipeline.c",
+          "kind": "Field",
+          "name": "*excluded_dirs",
+          "start_line": 94,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.pipeline.pipeline.cbm_pipeline.*excluded_dirs",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/pipeline/pipeline.c",
+            "kind": "Field",
+            "name": "excluded_dirs",
+            "start_line": 94,
+            "qualified_name": "pipeline.pipeline.__tag.cbm_pipeline.excluded_dirs",
+            "family": "value"
+          },
+          {
+            "file_path": "src/pipeline/pipeline.c",
+            "kind": "Field",
+            "name": "excluded_count",
+            "start_line": 95,
+            "qualified_name": "pipeline.pipeline.__tag.cbm_pipeline.excluded_count",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/pipeline/registry.c",
+          "kind": "Field",
+          "name": "label_pool[64]",
+          "start_line": 81,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.pipeline.registry.cbm_registry.label_pool[64]",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/pipeline/registry.c",
+            "kind": "Field",
+            "name": "label_pool",
+            "start_line": 81,
+            "qualified_name": "pipeline.registry.__tag.cbm_registry.label_pool",
+            "family": "value"
+          },
+          {
+            "file_path": "src/pipeline/registry.c",
+            "kind": "Field",
+            "name": "label_pool_n",
+            "start_line": 82,
+            "qualified_name": "pipeline.registry.__tag.cbm_registry.label_pool_n",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/pipeline/registry.c",
+          "kind": "Field",
+          "name": "*results",
+          "start_line": 987,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.pipeline.registry.few_ctx.*results",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/pipeline/registry.c",
+            "kind": "Field",
+            "name": "target_len",
+            "start_line": 986,
+            "qualified_name": "pipeline.registry.__tag.few_ctx.target_len",
+            "family": "value"
+          },
+          {
+            "file_path": "src/pipeline/registry.c",
+            "kind": "Field",
+            "name": "results",
+            "start_line": 987,
+            "qualified_name": "pipeline.registry.__tag.few_ctx.results",
+            "family": "value"
+          },
+          {
+            "file_path": "src/pipeline/registry.c",
+            "kind": "Field",
+            "name": "count",
+            "start_line": 988,
+            "qualified_name": "pipeline.registry.__tag.few_ctx.count",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/semantic/semantic.c",
+          "kind": "Field",
+          "name": "*doc_token_ids",
+          "start_line": 512,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.semantic.semantic.cbm_sem_corpus.*doc_token_ids",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/semantic/semantic.c",
+            "kind": "Field",
+            "name": "doc_token_ids",
+            "start_line": 512,
+            "qualified_name": "semantic.semantic.__tag.cbm_sem_corpus.doc_token_ids",
+            "family": "value"
+          },
+          {
+            "file_path": "src/semantic/semantic.c",
+            "kind": "Field",
+            "name": "doc_token_counts",
+            "start_line": 513,
+            "qualified_name": "semantic.semantic.__tag.cbm_sem_corpus.doc_token_counts",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/simhash/minhash.c",
+          "kind": "Field",
+          "name": "bands[CBM_LSH_BANDS]",
+          "start_line": 331,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.simhash.minhash.cbm_lsh_index.bands[CBM_LSH_BANDS]",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/simhash/minhash.c",
+            "kind": "Field",
+            "name": "bands",
+            "start_line": 331,
+            "qualified_name": "simhash.minhash.__tag.cbm_lsh_index.bands",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/simhash/minhash.c",
+          "kind": "Field",
+          "name": "*result_buf",
+          "start_line": 337,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.simhash.minhash.cbm_lsh_index.*result_buf",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/simhash/minhash.c",
+            "kind": "Field",
+            "name": "result_buf",
+            "start_line": 337,
+            "qualified_name": "simhash.minhash.__tag.cbm_lsh_index.result_buf",
+            "family": "value"
+          },
+          {
+            "file_path": "src/simhash/minhash.c",
+            "kind": "Field",
+            "name": "result_count",
+            "start_line": 338,
+            "qualified_name": "simhash.minhash.__tag.cbm_lsh_index.result_count",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/ui/layout3d.c",
+          "kind": "Field",
+          "name": "children[8]",
+          "start_line": 216,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.ui.layout3d.octree_node.children[8]",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/ui/layout3d.c",
+            "kind": "Field",
+            "name": "body_mass",
+            "start_line": 215,
+            "qualified_name": "ui.layout3d.__tag.octree_node.body_mass",
+            "family": "value"
+          },
+          {
+            "file_path": "src/ui/layout3d.c",
+            "kind": "Field",
+            "name": "children",
+            "start_line": 216,
+            "qualified_name": "ui.layout3d.__tag.octree_node.children",
+            "family": "value"
+          },
+          {
+            "file_path": "src/ui/layout3d.c",
+            "kind": "Field",
+            "name": "octree_node",
+            "start_line": 216,
+            "qualified_name": "ui.layout3d.__tag.octree_node.octree_node",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "src/watcher/watcher.c",
+          "kind": "Field",
+          "name": "*pending_free",
+          "start_line": 75,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.src.watcher.watcher.cbm_watcher.*pending_free",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "src/watcher/watcher.c",
+            "kind": "Field",
+            "name": "pending_free",
+            "start_line": 75,
+            "qualified_name": "watcher.watcher.__tag.cbm_watcher.pending_free",
+            "family": "value"
+          },
+          {
+            "file_path": "src/watcher/watcher.c",
+            "kind": "Field",
+            "name": "pending_free_count",
+            "start_line": 76,
+            "qualified_name": "watcher.watcher.__tag.cbm_watcher.pending_free_count",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+          "kind": "Field",
+          "name": "*symbol_names",
+          "start_line": 122,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.tools.tree-sitter-form.src.tree_sitter.parser.TSLanguage.*symbol_names",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "parse_actions",
+            "start_line": 121,
+            "qualified_name": "tools.tree-sitter-form.src.tree_sitter.parser.__header.__tag.TSLanguage.parse_actions",
+            "family": "value"
+          },
+          {
+            "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "symbol_names",
+            "start_line": 122,
+            "qualified_name": "tools.tree-sitter-form.src.tree_sitter.parser.__header.__tag.TSLanguage.symbol_names",
+            "family": "value"
+          },
+          {
+            "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "field_names",
+            "start_line": 123,
+            "qualified_name": "tools.tree-sitter-form.src.tree_sitter.parser.__header.__tag.TSLanguage.field_names",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+          "kind": "Field",
+          "name": "*field_names",
+          "start_line": 123,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.tools.tree-sitter-form.src.tree_sitter.parser.TSLanguage.*field_names",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "symbol_names",
+            "start_line": 122,
+            "qualified_name": "tools.tree-sitter-form.src.tree_sitter.parser.__header.__tag.TSLanguage.symbol_names",
+            "family": "value"
+          },
+          {
+            "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "field_names",
+            "start_line": 123,
+            "qualified_name": "tools.tree-sitter-form.src.tree_sitter.parser.__header.__tag.TSLanguage.field_names",
+            "family": "value"
+          },
+          {
+            "file_path": "tools/tree-sitter-form/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "field_map_slices",
+            "start_line": 124,
+            "qualified_name": "tools.tree-sitter-form.src.tree_sitter.parser.__header.__tag.TSLanguage.field_map_slices",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+          "kind": "Field",
+          "name": "*symbol_names",
+          "start_line": 122,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.tools.tree-sitter-magma.src.tree_sitter.parser.TSLanguage.*symbol_names",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "parse_actions",
+            "start_line": 121,
+            "qualified_name": "tools.tree-sitter-magma.src.tree_sitter.parser.__header.__tag.TSLanguage.parse_actions",
+            "family": "value"
+          },
+          {
+            "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "symbol_names",
+            "start_line": 122,
+            "qualified_name": "tools.tree-sitter-magma.src.tree_sitter.parser.__header.__tag.TSLanguage.symbol_names",
+            "family": "value"
+          },
+          {
+            "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "field_names",
+            "start_line": 123,
+            "qualified_name": "tools.tree-sitter-magma.src.tree_sitter.parser.__header.__tag.TSLanguage.field_names",
+            "family": "value"
+          }
+        ]
+      },
+      {
+        "gap": {
+          "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+          "kind": "Field",
+          "name": "*field_names",
+          "start_line": 123,
+          "qualified_name": "private-tmp-codebase-memory-mcp-analysis.vewvDp.tools.tree-sitter-magma.src.tree_sitter.parser.TSLanguage.*field_names",
+          "family": "value"
+        },
+        "native_same_file_line": [
+          {
+            "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "symbol_names",
+            "start_line": 122,
+            "qualified_name": "tools.tree-sitter-magma.src.tree_sitter.parser.__header.__tag.TSLanguage.symbol_names",
+            "family": "value"
+          },
+          {
+            "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "field_names",
+            "start_line": 123,
+            "qualified_name": "tools.tree-sitter-magma.src.tree_sitter.parser.__header.__tag.TSLanguage.field_names",
+            "family": "value"
+          },
+          {
+            "file_path": "tools/tree-sitter-magma/src/tree_sitter/parser.h",
+            "kind": "Field",
+            "name": "field_map_slices",
+            "start_line": 124,
+            "qualified_name": "tools.tree-sitter-magma.src.tree_sitter.parser.__header.__tag.TSLanguage.field_map_slices",
+            "family": "value"
+          }
+        ]
+      }
+    ],
+    "reference_callable_gap_files": [
+      {
+        "file_path": "src/foundation/compat_fs.c",
+        "count": 10
+      },
+      {
+        "file_path": "src/foundation/compat_thread.c",
+        "count": 9
+      },
+      {
+        "file_path": "src/foundation/platform.c",
+        "count": 9
+      },
+      {
+        "file_path": "src/foundation/compat_regex.c",
+        "count": 3
+      },
+      {
+        "file_path": "src/cli/hook_augment.c",
+        "count": 1
+      },
+      {
+        "file_path": "src/ui/http_server.c",
+        "count": 1
+      }
+    ]
+  },
+  "relationships": {
+    "canonical": {
+      "totals": {
+        "reference": 37885,
+        "native": 111751,
+        "matched": 29687,
+        "reference_only": 8198,
+        "native_only": 82064
+      },
+      "by_type": {
+        "CALLS": {
+          "reference": 28980,
+          "native": 31779,
+          "matched": 28060,
+          "reference_recall": 0.9683,
+          "native_agreement": 0.883
+        },
+        "READS": {
+          "reference": 8793,
+          "native": 43633,
+          "matched": 1515,
+          "reference_recall": 0.1723,
+          "native_agreement": 0.0347
+        },
+        "WRITES": {
+          "reference": 112,
+          "native": 36339,
+          "matched": 112,
+          "reference_recall": 1,
+          "native_agreement": 0.0031
+        }
+      },
+      "reference_only_sample": [
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac.c",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac.c",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "char",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac.c",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "int",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "src/cli/cli.c",
+          "target_name": "count",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "src/cli/cli.c",
+          "target_name": "count",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_free",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_num_patterns",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_num_states",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_scan_batch",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_scan_bitmask",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_scan_lz4_batch",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_scan_lz4_batch",
+          "target_file": "internal/cbm/lz4_store.h",
+          "target_name": "cbm_lz4_decompress",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_scan_lz4_bitmask",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_scan_lz4_bitmask",
+          "target_file": "internal/cbm/lz4_store.h",
+          "target_name": "cbm_lz4_decompress",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_table_bytes",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "ac.h",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_build",
+          "target_file": "src/cli/cli.c",
+          "target_name": "count",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_free",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_num_patterns",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_num_states",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_scan_batch",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_scan_bitmask",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_scan_lz4_batch",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_scan_lz4_bitmask",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/ac.h",
+          "source_name": "cbm_ac_table_bytes",
+          "target_file": "internal/cbm/ac.h",
+          "target_name": "CBMAutomaton",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/arena.c",
+          "source_name": "arena_grow",
+          "target_file": "internal/cbm/arena.h",
+          "target_name": "CBM_ARENA_MAX_BLOCKS",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/arena.c",
+          "source_name": "cbm_arena_alloc",
+          "target_file": "src/foundation/constants.h",
+          "target_name": "SKIP_ONE",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/arena.c",
+          "source_name": "cbm_arena_init",
+          "target_file": "src/foundation/constants.h",
+          "target_name": "SKIP_ONE",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/arena.c",
+          "source_name": "cbm_arena_sprintf",
+          "target_file": "src/foundation/constants.h",
+          "target_name": "SKIP_ONE",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/arena.c",
+          "source_name": "cbm_arena_strdup",
+          "target_file": "src/foundation/constants.h",
+          "target_name": "SKIP_ONE",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/arena.c",
+          "source_name": "cbm_arena_strndup",
+          "target_file": "src/foundation/constants.h",
+          "target_name": "SKIP_ONE",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/arena.h",
+          "source_name": "arena.h",
+          "target_file": "internal/cbm/arena.h",
+          "target_name": "CBM_ARENA_MAX_BLOCKS",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "CBMLanguage",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "CBM_MAX_ERROR_REGIONS",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "CBM_QSET_UNINIT",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "TSParser",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "cbm_initialized",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "g_extract_macros",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "g_quarantine_set",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "g_quarantine_state",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "total_extract_ns",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "total_files",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "total_files_preprocessed",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "total_lsp_ns",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "total_parse_ns",
+          "type": "READS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/cbm.c",
+          "target_name": "total_preprocess_ns",
+          "type": "READS"
+        }
+      ],
+      "native_only_sample": [
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_NO_STATE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "c",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "fail",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "fail",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "idx",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "idx",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_states",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "r",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "s",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_MAX_BITMASK",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_NO_STATE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_ROOT_STATES",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "c",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "count",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "idx",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "idx",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "j",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "lengths",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_states",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_states",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "p",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "patterns",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "state",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "state",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "max_states",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_states",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "tmp",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "tmp",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_ALLOC_ONE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_BYTE_RANGE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_NO_STATE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_ROOT_STATES",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_map",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "count",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        }
+      ]
+    },
+    "competitor": {
+      "totals": {
+        "reference": 35155,
+        "native": 111751,
+        "matched": 31466,
+        "reference_only": 3689,
+        "native_only": 80285
+      },
+      "by_type": {
+        "CALLS": {
+          "reference": 33725,
+          "native": 31779,
+          "matched": 31335,
+          "reference_recall": 0.9291,
+          "native_agreement": 0.986
+        },
+        "READS": {
+          "reference": 0,
+          "native": 43633,
+          "matched": 0,
+          "reference_recall": null,
+          "native_agreement": 0
+        },
+        "WRITES": {
+          "reference": 1430,
+          "native": 36339,
+          "matched": 131,
+          "reference_recall": 0.0916,
+          "native_agreement": 0.0036
+        }
+      },
+      "reference_only_sample": [
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "go_table",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "output",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "output_list",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "output_next",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "go_table",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_patterns",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "output",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "output_list",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "output_next",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "queue_init",
+          "target_file": "internal/cbm/lsp/type_rep.h",
+          "target_name": "data",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "queue_init",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/arena.c",
+          "source_name": "arena_grow",
+          "target_file": "internal/cbm/lsp/scope.h",
+          "target_name": "used",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/arena.c",
+          "source_name": "cbm_arena_alloc",
+          "target_file": "internal/cbm/lsp/scope.h",
+          "target_name": "used",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/lsp/lsp_neg_memo.h",
+          "target_name": "cbm_idxmemo_get",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/lsp/lsp_neg_memo.h",
+          "target_name": "cbm_idxmemo_put_raw",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/lsp/lsp_neg_memo.h",
+          "target_name": "cbm_negmemo_contains",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/lsp/lsp_neg_memo.h",
+          "target_name": "cbm_negmemo_insert_raw",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/lsp/lsp_neg_memo.h",
+          "target_name": "cbm_negmemo_key",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/lsp/lsp_neg_memo.h",
+          "target_name": "h",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/lsp/lsp_neg_memo.h",
+          "target_name": "key",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/lsp/lsp_neg_memo.h",
+          "target_name": "val",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "internal/cbm/macro_table.h",
+          "target_name": "count",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm.c",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_calls_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_calls_push",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_channels_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_channels_push",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_defs_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_defs_push",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_envaccess_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_envaccess_push",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_error_ranges_str",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_extract_file_ex",
+          "target_file": "internal/cbm/lsp/kotlin_lsp.h",
+          "target_name": "module_qn",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_extract_file_ex",
+          "target_file": "internal/cbm/macro_table.h",
+          "target_name": "count",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_extract_file_ex",
+          "target_file": "internal/cbm/preprocessor.cpp",
+          "target_name": "cbm_preprocess_with_map",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_extract_file_ex",
+          "target_file": "internal/cbm/preprocessor.cpp",
+          "target_name": "cbm_preprocessed_source_free",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_extract_file_ex",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_init",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_extract_file_ex",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_strdup",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_extract_file_ex",
+          "target_file": "src/mcp/mcp.c",
+          "target_name": "is_test_file",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_free_result",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_destroy",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_impltrait_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_impltrait_push",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_imports_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_imports_push",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_infrabinding_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_infrabinding_push",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_resolvedcall_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_resolvedcall_push",
+          "target_file": "src/pipeline/registry.c",
+          "target_name": "cap",
+          "type": "WRITES"
+        },
+        {
+          "source_file": "internal/cbm/cbm.c",
+          "source_name": "cbm_rw_push",
+          "target_file": "src/foundation/arena.c",
+          "target_name": "cbm_arena_alloc",
+          "type": "CALLS"
+        }
+      ],
+      "native_only_sample": [
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_NO_STATE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "c",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "fail",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "fail",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "idx",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "idx",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_states",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "r",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_failure",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "s",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_MAX_BITMASK",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_NO_STATE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_ROOT_STATES",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "c",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "count",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "idx",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "idx",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "j",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "lengths",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_states",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_states",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "p",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "patterns",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "state",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_build_trie",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "state",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "max_states",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "num_states",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "tmp",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "ac_shrink_tables",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "tmp",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_ALLOC_ONE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_BYTE_RANGE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_NO_STATE",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "CBM_AC_ROOT_STATES",
+          "type": "READS",
+          "strategy": "same_file_value_unique",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "ac",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_map",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "alpha_size",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "count",
+          "type": "READS",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        },
+        {
+          "source_file": "internal/cbm/ac.c",
+          "source_name": "cbm_ac_build",
+          "target_file": "internal/cbm/ac.c",
+          "target_name": "i",
+          "type": "WRITES",
+          "strategy": "lexical_scope_value",
+          "confidence": 1
+        }
+      ]
+    }
+  }
+}

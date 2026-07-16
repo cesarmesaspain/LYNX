@@ -154,6 +154,25 @@ describe('passCalls', () => {
     expect(result!.confidence).toBeGreaterThanOrEqual(0.85);
   });
 
+  it('prefers a unique C implementation over its imported header prototype', () => {
+    const callerFile = makeFileNode(1, 'tests/test_store.c');
+    const headerFile = makeFileNode(2, 'src/store/store.h');
+    const sourceFile = makeFileNode(3, 'src/store/store.c');
+    const prototype = makeFuncNode(4, 'store_open', 'src/store/store.h');
+    const implementation = makeFuncNode(5, 'store_open', 'src/store/store.c');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [callerFile, headerFile, sourceFile, prototype, implementation]);
+    idx.importedQnByFile.set('tests/test_store.c', new Set([
+      prototype.qualified_name,
+      implementation.qualified_name,
+    ]));
+
+    const result = resolveCallee(idx, 'tests/test_store.c', 'store_open');
+    expect(result?.node.id).toBe(implementation.id);
+    expect(result?.reason).toBe('imported-implementation');
+    expect(result?.confidence).toBeGreaterThan(0.9);
+  });
+
   it('falls back to unique-name when no import info available', () => {
     // Without import context, a globally unique name should still resolve.
     const fileNode = makeFileNode(1, 'src/lib.ts');
@@ -166,6 +185,26 @@ describe('passCalls', () => {
     expect(result).toBeDefined();
     expect(result!.node.id).toBe(onlyMatch.id);
     expect(result!.reason).toBe('unique-name');
+  });
+
+  it('does not resolve receiver-qualified calls by global method name alone', () => {
+    const fileNode = makeFileNode(1, 'src/cache.ts');
+    const globalGet = { ...makeFuncNode(2, 'get', 'src/cache.ts'), kind: 'Method', is_exported: 1 };
+
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, globalGet]);
+
+    expect(resolveCallee(idx, 'src/database.ts', 'database.get')).toBeUndefined();
+    expect(resolveCallee(idx, 'src/registry.ts', 'commands.get')).toBeUndefined();
+  });
+
+  it('does not resolve an extracted bare method name globally without receiver evidence', () => {
+    const fileNode = makeFileNode(1, 'src/cache.ts');
+    const globalGet = { ...makeFuncNode(2, 'get', 'src/cache.ts'), kind: 'Method', is_exported: 1 };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, globalGet]);
+
+    expect(resolveCallee(idx, 'src/database.ts', 'get')).toBeUndefined();
   });
 
   it('resolves callee through passCalls using imported name', () => {

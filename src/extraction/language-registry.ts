@@ -150,7 +150,9 @@ const TOP_LANGUAGES: LanguageConfig[] = [
     importTypes: ['preproc_include'],
     variableTypes: ['declaration'],
     commentTypes: ['comment'],
-    hasImports: false,
+    // Preprocessor includes are structural imports and are required to resolve
+    // calls from .c files to declarations in .h files.
+    hasImports: true,
   },
   {
     tsLang: 'cpp',
@@ -161,7 +163,7 @@ const TOP_LANGUAGES: LanguageConfig[] = [
     importTypes: ['preproc_include', 'using_declaration'],
     variableTypes: ['declaration'],
     commentTypes: ['comment'],
-    hasImports: false,
+    hasImports: true,
   },
 
   // ── C# ──

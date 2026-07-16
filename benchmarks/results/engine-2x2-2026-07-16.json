@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-16T13:35:00.709Z",
+  "methodology": {
+    "design": "2 engines × 2 repositories; fresh isolated cache per cell",
+    "workers": 2,
+    "ranking_warning": "Raw node/edge counts measure coverage and noise together; precision probes and task oracles decide superiority.",
+    "repositories": {
+      "lynx": "/Users/admin/Desktop/LYNX",
+      "codebase-memory": "/tmp/codebase-memory-mcp-analysis.vewvDp"
+    },
+    "binaries": {
+      "lynx": "/Users/admin/Desktop/LYNX/dist/cli.js",
+      "codebase_memory": "/tmp/codebase-memory-mcp-analysis.vewvDp/build/c/codebase-memory-mcp"
+    }
+  },
+  "matrix": [
+    {
+      "engine": "lynx",
+      "repository": "lynx",
+      "started_at": "2026-07-16T13:33:53.828Z",
+      "exit_code": 0,
+      "wall_time_s": 2.28,
+      "peak_rss_bytes": 480739328,
+      "stdout_log": "lynx-on-lynx.stdout.log",
+      "stderr_log": "lynx-on-lynx.stderr.log",
+      "graph": {
+        "database_bytes": 12689408,
+        "nodes": 4838,
+        "edges": 26080,
+        "files": 594,
+        "node_labels": {
+          "Variable": 1884,
+          "Function": 1208,
+          "Module": 594,
+          "File": 594,
+          "Interface": 294,
+          "Folder": 66,
+          "Method": 58,
+          "Type": 56,
+          "Class": 20,
+          "Channel": 20,
+          "Route": 19,
+          "Dependency": 15,
+          "ExternalSymbol": 6,
+          "ConfigKey": 2,
+          "Project": 1,
+          "Branch": 1
+        },
+        "edge_types": {
+          "READS": 7051,
+          "IMPORTS": 6402,
+          "CALLS": 4891,
+          "DEFINES": 4056,
+          "USAGE": 1930,
+          "CONTAINS_FILE": 585,
+          "TESTS": 371,
+          "TESTS_FILE": 313,
+          "CONFIGURES": 158,
+          "RAISES": 79,
+          "CONTAINS_FOLDER": 59,
+          "DEFINES_METHOD": 58,
+          "LISTENS_ON": 56,
+          "HTTP_CALLS": 27,
+          "INHERITS": 22,
+          "DEPENDS_ON": 15,
+          "WRITES": 3,
+          "EMITS": 2,
+          "THROWS": 1,
+          "HAS_BRANCH": 1
+        },
+        "precision_probes": {
+          "typescript_to_c_edges": 0,
+          "c_implementations_preserved_beside_header": 0
+        }
+      }
+    },
+    {
+      "engine": "codebase-memory",
+      "repository": "lynx",
+      "started_at": "2026-07-16T13:33:56.133Z",
+      "exit_code": 0,
+      "wall_time_s": 0.86,
+      "peak_rss_bytes": 349569024,
+      "stdout_log": "codebase-on-lynx.stdout.log",
+      "stderr_log": "codebase-on-lynx.stderr.log",
+      "graph": {
+        "database_bytes": 23920640,
+        "nodes": 14297,
+        "edges": 24271,
+        "files": 592,
+        "node_labels": {
+          "Variable": 10995,
+          "Function": 1363,
+          "File": 592,
+          "Module": 588,
+          "Interface": 303,
+          "Section": 175,
+          "Folder": 71,
+          "Route": 68,
+          "Method": 58,
+          "Type": 56,
+          "Class": 12,
+          "Struct": 9,
+          "Channel": 3,
+          "Project": 2,
+          "Macro": 1,
+          "Branch": 1
+        },
+        "edge_types": {
+          "DEFINES": 13563,
+          "USAGE": 2909,
+          "CALLS": 2704,
+          "IMPORTS": 2164,
+          "CONFIGURES": 1873,
+          "CONTAINS_FILE": 592,
+          "WRITES": 132,
+          "HTTP_CALLS": 75,
+          "CONTAINS_FOLDER": 66,
+          "DEFINES_METHOD": 58,
+          "SEMANTICALLY_RELATED": 49,
+          "SIMILAR_TO": 44,
+          "INHERITS": 22,
+          "FILE_CHANGES_WITH": 7,
+          "TESTS_FILE": 4,
+          "RAISES": 3,
+          "LISTENS_ON": 3,
+          "THROWS": 2,
+          "HAS_BRANCH": 1
+        },
+        "precision_probes": {
+          "typescript_to_c_edges": 119,
+          "c_implementations_preserved_beside_header": 0
+        }
+      }
+    },
+    {
+      "engine": "lynx",
+      "repository": "codebase-memory",
+      "started_at": "2026-07-16T13:33:57.042Z",
+      "exit_code": 0,
+      "wall_time_s": 29.25,
+      "peak_rss_bytes": 767180800,
+      "stdout_log": "lynx-on-codebase-memory.stdout.log",
+      "stderr_log": "lynx-on-codebase-memory.stderr.log",
+      "graph": {
+        "database_bytes": 66396160,
+        "nodes": 17598,
+        "edges": 112459,
+        "files": 733,
+        "node_labels": {
+          "Function": 12921,
+          "Variable": 2513,
+          "Module": 733,
+          "File": 733,
+          "Enum": 312,
+          "Class": 231,
+          "Folder": 64,
+          "Interface": 38,
+          "Method": 20,
+          "Route": 15,
+          "Channel": 7,
+          "Type": 5,
+          "ExternalSymbol": 2,
+          "ConfigKey": 2,
+          "Project": 1,
+          "Branch": 1
+        },
+        "edge_types": {
+          "CALLS": 43121,
+          "USAGE": 28884,
+          "DEFINES": 16773,
+          "READS": 10509,
+          "TESTS": 9480,
+          "IMPORTS": 2009,
+          "CONTAINS_FILE": 722,
+          "TESTS_FILE": 699,
+          "WRITES": 113,
+          "CONTAINS_FOLDER": 55,
+          "CONFIGURES": 33,
+          "HTTP_CALLS": 17,
+          "DEFINES_METHOD": 17,
+          "RAISES": 15,
+          "LISTENS_ON": 4,
+          "EMITS": 4,
+          "INHERITS": 2,
+          "THROWS": 1,
+          "HAS_BRANCH": 1
+        },
+        "precision_probes": {
+          "typescript_to_c_edges": 0,
+          "c_implementations_preserved_beside_header": 1127
+        }
+      }
+    },
+    {
+      "engine": "codebase-memory",
+      "repository": "codebase-memory",
+      "started_at": "2026-07-16T13:34:35.735Z",
+      "exit_code": 0,
+      "wall_time_s": 4.01,
+      "peak_rss_bytes": 1368866816,
+      "stdout_log": "codebase-on-codebase-memory.stdout.log",
+      "stderr_log": "codebase-on-codebase-memory.stderr.log",
+      "graph": {
+        "database_bytes": 91684864,
+        "nodes": 17235,
+        "edges": 97906,
+        "files": 813,
+        "node_labels": {
+          "Function": 12344,
+          "Variable": 1338,
+          "Macro": 898,
+          "File": 813,
+          "Module": 673,
+          "Section": 407,
+          "Field": 372,
+          "Route": 118,
+          "Class": 98,
+          "Folder": 95,
+          "Interface": 38,
+          "Method": 27,
+          "Type": 5,
+          "Enum": 4,
+          "Project": 2,
+          "Decorator": 2,
+          "Branch": 1
+        },
+        "edge_types": {
+          "CALLS": 41402,
+          "USAGE": 19296,
+          "DEFINES": 16519,
+          "SIMILAR_TO": 13238,
+          "WRITES": 2035,
+          "IMPORTS": 1720,
+          "SEMANTICALLY_RELATED": 1482,
+          "CONTAINS_FILE": 813,
+          "TESTS": 790,
+          "HTTP_CALLS": 417,
+          "CONTAINS_FOLDER": 80,
+          "CONFIGURES": 74,
+          "DEFINES_METHOD": 22,
+          "DECORATES": 6,
+          "TESTS_FILE": 5,
+          "RAISES": 5,
+          "THROWS": 1,
+          "HAS_BRANCH": 1
+        },
+        "precision_probes": {
+          "typescript_to_c_edges": 60,
+          "c_implementations_preserved_beside_header": 2
+        }
+      }
+    }
+  ]
+}

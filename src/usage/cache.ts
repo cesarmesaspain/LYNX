@@ -7,7 +7,7 @@
  */
 
 import { aggregateByWindow, aggregateTotal, type TimeWindow, type WindowedMetrics } from './aggregation.js';
-import { readArchivedEvents } from '../store/metrics-db.js';
+import { countArchivedEvents } from '../store/metrics-db.js';
 
 interface CacheEntry {
   metrics: WindowedMetrics;
@@ -32,13 +32,7 @@ function cacheKey(project: string, window: TimeWindow): string {
 }
 
 function getCurrentEventCount(project: string): number {
-  // Fast count query against events_archive
-  try {
-    const events = readArchivedEvents(project, 50000);
-    return events.length;
-  } catch {
-    return -1; // force miss
-  }
+  return countArchivedEvents(project || undefined);
 }
 
 export function getCachedMetrics(project: string, window: TimeWindow): WindowedMetrics {

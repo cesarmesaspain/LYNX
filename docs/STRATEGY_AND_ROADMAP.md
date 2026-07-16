@@ -27,7 +27,7 @@ velocidad de puesta en marcha y no depender de infraestructura externa.**
 | Instalación | `npm install -g lynx && lynx install` — 30s | Despliegue de servidor, PG, Redis, MinIO |
 | Privacidad | Todo local, nada sale del dispositivo sin permiso | SaaS o self-hosted con infraestructura significativa |
 | Métricas auditables | Provenance en cada métrica (measured/estimated/scenario) | Métricas agregadas sin trazabilidad por evento |
-| Integración MCP | 25 herramientas MCP nativas con hook auto-aumentado | MCP requiere configuración y servidor externo |
+| Integración MCP | 33 herramientas MCP nativas con hook auto-aumentado | MCP requiere configuración y servidor externo |
 | Contexto compacto | `pack_context` genera briefs de ~400 tokens | Sin equivalente directo para agentes |
 | Análisis de impacto | `detect_changes` + `assess_impact` sobre diff real | Depende de indexación completa del servidor |
 | Coste operativo | Cero infraestructura para modo local | Mínimo ~$200/mes en cloud para self-hosted |
@@ -256,7 +256,7 @@ Objetivo: LYNX Local es sólido y genera confianza.
 - [x] Tiers y capacidades locales: matriz Free/Pro/Team/Enterprise con `tierSatisfies()` y gating
 - [x] Licencias locales: detección de tier, `TierGateError`, 33 capacidades gated
 - [x] Aislamiento completo de tests: `LYNX_HOME` temporal, 0 escrituras reales, prueba contractual
-- [ ] Dashboard: CSV export con descarga por ventana (paginación y JSON ya funcionan; CSV pendiente)
+- [x] Dashboard: CSV export con descarga por ventana, proyecto seleccionado y escaping seguro
 
 ### Fase 12 — LYNX Team MVP (2026-08 a 2026-10)
 

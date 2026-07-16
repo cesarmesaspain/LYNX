@@ -93,6 +93,11 @@ export class LynxDatabase {
     this.db.pragma('cache_size = -64000');
   }
 
+  /** Restore read indexes once bulk edge insertion is complete. */
+  prepareBulkReads(): void {
+    this.ensureEdgeIndexes();
+  }
+
   checkpoint(): void {
     this.db.pragma('wal_checkpoint(PASSIVE)');
   }
@@ -192,7 +197,12 @@ export class LynxDatabase {
 
   transaction<T>(fn: () => T): T {
     const txn = this.db.transaction(fn);
-    return txn();
+    // Indexing transactions read the current graph before replacing parts of
+    // it. A deferred transaction can lose its WAL snapshot if another process
+    // writes between that read and our first write, producing
+    // SQLITE_BUSY_SNAPSHOT even with busy_timeout enabled. IMMEDIATE reserves
+    // the single writer slot up front while still allowing concurrent readers.
+    return txn.immediate();
   }
 
   // ── Lifecycle ───────────────────────────────────────────────

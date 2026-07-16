@@ -172,17 +172,27 @@ export function getBulkEdgeEvidence(
 ): Map<number, EdgeEvidenceRecord[]> {
   const result = new Map<number, EdgeEvidenceRecord[]>();
   if (edgeIds.length === 0) return result;
-  const placeholders = edgeIds.map(() => '?').join(',');
-  const sql = `SELECT id, edge_id, evidence_type, source_kind, source_path, start_line, end_line, extractor, strength, payload_json, created_at FROM edge_evidence WHERE project = ? AND edge_id IN (${placeholders}) ORDER BY strength DESC, id ASC`;
-  const rows = db.db.prepare(sql).all(project, ...edgeIds) as Array<EdgeEvidenceRecord & { edge_id: number }>;
-  for (const row of rows) {
-    let payload: unknown = {};
-    try { payload = JSON.parse(row.payload_json || '{}'); } catch { payload = {}; }
-    const { tier } = classifyConfidence(row.extractor, row.strength);
-    const enriched = { ...row, payload, confidence_tier: tier, confidence_label: CONFIDENCE_TIERS[tier].label };
-    const list = result.get(row.edge_id) || [];
-    list.push(enriched);
-    result.set(row.edge_id, list);
+
+  // Keep well below SQLite's host-parameter limit. Large repositories can
+  // project tens of thousands of edges at once, while every query also binds
+  // the project name. Deduplicating prevents repeated work without changing
+  // the Map contract.
+  const uniqueEdgeIds = [...new Set(edgeIds)];
+  const batchSize = 500;
+  for (let offset = 0; offset < uniqueEdgeIds.length; offset += batchSize) {
+    const batch = uniqueEdgeIds.slice(offset, offset + batchSize);
+    const placeholders = batch.map(() => '?').join(',');
+    const sql = `SELECT id, edge_id, evidence_type, source_kind, source_path, start_line, end_line, extractor, strength, payload_json, created_at FROM edge_evidence WHERE project = ? AND edge_id IN (${placeholders}) ORDER BY edge_id ASC, strength DESC, id ASC`;
+    const rows = db.db.prepare(sql).all(project, ...batch) as Array<EdgeEvidenceRecord & { edge_id: number }>;
+    for (const row of rows) {
+      let payload: unknown = {};
+      try { payload = JSON.parse(row.payload_json || '{}'); } catch { payload = {}; }
+      const { tier } = classifyConfidence(row.extractor, row.strength);
+      const enriched = { ...row, payload, confidence_tier: tier, confidence_label: CONFIDENCE_TIERS[tier].label };
+      const list = result.get(row.edge_id) || [];
+      list.push(enriched);
+      result.set(row.edge_id, list);
+    }
   }
   return result;
 }

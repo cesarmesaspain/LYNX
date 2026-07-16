@@ -558,6 +558,21 @@ export function readArchivedEvents(
   }
 }
 
+/** Count archived events without materialising rows or parsing JSON payloads. */
+export function countArchivedEvents(project?: string): number {
+  try {
+    const db = open();
+    if (project) {
+      return (db.prepare('SELECT COUNT(*) AS count FROM events_archive WHERE project = ?')
+        .get(project) as { count: number }).count;
+    }
+    return (db.prepare('SELECT COUNT(*) AS count FROM events_archive')
+      .get() as { count: number }).count;
+  } catch {
+    return -1;
+  }
+}
+
 export function flushTodayEvents(project: string): void {
   try {
     const db = open();

@@ -54,11 +54,18 @@ const langGroups: Record<string, string> = {
   py: 'py', pyx: 'py', pyi: 'py',
   go: 'go',
   rs: 'rs',
+  c: 'c-family', h: 'c-family', cc: 'c-family', cpp: 'c-family', cxx: 'c-family',
+  hh: 'c-family', hpp: 'c-family', hxx: 'c-family', m: 'c-family', mm: 'c-family',
+  java: 'jvm', kt: 'jvm', kts: 'jvm',
 };
 
-function languageGroup(filePath: string): string {
+export function languageGroup(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
   return langGroups[ext] || ext;
+}
+
+export function sameLanguageGroup(leftFile: string, rightFile: string): boolean {
+  return languageGroup(leftFile) === languageGroup(rightFile);
 }
 
 export function resolveCallee(
@@ -67,12 +74,13 @@ export function resolveCallee(
   calleeName: string
 ): { node: NodeRef; reason: string; confidence: number } | undefined {
   const methodName = calleeName.split('.').pop() || calleeName;
+  const isQualifiedCall = calleeName.includes('.');
 
   const callerLang = languageGroup(filePath);
 
   const local = getFileNodes(idx, filePath)
     .filter((node) => callableKinds.has(node.kind))
-    .find((node) => node.qualified_name.endsWith(`.${calleeName}`) || node.name === methodName);
+    .find((node) => node.qualified_name.endsWith(`.${calleeName}`) || (!isQualifiedCall && node.name === methodName));
   if (local) return { node: local, reason: 'same-file', confidence: 0.95 };
 
   // If the callee name matches a local variable (const/let/var) in the same
@@ -100,6 +108,12 @@ export function resolveCallee(
     const importedCallables = callableByName.filter((node) => importedQns.has(node.qualified_name));
     if (importedCallables.length === 1) return { node: importedCallables[0], reason: 'imported-name', confidence: 0.92 };
     if (importedCallables.length > 1) {
+      const implementations = importedCallables.filter((node) =>
+        !/\.(?:h|hh|hpp|hxx)$/i.test(node.file_path),
+      );
+      if (implementations.length === 1) {
+        return { node: implementations[0], reason: 'imported-implementation', confidence: 0.96 };
+      }
       const best = importedCallables.find((n) => n.file_path !== filePath) || importedCallables[0];
       return { node: best, reason: 'imported-name', confidence: 0.85 };
     }
@@ -107,11 +121,18 @@ export function resolveCallee(
     // built-ins, dynamic imports, and extraction gaps.
   }
 
+  // A receiver-qualified call such as db.get() or map.set() does not identify
+  // the owning type. Resolving it to the only globally indexed method named
+  // "get"/"set" creates high-confidence-looking false edges. Without exact
+  // local or import evidence, preserve it as unresolved.
+  if (isQualifiedCall) return undefined;
+
   // For global name matches, exclude unexported symbols unless they're in
   // the same file. Module-private functions (no `export` keyword) cannot be
   // called from other files — matching them by name alone produces false
   // CALLS edges (e.g. `params.toString()` → `lib/backups.toString`).
-  const exportedCallable = callableByName.filter((n) => n.is_exported !== 0 || n.file_path === filePath);
+  const exportedCallable = callableByName.filter((n) =>
+    n.kind !== 'Method' && (n.is_exported !== 0 || n.file_path === filePath));
   if (exportedCallable.length === 1) return { node: exportedCallable[0], reason: 'unique-name', confidence: 0.8 };
 
   if (exportedCallable.length > 0) {
@@ -123,6 +144,7 @@ export function resolveCallee(
   // This catches `params.toString()` matching `lib/backups.toString` (unexported).
   if (callableByName.length === 1) {
     const only = callableByName[0];
+    if (only.kind === 'Method' && only.file_path !== filePath) return undefined;
     if (idx.hasExportedCallables && only.is_exported === 0 && only.file_path !== filePath) return undefined;
     return { node: only, reason: 'unique-name', confidence: 0.8 };
   }
@@ -130,7 +152,9 @@ export function resolveCallee(
   const suffixCandidates = (idx.suffixToRows.get(calleeName) || idx.suffixToRows.get(methodName) || [])
     .filter((node) => languageGroup(node.file_path) === callerLang);
   const callableSuffix = suffixCandidates.filter((node) => callableKinds.has(node.kind));
-  if (callableSuffix.length === 1) return { node: callableSuffix[0], reason: 'suffix-index', confidence: 0.7 };
+  if (callableSuffix.length === 1 && (callableSuffix[0].kind !== 'Method' || callableSuffix[0].file_path === filePath)) {
+    return { node: callableSuffix[0], reason: 'suffix-index', confidence: 0.7 };
+  }
 
   const samePkg = preferSamePackage(callableByName, filePath);
   if (samePkg) return { node: samePkg, reason: 'package-name', confidence: 0.55 };
@@ -374,6 +398,43 @@ export function qnSuffixes(qn: string): string[] {
 
 export function resolveImportToModuleKey(importPath: string, currentFile: string): string {
   return filePathToModuleKey(resolveImportToFile(importPath, currentFile));
+}
+
+/**
+ * Resolve an import/include to an indexed File node.
+ *
+ * Module-key lookup remains authoritative. C/C++ compilers also search configured
+ * include roots, which are not always available to a syntax-only indexer. For a
+ * header include we therefore accept a repository path suffix only when it has a
+ * single candidate. Ambiguous basenames deliberately remain unresolved rather
+ * than creating a plausible-looking but false dependency.
+ */
+export function resolveImportedFile(
+  idx: ResolverIndexes,
+  importPath: string,
+  currentFile: string,
+): NodeRef | undefined {
+  const moduleKey = resolveImportToModuleKey(importPath, currentFile);
+  const exact = idx.moduleToFileNode.get(moduleKey);
+  if (exact) return exact;
+
+  if (languageGroup(currentFile) !== 'c-family') return undefined;
+  const normalized = importPath
+    .trim()
+    .replace(/^[<"']|[>"']$/g, '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '')
+    .toLowerCase();
+  if (!/\.(?:h|hh|hpp|hxx)$/.test(normalized)) return undefined;
+
+  const basename = normalized.split('/').pop()!;
+  const candidates = (idx.headerBasenameToFileNodes.get(basename) || [])
+    .filter((node) => {
+      const candidate = node.file_path.replace(/\\/g, '/').toLowerCase();
+      return candidate === normalized || candidate.endsWith(`/${normalized}`);
+    });
+  return candidates.length === 1 ? candidates[0] : undefined;
 }
 
 export function filePathToModuleKey(filePath: string): string {

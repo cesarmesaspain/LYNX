@@ -38,6 +38,13 @@ function findProjectRoot(): string {
  * so we walk up to find package.json.
  */
 function findAssetRoot(): string {
+  const packaged = (process as NodeJS.Process & {
+    pkg?: { entrypoint?: string; defaultEntrypoint?: string };
+  }).pkg;
+  const packagedEntry = packaged?.entrypoint || packaged?.defaultEntrypoint;
+  if (packagedEntry?.startsWith('/snapshot/')) {
+    return path.resolve(path.dirname(packagedEntry), '..');
+  }
   const entry = process.argv[1];
   if (entry) {
     let dir = path.resolve(path.dirname(entry));
@@ -103,6 +110,7 @@ export function resolveAssetPath(relativePath: string): string {
 // ── Native extractor binary ──────────────────────────────────────
 
 let _nativeExtractorPath: string | null = null;
+let _nativeCorePath: string | null = null;
 
 /**
  * Returns the path to the native C extractor binary.
@@ -159,6 +167,33 @@ export function getNativeExtractorPath(): string | null {
   return null;
 }
 
+/** Resolve the evidence-preserving C/C++ structural core binary. */
+export function getNativeCorePath(): string | null {
+  if (_nativeCorePath !== null) return _nativeCorePath || null;
+  const override = process.env.LYNX_NATIVE_CORE_PATH;
+  if (override) {
+    _nativeCorePath = fs.existsSync(override) ? override : '';
+    return _nativeCorePath || null;
+  }
+  const assetRelPath = 'native/lynx_native_core';
+  if (isPkg()) {
+    try {
+      const source = path.join(getAssetRoot(), assetRelPath);
+      if (!fs.existsSync(source)) return (_nativeCorePath = '') || null;
+      const target = path.join(os.tmpdir(), `lynx_native_core_${process.pid}`);
+      fs.copyFileSync(source, target);
+      fs.chmodSync(target, 0o755);
+      _nativeCorePath = target;
+      return target;
+    } catch {
+      return (_nativeCorePath = '') || null;
+    }
+  }
+  const candidate = path.join(getProjectRoot(), assetRelPath);
+  _nativeCorePath = fs.existsSync(candidate) ? candidate : '';
+  return _nativeCorePath || null;
+}
+
 /**
  * Clean up extracted temp files on shutdown.
  */
@@ -166,5 +201,9 @@ export function cleanupNativeExtractor(): void {
   if (_nativeExtractorPath && _nativeExtractorPath.startsWith(os.tmpdir())) {
     try { fs.unlinkSync(_nativeExtractorPath); } catch { /* ignore */ }
     _nativeExtractorPath = null;
+  }
+  if (_nativeCorePath && _nativeCorePath.startsWith(os.tmpdir())) {
+    try { fs.unlinkSync(_nativeCorePath); } catch { /* ignore */ }
+    _nativeCorePath = null;
   }
 }

@@ -250,6 +250,7 @@ export function extractDecorators(
 // ── Utility ───────────────────────────────────────────────────────
 
 export function filePathToModuleQn(filePath: string): string {
+  const extension = path.extname(filePath).toLowerCase();
   const withoutExt = filePath.replace(/\.[^.]+$/, '');
   const qn = withoutExt
     .replace(/^\//, '')
@@ -258,7 +259,10 @@ export function filePathToModuleQn(filePath: string): string {
   const parts = qn.split('.');
   if (parts.length > 1 && parts[parts.length - 1] === 'index') parts.pop();
   if (parts.length > 1 && parts[0] === 'src') parts.shift();
-  return parts.join('.') || path.basename(withoutExt) || 'root';
+  const moduleQn = parts.join('.') || path.basename(withoutExt) || 'root';
+  // Same-stem headers and implementations must not share symbol identities:
+  // otherwise a prototype upsert can replace the real source definition.
+  return /\.(?:h|hh|hpp|hxx)$/.test(extension) ? `${moduleQn}.__header` : moduleQn;
 }
 
 export function countLines(source: string): number {

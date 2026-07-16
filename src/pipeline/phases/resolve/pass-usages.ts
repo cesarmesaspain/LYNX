@@ -8,7 +8,7 @@ import type { NodeRef, ResolverIndexes } from './indexes.js';
 import { usageSkip, lowSignalGlobalUsage, symbolKinds } from './constants.js';
 import {
   addEdge, resolveCaller, resolveImportToModuleKey,
-  preferSameFile, preferSamePackage, usageEdgeType,
+  preferSameFile, preferSamePackage, sameLanguageGroup, usageEdgeType,
 } from './utils.js';
 
 function buildImportMapForFile(
@@ -49,7 +49,11 @@ function resolveUsageWithImportMap(
 
   // Build candidates once for strategies 2-4
   const candidates = (idx.nameToRows.get(refName) || [])
-    .filter((node) => node.id !== sourceId && symbolKinds.has(node.kind));
+    .filter((node) => node.id !== sourceId && symbolKinds.has(node.kind))
+    // Weak name/package heuristics must never cross language ecosystems.
+    // Explicit import-map evidence above remains allowed for FFI/generated
+    // bindings, but `expect` in TypeScript must not bind to a C function.
+    .filter((node) => sameLanguageGroup(filePath, node.file_path));
 
   // Strategy 2: same-file — strong evidence for ALL names (including generic).
   const sameFile = preferSameFile(candidates, filePath);

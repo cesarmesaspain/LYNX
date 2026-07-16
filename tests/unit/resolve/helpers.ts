@@ -163,6 +163,7 @@ export function createEmptyIndexes(project: string = 'test'): ResolverIndexes {
     fileToNodes: new Map(),
     suffixToRows: new Map(),
     moduleToFileNode: new Map(),
+    headerBasenameToFileNodes: new Map(),
     exportedByModule: new Map(),
     folderToId: new Map(),
     importedQnByFile: new Map(),
@@ -191,6 +192,11 @@ export function populateIndex(db: LynxDatabase, idx: ResolverIndexes, rows: Node
     if (row.kind === 'File') {
       const moduleKey = row.file_path.replace(/\\/g, '/').replace(/\.[^.]+$/, '').replace(/^src\//, '').replace(/\//g, '.');
       idx.moduleToFileNode.set(moduleKey, row);
+      if (/\.(?:h|hh|hpp|hxx)$/i.test(row.file_path)) {
+        const basename = row.file_path.replace(/\\/g, '/').split('/').pop()!.toLowerCase();
+        if (!idx.headerBasenameToFileNodes.has(basename)) idx.headerBasenameToFileNodes.set(basename, []);
+        idx.headerBasenameToFileNodes.get(basename)!.push(row);
+      }
     }
 
     if (['Function', 'Method', 'Class', 'Interface', 'Variable', 'Type', 'Enum'].includes(row.kind)) {

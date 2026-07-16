@@ -5,9 +5,9 @@
  * Non-destructive, read-only.
  */
 
-import { execSync } from 'node:child_process';
-import * as fs from 'node:fs';
-import * as path from 'node:path';
+import { execSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 export interface GitContext {
   branch: string;
@@ -22,15 +22,15 @@ let cachedContext: GitContext | null = null;
  * Get git context for a directory. Cached after first call.
  */
 export function readGitHead(repoPath: string): string | null {
-  const gitDir = path.join(repoPath, '.git');
+  const gitDir = path.join(repoPath, ".git");
   if (!fs.existsSync(gitDir)) return null;
 
   try {
-    return execSync('git rev-parse HEAD', {
+    return execSync("git rev-parse HEAD", {
       cwd: repoPath,
-      encoding: 'utf-8',
+      encoding: "utf-8",
       timeout: 5000,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ["pipe", "pipe", "pipe"],
     }).trim();
   } catch {
     return null;
@@ -41,7 +41,11 @@ export function getGitContext(
   repoPath: string,
   options: { refresh?: boolean } = {},
 ): GitContext | null {
-  if (!options.refresh && cachedContext && cachedContext.rootPath === repoPath) {
+  if (
+    !options.refresh &&
+    cachedContext &&
+    cachedContext.rootPath === repoPath
+  ) {
     return cachedContext;
   }
 
@@ -49,11 +53,11 @@ export function getGitContext(
   if (!headSha) return null;
 
   try {
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', {
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
       cwd: repoPath,
-      encoding: 'utf-8',
+      encoding: "utf-8",
       timeout: 5000,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ["pipe", "pipe", "pipe"],
     }).trim();
 
     cachedContext = {
@@ -74,17 +78,22 @@ export function getGitContext(
  */
 export function getFileChurn(
   repoPath: string,
-  topN = 20
+  topN = 20,
 ): { filePath: string; changeCount: number }[] {
   try {
     const output = execSync(
       `git log --all --name-only --format=format: | sort | uniq -c | sort -rn | head -${topN}`,
-      { cwd: repoPath, encoding: 'utf-8', timeout: 30000, stdio: ['pipe', 'pipe', 'pipe'] }
+      {
+        cwd: repoPath,
+        encoding: "utf-8",
+        timeout: 30000,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
     );
 
     return output
       .trim()
-      .split('\n')
+      .split("\n")
       .filter(Boolean)
       .map((line) => {
         const match = line.trim().match(/^\s*(\d+)\s+(.+)$/);
@@ -93,8 +102,28 @@ export function getFileChurn(
         }
         return null;
       })
-      .filter((x): x is { filePath: string; changeCount: number } => x !== null);
+      .filter(
+        (x): x is { filePath: string; changeCount: number } => x !== null,
+      );
   } catch {
     return [];
+  }
+}
+
+export function isGitWorkingTreeDirty(repoPath: string): boolean {
+  try {
+    return (
+      execSync(
+        "git --no-optional-locks status --porcelain --untracked-files=normal",
+        {
+          cwd: repoPath,
+          encoding: "utf-8",
+          timeout: 5000,
+          stdio: ["pipe", "pipe", "pipe"],
+        },
+      ).trim().length > 0
+    );
+  } catch {
+    return false;
   }
 }

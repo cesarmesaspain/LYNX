@@ -320,6 +320,104 @@ export function normalizeProjectArgs(
   };
 }
 
+type ToolArgumentValidation =
+  | { valid: true }
+  | {
+      valid: false;
+      error: 'INVALID_TOOL_ARGUMENTS';
+      tool: string;
+      problems: string[];
+      expected_arguments: string[];
+      required_arguments: string[];
+    };
+
+/** Validate tool calls against the same registry schema exposed by tools/list. */
+export function validateToolArguments(
+  toolName: string,
+  args: Record<string, unknown>,
+): ToolArgumentValidation {
+  const tool = TOOLS.find(candidate => candidate.name === toolName);
+  if (!tool) {
+    return {
+      valid: false,
+      error: 'INVALID_TOOL_ARGUMENTS',
+      tool: toolName,
+      problems: [`Unknown tool '${toolName}'.`],
+      expected_arguments: [],
+      required_arguments: [],
+    };
+  }
+
+  const schema = tool.inputSchema as {
+    properties?: Record<string, { type?: string; enum?: unknown[]; items?: { type?: string; enum?: unknown[] } }>;
+    required?: string[];
+    anyOf?: Array<{ required?: string[] }>;
+  };
+  const properties = schema.properties || {};
+  const required = schema.required || [];
+  const problems: string[] = [];
+
+  for (const name of required) {
+    const value = args[name];
+    if (value === undefined || value === null || (typeof value === 'string' && !value.trim())) {
+      problems.push(`Missing required argument '${name}'.`);
+    }
+  }
+
+  if (schema.anyOf?.length) {
+    const matchesBranch = schema.anyOf.some(branch => (branch.required || []).every(name => {
+      const value = args[name];
+      return value !== undefined && value !== null && !(typeof value === 'string' && !value.trim());
+    }));
+    if (!matchesBranch) {
+      const alternatives = schema.anyOf
+        .map(branch => (branch.required || []).join(' + '))
+        .filter(Boolean)
+        .join(' OR ');
+      problems.push(`Provide one of these argument sets: ${alternatives}.`);
+    }
+  }
+
+  const matchesType = (value: unknown, type: string): boolean => {
+    if (type === 'array') return Array.isArray(value);
+    if (type === 'integer') return typeof value === 'number' && Number.isInteger(value);
+    if (type === 'object') return typeof value === 'object' && value !== null && !Array.isArray(value);
+    return typeof value === type;
+  };
+
+  for (const [name, value] of Object.entries(args)) {
+    const definition = properties[name];
+    if (!definition || value === undefined || value === null) continue;
+    if (definition.type && !matchesType(value, definition.type)) {
+      problems.push(`Argument '${name}' must be ${definition.type}.`);
+      continue;
+    }
+    if (definition.enum && !definition.enum.includes(value)) {
+      problems.push(`Argument '${name}' must be one of: ${definition.enum.join(', ')}.`);
+    }
+    if (Array.isArray(value) && definition.items) {
+      value.forEach((item, index) => {
+        if (definition.items?.type && !matchesType(item, definition.items.type)) {
+          problems.push(`Argument '${name}[${index}]' must be ${definition.items.type}.`);
+        } else if (definition.items?.enum && !definition.items.enum.includes(item)) {
+          problems.push(`Argument '${name}[${index}]' must be one of: ${definition.items.enum.join(', ')}.`);
+        }
+      });
+    }
+  }
+
+  return problems.length === 0
+    ? { valid: true }
+    : {
+        valid: false,
+        error: 'INVALID_TOOL_ARGUMENTS',
+        tool: toolName,
+        problems,
+        expected_arguments: Object.keys(properties),
+        required_arguments: required,
+      };
+}
+
 export function buildIndexContext(args: Record<string, unknown>): Record<string, unknown> | undefined {
   if (typeof args.project !== 'string' || !args.project) return undefined;
   const db = getDb(args.project);
@@ -396,6 +494,10 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
 
     try {
       const startedAt = Date.now();
+      const validation = validateToolArguments(name, args || {});
+      if (!validation.valid) {
+        return jsonRpcResult(id, { content: [{ type: 'text', text: JSON.stringify(validation, null, 2) }] });
+      }
       const normalized = normalizeProjectArgs(name, args || {});
       if ('error' in normalized) {
         return jsonRpcResult(id, { content: [{ type: 'text', text: JSON.stringify(normalized, null, 2) }] });
@@ -669,7 +771,7 @@ function writeResponse(data: string): Promise<void> {
  */
 function unsetDb(project: string, opts?: { close?: boolean }): void {
   const old = DB_CACHE.get(project);
-  if (opts?.close && old && old.dbPath === ':memory:') {
+  if (opts?.close && old) {
     try { old.close(); } catch { /* ok */ }
   }
   DB_CACHE.delete(project);

@@ -197,6 +197,33 @@ describe("SACG snapshot persistence", () => {
     }
   });
 
+  it("skips rewriting an immutable content-addressed snapshot", () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      persistSacgSnapshot(db, input);
+      persistSacgSnapshot(
+        db,
+        {
+          ...input,
+          entities: input.entities.map((entity) => ({
+            ...entity,
+            name: `must-not-rewrite-${entity.name}`,
+          })),
+        },
+        { skipExistingSnapshot: true },
+      );
+
+      expect(
+        db.db.prepare(
+          "SELECT name FROM semantic_entities WHERE project = ? AND semantic_id = ?",
+        ).get(project, "semantic:source"),
+      ).toEqual({ name: "source" });
+    } finally {
+      db.close();
+    }
+  });
+
   it("rolls back every row when a relation violates a foreign key", () => {
     const db = LynxDatabase.openMemory();
     try {

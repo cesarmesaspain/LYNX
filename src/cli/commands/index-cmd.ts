@@ -5,6 +5,7 @@ import { runPipeline } from '../../pipeline/orchestrator.js';
 import { resolveProjectPath } from '../../discovery/project-scanner.js';
 import { cleanupNativeExtractor } from '../../paths.js';
 import { resolveProjectReference } from '../../mcp/project-resolution.js';
+import { acquireProjectLock, forceAcquireProjectLock, releaseProjectLock } from '../../store/lock.js';
 
 export async function cmdIndex(args: string[]): Promise<void> {
   const firstArg = args[0];
@@ -68,15 +69,53 @@ export async function cmdIndex(args: string[]): Promise<void> {
   const mode = (modeIdx !== -1 ? args[modeIdx + 1] : 'moderate') as 'full' | 'moderate' | 'fast';
   const llmEnrichment = args.includes('--llm');
   const incremental = args.includes('--incremental');
+  const forceLock = args.includes('--force-lock');
+  const resultFileIdx = args.indexOf('--result-file');
+  const resultFile = resultFileIdx !== -1 ? args[resultFileIdx + 1] : undefined;
 
   console.log(`Indexing ${repoPath} as "${projectName}" (mode: ${mode}${incremental ? ', incremental' : ''})...`);
 
+  const lock = forceLock
+    ? forceAcquireProjectLock(projectName)
+    : acquireProjectLock(projectName);
+  if (!lock.acquired) {
+    console.error(lock.reason || `Project ${projectName} is already being indexed.`);
+    process.exitCode = 1;
+    return;
+  }
+
   const db = LynxDatabase.openProject(projectName);
-  const { status, architecture } = await runPipeline(db, repoPath, projectName, { mode, incremental, llmEnrichment });
+  db.setProjectStatus(projectName, 'updating');
+  try {
+    const result = await runPipeline(
+      db, repoPath, projectName, { mode, incremental, llmEnrichment },
+    );
+    const { status, architecture, filesProcessed, phaseTimingsMs } = result;
 
-  console.log(`Done. ${status.totalNodes} nodes, ${status.totalEdges} edges.`);
-  console.log(`Hotspots: ${architecture.hotspots.length}, Clusters: ${architecture.clusters.length}`);
+    db.setProjectStatus(projectName, 'ready');
 
-  db.close();
-  cleanupNativeExtractor();
+    if (resultFile) {
+      const resolvedResultFile = path.resolve(resultFile);
+      fs.mkdirSync(path.dirname(resolvedResultFile), { recursive: true });
+      const temporary = `${resolvedResultFile}.${process.pid}.tmp`;
+      fs.writeFileSync(temporary, `${JSON.stringify(result)}\n`, { mode: 0o600 });
+      fs.renameSync(temporary, resolvedResultFile);
+    }
+
+    console.log(`Done. ${status.totalNodes} nodes, ${status.totalEdges} edges.`);
+    console.log(
+      filesProcessed === 0 && incremental
+        ? `Hotspots: ${architecture.hotspots.length}, graph unchanged.`
+        : `Hotspots: ${architecture.hotspots.length}, Clusters: ${architecture.clusters.length}`,
+    );
+    console.log(`Phases: ${JSON.stringify(phaseTimingsMs)}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    db.setProjectStatus(projectName, 'failed', message.slice(0, 500));
+    throw error;
+  } finally {
+    db.close();
+    releaseProjectLock(projectName);
+    cleanupNativeExtractor();
+  }
 }

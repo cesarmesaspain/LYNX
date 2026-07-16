@@ -66,7 +66,7 @@ export function withEvidenceDiscipline(tool: LynxToolDef): LynxToolDef {
 export const TOOLS: LynxToolDef[] = [
   {
     name: 'tool_catalog',
-    description: 'Show the core workflow and advanced LYNX tools available on demand. Use when the task needs a capability not exposed in the current profile.',
+    description: 'Show core workflow and advanced tools available on demand.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
@@ -82,9 +82,9 @@ export const TOOLS: LynxToolDef[] = [
         mode: {
           type: 'string',
           enum: ['compact', 'full', 'decision'],
-          description: 'compact=minimal; full=extra rationale; decision=change-risk summary.',
+          description: 'compact=minimal; full=detail; decision=change risk.',
         },
-        enable_llm: { type: 'boolean', description: 'Enable LLM reranking for ambiguity; default false.' },
+        enable_llm: { type: 'boolean', description: 'LLM rerank; default false.' },
       },
       required: ['task'],
     },
@@ -92,9 +92,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'search_graph',
     description:
-      'Search indexed definitions and relationships. Modes: query=BM25 full text with camelCase splitting; ' +
-      'name_pattern/qn_pattern=supported regex; name_like/qn_like=SQL LIKE; semantic_query=vector cosine. ' +
-      'Set include_snippets for source previews.',
+      'Search definitions and relationships: query=BM25; name/qn_pattern=regex; name/qn_like=SQL LIKE; semantic_query=vector. Use include_snippets for previews.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -118,7 +116,7 @@ export const TOOLS: LynxToolDef[] = [
           description: 'Semantic keywords.',
         },
         enable_llm: { type: 'boolean', description: 'LLM rerank; default false.' },
-        include_snippets: { type: 'boolean', description: 'Source previews; opt-in in max-savings.' },
+        include_snippets: { type: 'boolean', description: 'Source previews; opt-in.' },
       },
       required: ['project'],
     },
@@ -126,21 +124,20 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'trace_path',
     description:
-      'Trace callers, callees, and labelled references; entries distinguish direct calls from references. ' +
-      'Modes: calls=control flow, references=bindings/state, data_flow=both, auto=Swift fallback when calls are absent.',
+      'Trace callers, callees, and references. Modes: calls=control flow; references=bindings; data_flow=both; auto=fallback.',
     inputSchema: {
       type: 'object',
       properties: {
-        function_name: { type: 'string', description: 'Symbol name or qualified name.' },
+        function_name: { type: 'string', description: 'Symbol or qualified name.' },
         project: { type: 'string' },
-        direction: { type: 'string', enum: ['inbound', 'outbound', 'both'], description: 'outbound=callees/workflow; inbound=callers/impact; both=both directions.' },
-        depth: { type: 'integer', description: 'BFS depth; default 3, use 4 for end-to-end flows.' },
-        mode: { type: 'string', enum: ['calls', 'references', 'data_flow', 'cross_service', 'auto'], description: 'calls=control flow; references=READS/USAGE; auto=Swift fallback without calls.' },
-        risk_labels: { type: 'boolean', description: 'Add risk labels by hop distance.' },
+        direction: { type: 'string', enum: ['inbound', 'outbound', 'both'], description: 'outbound=callees; inbound=callers; both=both' },
+        depth: { type: 'integer', description: 'BFS depth; default 3, use 4 for flows.' },
+        mode: { type: 'string', enum: ['calls', 'references', 'data_flow', 'cross_service', 'auto'], description: 'calls=control flow; references=bindings; data_flow=both; auto=fallback.' },
+        risk_labels: { type: 'boolean', description: 'Risk labels by hop.' },
         include_tests: { type: 'boolean', description: 'Include tests.' },
-        edge_types: { type: 'array', items: { type: 'string' }, description: 'Optional edge-type override.' },
+        edge_types: { type: 'array', items: { type: 'string' }, description: 'Edge types.' },
         include_edges: { type: 'boolean', description: 'Include labelled edges.' },
-        include_evidence: { type: 'boolean', description: 'Add file, line, extractor, and confidence evidence to edges.' },
+        include_evidence: { type: 'boolean', description: 'Add file, line, extractor, and confidence evidence.' },
       },
       required: ['function_name', 'project'],
     },
@@ -153,10 +150,10 @@ export const TOOLS: LynxToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        qualified_name: { type: 'string', description: 'Full qualified_name from search_graph.' },
+        qualified_name: { type: 'string', description: 'Qualified name.' },
         project: { type: 'string' },
-        include_neighbors: { type: 'boolean', description: 'Include caller/callee names.' },
-        max_lines: { type: 'integer', description: 'Expand source beyond the compact default when needed.' },
+        include_neighbors: { type: 'boolean', description: 'Include neighbors.' },
+        max_lines: { type: 'integer', description: 'Expand source lines.' },
       },
       required: ['qualified_name', 'project'],
     },
@@ -170,11 +167,11 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        path: { type: 'string', description: 'Optional directory prefix to scope analysis.' },
+        path: { type: 'string', description: 'Directory prefix.' },
         aspects: {
           type: 'array',
           items: { type: 'string', enum: ['languages', 'hotspots', 'clusters', 'file_tree', 'entry_points', 'brief', 'narrative', 'node_labels', 'edge_types'] },
-          description: 'Which sections to include. Omit for all. Use to control token budget.',
+          description: 'Sections; token control.',
         },
       },
       required: ['project'],
@@ -189,7 +186,7 @@ export const TOOLS: LynxToolDef[] = [
       properties: {
         query: { type: 'string', description: 'Cypher query.' },
         project: { type: 'string' },
-        max_rows: { type: 'integer', description: 'Maximum rows. Default is compact in maximum-savings mode.' },
+        max_rows: { type: 'integer', description: 'Max rows; compact default.' },
       },
       required: ['query', 'project'],
     },
@@ -203,20 +200,20 @@ export const TOOLS: LynxToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        repo_path: { type: 'string', description: 'Path to the repository.' },
+        repo_path: { type: 'string', description: 'Repository path.' },
         mode: {
           type: 'string',
           enum: ['full', 'moderate', 'fast'],
-          description: 'Index mode. moderate is default.',
+          description: 'Mode; moderate default.',
         },
-        name: { type: 'string', description: 'Override the derived project name.' },
+        name: { type: 'string', description: 'Override project name.' },
         incremental: {
           type: 'boolean',
-          description: 'Skip files whose SHA256 has not changed since last run. Default true.',
+          description: 'Skip unchanged SHA256 files; default true.',
         },
         force_lock: {
           type: 'boolean',
-          description: 'Override a stale lock. Use only when a previous index run crashed.',
+          description: 'Override stale lock after crash.',
         },
       },
       required: ['repo_path'],
@@ -235,7 +232,7 @@ export const TOOLS: LynxToolDef[] = [
   },
   {
     name: 'get_edge_evidence',
-    description: 'Get the evidence backing a graph edge and explain why the relationship exists in the code graph.',
+    description: 'Explain why a graph edge exists with evidence.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -251,35 +248,34 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'investigate_symbol',
     description:
-      'Deep-dive one symbol via search_graph → explain_symbol → trace_path with evidence → get_code_snippet → find_tests. ' +
-      'Returns one unified context pack; prefer it to 4-5 separate discovery calls.',
+      'Investigate one symbol via search, explain, trace, snippet, and tests; returns one context pack.',
     inputSchema: {
       type: 'object',
       properties: {
         project: { type: 'string' },
-        symbol: { type: 'string', description: 'Symbol name or qualified name.' },
-        name: { type: 'string', description: 'Symbol alias.' },
-        qualified_name: { type: 'string', description: 'Symbol alias.' },
+        symbol: { type: 'string', description: 'Symbol or qualified name.' },
+        name: { type: 'string', description: 'Alias.' },
+        qualified_name: { type: 'string', description: 'Alias.' },
         depth: { type: 'integer', description: 'Trace depth; default 2.' },
-        include_evidence: { type: 'boolean', description: 'Include trace evidence; default true.' },
-        verbose: { type: 'boolean', description: 'Include value_metrics, llm_usage, and index context (default false — compact agent-friendly output).' },
+        include_evidence: { type: 'boolean', description: 'Trace evidence.' },
+        verbose: { type: 'boolean', description: 'Include metrics, LLM usage, and index context; default false.' },
       },
       required: ['project', 'symbol'],
     },
   },
   {
     name: 'diagnose',
-    description: 'Run fast local LYNX health checks: runtime availability, index freshness, orphaned locks, and safe configuration status. Does not make network calls or expose credentials.',
+    description: 'Run local health checks: runtime, index, locks, and safe config.',
     inputSchema: { type: 'object', properties: {} },
   },
   {
     name: 'usage_summary',
-    description: 'Summarize locally recorded LYNX usage and estimated savings for one project or all projects. Estimates are clearly separated from provider billing and graph confidence.',
+    description: 'Summarize usage and savings estimates; separate billing/confidence.',
     inputSchema: {
       type: 'object',
       properties: {
         project: { type: 'string', description: 'Optional indexed project name.' },
-        limit: { type: 'integer', description: 'Maximum recent events to include (default 1000, maximum 10000).' },
+        limit: { type: 'integer', description: 'Recent event limit; max 10000.' },
       },
     },
   },
@@ -322,14 +318,14 @@ export const TOOLS: LynxToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        pattern: { type: 'string', description: 'Text or regex to search for.' },
+        pattern: { type: 'string', description: 'Text or regex.' },
         project: { type: 'string' },
-        file_pattern: { type: 'string', description: 'Glob for file filtering (e.g. *.go).' },
-        path_filter: { type: 'string', description: 'Regex filter on result file paths.' },
-        mode: { type: 'string', enum: ['compact', 'full', 'files'], description: 'Output mode.' },
-        regex: { type: 'boolean', description: 'Treat pattern as regex.' },
-        limit: { type: 'integer', description: 'Maximum results; default 10.' },
-        context: { type: 'integer', description: 'Lines of context around each match.' },
+        file_pattern: { type: 'string', description: 'File glob.' },
+        path_filter: { type: 'string', description: 'Path regex.' },
+        mode: { type: 'string', enum: ['compact', 'full', 'files'], description: 'Mode.' },
+        regex: { type: 'boolean', description: 'Regex mode.' },
+        limit: { type: 'integer', description: 'Max results; default 10.' },
+        context: { type: 'integer', description: 'Context lines.' },
       },
       required: ['pattern', 'project'],
     },
@@ -344,13 +340,13 @@ export const TOOLS: LynxToolDef[] = [
       properties: {
         project: { type: 'string' },
         base_branch: { type: 'string', description: 'Diff base; default main.' },
-        since: { type: 'string', description: 'Git ref or tag to compare.' },
-        include_committed: { type: 'boolean', description: 'Include committed changes; otherwise local changes are default unless a ref is supplied.' },
+        since: { type: 'string', description: 'Git ref/tag.' },
+        include_committed: { type: 'boolean', description: 'Include committed changes.' },
         scope: { type: 'string', enum: ['files', 'symbols'], description: 'files=paths; symbols=paths plus impacted functions.' },
         depth: { type: 'integer', description: 'Impact depth; default 2.' },
-        files: { type: 'array', items: { type: 'string' }, description: 'Scope to file paths; external dependencies go in related_dependencies.' },
-        include_diff: { type: 'boolean', description: 'Include diff; opt-in in max-savings mode.' },
-        enable_llm: { type: 'boolean', description: 'Enable LLM risk assessment; default false.' },
+        files: { type: 'array', items: { type: 'string' }, description: 'File scope.' },
+        include_diff: { type: 'boolean', description: 'Include diff; opt-in.' },
+        enable_llm: { type: 'boolean', description: 'LLM risk; default false.' },
       },
       required: ['project'],
     },
@@ -364,8 +360,8 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        files: { type: 'array', items: { type: 'string' }, description: 'Optional file list to scope analysis. If omitted, all git-diff files are analyzed.' },
-        base_branch: { type: 'string', description: 'Base branch for git diff (default main).' },
+        files: { type: 'array', items: { type: 'string' }, description: 'Files scope.' },
+        base_branch: { type: 'string', description: 'Diff base.' },
       },
       required: ['project'],
     },
@@ -377,9 +373,9 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        mode: { type: 'string', enum: ['get', 'update', 'sections'], description: 'get: read ADR, update: write ADR, sections: list headers.' },
+        mode: { type: 'string', enum: ['get', 'update', 'sections'], description: 'get=read; update=write; sections=list headers.' },
         content: { type: 'string', description: 'Markdown content for update mode.' },
-        sections: { type: 'array', items: { type: 'string' }, description: 'Section names for sections mode.' },
+        sections: { type: 'array', items: { type: 'string' }, description: 'Section names.' },
       },
       required: ['project'],
     },
@@ -390,7 +386,7 @@ export const TOOLS: LynxToolDef[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        traces: { type: 'array', items: { type: 'object' }, description: 'Array of trace objects.' },
+        traces: { type: 'array', items: { type: 'object' }, description: 'Trace objects.' },
         project: { type: 'string' },
       },
       required: ['traces', 'project'],
@@ -405,9 +401,9 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        target_qn: { type: 'string', description: 'Qualified name of function/class to look up.' },
-        target_file: { type: 'string', description: 'File path to look up findings for.' },
-        category: { type: 'string', description: 'Filter by category: hotspot, complexity, cluster, review.' },
+        target_qn: { type: 'string', description: 'Qualified symbol.' },
+        target_file: { type: 'string', description: 'Finding file.' },
+        category: { type: 'string', description: 'Category filter.' },
       },
       required: ['project'],
     },
@@ -422,7 +418,7 @@ export const TOOLS: LynxToolDef[] = [
       properties: {
         project: { type: 'string' },
         limit: { type: 'integer', description: 'Max results (default 10).' },
-        include_god_components: { type: 'boolean', description: 'Include only classes/modules of at least 300 lines. Default true.' },
+        include_god_components: { type: 'boolean', description: 'Components >=300; default true.' },
       },
       required: ['project'],
     },
@@ -469,8 +465,8 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        qualified_name: { type: 'string', description: 'Full qualified name from search_graph.' },
-        name: { type: 'string', description: 'Short name fallback if qualified_name not known.' },
+        qualified_name: { type: 'string', description: 'Qualified name.' },
+        name: { type: 'string', description: 'Short name fallback.' },
       },
       required: ['project'],
     },
@@ -484,8 +480,8 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        file: { type: 'string', description: 'File path to review (all functions in file).' },
-        qualified_name: { type: 'string', description: 'Single function/class to review.' },
+        file: { type: 'string', description: 'Review file.' },
+        qualified_name: { type: 'string', description: 'Review symbol.' },
         limit: { type: 'integer', description: 'Max issues (default 20).' },
       },
       required: ['project'],
@@ -525,9 +521,9 @@ export const TOOLS: LynxToolDef[] = [
         action: {
           type: 'string',
           enum: ['start', 'stop', 'status'],
-          description: 'start: begin watching, stop: stop watcher, status: get current state.',
+          description: 'start/stop/status.',
         },
-        mode: { type: 'string', enum: ['full', 'moderate', 'fast'], description: 'Index mode for watcher (default fast).' },
+        mode: { type: 'string', enum: ['full', 'moderate', 'fast'], description: 'Watcher index mode; default fast.' },
       },
       required: ['project'],
     },
@@ -541,8 +537,8 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        qualified_name: { type: 'string', description: 'Full qualified name from search_graph.' },
-        name: { type: 'string', description: 'Short name fallback if qualified_name not known.' },
+        qualified_name: { type: 'string', description: 'Qualified name.' },
+        name: { type: 'string', description: 'Short name fallback.' },
       },
       required: ['project'],
     },

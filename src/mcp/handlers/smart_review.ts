@@ -9,12 +9,14 @@
  *  - Suggested actions (refactor, split, add tests, document)
  */
 
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getDb } from '../server.js';
 import type { LynxDatabase } from '../../store/database.js';
 import { getFindingsByFile, getFindingsByQn } from '../../store/memory.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
 import { projectNotIndexed } from '../diagnostics.js';
+import { classifySmell } from '../../llm/client.js';
 import type { LynxFinding } from '../../types.js';
 
 function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
@@ -77,7 +79,7 @@ export async function handleSmartReview(
     };
   }
 
-  const issues = reviewNodes(db, project, nodes);
+  const issues = await reviewNodes(db, project, nodes, projectMeta.rootPath);
 
   // Memory findings for the target
   const memoryFindings = qualifiedName
@@ -89,11 +91,12 @@ export async function handleSmartReview(
 
 // ── Per-node review ────────────────────────────────────
 
-function reviewNodes(
+async function reviewNodes(
   db: LynxDatabase,
   project: string,
   nodes: any[],
-): ReviewIssue[] {
+  rootPath: string,
+): Promise<ReviewIssue[]> {
   const issues: ReviewIssue[] = [];
   const seenWarnings = new Set<string>();
 
@@ -197,6 +200,38 @@ function reviewNodes(
             suggestion: `Add unit tests for \`${node.name}\` covering base cases and edge cases.`,
           });
         }
+      }
+    }
+
+    // LLM smell classification for significant functions
+    if (cyclomatic > 10 || lineCount > 80) {
+      try {
+        const absPath = path.join(rootPath, node.file_path);
+        const fileContent = fs.readFileSync(absPath, 'utf-8');
+        const lines = fileContent.split('\n');
+        const funcSource = lines.slice(node.start_line - 1, node.end_line).join('\n');
+        const smell = await classifySmell(
+          funcSource.slice(0, 2000),
+          node.name,
+          { cyclomatic, lineCount, loopDepth },
+        );
+        if (smell.category !== 'fine') {
+          issues.push({
+            severity: 'info',
+            category: 'smell-classification',
+            title: `Code smell: ${smell.category.replace(/_/g, ' ')}`,
+            description: `${node.kind} \`${node.name}\` classified as \`${smell.category}\`: ${smell.explanation}`,
+            location: `${node.file_path}:${node.start_line}`,
+            suggestion: smell.category === 'tech_debt'
+              ? 'Plan refactoring in the next maintenance cycle.'
+              : smell.category === 'over_engineered'
+                ? 'Consider simplifying the abstraction.'
+                : 'Review whether the complexity is justified by the business logic.',
+          });
+        }
+      } catch {
+        // File read failed or LLM unavailable — heuristic fallback already covers
+        // the deterministic checks above; this is purely additive enrichment.
       }
     }
   }

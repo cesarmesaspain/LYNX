@@ -6,6 +6,68 @@ import { describe, expect, it } from 'vitest';
 import { withLynxHome } from '../../../src/config/runtime.js';
 import { LynxDatabase } from '../../../src/store/database.js';
 import { insertEdge } from '../../../src/store/edges.js';
+import { runSchemaMigrations } from '../../../src/store/migrations.js';
+
+describe('schema migration runner', () => {
+  it('applies migrations in version order exactly once', () => {
+    const db = new Database(':memory:');
+    let executions = 0;
+    const migrations = [
+      {
+        version: 2,
+        name: 'second',
+        up: (target: Database.Database) => {
+          executions++;
+          target.exec('ALTER TABLE example ADD COLUMN value TEXT');
+        },
+      },
+      {
+        version: 1,
+        name: 'first',
+        up: (target: Database.Database) => {
+          executions++;
+          target.exec('CREATE TABLE example (id INTEGER PRIMARY KEY)');
+        },
+      },
+    ];
+
+    try {
+      runSchemaMigrations(db, migrations);
+      runSchemaMigrations(db, migrations);
+      expect(executions).toBe(2);
+      const rows = db.prepare('SELECT version, name FROM schema_migrations ORDER BY version').all();
+      expect(rows).toEqual([
+        { version: 1, name: 'first' },
+        { version: 2, name: 'second' },
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('rolls back a failed migration and does not record it', () => {
+    const db = new Database(':memory:');
+    try {
+      expect(() => runSchemaMigrations(db, [{
+        version: 1,
+        name: 'failing',
+        up: (target) => {
+          target.exec('CREATE TABLE partial_change (id INTEGER PRIMARY KEY)');
+          throw new Error('migration failed');
+        },
+      }])).toThrow('migration failed');
+
+      const partial = db.prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'partial_change'",
+      ).get();
+      expect(partial).toBeUndefined();
+      const recorded = db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get() as { count: number };
+      expect(recorded.count).toBe(0);
+    } finally {
+      db.close();
+    }
+  });
+});
 
 describe('LynxDatabase concurrency configuration', () => {
   it('waits briefly for a concurrent SQLite writer instead of failing immediately', () => {
@@ -83,6 +145,13 @@ describe('project indexed commit metadata', () => {
     try {
       const columns = db.db.prepare("PRAGMA table_info('projects')").all() as Array<{ name: string }>;
       expect(columns.map((column) => column.name)).toContain('indexed_commit');
+      const migrations = db.db
+        .prepare('SELECT version, name FROM schema_migrations ORDER BY version')
+        .all();
+      expect(migrations).toEqual([
+        { version: 1, name: 'project freshness columns' },
+        { version: 2, name: 'project indexed commit' },
+      ]);
       db.upsertProject('legacy', dir);
       expect(db.getProject('legacy')?.indexedCommit).toBeNull();
       db.setProjectIndexedCommit('legacy', 'abc123');

@@ -11,7 +11,8 @@ import type BetterSqlite3 from 'better-sqlite3';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { lynxHome } from '../config/runtime.js';
-import { CORE_SCHEMA, DROP_EDGE_INDEXES, CREATE_EDGE_INDEXES, migrateV01toV02, migrateV02toV03 } from './ddl.js';
+import { CORE_SCHEMA, DROP_EDGE_INDEXES, CREATE_EDGE_INDEXES, GRAPH_SCHEMA_MIGRATIONS } from './ddl.js';
+import { runSchemaMigrations } from './migrations.js';
 
 export function removeSqliteDatabaseFiles(dbPath: string): void {
   for (const suffix of ['', '-wal', '-shm']) {
@@ -110,9 +111,8 @@ export class LynxDatabase {
   // ── Schema ──────────────────────────────────────────────────
 
   private migrate(): void {
-    migrateV01toV02(this.db);
-    migrateV02toV03(this.db);
     this.db.exec(CORE_SCHEMA);
+    runSchemaMigrations(this.db, GRAPH_SCHEMA_MIGRATIONS);
   }
 
   // ── Project CRUD ────────────────────────────────────────────

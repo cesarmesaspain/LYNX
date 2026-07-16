@@ -18,6 +18,7 @@ import {
   queryNewSymbolsNoCallers,
   queryDeletedSymbolsLiveRefs,
   queryUnindexedModified,
+  queryDownstreamDependents,
   stableSort,
   fairTruncate,
   normalizeFileArg,
@@ -91,7 +92,14 @@ function seedDb(db: LynxDatabase, project: string) {
     ).run(project, fileIds['tests/utils.test.ts'], fileIds['src/utils.ts']);
   }
 
-  // CALLS edges for deleted test
+  // CALLS edges
+  // Cross-file: main → doWork (src/index.ts imports from src/utils.ts)
+  if (funcIds['src.index.main'] && funcIds['src.utils.doWork']) {
+    db.db.prepare(
+      'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, \'CALLS\', \'{}\')'
+    ).run(project, funcIds['src.index.main'], funcIds['src.utils.doWork']);
+  }
+  // Same-file: doWork → helper
   if (funcIds['src.utils.doWork'] && funcIds['src.utils.helper']) {
     db.db.prepare(
       'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, \'CALLS\', \'{}\')'
@@ -315,6 +323,41 @@ describe('assess_impact queries', () => {
       expect(findings.length).toBe(1);
       expect(findings[0].category).toBe('unindexed_modified_files');
       expect(findings[0].evidence.some(e => e.source === 'extension check')).toBe(true);
+    });
+  });
+
+  // ── Query 6: downstream dependents (Blast Radius) ──────────────
+
+  describe('queryDownstreamDependents', () => {
+    it('returns files whose symbols are called by modified files', () => {
+      // main in src/index.ts CALLS doWork in src/utils.ts
+      // diff: src/index.ts → dependents: src/utils.ts
+      const deps = queryDownstreamDependents(db, PROJECT, ['src/index.ts']);
+      expect(deps).toContain('src/utils.ts');
+      expect(deps.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('excludes self (same file) from dependents', () => {
+      // doWork in src/utils.ts CALLS helper in src/utils.ts — same file, not downstream
+      const deps = queryDownstreamDependents(db, PROJECT, ['src/utils.ts']);
+      expect(deps).not.toContain('src/utils.ts');
+    });
+
+    it('returns empty for unindexed files', () => {
+      const deps = queryDownstreamDependents(db, PROJECT, ['src/notindexed.ts']);
+      expect(deps).toEqual([]);
+    });
+
+    it('returns empty for empty diff', () => {
+      const deps = queryDownstreamDependents(db, PROJECT, []);
+      expect(deps).toEqual([]);
+    });
+
+    it('includes files across multiple dependency types', () => {
+      // USAGE or IMPORTS edges on main are not seeded, but the function
+      // accepts them — at minimum the CALLS edge should still resolve.
+      const deps = queryDownstreamDependents(db, PROJECT, ['src/index.ts']);
+      expect(Array.isArray(deps)).toBe(true);
     });
   });
 

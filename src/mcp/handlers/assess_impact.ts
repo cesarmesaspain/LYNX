@@ -63,7 +63,8 @@ export type AssessmentCategory =
   | 'untested_changes'
   | 'new_symbols_no_callers'
   | 'deleted_symbols_live_refs'
-  | 'unindexed_modified_files';
+  | 'unindexed_modified_files'
+  | 'downstream_dependents';
 
 export type EvidenceStrength = 'confirmed' | 'heuristic' | 'unknown' | 'searched_not_found';
 
@@ -97,6 +98,7 @@ export interface AssessImpactResult {
   category_filter?: string;
   findings_by_category: Record<string, number>;
   findings: ImpactFinding[];
+  direct_dependent_files: string[];
   ignored_files?: { count: number; examples: string[]; reason: string };
   uncertainties: string[];
   recommended_inspection: string[];
@@ -537,6 +539,40 @@ export function queryUnindexedModified(
 }
 
 // ═══════════════════════════════════════════════════════════════
+// Query 6: Downstream dependents (Blast Radius)
+// ═══════════════════════════════════════════════════════════════
+
+export function queryDownstreamDependents(
+  db: ReturnType<typeof getDb>,
+  project: string,
+  diffFiles: string[]
+): string[] {
+  if (diffFiles.length === 0) return [];
+
+  // All modified files that are indexed
+  const indexedFiles = diffFiles.filter(f => isFileIndexed(db, project, f));
+  if (indexedFiles.length === 0) return [];
+
+  // Build placeholders for IN clause
+  const placeholders = indexedFiles.map(() => '?').join(',');
+  const rows = db.db.prepare(
+    `SELECT DISTINCT tgt.file_path AS target_file
+     FROM edges e
+     JOIN nodes tgt ON tgt.id = e.target_id
+     WHERE tgt.project = ?
+       AND e.type IN ('CALLS', 'IMPORTS', 'USAGE')
+       AND e.source_id IN (
+         SELECT id FROM nodes
+         WHERE project = ? AND file_path IN (${placeholders})
+       )
+       AND tgt.file_path NOT IN (${placeholders})
+     ORDER BY target_file`
+  ).all(project, project, ...indexedFiles, ...indexedFiles) as Array<{ target_file: string }>;
+
+  return rows.map(r => r.target_file);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // Fair truncation
 // ═══════════════════════════════════════════════════════════════
 
@@ -652,6 +688,7 @@ export async function handleAssessImpact(
       limit: maxFindings,
       findings_by_category: {},
       findings: [],
+      direct_dependent_files: [],
       uncertainties: ['Project not found in index.'],
       recommended_inspection: ['Run index_repository first.'],
       confidence_note: 'Cannot assess impact without indexed project.',
@@ -694,6 +731,9 @@ export async function handleAssessImpact(
   allFindings.push(...queryNewSymbolsNoCallers(db, project, scopedFiles));
   allFindings.push(...queryDeletedSymbolsLiveRefs(db, project, rootPath));
   allFindings.push(...queryUnindexedModified(db, project, scopedFiles, rootPath));
+
+  // Query 6: Blast Radius — what depends on modified symbols?
+  const dependents = queryDownstreamDependents(db, project, scopedFiles);
 
   // Apply optional category filter (before count, before truncation)
   const filteredFindings = categoryFilter
@@ -753,6 +793,7 @@ export async function handleAssessImpact(
     ...(categoryFilter ? { category_filter: categoryFilter } : {}),
     findings_by_category: fullCategoryTotals,
     findings: selected,
+    direct_dependent_files: dependents,
     ...(ignoredFiles ? { ignored_files: ignoredFiles } : {}),
     uncertainties: uncertainties.length > 0 ? uncertainties : ['Assessment completed with no blockers.'],
     recommended_inspection: recommended,

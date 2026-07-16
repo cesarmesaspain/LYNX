@@ -12,6 +12,7 @@ export type LynxNode =
   | LynxClass
   | LynxMethod
   | LynxVariable
+  | LynxMacro
   | LynxType
   | LynxInterface
   | LynxEnum
@@ -78,6 +79,10 @@ export interface LynxMethod extends LynxNodeBase {
 export interface LynxVariable extends LynxNodeBase {
   kind: 'Variable';
   typeAnnotation: string | null;
+}
+
+export interface LynxMacro extends LynxNodeBase {
+  kind: 'Macro';
 }
 
 export interface LynxType extends LynxNodeBase {

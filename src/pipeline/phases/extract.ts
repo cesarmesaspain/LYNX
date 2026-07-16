@@ -250,6 +250,7 @@ function nativeNode(project: string, filePath: string, row: Record<string, unkno
     : rawKind === 'Enum' ? 'Enum'
     : rawKind === 'Namespace' ? 'Module'
     : rawKind === 'TypeAlias' ? 'Type'
+    : rawKind === 'Macro' ? 'Macro'
     : rawKind === 'Function' ? 'Function' : 'Variable';
   const base = { project, kind, name: String(row.name), qualifiedName: String(row.qualified_name), filePath,
     startLine: Number(row.start_line), endLine: Number(row.end_line), isExported: Number(row.is_exported) === 1,
@@ -263,7 +264,7 @@ function nativeNode(project: string, filePath: string, row: Record<string, unkno
   if (kind === 'Class') return { ...base, kind, baseClasses: [], lineCount: Math.max(1, base.endLine - base.startLine + 1), cyclomaticComplexity: 1 };
   if (kind === 'Enum') return { ...base, kind, members: [] };
   if (kind === 'Module') return { ...base, kind, lineCount: Math.max(1, base.endLine - base.startLine + 1) };
-  if (kind === 'Type') return { ...base, kind };
+  if (kind === 'Type' || kind === 'Macro') return { ...base, kind };
   return { ...base, kind: 'Variable', typeAnnotation: rawKind };
 }
 

@@ -31,6 +31,9 @@ describe.skipIf(!fs.existsSync(nativeCore))('native structural core publication'
 
       expect(result.status.status).toBe('ready');
       expect(result.coverage.partial_files.length).toBeGreaterThan(0);
+      const macro = db.db.prepare("SELECT kind, properties FROM nodes WHERE project='native-publication' AND qualified_name='include.math.__header.__macro.MATH_LIMIT.L3'").get() as { kind: string; properties: string } | undefined;
+      expect(macro?.kind).toBe('Macro');
+      expect(JSON.parse(macro!.properties)).toEqual({});
       expect(edge?.type).toBe('CALLS');
       expect(JSON.parse(edge!.properties)).toMatchObject({
         extractor: 'lynx-native-core',

@@ -21,7 +21,7 @@ export interface LynxToolDef {
 }
 
 export const EVIDENCE_DISCIPLINE =
-  ' Use the smallest focused call; broaden only if evidence is insufficient. Reuse prior evidence and stop once the answer is supported.';
+  ' Use the smallest sufficient call; reuse evidence; broaden only if needed; stop when supported.';
 
 const EVIDENCE_TOOLS = new Set([
   'pack_context', 'search_graph', 'trace_path', 'get_code_snippet',
@@ -60,9 +60,8 @@ export function withSafetyAnnotations(tool: LynxToolDef): LynxToolDef {
 }
 
 export function withEvidenceDiscipline(tool: LynxToolDef): LynxToolDef {
-  const routing = ' Workflow: context → search → snippet/trace → tests → impact.';
   if (!EVIDENCE_TOOLS.has(tool.name)) return tool;
-  return { ...tool, description: tool.description + EVIDENCE_DISCIPLINE + routing };
+  return { ...tool, description: tool.description + EVIDENCE_DISCIPLINE };
 }
 
 export const TOOLS: LynxToolDef[] = [

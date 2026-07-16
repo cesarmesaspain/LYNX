@@ -18,7 +18,7 @@ describe('MCP tool registry', () => {
     expect(listed.map(tool => tool.name)).toContain('pack_context');
     expect(listed.map(tool => tool.name)).toContain('delete_project');
     expect(listed.find((tool) => tool.name === 'search_graph')?.description).toContain(
-      'Use the smallest focused call',
+      'Use the smallest sufficient call',
     );
     expect((listed.find((tool) => tool.name === 'get_code_snippet')?.inputSchema as { properties: Record<string, unknown> })
       .properties.max_lines).toBeDefined();
@@ -32,6 +32,8 @@ describe('MCP tool registry', () => {
       readOnlyHint: false,
       destructiveHint: true,
     });
+    const totalDescriptionChars = listed.reduce((sum, tool) => sum + tool.description.length, 0);
+    expect(totalDescriptionChars).toBeLessThan(9000);
   });
 
   it('offers the compact profile only when explicitly requested', () => {

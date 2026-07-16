@@ -49,7 +49,7 @@ try {
   `).all();
   const moduleValues = db.prepare(`
     SELECT kind, name, is_exported FROM native_nodes
-    WHERE name IN ('running_total', 'public_value', 'second_value', 'transform_value')
+    WHERE name IN ('running_total', 'public_value', 'second_value', 'current_value', 'transform_value')
     ORDER BY name
   `).all();
   const cppSymbols = db.prepare(`
@@ -81,6 +81,7 @@ try {
       !typeKinds.some((row) => row.kind === 'TypeAlias' && row.name === 'Counter') ||
       !typeKinds.some((row) => row.kind === 'Union' && row.name === 'Payload') ||
       !moduleValues.some((row) => row.name === 'second_value' && row.kind === 'Variable') ||
+      !moduleValues.some((row) => row.name === 'current_value' && row.kind === 'Variable') ||
       !moduleValues.some((row) => row.name === 'transform_value' && row.kind === 'FunctionPointer') ||
       !cppSymbols.some((row) => row.kind === 'Namespace' && row.qualified_name === 'widget.ui') ||
       !cppSymbols.some((row) => row.kind === 'Class' && row.qualified_name === 'widget.ui.Widget') ||

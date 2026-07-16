@@ -1034,7 +1034,6 @@ static TSNode declarator_identifier(TSNode declarator, bool *function_pointer) {
     }
     return declarator_identifier(inner, function_pointer);
   }
-  if (strstr(type, "pointer")) *function_pointer = true;
   TSNode inner = ts_node_child_by_field_name(declarator, "declarator", 10);
   if (!ts_node_is_null(inner)) return declarator_identifier(inner, function_pointer);
   uint32_t count = ts_node_named_child_count(declarator);

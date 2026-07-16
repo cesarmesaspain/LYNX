@@ -15,4 +15,5 @@ enum State { STATE_IDLE, STATE_BUSY = 2 };
 union Payload { int integer; float decimal; };
 
 extern int public_value, second_value;
+extern int *current_value;
 extern int (*transform_value)(int);

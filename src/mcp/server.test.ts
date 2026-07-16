@@ -33,7 +33,10 @@ describe('MCP tool registry', () => {
       destructiveHint: true,
     });
     const totalDescriptionChars = listed.reduce((sum, tool) => sum + tool.description.length, 0);
+    const totalSchemaChars = listed.reduce((sum, tool) => sum + JSON.stringify(tool.inputSchema).length, 0);
     expect(totalDescriptionChars).toBeLessThan(7200);
+    expect(totalSchemaChars).toBeLessThan(11800);
+    expect(JSON.stringify(listed).length).toBeLessThan(23200);
   });
 
   it('offers the compact profile only when explicitly requested', () => {
@@ -43,6 +46,8 @@ describe('MCP tool registry', () => {
       const listed = listMcpTools();
       expect(listed).toHaveLength(13);
       expect(listed.reduce((sum, tool) => sum + tool.description.length, 0)).toBeLessThan(3400);
+      expect(listed.reduce((sum, tool) => sum + JSON.stringify(tool.inputSchema).length, 0)).toBeLessThan(6200);
+      expect(JSON.stringify(listed).length).toBeLessThan(11300);
     } finally {
       if (previous === undefined) delete process.env.LYNX_TOOL_PROFILE;
       else process.env.LYNX_TOOL_PROFILE = previous;

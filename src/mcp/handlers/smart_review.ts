@@ -55,6 +55,7 @@ export async function handleSmartReview(
   const qualifiedName = args.qualified_name ? String(args.qualified_name) : undefined;
   const requestedLimit = args.limit !== undefined ? Number(args.limit) : 20;
   const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 100)) : 20;
+  const enableLlm = args.enable_llm === true;
 
   if (!project) return { error: 'project is required' };
   if (!filePath && !qualifiedName) return { error: 'file or qualified_name is required' };
@@ -79,7 +80,7 @@ export async function handleSmartReview(
     };
   }
 
-  const issues = await reviewNodes(db, project, nodes, projectMeta.rootPath);
+  const issues = await reviewNodes(db, project, nodes, projectMeta.rootPath, enableLlm);
 
   // Memory findings for the target
   const memoryFindings = qualifiedName
@@ -96,6 +97,7 @@ async function reviewNodes(
   project: string,
   nodes: any[],
   rootPath: string,
+  enableLlm: boolean,
 ): Promise<ReviewIssue[]> {
   const issues: ReviewIssue[] = [];
   const seenWarnings = new Set<string>();
@@ -209,7 +211,7 @@ async function reviewNodes(
     }
 
     // LLM smell classification for significant functions
-    if (cyclomatic > 10 || lineCount > 80) {
+    if (enableLlm && (cyclomatic > 10 || lineCount > 80)) {
       try {
         const absPath = path.join(rootPath, node.file_path);
         const fileContent = fs.readFileSync(absPath, 'utf-8');

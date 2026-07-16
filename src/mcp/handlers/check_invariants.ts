@@ -42,6 +42,8 @@ export interface CheckInvariantsResult {
   project: string;
   summary: string;
   invariants_discovered: number;
+  invariants_returned?: number;
+  invariants_truncated?: number;
   invariants: SiblingInvariant[];
   violations: InvariantViolation[];
   scope?: { files: string[] };
@@ -227,6 +229,8 @@ export async function handleCheckInvariants(
   const minConfidence = typeof args.min_confidence === 'number'
     ? Math.max(0, Math.min(1, args.min_confidence))
     : MIN_CONFIDENCE;
+  const requestedLimit = typeof args.limit === 'number' && Number.isFinite(args.limit) ? args.limit : 30;
+  const limit = Math.max(1, Math.min(100, Math.floor(requestedLimit)));
 
   const db = getDb(project);
   const projectMeta = db.getProject(project);
@@ -261,13 +265,16 @@ export async function handleCheckInvariants(
         ? `, ${violations.length} violation(s) in scope.`
         : '.') +
       (scope ? ` Scoped to ${scope.files.length} file(s).` : ' No file scope — re-run with files to detect violations.');
+  const returnedInvariants = invariants.slice(0, limit);
 
   return {
     contract_version: CHECK_INVARIANTS_CONTRACT_VERSION,
     project,
     summary,
     invariants_discovered: invariants.length,
-    invariants,
+    invariants_returned: returnedInvariants.length,
+    invariants_truncated: Math.max(0, invariants.length - returnedInvariants.length),
+    invariants: returnedInvariants,
     violations,
     ...(scope ? { scope } : {}),
   };

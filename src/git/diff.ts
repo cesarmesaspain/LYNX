@@ -12,7 +12,11 @@
 
 import * as child_process from 'node:child_process';
 
-export function getModifiedFiles(rootPath: string, baseBranch?: string): string[] {
+export function getModifiedFiles(
+  rootPath: string,
+  baseBranch?: string,
+  includeCommitted = true,
+): string[] {
   const files = new Set<string>();
   const branch = baseBranch || 'main';
 
@@ -28,8 +32,9 @@ export function getModifiedFiles(rootPath: string, baseBranch?: string): string[
     }
   }
 
-  // 1. Committed diff vs base branch (or HEAD~1 fallback)
-  try {
+  // 1. Committed diff vs base branch (or HEAD~1 fallback). Consumers that
+  // describe the working tree as "uncommitted" must opt out explicitly.
+  if (includeCommitted) try {
     try {
       const out = child_process.execFileSync(
         'git', ['diff', '--name-status', `${branch}...HEAD`],

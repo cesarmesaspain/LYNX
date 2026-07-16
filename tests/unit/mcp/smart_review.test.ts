@@ -57,6 +57,17 @@ describe('smart_review loop-depth evidence', () => {
     expect(performanceIssue?.suggestion).toContain('before claiming Big-O complexity');
   });
 
+  it('keeps LLM enrichment opt-in for a fast deterministic default', async () => {
+    const started = Date.now();
+    const result = await handleSmartReview({
+      project: PROJECT,
+      qualified_name: 'src.worker.nestedWork',
+    }) as { issues: Array<{ category: string }> };
+
+    expect(result.issues.some(issue => issue.category === 'smell-classification')).toBe(false);
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
   it('accepts target as a file alias for review workflow handoffs', async () => {
     const result = await handleSmartReview({
       project: PROJECT,

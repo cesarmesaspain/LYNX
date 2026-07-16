@@ -580,7 +580,7 @@ function buildDecisionSummary(project: string, task: string): string {
   if (!meta) return 'Project not indexed. Run index_repository first for decision support.';
 
   const rootPath = meta.rootPath;
-  const diffFiles = getModifiedFiles(rootPath);
+  const diffFiles = getModifiedFiles(rootPath, undefined, false);
 
   if (diffFiles.length === 0) {
     return 'No uncommitted changes detected. The working tree is clean. If a material question remains, re-run with a specific task description so LYNX can target only the relevant code areas.';

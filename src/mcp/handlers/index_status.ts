@@ -87,12 +87,17 @@ export async function handleIndexStatus(
   let coverage: Record<string, unknown> | null = null;
   if (meta?.rootPath) {
     try {
-      const discovery = discoverFiles(meta.rootPath, 'fast');
+      const coverageMode = lastRun?.mode === 'full' || lastRun?.mode === 'moderate'
+        ? lastRun.mode
+        : 'fast';
+      const discovery = discoverFiles(meta.rootPath, coverageMode);
       coverage = {
-        mode: 'fast',
+        mode: coverageMode,
         discoverable_files: discovery.files.length,
         indexed_files_with_nodes: fileCount.cnt,
-        indexed_file_ratio: discovery.files.length === 0 ? 1 : Number((fileCount.cnt / discovery.files.length).toFixed(3)),
+        indexed_file_ratio: discovery.files.length === 0
+          ? 1
+          : Number(Math.min(1, fileCount.cnt / discovery.files.length).toFixed(3)),
         excluded_directories: discovery.excludedDirs.slice(0, 100),
         note: 'Freshness is temporal; coverage reports how much discoverable source has graph nodes.',
       };

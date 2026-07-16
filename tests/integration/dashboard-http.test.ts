@@ -61,6 +61,19 @@ describe('local dashboard HTTP boundary', () => {
     expect(tooLarge.status).toBe(413);
   });
 
+  it('exports metrics as a downloadable CSV response', async () => {
+    server = startDashboard(0);
+    const port = await waitForListening(server);
+    const response = await request(port, '/api/metrics?window=total&format=csv');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/csv');
+    expect(response.headers['content-disposition']).toContain('attachment;');
+    expect(response.headers['content-disposition']).toContain('lynx-metrics-all-total.csv');
+    expect(response.body).toContain('# LYNX Metrics Export');
+    expect(response.body).toContain('metric,value,unit,provenance,category');
+  });
+
   it('physically removes a project database through the delete endpoint', async () => {
     const project = 'dashboard-delete-regression';
     const db = LynxDatabase.openProject(project);

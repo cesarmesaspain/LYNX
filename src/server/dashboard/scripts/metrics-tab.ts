@@ -268,6 +268,18 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     projSelect.addEventListener('change', loadMetrics);
   }
 
+  var exportBtn = document.getElementById('exportMetricsBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function() {
+      var project = projSelect ? projSelect.value : '';
+      var activeWindow = document.querySelector('.win-btn.active');
+      var win = activeWindow && activeWindow.dataset.win ? activeWindow.dataset.win : 'total';
+      var url = '/api/metrics?window=' + encodeURIComponent(win) + '&format=csv';
+      if (project) url += '&project=' + encodeURIComponent(project);
+      window.location.href = url;
+    });
+  }
+
   var clearBtn = document.getElementById('clearMetricsBtn');
   var clearModal = document.getElementById('clearMetricsModal');
   var clearTitle = document.getElementById('clearMetricsTitle');

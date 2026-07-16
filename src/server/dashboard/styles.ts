@@ -335,6 +335,8 @@ export function renderStyles(): string {
     .win-btn { background: transparent; border: 0; color: #8492a7; min-width: 42px; padding: 7px 10px; border-radius: 6px; cursor: pointer; font: 600 12px inherit; transition: color .2s, background .2s; }
     .win-btn:hover { color: #e2e8f0; background: rgba(71,85,105,.42); }
     .win-btn.active { background: #123c5a; box-shadow: inset 0 0 0 1px #259dcc; color: #7dd3fc; }
+    .metrics-export-btn { background: transparent; border: 1px solid #256b8f; color: #7dd3fc; padding: 7px 14px; border-radius: 7px; cursor: pointer; font: 600 11px inherit; transition: background .2s, color .2s; white-space: nowrap; }
+    .metrics-export-btn:hover { background: #164e63; color: #cffafe; }
     .metrics-clear-btn { background: transparent; border: 1px solid #7f1d1d; color: #fca5a5; padding: 7px 14px; border-radius: 7px; cursor: pointer; font: 600 11px inherit; transition: background .2s, color .2s; white-space: nowrap; }
     .metrics-clear-btn:hover { background: #7f1d1d; color: #fecaca; }
     .metrics-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; padding: 22px 28px 18px; }

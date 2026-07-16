@@ -332,6 +332,7 @@ ${totalLlmCalls > 0 ? `
             <button class="win-btn" data-win="30d">30d</button>
             <button class="win-btn active" data-win="total">${isSpanish ? 'Total' : 'Total'}</button>
           </div>
+          <button class="metrics-export-btn" id="exportMetricsBtn" type="button" title="${isSpanish ? 'Exportar métricas del proyecto y periodo seleccionados como CSV' : 'Export selected project and time window metrics as CSV'}">${isSpanish ? 'Exportar CSV' : 'Export CSV'}</button>
           <button class="metrics-clear-btn" id="clearMetricsBtn" type="button" title="${isSpanish ? 'Borrar historial de métricas del proyecto seleccionado' : 'Clear metrics history for selected project'}">${isSpanish ? 'Borrar historial' : 'Clear history'}</button>
         </div>
         <span class="metrics-badge" id="metricsProvenance"></span>

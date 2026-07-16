@@ -64,7 +64,8 @@ export type AssessmentCategory =
   | 'new_symbols_no_callers'
   | 'deleted_symbols_live_refs'
   | 'unindexed_modified_files'
-  | 'downstream_dependents';
+  | 'downstream_dependents'
+  | 'async_dependents';
 
 export type EvidenceStrength = 'confirmed' | 'heuristic' | 'unknown' | 'searched_not_found';
 
@@ -99,6 +100,7 @@ export interface AssessImpactResult {
   findings_by_category: Record<string, number>;
   findings: ImpactFinding[];
   direct_dependent_files: string[];
+  async_dependent_files: string[];
   ignored_files?: { count: number; examples: string[]; reason: string };
   uncertainties: string[];
   recommended_inspection: string[];
@@ -573,7 +575,59 @@ export function queryDownstreamDependents(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Fair truncation
+// Query 7: Async dependents — Event-Bridge Blast Radius
+// ═══════════════════════════════════════════════════════════════
+
+export function queryAsyncDependents(
+  db: ReturnType<typeof getDb>,
+  project: string,
+  diffFiles: string[]
+): string[] {
+  if (diffFiles.length === 0) return [];
+
+  const indexedFiles = diffFiles.filter(f => isFileIndexed(db, project, f));
+  if (indexedFiles.length === 0) return [];
+
+  const placeholders = indexedFiles.map(() => '?').join(',');
+
+  // Files whose functions emit to channels that functions in other files listen on.
+  const rows = db.db.prepare(
+    `SELECT DISTINCT listener.file_path AS dependent_file
+     FROM edges emit_e
+     JOIN nodes ch ON ch.id = emit_e.target_id AND ch.kind = 'Channel'
+     JOIN edges listen_e ON listen_e.target_id = ch.id AND listen_e.type = 'LISTENS_ON'
+     JOIN nodes listener ON listener.id = listen_e.source_id
+     WHERE emit_e.project = ?
+       AND emit_e.type = 'EMITS'
+       AND emit_e.source_id IN (
+         SELECT id FROM nodes
+         WHERE project = ? AND file_path IN (${placeholders})
+       )
+       AND listener.file_path NOT IN (${placeholders})
+     ORDER BY dependent_file`
+  ).all(project, project, ...indexedFiles, ...indexedFiles) as Array<{ dependent_file: string }>;
+
+  // Also: files whose functions listen on channels that other modified files emit to
+  const reverseRows = db.db.prepare(
+    `SELECT DISTINCT emitter.file_path AS dependent_file
+     FROM edges listen_e
+     JOIN nodes ch ON ch.id = listen_e.target_id AND ch.kind = 'Channel'
+     JOIN edges emit_e ON emit_e.target_id = ch.id AND emit_e.type = 'EMITS'
+     JOIN nodes emitter ON emitter.id = emit_e.source_id
+     WHERE listen_e.project = ?
+       AND listen_e.type = 'LISTENS_ON'
+       AND listen_e.source_id IN (
+         SELECT id FROM nodes
+         WHERE project = ? AND file_path IN (${placeholders})
+       )
+       AND emitter.file_path NOT IN (${placeholders})
+     ORDER BY dependent_file`
+  ).all(project, project, ...indexedFiles, ...indexedFiles) as Array<{ dependent_file: string }>;
+
+  const allFiles = new Set(rows.map(r => r.dependent_file));
+  for (const r of reverseRows) allFiles.add(r.dependent_file);
+  return Array.from(allFiles).sort();
+}
 // ═══════════════════════════════════════════════════════════════
 
 const CONFIDENCE_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -689,6 +743,7 @@ export async function handleAssessImpact(
       findings_by_category: {},
       findings: [],
       direct_dependent_files: [],
+      async_dependent_files: [],
       uncertainties: ['Project not found in index.'],
       recommended_inspection: ['Run index_repository first.'],
       confidence_note: 'Cannot assess impact without indexed project.',
@@ -734,6 +789,9 @@ export async function handleAssessImpact(
 
   // Query 6: Blast Radius — what depends on modified symbols?
   const dependents = queryDownstreamDependents(db, project, scopedFiles);
+
+  // Query 7: Async Blast Radius — what depends via event channels?
+  const asyncDeps = queryAsyncDependents(db, project, scopedFiles);
 
   // Apply optional category filter (before count, before truncation)
   const filteredFindings = categoryFilter
@@ -794,6 +852,7 @@ export async function handleAssessImpact(
     findings_by_category: fullCategoryTotals,
     findings: selected,
     direct_dependent_files: dependents,
+    async_dependent_files: asyncDeps,
     ...(ignoredFiles ? { ignored_files: ignoredFiles } : {}),
     uncertainties: uncertainties.length > 0 ? uncertainties : ['Assessment completed with no blockers.'],
     recommended_inspection: recommended,

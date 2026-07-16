@@ -30,7 +30,7 @@ export function edgeTypesForMode(mode: string): string[] {
   switch (mode) {
     case 'calls': return ['CALLS'];
     case 'references': return ['CALLS', 'READS', 'USAGE', 'REGISTRY_DISPATCH'];
-    case 'data_flow': return ['CALLS', 'DATA_FLOWS', 'READS', 'USAGE', 'REGISTRY_DISPATCH'];
+    case 'data_flow': return ['CALLS', 'DATA_FLOWS', 'READS', 'USAGE', 'REGISTRY_DISPATCH', 'EMITS', 'LISTENS_ON'];
     case 'cross_service':
       return ['CALLS', 'HTTP_CALLS', 'ASYNC_CALLS', 'DATA_FLOWS',
               'CROSS_HTTP_CALLS', 'CROSS_ASYNC_CALLS', 'CROSS_CHANNEL',

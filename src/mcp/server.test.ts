@@ -24,13 +24,14 @@ describe('MCP tool registry', () => {
       .properties.max_lines).toBeDefined();
     expect((listed.find((tool) => tool.name === 'detect_changes')?.inputSchema as { properties: Record<string, unknown> })
       .properties.include_committed).toBeDefined();
-    expect(listed.find((tool) => tool.name === 'list_projects')?.annotations).toMatchObject({
+    expect(listed.find((tool) => tool.name === 'list_projects')?.annotations).toEqual({
       readOnlyHint: true,
-      destructiveHint: false,
     });
-    expect(listed.find((tool) => tool.name === 'delete_project')?.annotations).toMatchObject({
-      readOnlyHint: false,
+    expect(listed.find((tool) => tool.name === 'delete_project')?.annotations).toEqual({
       destructiveHint: true,
+    });
+    expect(listed.find((tool) => tool.name === 'index_repository')?.annotations).toEqual({
+      destructiveHint: false,
     });
     const totalDescriptionChars = listed.reduce((sum, tool) => sum + tool.description.length, 0);
     const totalSchemaChars = listed.reduce((sum, tool) => sum + JSON.stringify(tool.inputSchema).length, 0);

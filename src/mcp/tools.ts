@@ -48,12 +48,11 @@ const DESTRUCTIVE_TOOL_NAMES = new Set(['delete_project']);
 
 export function withSafetyAnnotations(tool: LynxToolDef): LynxToolDef {
   const readOnlyHint = READ_ONLY_TOOL_NAMES.has(tool.name);
+  const destructiveHint = DESTRUCTIVE_TOOL_NAMES.has(tool.name);
   return {
     ...tool,
     annotations: {
-      readOnlyHint,
-      destructiveHint: DESTRUCTIVE_TOOL_NAMES.has(tool.name),
-      idempotentHint: readOnlyHint,
+      ...(readOnlyHint ? { readOnlyHint: true } : { destructiveHint }),
       ...tool.annotations,
     },
   };

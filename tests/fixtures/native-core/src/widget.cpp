@@ -8,6 +8,11 @@ public:
   int size() const;
 };
 
+class Gadget {
+public:
+  int size() const;
+};
+
 static std::string label() {
   return std::string("widget");
 }
@@ -15,4 +20,14 @@ static std::string label() {
 Widget::Widget() {}
 Widget::~Widget() {}
 int Widget::size() const { return static_cast<int>(label().size()); }
+int Gadget::size() const { return 7; }
+
+int measure_widget(Widget &widget) {
+  return widget.size();
+}
+
+template <typename T>
+int measure_generic(T &value) {
+  return value.size();
+}
 }

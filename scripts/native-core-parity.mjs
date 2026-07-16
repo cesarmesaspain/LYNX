@@ -8,7 +8,9 @@ import { validateNativeStaging } from '../dist/native-core/staging.js';
 
 const root = path.resolve(import.meta.dirname, '..');
 const repo = path.resolve(process.argv[2] || '.');
-const canonicalPath = path.resolve(process.argv[3] || '');
+const canonicalPath = process.argv[3]
+  ? path.resolve(process.argv[3])
+  : path.join(os.homedir(), '.lynx', 'dbs', path.basename(repo) + '.db');
 const workers = Math.max(1, Number(process.argv[4]) || os.availableParallelism());
 const outputPath = process.argv[5] ? path.resolve(process.argv[5]) : null;
 const competitorPath = process.argv[6] ? path.resolve(process.argv[6]) : null;

@@ -107,6 +107,7 @@ typedef struct {
   char *kind;
   char *name;
   char *qualified_name;
+  char *declared_type;
   int start_line;
   int end_line;
   int is_exported;
@@ -400,6 +401,88 @@ static CallableResolution callable_registry_resolve(
     index = (index + 1) & (capacity - 1);
   }
   return (CallableResolution){0};
+}
+
+static char *child_qualified_name(const char *parent, const char *name);
+
+static bool member_candidate_matches(
+  const char *qualified_name, const char *declared_type, const char *callee_name
+) {
+  size_t qualified_length = strlen(qualified_name);
+  size_t type_length = strlen(declared_type);
+  size_t callee_length = strlen(callee_name);
+  if (qualified_length < type_length + callee_length + 2) return false;
+  size_t callee_start = qualified_length - callee_length;
+  if (qualified_name[callee_start - 1] != '.' ||
+      strcmp(qualified_name + callee_start, callee_name) != 0) return false;
+  size_t type_start = callee_start - type_length - 1;
+  if (strncmp(qualified_name + type_start, declared_type, type_length) != 0) return false;
+  return type_start == 0 || qualified_name[type_start - 1] == '.';
+}
+
+static CallableResolution resolve_member_candidate_group(
+  const CallableCandidate *candidates, int count, const char *declared_type,
+  const char *callee_name
+) {
+  const CallableCandidate *match = NULL;
+  int matched = 0;
+  for (int candidate = 0; candidate < count; candidate++) {
+    if (!member_candidate_matches(
+          candidates[candidate].qualified_name, declared_type, callee_name)) continue;
+    match = &candidates[candidate];
+    matched++;
+  }
+  if (matched != 1) return (CallableResolution){0};
+  return (CallableResolution){
+    match->qualified_name, "receiver_declared_type_member", NULL, 1.0, count
+  };
+}
+
+static CallableResolution callable_registry_resolve_member(
+  const CallableRegistrySlot *slots, size_t capacity, const char *language,
+  const char *callee_name, const char *declared_type
+) {
+  size_t index = callable_hash(language, callee_name, capacity - 1);
+  while (slots[index].name) {
+    if (strcmp(slots[index].language, language) == 0 &&
+        strcmp(slots[index].name, callee_name) == 0) {
+      CallableResolution implementation = resolve_member_candidate_group(
+        slots[index].implementations, slots[index].implementation_count,
+        declared_type, callee_name);
+      if (implementation.qualified_name) return implementation;
+      return resolve_member_candidate_group(
+        slots[index].headers, slots[index].header_count, declared_type, callee_name);
+    }
+    index = (index + 1) & (capacity - 1);
+  }
+  return (CallableResolution){0};
+}
+
+static bool identifier_text(const char *text) {
+  if (!text || !(isalpha((unsigned char)text[0]) || text[0] == '_')) return false;
+  for (const char *cursor = text + 1; *cursor; cursor++) {
+    if (!(isalnum((unsigned char)*cursor) || *cursor == '_')) return false;
+  }
+  return true;
+}
+
+static const char *receiver_declared_type(
+  const WorkerBuffer *buffer, int file_index, const char *enclosing_qn,
+  const char *receiver_text, int call_line
+) {
+  if (!identifier_text(receiver_text)) return NULL;
+  char *receiver_qn = child_qualified_name(enclosing_qn, receiver_text);
+  const char *declared_type = NULL;
+  int matches = 0;
+  for (size_t index = buffer->nodes.length; index > 0; index--) {
+    const NodeObservation *item = &buffer->nodes.items[index - 1];
+    if (item->file_index != file_index || item->start_line > call_line) continue;
+    if (!item->declared_type || strcmp(item->qualified_name, receiver_qn) != 0) continue;
+    declared_type = item->declared_type;
+    matches++;
+  }
+  free(receiver_qn);
+  return matches == 1 ? declared_type : NULL;
 }
 
 static void callable_qn_add(CallableQnSlot *slots, size_t capacity, const char *qualified_name) {
@@ -821,12 +904,31 @@ static void emit_node(
     .kind = strdup(kind),
     .name = name,
     .qualified_name = qualified,
+    .declared_type = NULL,
     .start_line = (int)start.row + 1,
     .end_line = (int)end.row + 1,
     .is_exported = is_exported,
     .is_entry_point = is_entry_point,
   };
   PUSH(&buffer->nodes, observation);
+}
+
+static void emit_typed_node(
+  WorkerBuffer *buffer, int file_index, const char *kind, char *name, char *qualified,
+  char *declared_type, TSNode node, int is_exported, int is_entry_point
+) {
+  size_t before = buffer->nodes.length;
+  emit_node(buffer, file_index, kind, name, qualified, node, is_exported, is_entry_point);
+  if (buffer->nodes.length > before) buffer->nodes.items[buffer->nodes.length - 1].declared_type = declared_type;
+  else free(declared_type);
+}
+
+static char *declared_type_text(const char *source, TSNode declaration) {
+  TSNode type_node = ts_node_child_by_field_name(declaration, "type", 4);
+  if (ts_node_is_null(type_node)) return NULL;
+  char *declared_type = node_text(source, type_node, 512);
+  if (declared_type) replace_cpp_separators(declared_type);
+  return declared_type;
 }
 
 static TSNode find_named_identifier(TSNode node) {
@@ -912,7 +1014,8 @@ static void extract_type_members(
       TSNode identifier = find_named_identifier(declarator);
       if (ts_node_is_null(identifier)) continue;
       char *name = node_text(source, identifier, 256);
-      emit_node(buffer, file_index, "Field", name, child_qualified_name(type_qn, name), member, 1, 0);
+      emit_typed_node(buffer, file_index, "Field", name, child_qualified_name(type_qn, name),
+                      declared_type_text(source, member), member, 1, 0);
     }
   }
 }
@@ -967,8 +1070,9 @@ static void extract_module_variables(
     TSNode identifier = declarator_identifier(child, &function_pointer);
     if (ts_node_is_null(identifier)) continue;
     char *name = node_text(source, identifier, 256);
-    emit_node(buffer, file_index, function_pointer ? "FunctionPointer" : "Variable", name,
-              qualified_name(module, name, header), declaration, exported ? 1 : 0, 0);
+    emit_typed_node(buffer, file_index, function_pointer ? "FunctionPointer" : "Variable", name,
+                    qualified_name(module, name, header), declared_type_text(source, declaration),
+                    declaration, exported ? 1 : 0, 0);
   }
 }
 
@@ -989,8 +1093,9 @@ static void extract_scoped_declaration_values(
     TSNode identifier = declarator_identifier(child, &function_pointer);
     if (ts_node_is_null(identifier)) continue;
     char *name = node_text(source, identifier, 256);
-    emit_node(buffer, file_index, function_pointer ? "FunctionPointer" : "Variable", name,
-              child_qualified_name(scope, name), declaration, 0, 0);
+    emit_typed_node(buffer, file_index, function_pointer ? "FunctionPointer" : "Variable", name,
+                    child_qualified_name(scope, name), declared_type_text(source, declaration),
+                    declaration, 0, 0);
     if (strcmp(type, "init_declarator") == 0) {
       UsageObservation observation = {
         .file_index = file_index,
@@ -1018,8 +1123,9 @@ static void extract_function_parameters_recursive(
     TSNode identifier = declarator_identifier(declarator, &function_pointer);
     if (!ts_node_is_null(identifier)) {
       char *name = node_text(source, identifier, 256);
-      emit_node(buffer, file_index, function_pointer ? "FunctionPointer" : "Variable", name,
-                child_qualified_name(scope, name), node, 0, 0);
+      emit_typed_node(buffer, file_index, function_pointer ? "FunctionPointer" : "Variable", name,
+                      child_qualified_name(scope, name), declared_type_text(source, node),
+                      node, 0, 0);
     }
     return;
   }
@@ -1699,22 +1805,33 @@ static void resolve_global_unique_calls(
     "INSERT OR IGNORE INTO native_edges(file_id,source_qualified_name,target_qualified_name,type,start_line,start_column,confidence,strategy,evidence_json) "
     "VALUES(?,?,?,'CALLS',?,?,?,?,"
     "json_object('dispatch',?,'callee',?,'language',?,'matched_import',?,'candidates',?,"
-    "'macro',?,'expanded_callee',?))",
+    "'macro',?,'expanded_callee',?,'receiver',?,'receiver_type',?))",
     -1, &insert, NULL);
   for (int worker = 0; worker < worker_count; worker++) {
     WorkerBuffer *buffer = &buffers[worker];
     for (size_t index = 0; index < buffer->calls.length; index++) {
       CallObservation *call = &buffer->calls.items[index];
-      if (strcmp(call->dispatch_kind, "direct") != 0) continue;
+      bool direct_dispatch = strcmp(call->dispatch_kind, "direct") == 0;
+      bool member_dispatch = strcmp(call->dispatch_kind, "member") == 0;
+      if (!direct_dispatch && !member_dispatch) continue;
       if (!callable_qn_contains(callable_qns, registry_capacity, call->enclosing_qn)) continue;
       int file_id = call->file_index + 1;
       if (resolved_call_contains(resolved, resolved_capacity, file_id, call->enclosing_qn,
                                  call->start_line, call->start_column)) continue;
       const char *language = files[call->file_index].language;
-      CallableResolution resolution = callable_registry_resolve(registry, registry_capacity,
-        language, call->callee_name, &imports_by_file[call->file_index]);
+      const char *declared_type = member_dispatch
+        ? receiver_declared_type(buffer, call->file_index, call->enclosing_qn,
+            call->receiver_text, call->start_line)
+        : NULL;
+      CallableResolution resolution = member_dispatch && declared_type
+        ? callable_registry_resolve_member(registry, registry_capacity, language,
+            call->callee_name, declared_type)
+        : (direct_dispatch
+            ? callable_registry_resolve(registry, registry_capacity, language,
+                call->callee_name, &imports_by_file[call->file_index])
+            : (CallableResolution){0});
       const char *expanded_callee = NULL;
-      if (!resolution.qualified_name) {
+      if (direct_dispatch && !resolution.qualified_name) {
         expanded_callee = macro_alias_unique(macro_aliases, registry_capacity, language,
                                              call->callee_name);
         if (expanded_callee) {
@@ -1745,6 +1862,10 @@ static void resolve_global_unique_calls(
         sqlite3_bind_null(insert, 13);
         sqlite3_bind_null(insert, 14);
       }
+      if (call->receiver_text) bind_text(insert, 15, call->receiver_text);
+      else sqlite3_bind_null(insert, 15);
+      if (declared_type) bind_text(insert, 16, declared_type);
+      else sqlite3_bind_null(insert, 16);
       if (sqlite3_step(insert) == SQLITE_DONE) {
         resolved_call_add(resolved, resolved_capacity, file_id, call->enclosing_qn,
                           call->start_line, call->start_column);
@@ -1826,7 +1947,7 @@ static int write_staging(
   sqlite3_finalize(file_stmt);
 
   sqlite3_stmt *node_stmt = NULL, *call_stmt = NULL, *import_stmt = NULL, *usage_stmt = NULL;
-  sqlite3_prepare_v2(db, "INSERT OR IGNORE INTO native_nodes(file_id,kind,name,qualified_name,start_line,end_line,is_exported,is_test,is_entry_point,properties_json) VALUES(?,?,?,?,?,?,?,0,?,'{}')", -1, &node_stmt, NULL);
+  sqlite3_prepare_v2(db, "INSERT OR IGNORE INTO native_nodes(file_id,kind,name,qualified_name,start_line,end_line,is_exported,is_test,is_entry_point,properties_json) VALUES(?,?,?,?,?,?,?,0,?,CASE WHEN ? IS NULL THEN '{}' ELSE json_object('declared_type',?) END)", -1, &node_stmt, NULL);
   sqlite3_prepare_v2(db, "INSERT INTO native_calls(file_id,enclosing_qualified_name,callee_name,dispatch_kind,receiver_text,start_line,start_column,arguments_json) VALUES(?,?,?,?,?,?,?,'[]')", -1, &call_stmt, NULL);
   sqlite3_prepare_v2(db, "INSERT INTO native_imports(file_id,local_name,imported_name,module_path,resolved_rel_path,start_line) VALUES(?,?,NULL,?,?,?)", -1, &import_stmt, NULL);
   sqlite3_prepare_v2(db, "INSERT INTO native_usages(file_id,enclosing_qualified_name,referenced_name,start_line,start_column,is_write) VALUES(?,?,?,?,?,?)", -1, &usage_stmt, NULL);
@@ -1838,6 +1959,8 @@ static int write_staging(
       bind_text(node_stmt, 3, item->name); bind_text(node_stmt, 4, item->qualified_name);
       sqlite3_bind_int(node_stmt, 5, item->start_line); sqlite3_bind_int(node_stmt, 6, item->end_line);
       sqlite3_bind_int(node_stmt, 7, item->is_exported); sqlite3_bind_int(node_stmt, 8, item->is_entry_point);
+      if (item->declared_type) { bind_text(node_stmt, 9, item->declared_type); bind_text(node_stmt, 10, item->declared_type); }
+      else { sqlite3_bind_null(node_stmt, 9); sqlite3_bind_null(node_stmt, 10); }
       sqlite3_step(node_stmt); sqlite3_reset(node_stmt); sqlite3_clear_bindings(node_stmt);
     }
     for (size_t index = 0; index < buffer->calls.length; index++) {
@@ -1880,6 +2003,47 @@ static int write_staging(
   return 0;
 }
 
+static void free_worker_buffer(WorkerBuffer *buffer) {
+  for (size_t index = 0; index < buffer->nodes.length; index++) {
+    free(buffer->nodes.items[index].kind);
+    free(buffer->nodes.items[index].name);
+    free(buffer->nodes.items[index].qualified_name);
+    free(buffer->nodes.items[index].declared_type);
+  }
+  for (size_t index = 0; index < buffer->calls.length; index++) {
+    free(buffer->calls.items[index].enclosing_qn);
+    free(buffer->calls.items[index].callee_name);
+    free(buffer->calls.items[index].dispatch_kind);
+    free(buffer->calls.items[index].receiver_text);
+  }
+  for (size_t index = 0; index < buffer->imports.length; index++) {
+    free(buffer->imports.items[index].local_name);
+    free(buffer->imports.items[index].module_path);
+  }
+  for (size_t index = 0; index < buffer->usages.length; index++) {
+    free(buffer->usages.items[index].enclosing_qn);
+    free(buffer->usages.items[index].referenced_name);
+  }
+  for (size_t index = 0; index < buffer->macro_aliases.length; index++) {
+    free(buffer->macro_aliases.items[index].macro_name);
+    free(buffer->macro_aliases.items[index].target_name);
+  }
+  free(buffer->nodes.items);
+  free(buffer->calls.items);
+  free(buffer->imports.items);
+  free(buffer->usages.items);
+  free(buffer->macro_aliases.items);
+}
+
+static void free_file_tasks(FileTask *files, int file_count) {
+  for (int index = 0; index < file_count; index++) {
+    free(files[index].language);
+    free(files[index].rel_path);
+    free(files[index].abs_path);
+  }
+  free(files);
+}
+
 int main(int argc, char **argv) {
   if (argc != 7) {
     fputs("usage: lynx_native_core <project> <repo-root> <manifest.tsv> <staging.db> <workers> <mode>\n", stderr);
@@ -1907,6 +2071,9 @@ int main(int argc, char **argv) {
   for (int index = 0; index < worker_count; index++) pthread_join(threads[index], NULL);
 
   int result = write_staging(argv[4], argv[1], argv[2], files, file_count, buffers, worker_count);
+  for (int index = 0; index < worker_count; index++) free_worker_buffer(&buffers[index]);
+  free(buffers);
+  free_file_tasks(files, file_count);
   free(threads);
   return result == 0 ? 0 : 74;
 }

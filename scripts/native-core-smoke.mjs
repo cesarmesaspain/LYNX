@@ -97,6 +97,9 @@ try {
       !resolvedEdges.some((edge) => edge.source === 'local_consumer.consume_local' && edge.target === 'local_api.local_pick' && edge.strategy === 'import_reachable_candidate') ||
       resolvedEdges.some((edge) => edge.source === 'local_consumer.consume_local' && edge.target === 'other.local_api.local_pick') ||
       !resolvedEdges.some((edge) => edge.source === 'widget.ui.Widget.size' && edge.target === 'widget.ui.label') ||
+      !resolvedEdges.some((edge) => edge.source === 'widget.ui.measure_widget' && edge.target === 'widget.ui.Widget.size' && edge.strategy === 'receiver_declared_type_member') ||
+      resolvedEdges.some((edge) => edge.source === 'widget.ui.measure_widget' && edge.target === 'widget.ui.Gadget.size') ||
+      resolvedEdges.some((edge) => edge.source === 'widget.ui.measure_generic' && edge.target.endsWith('.size')) ||
       resolvedEdges.some((edge) => edge.source === 'widget.ui.Widget.size' && edge.target === 'widget.ui.Widget.size')) {
     throw new Error(`native precision oracle failed: ${JSON.stringify({ identities, mainCall, nativeHash, expectedHash, totalUsages, typeMembers, typeKinds, moduleValues, cppSymbols, methodCalls, macros, resolvedInclude, resolvedEdges })}`);
   }

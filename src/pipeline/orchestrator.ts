@@ -292,20 +292,25 @@ export async function runPipeline(
   // Phase 4: Analyze (hotspots, clusters, file tree)
   ({ architecture, hotspotCount } = analyze(db, project));
 
-  // Upsert file hashes for processed files. Full indexes populate the cache
-  // too, so the next incremental run can skip unchanged files immediately.
+  // Upsert file hashes and filesystem metadata for every discovered batch.
+  // This keeps the deterministic drift check accurate even when extraction
+  // is skipped because the content hash has not changed.
   db.transaction(() => {
     for (const batch of batches) {
-      if (batch.skipped || !batch.sha256) continue;
+      if (!batch.sha256) continue;
       let mtimeNs = 0;
       let sha256 = batch.sha256;
+      let size = batch.file.size;
       try {
         const stat = fs.statSync(batch.file.absPath);
         mtimeNs = Math.floor(stat.mtimeMs * 1_000_000);
-        const source = fs.readFileSync(batch.file.absPath, 'utf-8');
-        sha256 = createHash('sha256').update(source).digest('hex');
-      } catch { /* keep 0 */ }
-      upsertFileHash(db, project, batch.file.relPath, sha256, mtimeNs, batch.file.size);
+        size = stat.size;
+        if (!batch.skipped) {
+          const source = fs.readFileSync(batch.file.absPath, 'utf-8');
+          sha256 = createHash('sha256').update(source).digest('hex');
+        }
+      } catch { /* keep discovered metadata */ }
+      upsertFileHash(db, project, batch.file.relPath, sha256, mtimeNs, size);
     }
   });
   failIfRequested(opts, 'hashes');
@@ -330,7 +335,7 @@ export async function runPipeline(
       : 0;
 
   // Git context
-  const gitCtx = getGitContext(repoPath);
+  const gitCtx = getGitContext(repoPath, { refresh: true });
 
   // Build status
   const status: LynxIndexStatus = {
@@ -371,6 +376,7 @@ export async function runPipeline(
   const filesWithNodes = db.db.prepare(
     `SELECT COUNT(DISTINCT file_path) AS count FROM nodes WHERE project = ? AND file_path != ''`,
   ).get(project) as { count: number };
+  db.setProjectIndexedCommit(project, gitCtx?.headSha ?? null);
 
   return {
     status, architecture, narrative, filesProcessed, filesSkipped, llmSummaryCache,

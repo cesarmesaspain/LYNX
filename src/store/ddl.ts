@@ -14,7 +14,8 @@ export const CORE_SCHEMA = `
     root_path TEXT NOT NULL,
     indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
     status TEXT NOT NULL DEFAULT 'ready',
-    status_error TEXT
+    status_error TEXT,
+    indexed_commit TEXT
   );
 
   CREATE TABLE IF NOT EXISTS nodes (
@@ -165,5 +166,14 @@ export function migrateV01toV02(db: BetterSqlite3.Database): void {
     } catch {
       // Column already exists
     }
+  }
+}
+
+/** Add the commit captured by the last successful index, if missing. */
+export function migrateV02toV03(db: BetterSqlite3.Database): void {
+  try {
+    db.exec('ALTER TABLE projects ADD COLUMN indexed_commit TEXT');
+  } catch {
+    // Column already exists, or the table will be created by CORE_SCHEMA.
   }
 }

@@ -11,12 +11,21 @@ import type BetterSqlite3 from 'better-sqlite3';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { lynxHome } from '../config/runtime.js';
-import { CORE_SCHEMA, DROP_EDGE_INDEXES, CREATE_EDGE_INDEXES, migrateV01toV02 } from './ddl.js';
+import { CORE_SCHEMA, DROP_EDGE_INDEXES, CREATE_EDGE_INDEXES, migrateV01toV02, migrateV02toV03 } from './ddl.js';
 
 export function removeSqliteDatabaseFiles(dbPath: string): void {
   for (const suffix of ['', '-wal', '-shm']) {
     fs.rmSync(dbPath + suffix, { force: true });
   }
+}
+
+export interface ProjectMetadata {
+  name: string;
+  rootPath: string;
+  indexedAt: string;
+  status: string;
+  statusError: string | null;
+  indexedCommit: string | null;
 }
 
 export class LynxDatabase {
@@ -102,6 +111,7 @@ export class LynxDatabase {
 
   private migrate(): void {
     migrateV01toV02(this.db);
+    migrateV02toV03(this.db);
     this.db.exec(CORE_SCHEMA);
   }
 
@@ -124,12 +134,32 @@ export class LynxDatabase {
       .run(status, error || null, name);
   }
 
-  getProject(name: string): { name: string; rootPath: string; indexedAt: string; status: string; statusError: string | null } | null {
+  setProjectIndexedCommit(name: string, indexedCommit: string | null): void {
+    this.db
+      .prepare('UPDATE projects SET indexed_commit = ? WHERE name = ?')
+      .run(indexedCommit, name);
+  }
+
+  getProject(name: string): ProjectMetadata | null {
     const row = this.db
-      .prepare('SELECT name, root_path, indexed_at, status, status_error FROM projects WHERE name = ?')
-      .get(name) as { name: string; root_path: string; indexed_at: string; status: string; status_error: string | null } | undefined;
+      .prepare('SELECT name, root_path, indexed_at, status, status_error, indexed_commit FROM projects WHERE name = ?')
+      .get(name) as {
+        name: string;
+        root_path: string;
+        indexed_at: string;
+        status: string;
+        status_error: string | null;
+        indexed_commit: string | null;
+      } | undefined;
     if (!row) return null;
-    return { name: row.name, rootPath: row.root_path, indexedAt: row.indexed_at, status: row.status, statusError: row.status_error };
+    return {
+      name: row.name,
+      rootPath: row.root_path,
+      indexedAt: row.indexed_at,
+      status: row.status,
+      statusError: row.status_error,
+      indexedCommit: row.indexed_commit,
+    };
   }
 
   listProjectsWithStatus(): Array<{ name: string; rootPath: string; indexedAt: string; status: string; statusError: string | null; nodeCount: number }> {

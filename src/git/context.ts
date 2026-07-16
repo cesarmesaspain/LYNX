@@ -21,22 +21,34 @@ let cachedContext: GitContext | null = null;
 /**
  * Get git context for a directory. Cached after first call.
  */
-export function getGitContext(repoPath: string): GitContext | null {
-  if (cachedContext && cachedContext.rootPath === repoPath) {
-    return cachedContext;
-  }
-
+export function readGitHead(repoPath: string): string | null {
   const gitDir = path.join(repoPath, '.git');
   if (!fs.existsSync(gitDir)) return null;
 
   try {
-    const headSha = execSync('git rev-parse HEAD', {
+    return execSync('git rev-parse HEAD', {
       cwd: repoPath,
       encoding: 'utf-8',
       timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();
+  } catch {
+    return null;
+  }
+}
 
+export function getGitContext(
+  repoPath: string,
+  options: { refresh?: boolean } = {},
+): GitContext | null {
+  if (!options.refresh && cachedContext && cachedContext.rootPath === repoPath) {
+    return cachedContext;
+  }
+
+  const headSha = readGitHead(repoPath);
+  if (!headSha) return null;
+
+  try {
     const branch = execSync('git rev-parse --abbrev-ref HEAD', {
       cwd: repoPath,
       encoding: 'utf-8',

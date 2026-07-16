@@ -3,8 +3,9 @@ import { readLynxConfig } from '../../config/runtime.js';
 import { isProjectLocked, listOrphanedLocks } from '../../store/lock.js';
 import { storedTimestampMs } from '../../store/time.js';
 import { discoverFiles } from '../../pipeline/phases/discover.js';
+import { detectGraphDrift } from '../../store/graph-drift.js';
 
-type IndexFreshness = 'ready' | 'stale' | 'updating' | 'failed' | 'unknown';
+type IndexFreshness = 'ready' | 'stale' | 'drifted' | 'updating' | 'failed' | 'unknown';
 
 export async function handleIndexStatus(
   args: Record<string, unknown>
@@ -53,6 +54,7 @@ export async function handleIndexStatus(
   // ── Freshness ──────────────────────────────────────────
   let freshness: IndexFreshness = 'unknown';
   const cfg = readLynxConfig();
+  const graphDrift = meta && nodeCount.cnt > 0 ? detectGraphDrift(db, meta) : null;
 
   if (meta) {
     if (meta.status === 'failed') {
@@ -62,7 +64,9 @@ export async function handleIndexStatus(
     } else if (nodeCount.cnt > 0) {
       const indexedMs = storedTimestampMs(meta.indexedAt);
       const ageHours = (Date.now() - indexedMs) / (1000 * 60 * 60);
-      freshness = ageHours > cfg.stale_threshold_hours ? 'stale' : 'ready';
+      freshness = graphDrift?.status === 'drifted'
+        ? 'drifted'
+        : ageHours > cfg.stale_threshold_hours ? 'stale' : 'ready';
     }
   }
 
@@ -106,6 +110,7 @@ export async function handleIndexStatus(
     indexed_at: indexedAt,
     project_status: meta?.status || null,
     project_status_error: meta?.statusError || null,
+    graph_drift: graphDrift,
     lock_info: lockInfo,
     nodes: nodeCount.cnt,
     edges: edgeCount.cnt,

@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 import { withLynxHome } from '../../../src/config/runtime.js';
 import { LynxDatabase } from '../../../src/store/database.js';
@@ -58,6 +59,37 @@ describe('edge evidence ledger', () => {
       expect(remaining.count).toBe(0);
     } finally {
       db.close();
+    }
+  });
+});
+
+describe('project indexed commit metadata', () => {
+  it('migrates legacy project databases and persists the indexed commit', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-indexed-commit-'));
+    const dbPath = path.join(dir, 'legacy.db');
+    const legacy = new Database(dbPath);
+    legacy.exec(`
+      CREATE TABLE projects (
+        name TEXT PRIMARY KEY,
+        root_path TEXT NOT NULL,
+        indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
+        status TEXT NOT NULL DEFAULT 'ready',
+        status_error TEXT
+      );
+    `);
+    legacy.close();
+
+    const db = LynxDatabase.openPath(dbPath);
+    try {
+      const columns = db.db.prepare("PRAGMA table_info('projects')").all() as Array<{ name: string }>;
+      expect(columns.map((column) => column.name)).toContain('indexed_commit');
+      db.upsertProject('legacy', dir);
+      expect(db.getProject('legacy')?.indexedCommit).toBeNull();
+      db.setProjectIndexedCommit('legacy', 'abc123');
+      expect(db.getProject('legacy')?.indexedCommit).toBe('abc123');
+    } finally {
+      db.close();
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });

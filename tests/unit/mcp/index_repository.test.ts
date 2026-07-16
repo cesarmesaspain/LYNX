@@ -35,6 +35,9 @@ describe('handleIndexRepository incremental contract', () => {
     expect(result.health).toBe('healthy');
     expect(result.files_inspected).toBeGreaterThan(0);
     expect(result.fallback_reason).toBeNull();
+    expect(getDb(project).getProject(project)?.indexedCommit).toBe(
+      execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf-8' }).trim(),
+    );
   }, 30000);
 
   it('reports an added file through the incremental contract', async () => {

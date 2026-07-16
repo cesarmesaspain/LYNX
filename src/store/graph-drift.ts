@@ -1,4 +1,3 @@
-
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { readGitHead } from '../git/context.js';
@@ -33,9 +32,10 @@ export function detectGraphDrift(
   const started = Date.now();
   const currentCommit = readGitHead(meta.rootPath);
   const rows = db.db
-    .prepare('SELEC rel_path, mtime_ns, size FROM file_hashes WHERE project = ? ORDER BY rel_path')
+    .prepare('SELECT rel_path, mtime_ns, size FROM file_hashes WHERE project = ? ORDER BY rel_path')
     .all(meta.name) as FileHashMetadataRow[];
   const changedFiles: string[] = [];
+  let changedFilesCount = 0;
   let incompleteMetadata = rows.length === 0;
 
   for (const row of rows) {
@@ -53,11 +53,14 @@ export function detectGraphDrift(
         changed = true;
       }
     }
-    if (changed && changedFiles.length < sampleLimit) changedFiles.push(row.rel_path);
+    if (changed) {
+      changedFilesCount++;
+      if (changedFiles.length < sampleLimit) changedFiles.push(row.rel_path);
+    }
   }
 
   const headChanged = Boolean(meta.indexedCommit && currentCommit && meta.indexedCommit !== currentCommit);
-  const workingTreeChanged = changedFiles.length > 0;
+  const workingTreeChanged = changedFilesCount > 0;
   let status: GraphDriftStatus = 'clean';
   if (headChanged || workingTreeChanged) status = 'drifted';
   else if (!meta.indexedCommit || !currentCommit || incompleteMetadata) status = 'unknown';
@@ -74,7 +77,7 @@ export function detectGraphDrift(
     current_commit: currentCommit,
     head_changed: headChanged,
     working_tree_changed: workingTreeChanged,
-    changed_files_count: changedFiles.length,
+    changed_files_count: changedFilesCount,
     changed_files: changedFiles,
     checked_files: rows.length,
     duration_ms: Date.now() - started,

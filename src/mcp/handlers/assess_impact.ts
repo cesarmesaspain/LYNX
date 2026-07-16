@@ -21,6 +21,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getDb } from '../server.js';
 import { getModifiedFiles } from '../../git/diff.js';
+import { discoverInvariants, checkInvariantsBroken, type InvariantViolation } from './check_invariants.js';
 
 const CODE_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
@@ -101,6 +102,7 @@ export interface AssessImpactResult {
   findings: ImpactFinding[];
   direct_dependent_files: string[];
   async_dependent_files: string[];
+  sibling_invariants_broken: InvariantViolation[];
   ignored_files?: { count: number; examples: string[]; reason: string };
   uncertainties: string[];
   recommended_inspection: string[];
@@ -143,7 +145,7 @@ export function resolveRequestedFiles(args: Record<string, unknown>): string[] |
 
 // getModifiedFiles is shared in src/git/diff.ts
 
-function isFileIndexed(db: ReturnType<typeof getDb>, project: string, relPath: string): boolean {
+export function isFileIndexed(db: ReturnType<typeof getDb>, project: string, relPath: string): boolean {
   const cnt = db.db.prepare(
     'SELECT COUNT(*) as cnt FROM nodes WHERE project = ? AND file_path = ?'
   ).get(project, relPath) as { cnt: number };
@@ -744,6 +746,7 @@ export async function handleAssessImpact(
       findings: [],
       direct_dependent_files: [],
       async_dependent_files: [],
+      sibling_invariants_broken: [],
       uncertainties: ['Project not found in index.'],
       recommended_inspection: ['Run index_repository first.'],
       confidence_note: 'Cannot assess impact without indexed project.',
@@ -792,6 +795,10 @@ export async function handleAssessImpact(
 
   // Query 7: Async Blast Radius — what depends via event channels?
   const asyncDeps = queryAsyncDependents(db, project, scopedFiles);
+
+  // Query 8: Sibling-call invariants broken in modified code
+  const allInvariants = discoverInvariants(db, project);
+  const invariantsBroken = checkInvariantsBroken(db, project, allInvariants, scopedFiles);
 
   // Apply optional category filter (before count, before truncation)
   const filteredFindings = categoryFilter
@@ -853,6 +860,7 @@ export async function handleAssessImpact(
     findings: selected,
     direct_dependent_files: dependents,
     async_dependent_files: asyncDeps,
+    sibling_invariants_broken: invariantsBroken,
     ...(ignoredFiles ? { ignored_files: ignoredFiles } : {}),
     uncertainties: uncertainties.length > 0 ? uncertainties : ['Assessment completed with no blockers.'],
     recommended_inspection: recommended,

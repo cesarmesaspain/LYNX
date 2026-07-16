@@ -40,10 +40,12 @@ import { handleDiagnose } from './handlers/diagnose.js';
 import { handleUsageSummary } from './handlers/usage_summary.js';
 import { handleGetEdgeEvidence } from './handlers/get_edge_evidence.js';
 import { handleInvestigateSymbol } from './handlers/investigate_symbol.js';
+import { handleCheckInvariants } from './handlers/check_invariants.js';
 import { decayCounter } from '../cli/hook-augment.js';
 import { cleanupNativeExtractor } from '../paths.js';
 import { LynxDatabase } from '../store/database.js';
 import { storedTimestampMs } from '../store/time.js';
+import { detectGraphDrift } from '../store/graph-drift.js';
 import { findNearestProject } from '../discovery/project-scanner.js';
 import { discoverFiles } from '../pipeline/phases/discover.js';
 import { runPipeline } from '../pipeline/orchestrator.js';
@@ -147,6 +149,7 @@ const HANDLERS: Record<string, Handler> = {
   usage_summary: handleUsageSummary,
   get_edge_evidence: handleGetEdgeEvidence,
   investigate_symbol: handleInvestigateSymbol,
+  check_invariants: handleCheckInvariants,
 };
 
 const CORE_TOOL_NAMES = new Set([
@@ -324,21 +327,24 @@ export function buildIndexContext(args: Record<string, unknown>): Record<string,
     .get(args.project) as { cnt: number }).cnt;
   const ageSeconds = Math.max(0, Math.floor((Date.now() - storedTimestampMs(meta.indexedAt)) / 1000));
   const watcher = getProjectWatcherStatus(args.project);
-  const freshness = nodeCount === 0 ? 'unknown' : meta.status === 'ready' && ageSeconds < 24 * 3600 ? 'fresh' : meta.status;
+  const graphDrift = nodeCount > 0 ? detectGraphDrift(db, meta) : null;
+  const temporalFreshness = nodeCount === 0 ? 'unknown' : meta.status === 'ready' && ageSeconds < 24 * 3600 ? 'fresh' : meta.status;
+  const freshness = graphDrift?.status === 'drifted' ? 'drifted' : temporalFreshness;
   const pendingChanges = watcher?.pendingChanges || 0;
   const context = {
     project: meta.name,
     indexed_at: meta.indexedAt,
     index_age_seconds: ageSeconds,
     freshness,
+    graph_drift: graphDrift,
     watcher: watcher ? { active: watcher.watching, pending_changes: pendingChanges } : { active: false },
   };
   const savingsMode = readLynxConfig().agent_response?.enabled
     && readLynxConfig().agent_response?.budget === 'max_savings';
   // A healthy, settled index needs only a compact assurance. Keep the full
   // diagnostics whenever the caller might need to act on them.
-  if (savingsMode && freshness === 'fresh' && pendingChanges === 0) {
-    return { project: meta.name, freshness };
+  if (savingsMode && freshness === 'fresh' && graphDrift?.status === 'clean' && pendingChanges === 0) {
+    return { project: meta.name, freshness, graph_drift: { status: 'clean' } };
   }
   return context;
 }

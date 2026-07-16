@@ -28,7 +28,7 @@ const EVIDENCE_TOOLS = new Set([
   'get_architecture', 'query_graph', 'get_graph_schema', 'search_code',
   'detect_changes', 'assess_impact', 'pack_memory', 'analyze_hotspots',
   'find_dead_code', 'compare_runs', 'explain_symbol', 'smart_review',
-  'semantic_search', 'find_tests', 'batch_get_code',
+  'semantic_search', 'find_tests', 'batch_get_code', 'check_invariants',
   'diagnose', 'usage_summary', 'get_edge_evidence',
   'investigate_symbol',
 ]);
@@ -41,7 +41,7 @@ export const READ_ONLY_TOOL_NAMES = new Set([
   'assess_impact', 'pack_memory', 'analyze_hotspots', 'find_dead_code',
   'compare_runs', 'explain_symbol', 'smart_review', 'semantic_search',
   'find_tests', 'batch_get_code', 'diagnose', 'usage_summary',
-  'investigate_symbol',
+  'check_invariants', 'investigate_symbol',
 ]);
 
 const DESTRUCTIVE_TOOL_NAMES = new Set(['delete_project']);
@@ -368,6 +368,19 @@ export const TOOLS: LynxToolDef[] = [
         project: { type: 'string' },
         files: { type: 'array', items: { type: 'string' }, description: 'Optional file list to scope analysis. If omitted, all git-diff files are analyzed.' },
         base_branch: { type: 'string', description: 'Base branch for git diff (default main).' },
+      },
+      required: ['project'],
+    },
+  },
+  {
+    name: 'check_invariants',
+    description: 'Discover sibling-call invariants and detect violations in modified code. Learns co-occurrence patterns from the CALLS graph (e.g. lock() always appears with unlock()) and flags functions that break the pattern.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string' },
+        files: { type: 'array', items: { type: 'string' }, description: 'Optional file list to check for violations. If omitted, only invariants are returned.' },
+        min_confidence: { type: 'number', description: 'Minimum confidence threshold (0.0–1.0, default 0.8).' },
       },
       required: ['project'],
     },

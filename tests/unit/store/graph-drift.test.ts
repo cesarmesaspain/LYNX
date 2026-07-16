@@ -33,6 +33,16 @@ describe('graph drift detector', () => {
       expect(meta).not.toBeNull();
       expect(detectGraphDrift(db, meta!)).toMatchObject({ status: 'clean', head_changed: false, working_tree_changed: false, changed_files_count: 0 });
 
+      const addedFile = path.join(root, 'src', 'added.ts');
+      fs.writeFileSync(addedFile, 'export const added = true;\n');
+      expect(detectGraphDrift(db, meta!)).toMatchObject({
+        status: 'drifted',
+        head_changed: false,
+        working_tree_changed: true,
+        changed_files: ['src/added.ts'],
+      });
+      fs.rmSync(addedFile);
+
       fs.writeFileSync(file, 'export const app = 100;\n');
       expect(detectGraphDrift(db, meta!)).toMatchObject({ status: 'drifted', head_changed: false, working_tree_changed: true, changed_files: ['src/app.ts'] });
 

@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { readGitHead } from '../git/context.js';
+import { discoverFiles } from '../pipeline/phases/discover.js';
+import type { LynxIndexMode } from '../types.js';
 import type { LynxDatabase, ProjectMetadata } from './database.js';
 
 export type GraphDriftStatus = 'clean' | 'drifted' | 'unknown';
@@ -24,6 +26,13 @@ interface FileHashMetadataRow {
   size: number;
 }
 
+function getLastIndexMode(db: LynxDatabase, project: string): LynxIndexMode {
+  const row = db.db
+    .prepare('SELECT mode FROM index_runs WHERE project = ? ORDER BY id DESC LIMIT 1')
+    .get(project) as { mode: string } | undefined;
+  return row?.mode === 'full' || row?.mode === 'moderate' ? row.mode : 'fast';
+}
+
 export function detectGraphDrift(
   db: LynxDatabase,
   meta: ProjectMetadata,
@@ -37,6 +46,7 @@ export function detectGraphDrift(
   const changedFiles: string[] = [];
   let changedFilesCount = 0;
   let incompleteMetadata = rows.length === 0;
+  const indexedPaths = new Set(rows.map((row) => row.rel_path));
 
   for (const row of rows) {
     const absPath = path.resolve(meta.rootPath, row.rel_path);
@@ -59,6 +69,13 @@ export function detectGraphDrift(
     }
   }
 
+  const discovery = discoverFiles(meta.rootPath, getLastIndexMode(db, meta.name));
+  for (const file of discovery.files) {
+    if (indexedPaths.has(file.relPath)) continue;
+    changedFilesCount++;
+    if (changedFiles.length < sampleLimit) changedFiles.push(file.relPath);
+  }
+
   const headChanged = Boolean(meta.indexedCommit && currentCommit && meta.indexedCommit !== currentCommit);
   const workingTreeChanged = changedFilesCount > 0;
   let status: GraphDriftStatus = 'clean';
@@ -66,7 +83,7 @@ export function detectGraphDrift(
   else if (!meta.indexedCommit || !currentCommit || incompleteMetadata) status = 'unknown';
 
   const note = status === 'drifted'
-    ? 'Index differs from HEAD or indexed file metadata.'
+    ? 'Index differs from HEAD, indexed file metadata, or discoverable source files.'
     : status === 'clean'
       ? 'Indexed commit and file metadata match the current working tree.'
       : 'Drift could not be fully verified; re-index to establish a fresh baseline.';

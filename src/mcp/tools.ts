@@ -73,9 +73,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'pack_context',
     description:
-      'Build a compact, task-oriented context pack for broad or uncertain code tasks. ' +
-      'Returns likely areas, safety constraints, recommended graph/search calls, ' +
-      'and validation steps. Use early for non-trivial tasks when the relevant scope or safety constraints are not already clear.',
+      'Build a task-oriented context pack with likely areas, safety constraints, recommended graph/search calls, and validation steps. ' +
+      'Use early when scope or risks are still unclear.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -94,12 +93,9 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'search_graph',
     description:
-      'Search the code knowledge graph for functions, classes, routes, and variables. ' +
-      'Use for indexed code definitions, implementations, and structural relationships when graph evidence is useful. ' +
-      'Three search modes: (1) query for BM25 ranked full-text search with camelCase splitting, ' +
-      '(2) name_pattern/qn_pattern for the supported regex subset, or name_like/qn_like for explicit SQL LIKE matching, ' +
-      '(3) semantic_query for vector cosine search. ' +
-      'Request include_snippets when source previews would help choose the next symbol.',
+      'Search indexed definitions and relationships. Modes: query=BM25 full text with camelCase splitting; ' +
+      'name_pattern/qn_pattern=supported regex; name_like/qn_like=SQL LIKE; semantic_query=vector cosine. ' +
+      'Set include_snippets for source previews.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -131,8 +127,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'trace_path',
     description:
-      'Trace callers/callees and labelled references through the code graph in one call. Each entry identifies whether its evidence is a direct call or a reference. ' +
-      'Use mode=calls for control flow, references for bindings/state usage, data_flow for both, or auto for Swift-aware fallback when direct calls are absent.',
+      'Trace callers, callees, and labelled references; entries distinguish direct calls from references. ' +
+      'Modes: calls=control flow, references=bindings/state, data_flow=both, auto=Swift fallback when calls are absent.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -153,8 +149,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'get_code_snippet',
     description:
-      'Read source code for a function/class/symbol. When include_neighbors=true, also returns enriched callers/callees with file_path+signature and test coverage — eliminating separate trace_path+find_tests calls. ' +
-      'For 3+ symbols at once, prefer batch_get_code.',
+      'Read one symbol. include_neighbors adds callers/callees with file paths, signatures, and test coverage, replacing separate trace_path and find_tests calls. ' +
+      'For 3+ symbols, use batch_get_code.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -169,8 +165,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'get_architecture',
     description:
-      'Get high-level architecture overview: languages, hotspots, clusters, file tree, node/edge counts. ' +
-      'For a first overview, use the compact default, then request only a missing aspect. Treat returned sections as reusable evidence; do not read every source file after an overview—use get_code_snippet only for the one or two symbols that need verification.',
+      'Get architecture: languages, hotspots, clusters, file tree, and node/edge counts. ' +
+      'Start compact, request only missing aspects, reuse results, and verify only needed symbols with get_code_snippet.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -256,8 +252,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'investigate_symbol',
     description:
-      'Meta-tool: deep-dive into a single symbol in one call. Internally orchestrates search_graph → explain_symbol → trace_path (with evidence) → get_code_snippet → find_tests. ' +
-      'Returns a unified context pack. Use instead of chaining 4-5 separate discovery tools when the agent needs a complete picture of a function, class, or method.',
+      'Deep-dive one symbol via search_graph → explain_symbol → trace_path with evidence → get_code_snippet → find_tests. ' +
+      'Returns one unified context pack; prefer it to 4-5 separate discovery calls.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -322,8 +318,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'search_code',
     description:
-      'Graph-augmented code search. Finds text patterns via grep, then enriches results with the knowledge graph. ' +
-      'Modes: compact (default, signatures), full (with source), files (just file paths). Combine alternative spellings or file conventions for the same hypothesis into one regex search instead of serial equivalent searches; after a conclusive no-match, stop unless new evidence identifies a materially different scope.',
+      'Grep text, enriched by the graph. Modes: compact=signatures, full=source, files=paths. ' +
+      'Combine equivalent spellings or conventions in one regex; after a conclusive miss, stop unless new evidence changes scope.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -341,7 +337,9 @@ export const TOOLS: LynxToolDef[] = [
   },
   {
     name: 'detect_changes',
-    description: 'Detect code changes and their impact. Returns categorised output: staged, unstaged, untracked, deleted, renamed files. Impact tiers: confirmed (CALLS/IMPORTS edges), probable (same-module), nominal (name-only). Use --files to scope analysis to specific paths.',
+    description:
+      'Detect staged, unstaged, untracked, deleted, and renamed files plus impact tiers: confirmed=CALLS/IMPORTS, probable=same module, nominal=name only. ' +
+      'Use files to scope analysis.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -360,7 +358,9 @@ export const TOOLS: LynxToolDef[] = [
   },
   {
     name: 'assess_impact',
-    description: 'Cross-reference git changes with graph and tests. Runs 5 queries: tests covering changes, untested changes, new symbols without callers, deleted symbols with live references, unindexed modified files. Returns structured findings with evidence and confidence per finding.',
+    description:
+      'Cross-reference changes with graph and tests: covered tests, untested changes, new symbols without callers, deleted symbols with live references, and unindexed modified files. ' +
+      'Returns evidence-backed findings with confidence.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -416,7 +416,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'analyze_hotspots',
     description:
-      'Get a complete scalability snapshot: largest files, complexity, coupling, hotspots, project averages, and genuinely large components. Use only when the task is specifically about quality, complexity, scalability, or risk—not as the first general project overview. For small projects, prefer get_architecture plus targeted get_code_snippet.',
+      'Snapshot largest files, complexity, coupling, hotspots, averages, and large components. ' +
+      'Use for quality, scalability, or risk, not as a first overview; for small projects prefer get_architecture plus targeted snippets.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -430,7 +431,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'find_dead_code',
     description:
-      'Find graph-verified dead-code candidates in one call. Returns exact function/method/class definitions with zero incoming CALLS, USAGE, READS, or TESTS edges, excluding tests and entry points. Use instead of query_graph plus per-symbol search_code/trace_path loops. Results are candidates; exported symbols include a public-API caveat.',
+      'Find function, method, or class candidates with zero incoming CALLS, USAGE, READS, or TESTS edges, excluding tests and entry points. ' +
+      'Prefer this to query_graph plus per-symbol loops; results remain candidates and exported symbols carry a public-API caveat.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -477,8 +479,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'smart_review',
     description:
-      'Automated code review using graph intelligence. Analyzes a file or function for ' +
-      'complexity, size, coupling, test coverage, and performance risk signals. Returns heuristic findings that require verification before claiming runtime impact or Big-O complexity.',
+      'Review a file or symbol using graph signals for complexity, size, coupling, test coverage, and performance risk. ' +
+      'Findings are heuristic; verify before claiming runtime impact or Big-O complexity.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -493,9 +495,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'semantic_search',
     description:
-      'Natural-language code search with fuzzy name matching and graph-aware scoring. ' +
-      'Scores by token overlap, graph importance, and memory findings. Better than search_graph ' +
-      'when you describe intent rather than exact names.',
+      'Search code from natural-language intent using fuzzy names plus graph-aware scoring. ' +
+      'Prefer over search_graph when exact symbol names are unknown.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -535,10 +536,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'find_tests',
     description:
-      'Find test functions that cover a given symbol. Queries TESTS edges ' +
-      '(test function → production function) in reverse to return all test functions ' +
-      'that exercise the target. Saves multiple grep/read round-trips vs searching test ' +
-      'files manually.',
+      'Find tests covering a symbol by reversing TESTS edges (test → production). ' +
+      'Returns all matching test functions, avoiding manual grep/read loops.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -552,8 +551,8 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'batch_get_code',
     description:
-      'Read source code for multiple relevant symbols in one call. Prefer this over separate get_code_snippet calls when three or more returned symbols all need inspection; do not fetch additional symbols merely to fill a batch. ' +
-      'Each snippet capped at 60 lines. Dramatically reduces round-trips.',
+      'Read multiple symbols at once when 3+ search results all need inspection; do not add symbols just to fill a batch. ' +
+      'Each snippet is capped at 60 lines, reducing round-trips.',
     inputSchema: {
       type: 'object',
       properties: {

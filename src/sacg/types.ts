@@ -17,6 +17,24 @@ export type SemanticRelationId = string;
 export type EvidenceId = string;
 export type SnapshotId = string;
 
+export const GRAPH_SNAPSHOT_STATUSES = ["building", "ready", "failed"] as const;
+
+export type GraphSnapshotStatus = (typeof GRAPH_SNAPSHOT_STATUSES)[number];
+
+export interface GraphSnapshot {
+  snapshotId: SnapshotId;
+  project: string;
+  status: GraphSnapshotStatus;
+  sourceCommit: string | null;
+  sourceBranch: string | null;
+  workingTree: boolean;
+  validFrom: IsoTimestamp;
+  validTo: IsoTimestamp | null;
+  createdAt: IsoTimestamp;
+  completedAt: IsoTimestamp | null;
+  metadata: JsonObject;
+}
+
 export const SEMANTIC_ENTITY_CLASSES = [
   "File",
   "Function",

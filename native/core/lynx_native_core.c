@@ -405,6 +405,54 @@ static CallableResolution callable_registry_resolve(
 
 static char *child_qualified_name(const char *parent, const char *name);
 
+static bool qualified_candidate_matches(
+  const char *qualified_name, const char *qualified_callee
+) {
+  size_t candidate_length = strlen(qualified_name);
+  size_t callee_length = strlen(qualified_callee);
+  if (candidate_length < callee_length) return false;
+  size_t start = candidate_length - callee_length;
+  if (strcmp(qualified_name + start, qualified_callee) != 0) return false;
+  return start == 0 || qualified_name[start - 1] == '.';
+}
+
+static CallableResolution resolve_qualified_candidate_group(
+  const CallableCandidate *candidates, int count, const char *qualified_callee
+) {
+  const CallableCandidate *match = NULL;
+  int matched = 0;
+  for (int candidate = 0; candidate < count; candidate++) {
+    if (!qualified_candidate_matches(candidates[candidate].qualified_name, qualified_callee)) continue;
+    match = &candidates[candidate];
+    matched++;
+  }
+  if (matched != 1) return (CallableResolution){0};
+  return (CallableResolution){
+    match->qualified_name, "qualified_name_suffix_exact", NULL, 1.0, count
+  };
+}
+
+static CallableResolution callable_registry_resolve_qualified(
+  const CallableRegistrySlot *slots, size_t capacity, const char *language,
+  const char *qualified_callee
+) {
+  const char *separator = strrchr(qualified_callee, '.');
+  const char *callee_name = separator ? separator + 1 : qualified_callee;
+  size_t index = callable_hash(language, callee_name, capacity - 1);
+  while (slots[index].name) {
+    if (strcmp(slots[index].language, language) == 0 &&
+        strcmp(slots[index].name, callee_name) == 0) {
+      CallableResolution implementation = resolve_qualified_candidate_group(
+        slots[index].implementations, slots[index].implementation_count, qualified_callee);
+      if (implementation.qualified_name) return implementation;
+      return resolve_qualified_candidate_group(
+        slots[index].headers, slots[index].header_count, qualified_callee);
+    }
+    index = (index + 1) & (capacity - 1);
+  }
+  return (CallableResolution){0};
+}
+
 static bool member_candidate_matches(
   const char *qualified_name, const char *declared_type, const char *callee_name
 ) {
@@ -1812,7 +1860,8 @@ static void resolve_global_unique_calls(
       CallObservation *call = &buffer->calls.items[index];
       bool direct_dispatch = strcmp(call->dispatch_kind, "direct") == 0;
       bool member_dispatch = strcmp(call->dispatch_kind, "member") == 0;
-      if (!direct_dispatch && !member_dispatch) continue;
+      bool qualified_dispatch = strcmp(call->dispatch_kind, "qualified") == 0;
+      if (!direct_dispatch && !member_dispatch && !qualified_dispatch) continue;
       if (!callable_qn_contains(callable_qns, registry_capacity, call->enclosing_qn)) continue;
       int file_id = call->file_index + 1;
       if (resolved_call_contains(resolved, resolved_capacity, file_id, call->enclosing_qn,
@@ -1828,7 +1877,10 @@ static void resolve_global_unique_calls(
         : (direct_dispatch
             ? callable_registry_resolve(registry, registry_capacity, language,
                 call->callee_name, &imports_by_file[call->file_index])
-            : (CallableResolution){0});
+            : (qualified_dispatch
+                ? callable_registry_resolve_qualified(registry, registry_capacity, language,
+                    call->callee_name)
+                : (CallableResolution){0}));
       const char *expanded_callee = NULL;
       if (direct_dispatch && !resolution.qualified_name) {
         expanded_callee = macro_alias_unique(macro_aliases, registry_capacity, language,

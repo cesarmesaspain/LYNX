@@ -205,7 +205,7 @@ let projectStatusError: string | null = null;
         ).cnt;
         filesIndexed = (
           db.db
-            .prepare("SELECT COUNT(DISTINCT file_path) as cnt FROM nodes WHERE project = ? AND TRIM(file_path) != ''")
+            .prepare('SELECT COUNT(*) as cnt FROM file_hashes WHERE project = ?')
             .get(project) as { cnt: number }
         ).cnt;
         entryPoints = (
@@ -253,7 +253,7 @@ let projectStatusError: string | null = null;
 
         dbSizeBytes = fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0;
         hoursSinceIndex = lastIndexed
-          ? Math.round((Date.now() - new Date(lastIndexed).getTime()) / (1000 * 60 * 60))
+          ? Math.max(0, Math.round((Date.now() - storedTimestampMs(lastIndexed)) / (1000 * 60 * 60)))
           : null;
       } finally {
         db.close();

@@ -25,16 +25,16 @@ function seedProject(
   }
 ): string {
   const dbPath = path.join(tmpDir, `${name}.db`);
-  const db = new LynxDatabase(dbPath);
+  const db = LynxDatabase.openPath(dbPath);
   const project = opts?.indexedAt
     ? db.db
         .prepare(
-          `INSERT INTO projects (name, repo_path, indexed_at, status, status_error) VALUES (?, ?, ?, ?, ?)`
+          `INSERT INTO projects (name, root_path, indexed_at, status, status_error) VALUES (?, ?, ?, ?, ?)`
         )
         .run(name, '/fake/repo', opts.indexedAt, opts?.status || 'ready', opts?.statusError || null)
     : db.db
         .prepare(
-          `INSERT INTO projects (name, repo_path, indexed_at, status, status_error) VALUES (?, ?, ?, ?, ?)`
+          `INSERT INTO projects (name, root_path, indexed_at, status, status_error) VALUES (?, ?, ?, ?, ?)`
         )
         .run(name, '/fake/repo', new Date().toISOString(), opts?.status || 'ready', opts?.statusError || null);
 
@@ -45,6 +45,9 @@ function seedProject(
         `INSERT INTO nodes (project, name, qualified_name, kind, file_path, start_line, end_line, is_entry_point, is_exported, properties) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(name, `func${i}`, `pkg.func${i}`, 'Function', `src/file${i}.ts`, i + 1, i + 5, i === 0 ? 1 : 0, 1, '{}');
+    db.db.prepare(
+      'INSERT INTO file_hashes (project, rel_path, sha256, mtime_ns, size) VALUES (?, ?, ?, 0, 1)',
+    ).run(name, `src/file${i}.ts`, `hash-${i}`);
   }
   if (opts?.edges && nodeCount >= 2) {
     const edgeCount = Math.min(opts.edges, nodeCount * (nodeCount - 1));
@@ -71,6 +74,21 @@ describe('collectProjectCards', () => {
 
   beforeAll(() => {
     assertIsolated();
+  });
+
+  it('counts indexed files from the file manifest and treats SQLite timestamps as UTC', () => {
+    const name = 'dashboard-card-source-of-truth';
+    const dbPath = seedProject(name, {
+      nodes: 3,
+      indexedAt: new Date(Date.now() - 10 * 60_000).toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ''),
+    });
+    try {
+      const card = collectProjectCards().find((candidate) => candidate.name === name);
+      expect(card?.filesIndexed).toBe(3);
+      expect(card?.hoursSinceIndex).toBe(0);
+    } finally {
+      fs.rmSync(dbPath, { force: true });
+    }
   });
 
   describe('ProjectCard contract', () => {

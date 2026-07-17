@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe('tool_catalog profile reporting', () => {
-  it('reports the full registry as the default profile', async () => {
+  it('reports the core registry as the default profile', async () => {
     delete process.env.LYNX_TOOL_PROFILE;
 
     const result = await handleToolCatalog() as {
@@ -19,10 +19,10 @@ describe('tool_catalog profile reporting', () => {
       available_tools: Array<{ name: string }>;
     };
 
-    expect(result.profile).toBe('full');
-    expect(result.advanced_profile).toBe('Full catalog is active.');
-    expect(result.tool_count).toBe(33);
-    expect(result.available_tools.map(tool => tool.name)).toContain('ingest_traces');
+    expect(result.profile).toBe('core');
+    expect(result.advanced_profile).toContain('Switch MCP catalog to Full');
+    expect(result.tool_count).toBe(10);
+    expect(result.available_tools.map(tool => tool.name)).toEqual(expect.arrayContaining(['tool_catalog', 'pack_context']));
   });
 
   it('keeps the compact profile guidance when core is explicitly selected', async () => {

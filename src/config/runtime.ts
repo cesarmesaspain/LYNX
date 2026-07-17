@@ -47,6 +47,13 @@ export interface LynxRuntimeConfig {
   };
   /** MCP registry breadth. Core reduces client startup context; full keeps every tool visible. */
   mcp_tool_profile?: 'full' | 'core';
+  /** Optional read-only Team backend used by federated graph providers. */
+  team_backend?: {
+    enabled: boolean;
+    base_url: string;
+    access_token?: string;
+    timeout_ms: number;
+  };
   agent_policy?: Record<string, unknown>;
   /** API keys for LLM providers. Stored alongside runtime config. Env vars take priority. */
   api_keys?: {
@@ -84,7 +91,8 @@ const DEFAULT_CONFIG: LynxRuntimeConfig = {
   decision_llm: { mode: 'off', max_calls_per_hour: 10 },
   // A visible, editable baseline. It is an estimate, never a provider invoice.
   savings_pricing: { avoided_input_usd_per_1m: 10 },
-  mcp_tool_profile: 'full',
+  mcp_tool_profile: 'core',
+  team_backend: { enabled: false, base_url: '', timeout_ms: 2000 },
 };
 
 function boundedRuntimeNumber(value: unknown, fallback: number): number {
@@ -93,13 +101,39 @@ function boundedRuntimeNumber(value: unknown, fallback: number): number {
   return Math.max(0, Math.min(1000, parsed));
 }
 
+function normalizeTeamBackend(value: unknown, fallback: NonNullable<LynxRuntimeConfig['team_backend']>): NonNullable<LynxRuntimeConfig['team_backend']> {
+  if (!value || typeof value !== 'object') return { ...fallback };
+  const raw = value as Record<string, unknown>;
+  const candidate = typeof raw.base_url === 'string' ? raw.base_url.trim().replace(/\/+$/, '') : '';
+  let baseUrl = '';
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') baseUrl = candidate;
+  } catch {
+    baseUrl = '';
+  }
+  const parsedTimeout = Number(raw.timeout_ms);
+  const timeoutMs = Number.isFinite(parsedTimeout) && parsedTimeout > 0
+    ? Math.max(100, Math.min(10_000, parsedTimeout))
+    : fallback.timeout_ms;
+  const accessToken = baseUrl && typeof raw.access_token === 'string' && raw.access_token.trim()
+    ? raw.access_token.trim()
+    : undefined;
+  return {
+    enabled: raw.enabled === true && baseUrl.length > 0,
+    base_url: baseUrl,
+    access_token: accessToken,
+    timeout_ms: timeoutMs,
+  };
+}
+
 function defaultRuntimeConfig(): LynxRuntimeConfig {
   return {
     ...DEFAULT_CONFIG,
     agent_response: DEFAULT_CONFIG.agent_response ? { ...DEFAULT_CONFIG.agent_response } : undefined,
     project_brief: DEFAULT_CONFIG.project_brief ? { ...DEFAULT_CONFIG.project_brief } : undefined,
     decision_llm: DEFAULT_CONFIG.decision_llm ? { ...DEFAULT_CONFIG.decision_llm } : undefined,
-    savings_pricing: DEFAULT_CONFIG.savings_pricing ? { ...DEFAULT_CONFIG.savings_pricing } : undefined,
+    savings_pricing: DEFAULT_CONFIG.savings_pricing ? { ...DEFAULT_CONFIG.savings_pricing } : undefined, team_backend: DEFAULT_CONFIG.team_backend ? { ...DEFAULT_CONFIG.team_backend } : undefined,
   };
 }
 
@@ -162,6 +196,7 @@ export function readLynxConfig(): LynxRuntimeConfig {
       mcp_tool_profile: raw.mcp_tool_profile === 'core' || raw.mcp_tool_profile === 'full'
         ? raw.mcp_tool_profile
         : defaults.mcp_tool_profile,
+      team_backend: normalizeTeamBackend(raw.team_backend, defaults.team_backend!),
       project_aliases: raw.project_aliases && typeof raw.project_aliases === 'object'
         ? Object.fromEntries(Object.entries(raw.project_aliases as Record<string, unknown>)
           .filter(([, aliases]) => Array.isArray(aliases) && aliases.every(alias => typeof alias === 'string'))
@@ -228,6 +263,7 @@ export function upsertLynxConfig(values: Partial<LynxRuntimeConfig>): LynxRuntim
     ...(values.project_brief ? { project_brief: { ...current.project_brief, ...values.project_brief } } : {}),
     ...(values.decision_llm ? { decision_llm: { ...current.decision_llm, ...values.decision_llm } } : {}),
     ...(values.savings_pricing ? { savings_pricing: { ...current.savings_pricing, ...values.savings_pricing } } : {}),
+    ...(values.team_backend ? { team_backend: { ...current.team_backend, ...values.team_backend } } : {}),
     ...(values.api_keys ? { api_keys: { ...current.api_keys, ...values.api_keys } } : {}),
   };
   writeLynxConfig(next);
@@ -254,9 +290,10 @@ export function maskApiKey(key: string): string {
 /** Deep-clone the config but mask api_keys values for safe display. */
 export function readLynxConfigSafe(): LynxRuntimeConfig {
   const cfg = readLynxConfig();
-  if (!cfg.api_keys) return cfg;
-  const masked = { ...cfg.api_keys };
-  if (masked.deepseek) masked.deepseek = maskApiKey(masked.deepseek);
-  if (masked.vps_key) masked.vps_key = maskApiKey(masked.vps_key);
-  return { ...cfg, api_keys: masked };
+  const apiKeys = cfg.api_keys ? { ...cfg.api_keys } : undefined;
+  if (apiKeys?.deepseek) apiKeys.deepseek = maskApiKey(apiKeys.deepseek);
+  if (apiKeys?.vps_key) apiKeys.vps_key = maskApiKey(apiKeys.vps_key);
+  const teamBackend = cfg.team_backend ? { ...cfg.team_backend } : undefined;
+  if (teamBackend?.access_token) teamBackend.access_token = maskApiKey(teamBackend.access_token);
+  return { ...cfg, api_keys: apiKeys, team_backend: teamBackend };
 }

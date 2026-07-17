@@ -9,6 +9,7 @@ import { handleIndexStatus } from './handlers/index_status.js';
 
 describe('MCP tool registry', () => {
   it('returns the complete registry in one tools/list response', () => {
+    process.env.LYNX_TOOL_PROFILE = 'full'; // default is now 'core', force full for this test
     expect(TOOLS).toHaveLength(33);
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
     expect(TOOLS.map((tool) => tool.name)).toContain('find_dead_code');

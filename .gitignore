@@ -18,3 +18,5 @@ native/lynx_ts_extractor_darwin-*
 native/lynx_ts_extractor_linux-*
 native/lynx_ts_extractor_win-*
 *.lynx-bak
+benchmarks/results/*.json
+benchmarks/results/*.jsonl

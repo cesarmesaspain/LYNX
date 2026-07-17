@@ -58,6 +58,26 @@ describe('tree-sitter JavaScript definition identity', () => {
     }));
   });
 
+  it('preserves receiver identity for member and chained calls', async () => {
+    const result = await extractFile(
+      `function run(value: string, items: string[], db: { prepare(sql: string): void }) {
+         db.prepare('SELECT 1');
+         items.map(item => item.trim());
+         expect(value).toBe('ready');
+       }`,
+      'fixture',
+      'calls.ts',
+      'calls',
+    );
+
+    expect(result.calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ calleeName: 'db.prepare' }),
+      expect.objectContaining({ calleeName: 'items.map' }),
+      expect.objectContaining({ calleeName: 'item.trim' }),
+      expect.objectContaining({ calleeName: 'expect(value).toBe' }),
+    ]));
+  });
+
   it('marks conventional root test files and all of their nodes as tests', async () => {
     const result = await extractFile(
       `function helper() { return true; }

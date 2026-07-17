@@ -898,8 +898,13 @@ function extractCalleeName(callNode: SyntaxNode, source: string, lang: string): 
 
   // Check for member calls (obj.method)
   if (firstChild.type.includes('member') || firstChild.type.includes('dot') || firstChild.type.includes('field')) {
-    const parts = firstChild.text.split('.');
-    return parts[parts.length - 1] || firstChild.text;
+    // Preserve the receiver expression. Dropping it turns `db.prepare()` into
+    // `prepare` and `expect(value).toBe()` into `toBe`, which both destroys the
+    // call identity and lets the resolver create false cross-file edges from a
+    // coincidental bare method name. The resolver already understands
+    // receiver-qualified calls and keeps them unresolved unless imports or
+    // local evidence identify the target.
+    return firstChild.text;
   }
 
   // Direct function call

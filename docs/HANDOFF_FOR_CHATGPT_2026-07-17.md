@@ -301,6 +301,17 @@ rotation policy, bounded downloader with exact size enforcement, and upgrade
 integration. Never accept a public key fetched only from the same untrusted
 release response.
 
+Bounded download is active in `src/install/release-download.ts` with focused
+tests in `tests/unit/install/release-download.test.ts`. It refuses signed assets
+above the configured resource ceiling before network activity, disables redirect
+following, requires a successful response/body, checks `Content-Length` when
+present, streams to a private partial file while enforcing the signed size,
+rejects truncation/overflow, verifies SHA-256, and only then publishes the
+download. All failure paths remove partial state. Typecheck and 4/4 focused tests
+pass; complete-suite validation and commit are pending. The upgrade adapter must
+compose signed manifest → bounded download → atomic distribution transaction;
+it must not reimplement or bypass any of those owners.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

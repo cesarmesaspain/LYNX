@@ -2,9 +2,14 @@
  * dashboard/scripts/metrics-tab.ts — Metrics tab JavaScript.
  */
 
-import type { ProjectCard } from '../data.js';
+import type { ProjectCard } from "../data.js";
 
-export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], totalTokens: number, totalFiles: number): string {
+export function metricsTabScript(
+  isSpanish: boolean,
+  cards: ProjectCard[],
+  totalTokens: number,
+  totalFiles: number,
+): string {
   return `
 (function(){
   var metricEls = {
@@ -284,10 +289,13 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
         if (cats.length === 0) {
           updateBarsHtml('<div class="bars-placeholder">' + (isSpanish ? 'Sin datos de categoría para esta ventana.' : 'No category data for this window.') + '</div>');
         } else {
-          var maxTokens = Math.max.apply(null, cats.map(function(c) { return c.tokens_saved; })) || 1;
+          var totalTk = cats.reduce(function(s, c) { return s + c.tokens_saved; }, 0);
+          var totalEv = cats.reduce(function(s, c) { return s + c.events; }, 0);
+          var widthBase = totalTk || 1;
           var html = '';
+          html += '<div class="bar-row bar-total-row"><div class="bar-label" style="font-weight:700;color:#38bdf8">' + (isSpanish ? 'TOTAL' : 'TOTAL') + '</div><div class="bar-track"><div class="bar-fill bar-fill-total" style="width:100%;background:#ffffff"></div></div><div class="bar-value">' + fmt(totalTk) + ' <span style="color:#64748b;font-size:11px">' + fmt(totalEv) + ' ' + (isSpanish ? 'ops' : 'ops') + '</span></div></div>';
           cats.forEach(function(c, i) {
-            var pct = Math.round((c.tokens_saved / maxTokens) * 100);
+            var pct = Math.round((c.tokens_saved / widthBase) * 100);
             var color = CAT_COLORS[i % CAT_COLORS.length];
             var label = categoryLabel(c.category, c.label);
             var eventLabel = isSpanish ? 'eventos' : 'events';
@@ -416,7 +424,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     }
   }
 
-  var metricsTabBtn = document.querySelector('[data-tab="metrics"]');
+  window.loadMetrics = loadMetrics;\n  var metricsTabBtn = document.querySelector('[data-tab="metrics"]');
   if (metricsTabBtn) {
     metricsTabBtn.addEventListener('click', function() { setTimeout(loadMetrics, 50); });
   }

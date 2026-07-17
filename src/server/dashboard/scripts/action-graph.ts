@@ -603,7 +603,7 @@ export function actionGraphScript(): string {
         '<p><span style="color:#22c55e">●</span> ' + (counts.value || 0) + ' ' + (isSpanish ? 'valor' : 'value') + ' · ' +
         '<span style="color:#ef4444">●</span> ' + (counts.risk || 0) + ' ' + (isSpanish ? 'riesgo' : 'risk') + ' · ' +
         '<span style="color:#38bdf8">●</span> ' + (counts.entry || 0) + ' ' + (isSpanish ? 'entrada' : 'entry') + ' · ' +
-        '<span style="color:#f59e0b">●</span> ' + (counts.hotspot || 0) + ' ' + (isSpanish ? 'crítico' : 'hotspot') + '</p></div>' +
+        '<span style="color:#f59e0b">●</span> ' + (counts.hotspot || 0) + ' ' + (isSpanish ? 'crítico' : 'hotspot') + (counts.hub ? ' · <span style="color:#ffffff">●</span> 1 ' + (isSpanish ? 'centro' : 'hub') : '') + '</p></div>' +
         '<p style="margin-top:10px">' + (isSpanish ? 'Haz clic en un nodo para inspeccionar riesgo, llamadores, llamados y la siguiente acción.' : 'Click a node to inspect risk, callers, callees and next action.') + '</p>' +
         '<span class="detail-pill">' + (isSpanish ? 'arrastrar para rotar' : 'drag to rotate') + '</span><span class="detail-pill">' + (isSpanish ? 'rueda para ampliar' : 'wheel to zoom') + '</span>';
       detail.innerHTML = html;
@@ -679,19 +679,35 @@ export function actionGraphScript(): string {
     const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
     canvas.style.cursor = nearest((e.clientX - rect.left) * sx, (e.clientY - rect.top) * sy) ? 'pointer' : dragging ? 'grabbing' : 'grab';
   });
-  for (const card of document.querySelectorAll('[data-project-card]')) {
-    card.addEventListener('click', () => {
-      activeProject = card.getAttribute('data-project-card');
-      load();
-      document.querySelector('.graph-toolbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+  function bindCardButtons() {
+    for (const card of document.querySelectorAll('[data-card-overview]')) {
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        activeProject = card.getAttribute('data-card-overview');
+        window.switchTab('overview');
+        load();
+        document.querySelector('.graph-toolbar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    for (const card of document.querySelectorAll('[data-card-metrics]')) {
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const project = card.getAttribute('data-card-metrics');
+        const sel = document.getElementById('metricsProject');
+        if (sel) { sel.value = project; try { localStorage.setItem('lynx.metrics.project', project); } catch (_) {} }
+        window.switchTab('metrics');
+        if (window.loadMetrics) setTimeout(window.loadMetrics, 60);
+      });
+    }
+    for (const card of document.querySelectorAll('[data-fs-project]')) {
+      card.addEventListener('click', () => {
+        activeProject = card.getAttribute('data-fs-project');
+        load();
+      });
+    }
   }
-  for (const card of document.querySelectorAll('[data-fs-project]')) {
-    card.addEventListener('click', () => {
-      activeProject = card.getAttribute('data-fs-project');
-      load();
-    });
-  }
+  bindCardButtons();
+  window.bindCardButtons = bindCardButtons;
   const projectSelect = document.getElementById('projectSelect');
   if (projectSelect) {
     projectSelect.addEventListener('change', () => {

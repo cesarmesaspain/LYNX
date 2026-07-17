@@ -61,8 +61,10 @@ export function webSocketScript(): string {
 
   function renderCardHtml(c) {
     var h = projectHealth(c);
-    var html = '<div class="project-card-wrap"><button class="card project-card" type="button" data-project-card="' + esc(c.name) + '" aria-label="Show ' + esc(c.displayName) + ' graph">';
-    html += '<div class="project-topline"><div class="card-title">' + esc(c.displayName) + '</div><span class="health-pill ' + h.className + '">' + h.label + '</span></div>';
+    var html = '<div class="project-card-wrap"><div class="card project-card" data-project-card="' + esc(c.name) + '">';
+    html += '<div class="project-topline"><div class="card-title">' + esc(c.displayName) + '</div><span class="health-pill ' + h.className + '">' + h.label + '</span>';
+    if (c.freshness && c.freshness !== 'ready') html += '<span class="freshness-pill freshness-' + c.freshness + '">' + c.freshness + '</span>';
+    html += '</div>';
     html += '<div class="card-stats">';
     html += '<div><span class="stat-label">' + (isSpanish ? 'Nodos' : 'Nodes') + '</span><span class="stat-value">' + fmt(c.nodes) + '</span></div>';
     html += '<div><span class="stat-label">' + (isSpanish ? 'Aristas' : 'Edges') + '</span><span class="stat-value">' + fmt(c.edges) + '</span></div>';
@@ -72,15 +74,12 @@ export function webSocketScript(): string {
     html += '<div><span class="stat-label">' + (isSpanish ? 'Riesgo' : 'Risky') + '</span><span class="stat-value">' + fmt(c.riskyNodes) + '</span></div>';
     html += '<div><span class="stat-label">' + (isSpanish ? 'Entrada' : 'Entry') + '</span><span class="stat-value">' + fmt(c.entryPoints) + '</span></div>';
     html += '</div>';
-    html += '<div class="project-impact">' + (isSpanish ? 'Tokens ahorrados' : 'Tokens saved') + ': <b>' + fmt(c.tokensSaved) + '</b> · ' + (isSpanish ? 'Archivos evitados' : 'Files avoided') + ': <b>' + fmt(c.filesAvoided) + '</b></div>';
-    if (c.semanticEvents > 0) {
-      html += '<div class="semantic-note">' + (isSpanish ? 'Mejora semántica' : 'Semantic lift') + ': ' + c.semanticTopChanged + '/' + c.semanticEvents + ' ' + (isSpanish ? 'resultados principales mejorados' : 'top-results improved') + '</div>';
-    }
     if (c.lastIndexed) {
       html += '<div class="muted-text">' + (isSpanish ? 'Indexado' : 'Indexed') + ': ' + esc(c.lastIndexed) + ' · ' + c.edgeTypes + ' ' + (isSpanish ? 'tipos de arista' : 'edge types') + '</div>';
     }
-    html += '<div class="open-graph">' + (isSpanish ? 'Abrir grafo' : 'Open graph') + '</div></button>';
-    html += '<button class="card-delete-btn" type="button" data-delete-project="' + esc(c.name) + '" data-delete-name="' + esc(c.displayName) + '" aria-label="' + (isSpanish ? 'Eliminar ' : 'Delete ') + esc(c.displayName) + '" title="' + (isSpanish ? 'Eliminar proyecto' : 'Delete project') + '">&#x2715;</button></div>';
+    html += '<div class="ops-row">' + (c.hoursSinceIndex != null ? '<span>' + c.hoursSinceIndex + 'h</span>' : '') + (c.llmCalls > 0 ? '<span>' + (c.llmProvider || 'LLM') + ': ' + c.llmCalls + ' calls' + (c.llmCostUsd > 0 ? ' · $' + c.llmCostUsd.toFixed(4) : '') + '</span>' : '') + (c.errorCount > 0 ? '<span style="color:#fca5a5">' + c.errorCount + ' ' + (isSpanish ? 'errores' : 'errors') + '</span>' : '') + '</div>';
+    html += '<div class="card-actions"><button class="card-action-btn" type="button" data-card-overview="' + esc(c.name) + '"><span class="card-action-icon">&#9670;</span>' + (isSpanish ? 'Grafo' : 'Graph') + '</button><button class="card-action-btn" type="button" data-card-metrics="' + esc(c.name) + '"><span class="card-action-icon">&#9776;</span>' + (isSpanish ? 'Métricas' : 'Metrics') + '</button></div>';
+    html += '</div><button class="card-delete-btn" type="button" data-delete-project="' + esc(c.name) + '" data-delete-name="' + esc(c.displayName) + '" aria-label="' + (isSpanish ? 'Eliminar ' : 'Delete ') + esc(c.displayName) + '" title="' + (isSpanish ? 'Eliminar proyecto' : 'Delete project') + '">&#x2715;</button></div>';
     return html;
   }
 
@@ -89,6 +88,7 @@ export function webSocketScript(): string {
     var grid = document.querySelector('.project-grid');
     if (grid && cards.length > 0) {
       grid.innerHTML = cards.map(function(c) { return renderCardHtml(c); }).join('');
+      if (window.bindCardButtons) window.bindCardButtons();
     } else if (grid && cards.length === 0) {
       grid.innerHTML = '<div class="card" style="grid-column:1/-1"><p class="empty-state">No indexed projects yet. Run <code>LYNX index /path/to/project</code> first.</p></div>';
     }

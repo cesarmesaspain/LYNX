@@ -2,10 +2,13 @@
  * settings-tab.ts — Settings tab inline JS (API keys + preferences form).
  */
 
-export function settingsTabScript(isSpanish: boolean, labels: Record<string, string>): string {
-  const saved = labels.saved || 'Saved';
-  const loaded = labels.loaded || '(configured)';
-  const saving = labels.saving || 'Saving...';
+export function settingsTabScript(
+  isSpanish: boolean,
+  labels: Record<string, string>,
+): string {
+  const saved = labels.saved || "Saved";
+  const loaded = labels.loaded || "(configured)";
+  const saving = labels.saving || "Saving...";
 
   return `(function(){
 function flash(id,msg,ok){
@@ -15,7 +18,7 @@ function flash(id,msg,ok){
   if(ok)setTimeout(function(){e.style.display="none"},2500);
 }
 function disableBtn(id){
-  var b=document.getElementById(id);if(b){b.disabled=true;b.textContent="${saving.replace(/"/g,'\\"')}"}
+  var b=document.getElementById(id);if(b){b.disabled=true;b.textContent="${saving.replace(/"/g, '\\"')}"}
 }
 function enableBtn(id,orig){
   var b=document.getElementById(id);if(b){b.disabled=false;b.textContent=orig}
@@ -23,9 +26,11 @@ function enableBtn(id,orig){
 function loadConfig(){
   fetch('/api/config').then(function(r){return r.json();}).then(function(cfg){
     var k=cfg.api_keys||{};
-    if(k.deepseek){var d=document.getElementById("cfgDeepseekKey");if(d){d.value="";d.placeholder="${loaded}"}}
+    if(k.deepseek){hydrateKeyStatus("deepseek",k.deepseek);}
+    else{hydrateKeyStatus("deepseek",null);}
     if(k.vps_url){var u=document.getElementById("cfgVpsUrl");if(u)u.value=k.vps_url}
-    if(k.vps_key){var p=document.getElementById("cfgVpsKey");if(p){p.value="";p.placeholder="${loaded}"}}
+    if(k.vps_key){hydrateKeyStatus("vps",k.vps_key);}
+    else{hydrateKeyStatus("vps",null);}
     var loc=document.getElementById("cfgLocale");if(loc&&cfg.locale)loc.value=cfg.locale;
     var ai=document.getElementById("cfgAutoIndex");if(ai)ai.checked=!!cfg.auto_index;
     var aw=document.getElementById("cfgAutoWatch");if(aw)aw.checked=!!cfg.auto_watch;
@@ -49,15 +54,33 @@ function loadConfig(){
   }).catch(function(){});
 }
 
+function hydrateKeyStatus(prefix,maskedVal){
+  var idKey=prefix==="vps"?"VpsKey":"DeepseekKey";
+  var dot=document.getElementById(prefix+"StatusDot"),
+      label=document.getElementById(prefix+"MaskedLabel");
+  if(!dot||!label)return;
+  if(maskedVal){
+    dot.className="key-status-dot key-valid";dot.title="${loaded}";dot.style.display="inline-block";
+    label.textContent=maskedVal;label.style.display="inline-block";
+  }else{
+    dot.style.display="none";dot.className="key-status-dot";
+    label.style.display="none";
+  }
+}
+
 // DeepSeek save
 var dsv=document.getElementById("saveDeepseekBtn"),dsl="${labels.save}";
 if(dsv)dsv.addEventListener("click",function(){
   var k=document.getElementById("cfgDeepseekKey"),v=k?k.value.trim():"";
-  if(!v){flash("flashDeepseek","${isSpanish ? 'Clave requerida' : 'Key required'}",false);return}
+  if(!v){flash("flashDeepseek","${isSpanish ? "Clave requerida" : "Key required"}",false);return}
   disableBtn("saveDeepseekBtn");
   fetch('/api/config',{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({api_keys:{deepseek:v}})})
     .then(function(r){if(!r.ok)throw new Error("fail");
-      flash("flashDeepseek","${saved}",true);var e=document.getElementById("cfgDeepseekKey");if(e)e.placeholder="${loaded}";enableBtn("saveDeepseekBtn",dsl);
+      flash("flashDeepseek","${saved}",true);enableBtn("saveDeepseekBtn",dsl);
+      var e=document.getElementById("cfgDeepseekKey");if(e){e.value="";e.placeholder="${loaded}";}
+      fetch('/api/config').then(function(r){return r.json();}).then(function(cfg){
+        var k=cfg.api_keys||{};hydrateKeyStatus("deepseek",k.deepseek||null);
+      });
     }).catch(function(){flash("flashDeepseek","Error",false);enableBtn("saveDeepseekBtn",dsl);});
 });
 
@@ -66,12 +89,18 @@ var vsv=document.getElementById("saveVpsBtn"),vsl="${labels.save}";
 if(vsv)vsv.addEventListener("click",function(){
   var u=document.getElementById("cfgVpsUrl"),k=document.getElementById("cfgVpsKey"),
       uv=u?u.value.trim():"",kv=k?k.value.trim():"";
-  if(!uv&&!kv){flash("flashVpsUrl","${isSpanish ? 'No hay cambios' : 'No changes'}",false);return}
+  if(!uv&&!kv){flash("flashVpsUrl","${isSpanish ? "No hay cambios" : "No changes"}",false);return}
   disableBtn("saveVpsBtn");var p={api_keys:{}};if(uv)p.api_keys.vps_url=uv;if(kv)p.api_keys.vps_key=kv;
   fetch('/api/config',{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)})
     .then(function(r){if(!r.ok)throw new Error("fail");
-      flash("flashVpsUrl","${saved}",true);if(u&&uv)u.placeholder="${loaded}";
-      if(k&&kv){k.value=kv;k.placeholder="${loaded}";}enableBtn("saveVpsBtn",vsl);
+      flash("flashVpsUrl","${saved}",true);
+      if(u&&uv)u.value=uv;u.placeholder="${loaded}";
+      if(k&&kv){k.value="";k.placeholder="${loaded}";}
+      fetch('/api/config').then(function(r){return r.json();}).then(function(cfg){
+        var k=cfg.api_keys||{};
+        hydrateKeyStatus("vps",k.vps_key||null);
+      });
+      enableBtn("saveVpsBtn",vsl);
     }).catch(function(){flash("flashVpsUrl","Error",false);enableBtn("saveVpsBtn",vsl);});
 });
 
@@ -102,7 +131,7 @@ if(asb)asb.addEventListener("click",function(){
   disableBtn("saveAgentResponseBtn");
   fetch('/api/agent-response',{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
     enabled:!!(enabled&&enabled.checked),length:length?length.value:'short',style:style?style.value:'concise',budget:budget?budget.value:'balanced',reminder_interval_minutes:Number(interval&&interval.value||30)
-  })}).then(function(r){if(!r.ok)throw new Error("fail");flash("flashAgentResponse","${labels.agentResponseSaved.replace(/"/g,'\\"')}",true);enableBtn("saveAgentResponseBtn",asl);})
+  })}).then(function(r){if(!r.ok)throw new Error("fail");flash("flashAgentResponse","${labels.agentResponseSaved.replace(/"/g, '\\"')}",true);enableBtn("saveAgentResponseBtn",asl);})
     .catch(function(){flash("flashAgentResponse","Error",false);enableBtn("saveAgentResponseBtn",asl);});
 });
 

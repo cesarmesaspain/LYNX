@@ -8,11 +8,12 @@
  * WAL mode enabled for concurrent reads during writes.
  */
 
-import Database, { type Database as DatabaseType } from 'better-sqlite3';
-import path from 'node:path';
-import fs from 'node:fs';
+import Database, { type Database as DatabaseType } from "better-sqlite3";
+import path from "node:path";
+import fs from "node:fs";
 
-const DATA_DIR = process.env.LYNX_API_DATA_DIR || path.resolve(import.meta.dirname, '../data');
+const DATA_DIR =
+  process.env.LYNX_API_DATA_DIR || path.resolve(import.meta.dirname, "../data");
 
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -20,9 +21,11 @@ if (!fs.existsSync(DATA_DIR)) {
 
 // ── Licenses DB ─────────────────────────────────────
 
-const licensesDb: DatabaseType = new Database(path.join(DATA_DIR, 'licenses.db'));
-licensesDb.pragma('journal_mode = WAL');
-licensesDb.pragma('foreign_keys = ON');
+const licensesDb: DatabaseType = new Database(
+  path.join(DATA_DIR, "licenses.db"),
+);
+licensesDb.pragma("journal_mode = WAL");
+licensesDb.pragma("foreign_keys = ON");
 
 licensesDb.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -69,12 +72,24 @@ licensesDb.exec(`
     event_type TEXT NOT NULL,
     received_at TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS team_project_access (
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    project TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, project)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_team_project_access_project
+    ON team_project_access(project);
 `);
 
 // ── Provider DB ─────────────────────────────────────
 
-const providerDb: DatabaseType = new Database(path.join(DATA_DIR, 'provider.db'));
-providerDb.pragma('journal_mode = WAL');
+const providerDb: DatabaseType = new Database(
+  path.join(DATA_DIR, "provider.db"),
+);
+providerDb.pragma("journal_mode = WAL");
 
 providerDb.exec(`
   CREATE TABLE IF NOT EXISTS intelligence_routing (
@@ -90,18 +105,20 @@ providerDb.exec(`
 `);
 
 // Seed default routing if table is empty
-const count = providerDb.prepare('SELECT COUNT(*) as c FROM intelligence_routing').get() as { c: number };
+const count = providerDb
+  .prepare("SELECT COUNT(*) as c FROM intelligence_routing")
+  .get() as { c: number };
 if (count.c === 0) {
   const insert = providerDb.prepare(
-    'INSERT OR REPLACE INTO intelligence_routing (task, primary_provider, fallback_provider) VALUES (?, ?, ?)'
+    "INSERT OR REPLACE INTO intelligence_routing (task, primary_provider, fallback_provider) VALUES (?, ?, ?)",
   );
   const defaults: Array<[string, string, string | null]> = [
-    ['summarize_module', 'qwen-14b', 'deepseek'],
-    ['rerank_search', 'qwen-14b', 'deepseek'],
-    ['assess_change_risk', 'qwen-14b', 'deepseek'],
-    ['detect_entry_point', 'heuristic', 'qwen-14b'],
-    ['classify_code_smell', 'qwen-14b', 'heuristic'],
-    ['detect_test', 'heuristic', null],
+    ["summarize_module", "qwen-14b", "deepseek"],
+    ["rerank_search", "qwen-14b", "deepseek"],
+    ["assess_change_risk", "qwen-14b", "deepseek"],
+    ["detect_entry_point", "heuristic", "qwen-14b"],
+    ["classify_code_smell", "qwen-14b", "heuristic"],
+    ["detect_test", "heuristic", null],
   ];
   for (const [task, primary, fallback] of defaults) {
     insert.run(task, primary, fallback);

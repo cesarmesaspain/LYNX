@@ -6,12 +6,12 @@
  * normalize paths before dispatching to their existing handlers.
  */
 
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { scanIndexedProjects, type IndexedProject } from './project-catalog.js';
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { scanIndexedProjects, type IndexedProject } from "./project-catalog.js";
 
 export type ProjectResolution =
-  | { resolved: true; project: string; matchedBy: 'name' | 'root_path' }
+  | { resolved: true; project: string; matchedBy: "name" | "root_path" }
   | { resolved: false; project: string };
 
 function normalizedPath(value: string): string {
@@ -31,33 +31,71 @@ export function resolveProjectReference(
   // Case-insensitive lookup prevents LYNX/lynx from becoming separate logical
   // identities.  scanIndexedProjects is newest-first; use a deterministic
   // tie-breaker so a legacy duplicate cannot make routing random.
-  const byName = canonicalCandidate(projects.filter(candidate =>
-    candidate.name.toLocaleLowerCase() === project.toLocaleLowerCase(),
-  ));
-  if (byName) return { resolved: true, project: byName.name, matchedBy: 'name' };
+  const byName = canonicalCandidate(
+    projects.filter(
+      (candidate) =>
+        candidate.name.toLocaleLowerCase() === project.toLocaleLowerCase(),
+    ),
+  );
+  if (byName)
+    return { resolved: true, project: byName.name, matchedBy: "name" };
 
-  // Do not guess from a basename: two indexed repositories may share one.
-  if (!path.isAbsolute(project)) return { resolved: false, project };
+  // Agents commonly use the checkout directory name as the logical project
+  // name. Resolve it only when that basename identifies exactly one indexed
+  // root; ambiguity must never depend on scan order.
+  if (!path.isAbsolute(project)) {
+    const basenameMatches = projects.filter(
+      (candidate) =>
+        path
+          .basename(path.normalize(candidate.rootPath))
+          .toLocaleLowerCase() === project.toLocaleLowerCase(),
+    );
+    const roots = new Set(
+      basenameMatches.map((candidate) => normalizedPath(candidate.rootPath)),
+    );
+    if (roots.size === 1 && basenameMatches.length > 0) {
+      return {
+        resolved: true,
+        project: canonicalCandidate(basenameMatches)!.name,
+        matchedBy: "root_path",
+      };
+    }
+    return { resolved: false, project };
+  }
 
   // Prefer an explicitly stored absolute root. Historical benchmark indexes
   // may store ".", which resolves to the server cwd but is not the same
   // project reference an MCP client supplied.
-  const explicitAbsoluteMatches = projects.filter(candidate =>
-    path.isAbsolute(candidate.rootPath) && path.normalize(candidate.rootPath) === path.normalize(project),
+  const explicitAbsoluteMatches = projects.filter(
+    (candidate) =>
+      path.isAbsolute(candidate.rootPath) &&
+      path.normalize(candidate.rootPath) === path.normalize(project),
   );
   if (explicitAbsoluteMatches.length > 0) {
-    return { resolved: true, project: canonicalCandidate(explicitAbsoluteMatches)!.name, matchedBy: 'root_path' };
+    return {
+      resolved: true,
+      project: canonicalCandidate(explicitAbsoluteMatches)!.name,
+      matchedBy: "root_path",
+    };
   }
 
   const normalizedInput = normalizedPath(project);
-  const matches = projects.filter(candidate => normalizedPath(candidate.rootPath) === normalizedInput);
+  const matches = projects.filter(
+    (candidate) => normalizedPath(candidate.rootPath) === normalizedInput,
+  );
   if (matches.length > 0) {
-    return { resolved: true, project: canonicalCandidate(matches)!.name, matchedBy: 'root_path' };
+    return {
+      resolved: true,
+      project: canonicalCandidate(matches)!.name,
+      matchedBy: "root_path",
+    };
   }
   return { resolved: false, project };
 }
 
-function canonicalCandidate(candidates: IndexedProject[]): IndexedProject | undefined {
+function canonicalCandidate(
+  candidates: IndexedProject[],
+): IndexedProject | undefined {
   return [...candidates].sort((a, b) => {
     const byTime = Date.parse(b.indexedAt) - Date.parse(a.indexedAt);
     if (Number.isFinite(byTime) && byTime !== 0) return byTime;

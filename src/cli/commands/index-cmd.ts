@@ -7,7 +7,22 @@ import { cleanupNativeExtractor } from '../../paths.js';
 import { resolveProjectReference } from '../../mcp/project-resolution.js';
 import { acquireProjectLock, forceAcquireProjectLock, releaseProjectLock } from '../../store/lock.js';
 
+const INDEX_USAGE = `Usage: lynx index [path|project-name] [options]
+
+Options:
+  --name <name>       Set the project name
+  --mode <mode>       full, moderate, or fast (default: moderate)
+  --incremental       Skip files whose content hash is unchanged
+  --llm               Enable optional LLM enrichment
+  --force-lock        Replace a stale index lock
+  --result-file <p>   Write the structured result as JSON
+  -h, --help          Show this help`;
+
 export async function cmdIndex(args: string[]): Promise<void> {
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(INDEX_USAGE);
+    return;
+  }
   const firstArg = args[0];
   const resolved = resolveProjectPath(firstArg);
 

@@ -17,6 +17,17 @@ import { cmdIndex } from "../../../src/cli/commands/index-cmd.js";
 beforeEach(() => vi.clearAllMocks());
 
 describe("index CLI command", () => {
+  it("prints subcommand help without indexing", async () => {
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await cmdIndex(["--help"]);
+
+    expect(output).toHaveBeenCalledWith(expect.stringContaining("Usage: lynx index"));
+    expect(handlers.resolveProjectPath).not.toHaveBeenCalled();
+    expect(handlers.openProject).not.toHaveBeenCalled();
+    expect(handlers.runPipeline).not.toHaveBeenCalled();
+  });
+
   it("passes parsed options to pipeline", async () => {
     await cmdIndex([".", "--mode", "fast", "--llm", "--name", "TEST"]);
     expect(handlers.runPipeline).toHaveBeenCalled();

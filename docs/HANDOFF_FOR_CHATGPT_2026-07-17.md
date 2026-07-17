@@ -333,8 +333,12 @@ commit, distribution/native hashes, build timestamp, and packaged/source mode.
 Missing or malformed provenance remains `null`, never invented. The first test
 exposed that generic asset lookup could select Vitest's package and report
 `4.1.10`; package identity now accepts only `package.json` with canonical name
-`lynx`. Typecheck and 21/21 focused identity/MCP tests pass. Complete suite,
-commit, live request proof, and build-time provenance injection remain pending.
+`lynx`. Closed in commit `30bb016 fix: publish canonical MCP build identity`.
+Typecheck, 21/21 focused identity/MCP tests, and the 138-file 1,117-test suite
+pass. A fresh built MCP process proves `initialize` reports `0.2.0` and
+`lynx/buildIdentity` reports schema/version/source runtime with unknown provenance
+as null. Build-time commit/hash/timestamp injection and supervisor generation
+activation remain pending.
 
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and

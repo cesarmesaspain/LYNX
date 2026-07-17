@@ -50,10 +50,10 @@ export function passImports(batches: ExtractionBatch[], idx: ResolverIndexes, ed
         importedQns.add(target.qualified_name);
       }
 
-      // JVM imports commonly bind a class while calls target a static method
-      // on that class. The extractor keeps the method name, so make callables
-      // from the resolved class file visible without exposing unrelated files.
-      if (importedFile && /\.(?:java|kt|kts)$/i.test(batch.file.relPath)) {
+      // Managed-language imports commonly bind a class/namespace while calls
+      // target a method owned by a class in the resolved file. Make callables
+      // from that one file visible without exposing unrelated files.
+      if (importedFile && /\.(?:java|kt|kts|cs)$/i.test(batch.file.relPath)) {
         for (const target of idx.fileToNodes.get(importedFile.file_path) || []) {
           if (target.kind === 'Function' || target.kind === 'Method') {
             importedQns.add(target.qualified_name);

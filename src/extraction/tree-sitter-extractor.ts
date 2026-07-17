@@ -1045,6 +1045,17 @@ function extractImportInfos(
     return localName ? [{ localName, modulePath, startLine }] : [];
   }
 
+  if (lang === 'c_sharp') {
+    const using = text.match(/\busing\s+(?:static\s+)?(?:[A-Za-z_][\w]*\s*=\s*)?([A-Za-z_][\w.]*)\s*;/);
+    if (!using) return [];
+    const qualifiedName = using[1];
+    return [{
+      localName: qualifiedName.split('.').pop() || qualifiedName,
+      modulePath: qualifiedName.replace(/\./g, '/'),
+      startLine,
+    }];
+  }
+
   if (lang === 'rust') {
     const usePath = text.match(/^\s*use\s+([^;]+)\s*;?$/)?.[1]?.trim();
     if (!usePath || usePath.includes('{') || usePath.includes('*')) return [];

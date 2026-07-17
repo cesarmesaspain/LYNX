@@ -135,6 +135,26 @@ describe('tree-sitter JavaScript definition identity', () => {
     expect(result.imports).toHaveLength(2);
   });
 
+  it('normalizes C# namespace, static, and alias using directives', async () => {
+    const result = await extractFile(
+      `using MathLib;
+       using static Golden.Helpers;
+       using Store = Golden.Data.Store;
+       namespace Golden;
+       class App { static int Run() { return Arithmetic.Twice(21); } }`,
+      'fixture',
+      'App.cs',
+      'App',
+    );
+
+    expect(result.imports).toEqual(expect.arrayContaining([
+      expect.objectContaining({ localName: 'MathLib', modulePath: 'MathLib' }),
+      expect.objectContaining({ localName: 'Helpers', modulePath: 'Golden/Helpers' }),
+      expect.objectContaining({ localName: 'Store', modulePath: 'Golden/Data/Store' }),
+    ]));
+    expect(result.imports).toHaveLength(3);
+  });
+
   it('marks conventional root test files and all of their nodes as tests', async () => {
     const result = await extractFile(
       `function helper() { return true; }

@@ -52,6 +52,12 @@ const cases = [
     nodes: ['Function:main.rb:run', 'Function:mathlib.rb:add', 'Function:mathlib.rb:twice'],
     relations: ['CALLS:main.rb:run->mathlib.rb:twice', 'CALLS:mathlib.rb:twice->mathlib.rb:add', 'IMPORTS:main.rb->mathlib.rb'],
   },
+  {
+    language: 'csharp',
+    fixture: 'csharp',
+    nodes: ['Method:App.cs:Run', 'Method:MathLib.cs:Add', 'Method:MathLib.cs:Twice'],
+    relations: ['CALLS:App.cs:Run->MathLib.cs:Twice', 'CALLS:MathLib.cs:Twice->MathLib.cs:Add', 'IMPORTS:App.cs->MathLib.cs'],
+  },
 ] as const;
 
 describe('per-language golden truth sets wave 2', () => {

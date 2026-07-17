@@ -263,5 +263,10 @@ comparisons, arithmetic, logical operators, redefinition, and `#undef`. The
 remaining preprocessing gate is cross-include macro propagation plus advanced
 expansion/operators, not basic branch selection.
 
+Native batches now expose canonical File/Module identities, so C/C++ includes
+flow through the shared resolver and publish file-level `IMPORTS` edges instead
+of remaining private staging evidence. Integration tests bind those edges to the
+same include evidence used for implementation-level call resolution.
+
 This score must be recalculated from the gates above after each release; it must
 not rise merely because new features were added.

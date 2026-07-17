@@ -205,8 +205,26 @@ async function extractNativeCoreFiles(
         const file = db.prepare('SELECT id, language, partial_reasons_json FROM native_files WHERE rel_path = ?')
           .get(item.file.relPath) as { id: number; language: string; partial_reasons_json: string } | undefined;
         if (!file) continue;
-        const nodes = (db.prepare('SELECT * FROM native_nodes WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)
+        const nativeNodes = (db.prepare('SELECT * FROM native_nodes WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)
           .map((row) => nativeNode(project, item.file.relPath, row));
+        const moduleQn = fileToModuleQn(item.file.relPath);
+        const fileLineCount = Math.max(1, fs.readFileSync(item.file.absPath, 'utf8').split(/\r?\n/).length);
+        const nodes: ExtractionResult['nodes'] = [
+          {
+            project, kind: 'File', name: path.basename(item.file.relPath),
+            qualifiedName: `${project}.file.${moduleQn}`, filePath: item.file.relPath,
+            startLine: 1, endLine: fileLineCount, isExported: false, isTest: false,
+            isEntryPoint: false, extension: path.extname(item.file.relPath),
+            lastModified: null as any, changeCount: null as any,
+          } as any,
+          {
+            project, kind: 'Module', name: moduleQn.split('.').pop() || moduleQn,
+            qualifiedName: `${project}.module.${moduleQn}`, filePath: item.file.relPath,
+            startLine: 1, endLine: fileLineCount, isExported: false, isTest: false,
+            isEntryPoint: false, lineCount: fileLineCount,
+          } as any,
+          ...nativeNodes,
+        ];
         const calls = (db.prepare('SELECT * FROM native_calls WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)
           .map((row) => ({ calleeName: String(row.callee_name), enclosingFuncQn: String(row.enclosing_qualified_name), args: [], startLine: Number(row.start_line), loopDepth: 0 }));
         const imports = (db.prepare('SELECT * FROM native_imports WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)

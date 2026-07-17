@@ -207,6 +207,18 @@ describe.skipIf(!fs.existsSync(nativeCore))('native structural core publication'
       `).get() as { resolution: string; included_header: string } | undefined;
       expect(call?.resolution).toBe('include_declaration_unique_implementation');
       expect(call?.included_header).toBe('api.h');
+      const imports = db.db.prepare(`
+        SELECT source.file_path AS source, target.file_path AS target
+        FROM edges edge
+        JOIN nodes source ON source.id=edge.source_id
+        JOIN nodes target ON target.id=edge.target_id
+        WHERE edge.project='native-preprocessor-expressions' AND edge.type='IMPORTS'
+        ORDER BY source.file_path, target.file_path
+      `).all() as Array<{ source: string; target: string }>;
+      expect(imports).toEqual(expect.arrayContaining([
+        { source: 'main.c', target: 'api.h' },
+        { source: 'main.c', target: 'config.h' },
+      ]));
     } finally {
       if (previousPath === undefined) delete process.env.LYNX_NATIVE_CORE_PATH;
       else process.env.LYNX_NATIVE_CORE_PATH = previousPath;

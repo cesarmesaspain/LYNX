@@ -73,7 +73,7 @@ The generated cross-tool contract derives the public surface from the canonical 
 
 ### Language golden truth sets and Go package resolution
 
-TypeScript, C, Python, and Go fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All four current fixtures require 1.0. The Go wave exposed and closed a resolver defect: module-qualified imports now resolve conservatively to the unique local package-directory suffix, expose every package file's symbols to call resolution, emit deterministic package-file IMPORTS edges, and refuse ambiguous suffixes.
+TypeScript, C, Python, Go, Rust, and Java fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All six current fixtures require 1.0. The Go wave exposed and closed package-directory resolution; Rust added canonical `crate`/`self` use-path normalization; Java now preserves qualified method names and exposes methods from an imported class file to call resolution.
 
 ### Deterministic performance budget foundation
 

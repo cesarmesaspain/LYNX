@@ -182,6 +182,23 @@ describe('passImports', () => {
     expect(getEdgesByType(edges, 'IMPORTS')).toHaveLength(0);
   });
 
+  it('makes static methods in an imported JVM class reachable', () => {
+    const sourceFile = makeFileNode(1, 'golden/App.java');
+    const classFile = makeFileNode(2, 'golden/MathLib.java');
+    const twice = { ...makeFuncNode(3, 'twice', classFile.file_path), kind: 'Method' };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [sourceFile, classFile, twice]);
+
+    const batch = makeBatch(
+      sourceFile.file_path,
+      '/fake/golden/App.java',
+      makeImportResult('MathLib', 'golden/MathLib'),
+    );
+    passImports([batch], idx, []);
+
+    expect(idx.importedQnByFile.get(sourceFile.file_path)).toContain(twice.qualified_name);
+  });
+
   it('skip when file node not found', () => {
     const idx = createEmptyIndexes();
     const batch = makeBatch('src/ghost.ts', '/fake/src/ghost.ts', makeImportResult('x', './y'));

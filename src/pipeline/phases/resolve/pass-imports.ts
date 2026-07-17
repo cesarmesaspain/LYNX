@@ -50,6 +50,17 @@ export function passImports(batches: ExtractionBatch[], idx: ResolverIndexes, ed
         importedQns.add(target.qualified_name);
       }
 
+      // JVM imports commonly bind a class while calls target a static method
+      // on that class. The extractor keeps the method name, so make callables
+      // from the resolved class file visible without exposing unrelated files.
+      if (importedFile && /\.(?:java|kt|kts)$/i.test(batch.file.relPath)) {
+        for (const target of idx.fileToNodes.get(importedFile.file_path) || []) {
+          if (target.kind === 'Function' || target.kind === 'Method') {
+            importedQns.add(target.qualified_name);
+          }
+        }
+      }
+
       // Go imports expose an entire package directory. The module prefix in
       // go.mod is intentionally irrelevant here: the conservative suffix
       // resolver returns files only when one local package directory wins.

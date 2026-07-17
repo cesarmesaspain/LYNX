@@ -197,4 +197,33 @@ describe('tree-sitter JavaScript definition identity', () => {
 
     expect(result.imports).toContainEqual(expect.objectContaining({ modulePath: 'api/client.h' }));
   });
+
+  it('normalizes a Rust crate use to a relative module import', async () => {
+    const result = await extractFile(
+      'use crate::mathlib::twice;\nfn run() -> i32 { twice(21) }',
+      'fixture',
+      'main.rs',
+      'main',
+    );
+
+    expect(result.imports).toContainEqual({
+      localName: 'twice',
+      modulePath: './mathlib',
+      startLine: 1,
+    });
+  });
+
+  it('keeps the method name in a qualified Java invocation', async () => {
+    const result = await extractFile(
+      'class App { static int run() { return MathLib.twice(21); } }',
+      'fixture',
+      'golden/App.java',
+      'golden.App',
+    );
+
+    expect(result.calls).toContainEqual(expect.objectContaining({
+      calleeName: 'MathLib.twice',
+      enclosingFuncQn: expect.stringContaining('.run'),
+    }));
+  });
 });

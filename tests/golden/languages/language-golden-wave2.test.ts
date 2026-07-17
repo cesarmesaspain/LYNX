@@ -34,6 +34,18 @@ const cases = [
     nodes: ['Function:main.go:run', 'Function:mathlib/mathlib.go:Add', 'Function:mathlib/mathlib.go:Twice'],
     relations: ['CALLS:main.go:run->mathlib/mathlib.go:Twice', 'CALLS:mathlib/mathlib.go:Twice->mathlib/mathlib.go:Add', 'IMPORTS:main.go->mathlib/mathlib.go'],
   },
+  {
+    language: 'rust',
+    fixture: 'rust',
+    nodes: ['Function:main.rs:run', 'Function:mathlib.rs:add', 'Function:mathlib.rs:twice'],
+    relations: ['CALLS:main.rs:run->mathlib.rs:twice', 'CALLS:mathlib.rs:twice->mathlib.rs:add', 'IMPORTS:main.rs->mathlib.rs'],
+  },
+  {
+    language: 'java',
+    fixture: 'java',
+    nodes: ['Method:golden/App.java:run', 'Method:golden/MathLib.java:add', 'Method:golden/MathLib.java:twice'],
+    relations: ['CALLS:golden/App.java:run->golden/MathLib.java:twice', 'CALLS:golden/MathLib.java:twice->golden/MathLib.java:add', 'IMPORTS:golden/App.java->golden/MathLib.java'],
+  },
 ] as const;
 
 describe('per-language golden truth sets wave 2', () => {

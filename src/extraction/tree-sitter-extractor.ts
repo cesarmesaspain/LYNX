@@ -885,6 +885,13 @@ function extractDefinitionName(node: SyntaxNode, source: string, lang: string): 
 }
 
 function extractCalleeName(callNode: SyntaxNode, source: string, lang: string): string | null {
+  if (lang === 'java' && callNode.type === 'method_invocation') {
+    const method = callNode.childForFieldName?.('name');
+    if (!method?.text) return null;
+    const receiver = callNode.childForFieldName?.('object');
+    return receiver?.text ? `${receiver.text}.${method.text}` : method.text;
+  }
+
   // Most languages: first child of call_expression is the function name
   const firstChild = callNode.firstChild;
   if (!firstChild) return null;
@@ -1015,6 +1022,24 @@ function extractImportInfos(
   const text = node.text;
   const startLine = node.startPosition.row + 1;
   const imports: TSExtractedImport[] = [];
+
+  if (lang === 'rust') {
+    const usePath = text.match(/^\s*use\s+([^;]+)\s*;?$/)?.[1]?.trim();
+    if (!usePath || usePath.includes('{') || usePath.includes('*')) return [];
+    const segments = usePath.split('::').filter(Boolean);
+    const localName = segments.pop();
+    if (!localName) return [];
+    const root = segments.shift();
+    const relativePrefix = root === 'crate' || root === 'self'
+      ? './'
+      : root === 'super'
+        ? '../'
+        : '';
+    if (!relativePrefix) return [];
+    const modulePath = relativePrefix + segments.join('/');
+    if (modulePath === './' || modulePath === '../') return [];
+    return [{ localName, modulePath, startLine }];
+  }
 
   const moduleMatch =
     text.match(/\bfrom\s*['"]([^'"]+)['"]/) ||

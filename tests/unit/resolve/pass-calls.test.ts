@@ -111,7 +111,30 @@ describe('passCalls', () => {
 
     expect(state.totalCalls).toBe(1);
     expect(state.unresolvedCalls).toBe(1);
-    expect(state.unresolvedCallReasons).toEqual({ target_not_found: 1 });
+    expect(state.unresolvedCallReasons).toEqual({ target_absent: 1 });
+  });
+
+  it('separates unresolved external imports from missing internal imports', () => {
+    const fileNode = makeFileNode(1, 'src/app.ts');
+    const caller = makeFuncNode(2, 'main', 'src/app.ts');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, caller]);
+    const external = makeCallResult('client.send', 'app.main');
+    external.imports = [{ localName: 'client', modulePath: 'remote-sdk', startLine: 1 }];
+    const internal = makeCallResult('missingHelper', 'app.main');
+    internal.imports = [{ localName: 'missingHelper', modulePath: './helpers', startLine: 1 }];
+    const state = makeResolverState();
+
+    passCalls(db, [
+      makeBatch('src/app.ts', '/fake/src/app.ts', external),
+      makeBatch('src/app.ts', '/fake/src/app.ts', internal),
+    ], idx, [], state);
+
+    expect(state.totalCalls).toBe(2);
+    expect(state.unresolvedCallReasons).toEqual({
+      external_dependency_target: 1,
+      imported_internal_target_missing: 1,
+    });
   });
 
   it('skips HTTP_CALLS for non-HTTP client without URL', () => {
@@ -130,6 +153,7 @@ describe('passCalls', () => {
 
     const httpEdges = getEdgesByType(edges, 'HTTP_CALLS');
     expect(httpEdges.length).toBe(0);
+    expect(state.unresolvedCallReasons).toEqual({ receiver_target_unknown: 1 });
   });
 
   it('resolves callee to imported symbol when name collides across files', () => {

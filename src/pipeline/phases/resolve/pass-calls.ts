@@ -144,8 +144,28 @@ export function passCalls(
       const resolved = resolveCallee(idx, batch.file.relPath, call.calleeName);
       if (!resolved) {
         state.unresolvedCalls++;
-        state.unresolvedCallReasons.target_not_found =
-          (state.unresolvedCallReasons.target_not_found || 0) + 1;
+        const methodName = call.calleeName.split('.').pop() || call.calleeName;
+        const receiverName = call.calleeName.includes('.')
+          ? call.calleeName.split('.')[0]
+          : methodName;
+        const imported = batch.result.imports.find((entry) =>
+          entry.localName === receiverName || entry.localName === methodName);
+        const localBinding = (idx.kindNameToRows.get(`Variable:${methodName}`) || [])
+          .some((node) => node.file_path === batch.file.relPath);
+        const internalCandidates = [
+          ...(idx.kindNameToRows.get(`Function:${methodName}`) || []),
+          ...(idx.kindNameToRows.get(`Method:${methodName}`) || []),
+        ];
+        let reason = 'target_absent';
+        if (localBinding) reason = 'dynamic_local_binding';
+        else if (imported) {
+          reason = /^\.{1,2}\//.test(imported.modulePath)
+            ? 'imported_internal_target_missing'
+            : 'external_dependency_target';
+        } else if (call.calleeName.includes('.')) reason = 'receiver_target_unknown';
+        else if (internalCandidates.length > 0) reason = 'ambiguous_internal_target';
+        state.unresolvedCallReasons[reason] =
+          (state.unresolvedCallReasons[reason] || 0) + 1;
         continue;
       }
       if (resolved.node.id === caller.id) {

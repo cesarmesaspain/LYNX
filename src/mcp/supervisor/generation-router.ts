@@ -85,6 +85,10 @@ export class McpGenerationRouter {
     return [...this.states].map(([id, state]) => ({ id, state, inFlight: this.inFlightFor(id) }));
   }
 
+  stateOf(generationId: string): GenerationState | null {
+    return this.states.get(generationId) ?? null;
+  }
+
   private requireActive(): string {
     if (!this.activeId || this.states.get(this.activeId) !== 'active') throw new Error('No active MCP generation.');
     return this.activeId;

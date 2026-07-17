@@ -356,6 +356,16 @@ pass. Still pending: complete suite/commit, child process framing/backpressure,
 candidate handshake/build-identity verification, control channel, drain timeout,
 and end-to-end no-Codex-restart proof.
 
+Protocol translation is active in `src/mcp/supervisor/protocol-router.ts` with
+tests in `tests/unit/mcp/protocol-router.test.ts`. Host requests are validated,
+assigned internal IDs, and translated back only for the owning generation.
+`notifications/cancelled` follows the original request to a draining worker and
+rewrites its ID; unknown cancellations are dropped. Ordinary host notifications
+go only to active; worker notifications are forwarded only from active/draining,
+so probe/failed generations cannot leak output to Codex. Typecheck and the
+combined generation/protocol suite pass 8/8. Complete-suite validation and
+commit remain before child-process transport work.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

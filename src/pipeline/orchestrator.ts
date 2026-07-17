@@ -125,6 +125,19 @@ export interface PipelineResult {
   };
 }
 
+function countFilesWithGraphNodes(db: LynxDatabase, project: string): number {
+  const result = db.db
+    .prepare(
+      `SELECT COUNT(DISTINCT n.file_path) AS count
+       FROM nodes n
+       INNER JOIN file_hashes h
+         ON h.project = n.project AND h.rel_path = n.file_path
+       WHERE n.project = ? AND n.file_path != ''`,
+    )
+    .get(project) as { count: number };
+  return result.count;
+}
+
 /**
  * Run the complete indexing pipeline against a repository.
  */
@@ -255,11 +268,7 @@ export async function runPipeline(
         `SELECT COUNT(*) AS count FROM nodes WHERE project = ? AND kind IN ('Function', 'Method')`,
       )
       .get(project) as { count: number };
-    const filesWithNodes = db.db
-      .prepare(
-        `SELECT COUNT(DISTINCT file_path) AS count FROM nodes WHERE project = ? AND file_path != ''`,
-      )
-      .get(project) as { count: number };
+    const filesWithNodes = countFilesWithGraphNodes(db, project);
     const callEdges = db.db
       .prepare(
         `SELECT COUNT(*) AS count FROM edges WHERE project = ? AND type = 'CALLS'`,
@@ -299,7 +308,7 @@ export async function runPipeline(
         files_discovered: discovery.files.length,
         files_processed: 0,
         files_skipped: batches.length,
-        files_with_nodes: filesWithNodes.count,
+        files_with_nodes: filesWithNodes,
         excluded_directories: discovery.excludedDirs.slice(0, 100),
         functions_extracted: functionsExtracted.count,
         calls_extracted: callEdges.count,
@@ -683,11 +692,7 @@ export async function runPipeline(
       `SELECT COUNT(*) AS count FROM nodes WHERE project = ? AND kind IN ('Function', 'Method')`,
     )
     .get(project) as { count: number };
-  const filesWithNodes = db.db
-    .prepare(
-      `SELECT COUNT(DISTINCT file_path) AS count FROM nodes WHERE project = ? AND file_path != ''`,
-    )
-    .get(project) as { count: number };
+  const filesWithNodes = countFilesWithGraphNodes(db, project);
   db.setProjectIndexedCommit(project, gitCtx?.headSha ?? null);
 
   phaseTimingsMs.total = Date.now() - startedAt;
@@ -704,7 +709,7 @@ export async function runPipeline(
       files_discovered: discovery.files.length,
       files_processed: filesProcessed,
       files_skipped: filesSkipped,
-      files_with_nodes: filesWithNodes.count,
+      files_with_nodes: filesWithNodes,
       excluded_directories: discovery.excludedDirs.slice(0, 100),
       functions_extracted: functionsExtracted.count,
       calls_extracted: stats.totalCalls,

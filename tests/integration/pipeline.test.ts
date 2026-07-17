@@ -166,6 +166,8 @@ describe("incremental pipeline safety", () => {
         mode: "fast",
         testSkipProjectBrief: true,
       });
+      expect(first.coverage.files_discovered).toBe(1);
+      expect(first.coverage.files_with_nodes).toBe(1);
       const runsBefore = (
         db.db
           .prepare("SELECT COUNT(*) AS count FROM index_runs WHERE project = ?")
@@ -180,6 +182,8 @@ describe("incremental pipeline safety", () => {
 
       expect(result.filesProcessed).toBe(0);
       expect(result.filesSkipped).toBe(1);
+      expect(result.coverage.files_discovered).toBe(1);
+      expect(result.coverage.files_with_nodes).toBe(1);
       expect(result.incremental.reindexed).toEqual([]);
       expect(result.status.totalNodes).toBe(first.status.totalNodes);
       expect(result.status.totalEdges).toBe(first.status.totalEdges);

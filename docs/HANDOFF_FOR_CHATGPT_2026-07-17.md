@@ -278,6 +278,16 @@ owner, download adapter, real MCP/doctor acceptance adapter, integration into
 `lynx upgrade`, explicit `lynx rollback`, source-linked runtime protection,
 complete suite, commit, install/reindex/doctor, and cross-platform acceptance.
 
+CLI rollback is now wired as the first consumer in
+`src/cli/commands/rollback-cmd.ts` and the canonical CLI registry. It refuses a
+source-linked checkout before filesystem mutation, restores only the packaged
+`process.execPath`, and accepts the restored artifact only after the real MCP
+handshake exposes all 33 canonical tools. A failed handshake propagates through
+the transaction so the pre-rollback build is restored. The distribution and CLI
+focused suites pass 7/7 with typecheck. Complete-suite validation and commit are
+pending for this sub-slice. `upgrade` download/manifest integration remains the
+next owner; do not duplicate the rollback transaction inside that command.
+
 ### P1 — full functional MCP contract matrix
 
 The 33/33 registry, handler, and generated argument contracts are complete.

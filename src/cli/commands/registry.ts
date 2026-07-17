@@ -115,6 +115,11 @@ const COMMAND_DEFS: Array<{ name: string; description: string; loader: CommandEn
     loader: () => import('./upgrade-cmd.js').then(m => m.cmdUpgrade),
   },
   {
+    name: 'rollback',
+    description: 'Restore the last accepted packaged LYNX distribution',
+    loader: () => import('./rollback-cmd.js').then(m => m.cmdRollback),
+  },
+  {
     name: 'serve',
     description: 'Start the LYNX MCP server',
     loader: () => import('./serve-cmd.js').then(m => m.cmdServe),

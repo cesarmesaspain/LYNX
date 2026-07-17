@@ -312,6 +312,19 @@ pass; complete-suite validation and commit are pending. The upgrade adapter must
 compose signed manifest → bounded download → atomic distribution transaction;
 it must not reimplement or bypass any of those owners.
 
+Trusted upgrade composition is active in `src/install/release-client.ts` with
+tests in `tests/unit/install/release-client.test.ts`. It maps only the supported
+OS/architecture pairs, fetches the manifest/signature as small HTTPS-only trust
+documents with redirects disabled and strict size ceilings, verifies Ed25519,
+selects one signed platform asset, performs the bounded download, then calls the
+atomic distribution transaction and always removes its temporary directory.
+The real composition test proves v1→v2 publication, runtime acceptance, and v1
+retention; platform mapping is fail-closed. Typecheck and 2/2 focused tests pass.
+Still pending: complete suite/commit, production release endpoints and embedded
+key/rotation, then a thin packaged-only `upgrade` adapter. Keep the existing
+database maintenance steps after successful distribution acceptance; a failed
+distribution must never run forward migrations.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

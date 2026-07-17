@@ -24,6 +24,17 @@ jobs:
       - run: npm run build
       - run: npm run build:native-core
       - run: npm run validate
+      - name: Enforce deterministic performance budgets
+        run: npm run test:performance-budget
+        env:
+          LYNX_PERFORMANCE_OUTPUT: artifacts/performance-budget.json
+      - name: Retain sanitized performance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-budget-${{ github.run_id }}
+          path: artifacts/performance-budget.json
+          if-no-files-found: error
 
   impact:
     if: github.event_name == 'pull_request'

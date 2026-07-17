@@ -25,6 +25,7 @@
     "test:api": "npm --prefix api test",
     "test:native-core": "npm run build && npm run build:native-core && node scripts/native-core-smoke.mjs && vitest run tests/unit/native-core/staging.test.ts tests/integration/native-core-pipeline.test.ts",
     "benchmark:native-core": "npm run build && npm run build:native-core && node scripts/native-core-benchmark.mjs",
+    "test:performance-budget": "npm run build && node scripts/performance-budget.mjs",
     "compare:native-core": "npm run build && npm run build:native-core && node scripts/native-core-parity.mjs",
     "typecheck:api": "npm --prefix api run typecheck",
     "validate": "npm run typecheck && npm test && npm run typecheck:api && npm run test:api",

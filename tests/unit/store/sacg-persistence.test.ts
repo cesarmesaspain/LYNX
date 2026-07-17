@@ -215,9 +215,11 @@ describe("SACG snapshot persistence", () => {
       );
 
       expect(
-        db.db.prepare(
-          "SELECT name FROM semantic_entities WHERE project = ? AND semantic_id = ?",
-        ).get(project, "semantic:source"),
+        db.db
+          .prepare(
+            "SELECT name FROM semantic_entities WHERE project = ? AND semantic_id = ?",
+          )
+          .get(project, "semantic:source"),
       ).toEqual({ name: "source" });
     } finally {
       db.close();
@@ -263,6 +265,222 @@ describe("SACG snapshot persistence", () => {
         relations: 0,
         evidence: 0,
       });
+    } finally {
+      db.close();
+    }
+  });
+});
+
+// ── Bulk evidence tests ─────────────────────────────
+
+describe("SACG snapshot persistence (bulk evidence)", () => {
+  it("produces identical results as row-by-row persistence", () => {
+    const dbBulk = LynxDatabase.openMemory();
+    const dbRow = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      persistSacgSnapshot(dbBulk, input, {
+        canonicalPayloads: true,
+        bulkEvidence: true,
+      });
+      persistSacgSnapshot(dbRow, input, { canonicalPayloads: true });
+
+      expect(counts(dbBulk)).toEqual(counts(dbRow));
+
+      const cols =
+        "evidence_id, evidence_type, source_hash, strength, payload_json, snapshot_id";
+      const bulkRows = dbBulk.db
+        .prepare(
+          `SELECT ${cols} FROM evidence WHERE project = ? ORDER BY evidence_id`,
+        )
+        .all(project);
+      const rowRows = dbRow.db
+        .prepare(
+          `SELECT ${cols} FROM evidence WHERE project = ? ORDER BY evidence_id`,
+        )
+        .all(project);
+      expect(bulkRows).toEqual(rowRows);
+    } finally {
+      dbBulk.close();
+      dbRow.close();
+    }
+  });
+
+  it("respects skipExistingSnapshot when using bulk", () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      persistSacgSnapshot(db, input, {
+        canonicalPayloads: true,
+        bulkEvidence: true,
+      });
+      persistSacgSnapshot(
+        db,
+        {
+          ...input,
+          entities: input.entities.map((e) => ({
+            ...e,
+            name: `must-not-${e.name}`,
+          })),
+        },
+        { skipExistingSnapshot: true, bulkEvidence: true },
+      );
+      expect(
+        db.db
+          .prepare(
+            "SELECT name FROM semantic_entities WHERE project = ? AND semantic_id = ?",
+          )
+          .get(project, "semantic:source"),
+      ).toEqual({ name: "source" });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("handles empty evidence list gracefully", () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      const result = persistSacgSnapshot(
+        db,
+        { ...input, evidence: [] },
+        { bulkEvidence: true },
+      );
+      expect(result.evidence).toBe(0);
+      expect(counts(db)).toEqual({
+        snapshots: 1,
+        entities: 2,
+        relations: 1,
+        evidence: 0,
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("rolls back everything when an entity violates a FK in bulk mode", () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      expect(() =>
+        persistSacgSnapshot(
+          db,
+          {
+            ...input,
+            entities: input.entities.slice(0, 1),
+          },
+          { bulkEvidence: true },
+        ),
+      ).toThrow();
+      expect(counts(db)).toEqual({
+        snapshots: 0,
+        entities: 0,
+        relations: 0,
+        evidence: 0,
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("handles duplicate evidence_id within staging (last row wins)", () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      // Two evidence items with same evidenceId but different strengths.
+      const evidence1 = { ...input.evidence[0], strength: 0.3 };
+      const evidence2 = {
+        ...input.evidence[0],
+        evidenceId: input.evidence[0].evidenceId,
+        strength: 0.7,
+      };
+      const result = persistSacgSnapshot(
+        db,
+        {
+          ...input,
+          evidence: [evidence1, evidence2],
+        },
+        { canonicalPayloads: true, bulkEvidence: true },
+      );
+
+      expect(result.evidence).toBe(2);
+      const row = db.db
+        .prepare(
+          "SELECT strength FROM evidence WHERE project = ? AND evidence_id = ?",
+        )
+        .get(project, input.evidence[0].evidenceId) as { strength: number };
+      // Explicit staging ordinal preserves row-by-row semantics: the final input wins.
+      expect(row).toEqual({ strength: 0.7 });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("logical identity collision within staging is caught by unique index", () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      // Two evidence with different evidenceId but same logical identity.
+      const evidence1 = { ...input.evidence[0], evidenceId: "ev-1" };
+      const evidence2 = { ...input.evidence[0], evidenceId: "ev-2" };
+      expect(() =>
+        persistSacgSnapshot(
+          db,
+          {
+            ...input,
+            evidence: [evidence1, evidence2],
+          },
+          { bulkEvidence: true },
+        ),
+      ).toThrow();
+    } finally {
+      db.close();
+    }
+  });
+
+  it("idempotent replay with bulk evidence", () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      persistSacgSnapshot(db, input, {
+        canonicalPayloads: true,
+        bulkEvidence: true,
+      });
+      persistSacgSnapshot(db, input, {
+        canonicalPayloads: true,
+        bulkEvidence: true,
+      });
+
+      expect(counts(db)).toEqual({
+        snapshots: 1,
+        entities: 2,
+        relations: 1,
+        evidence: 1,
+      });
+    } finally {
+      db.close();
+    }
+  });
+
+  it("preserves canonical serialization when canonicalPayloads=true", () => {
+    const db = LynxDatabase.openMemory();
+    try {
+      const input = bundle();
+      persistSacgSnapshot(db, input, {
+        canonicalPayloads: true,
+        bulkEvidence: true,
+      });
+
+      const row = db.db
+        .prepare(
+          "SELECT payload_json FROM evidence WHERE project = ? AND evidence_id = ?",
+        )
+        .get(project, "evidence-a") as { payload_json: string };
+      // canonicalPayloads=true uses JSON.stringify — preserves insertion order,
+      // not alphabetically sorted. Verify the stored payload is valid JSON.
+      const parsed = JSON.parse(row.payload_json);
+      expect(parsed).toHaveProperty("z", 1);
+      expect(parsed).toHaveProperty("a");
     } finally {
       db.close();
     }

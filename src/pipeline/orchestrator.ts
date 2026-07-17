@@ -59,6 +59,7 @@ import { getTier } from "../commercial/license.js";
 import { maxFilesForTier } from "../commercial/tiers.js";
 import { projectLegacyGraphToSacg } from "../sacg/legacy-projection.js";
 import { persistSacgSnapshot } from "../store/sacg-persistence.js";
+import { shouldUseBulkEvidencePersistence } from "./sacg-persistence-policy.js";
 
 export interface PipelineOptions {
   mode?: LynxIndexMode;
@@ -108,6 +109,7 @@ export interface PipelineResult {
     persist: number;
     total: number;
   };
+  persistBreakdown?: Record<string, number>;
   coverage: {
     files_discovered: number;
     files_processed: number;
@@ -392,8 +394,16 @@ export async function runPipeline(
   let reindexedFiles: string[] = [];
   // Everything below is persistent graph state. Nested helper transactions use
   // SQLite savepoints, so this outer transaction is the only commit boundary.
+  const persistBreakdown: Record<string, number> = {};
+  let _t = Date.now();
+  const _mark = (label: string) => {
+    const now = Date.now();
+    persistBreakdown[label] = now - _t;
+    _t = now;
+  };
   db.beginBulk();
   const persistStartedAt = Date.now();
+  _t = persistStartedAt;
   try {
     db.transaction(() => {
       // A non-incremental run is a full rebuild. Clear previous graph rows so
@@ -407,6 +417,7 @@ export async function runPipeline(
             .run(project);
         });
       }
+      _mark("cleanup");
       failIfRequested(opts, "cleanup");
 
       // Renamed files with matching content hash: update paths in-place without
@@ -468,6 +479,7 @@ export async function runPipeline(
       }
       if (nodesToUpsert.length > 1) upsertNodesBatch(db, nodesToUpsert);
       else if (nodesToUpsert.length === 1) upsertNode(db, nodesToUpsert[0]);
+      _mark("upsert-nodes");
       failIfRequested(opts, "nodes");
 
       const resolveBatches = (incremental
@@ -492,6 +504,7 @@ export async function runPipeline(
         }
       }
       phaseTimingsMs.resolve = Date.now() - phaseStartedAt;
+      _mark("resolve-edges");
       failIfRequested(opts, "edges");
 
       // Resolution has finished inserting edges. Rebuild the indexes before the
@@ -499,6 +512,7 @@ export async function runPipeline(
       // the deliberately de-indexed bulk table turns a sub-second analysis into a
       // tens-of-seconds scan.
       db.prepareBulkReads();
+      _mark("prepare-bulk-reads");
 
       // Files processed/skipped counts
       filesProcessed = batches.filter((b) => !b.skipped).length;
@@ -511,11 +525,13 @@ export async function runPipeline(
         computeTransitiveLoopDepths(db, project);
         phaseTimingsMs.complexity = Date.now() - phaseStartedAt;
       }
+      _mark("complexity");
 
       // Phase 4: Analyze (hotspots, clusters, file tree)
       phaseStartedAt = Date.now();
       ({ architecture, hotspotCount } = analyze(db, project));
       phaseTimingsMs.analyze = Date.now() - phaseStartedAt;
+      _mark("analyze");
 
       // Upsert file hashes and filesystem metadata for every discovered batch.
       // This keeps the deterministic drift check accurate even when extraction
@@ -548,6 +564,7 @@ export async function runPipeline(
         }
       });
       failIfRequested(opts, "hashes");
+      _mark("file-hashes");
       partialFiles = batches
         .filter((batch) => (batch.result.partialReasons?.length || 0) > 0)
         .map((batch) => ({
@@ -587,19 +604,28 @@ export async function runPipeline(
         filesSkipped,
         mode,
       });
-  persistSacgSnapshot(
-    db,
-    projectLegacyGraphToSacg(db, project, {
-          sourceCommit: gitCtx?.headSha ?? null,
-          sourceBranch: gitCtx?.branch ?? null,
-      workingTree,
-    }),
-    { canonicalPayloads: true, skipExistingSnapshot: true },
-  );
+      _mark("insert-run");
+      const sacgInput = projectLegacyGraphToSacg(db, project, {
+        sourceCommit: gitCtx?.headSha ?? null,
+        sourceBranch: gitCtx?.branch ?? null,
+        workingTree,
+      });
+      _mark("sacg-project");
+      persistSacgSnapshot(db, sacgInput, {
+        canonicalPayloads: true,
+        skipExistingSnapshot: true,
+        bulkEvidence: shouldUseBulkEvidencePersistence(
+          sacgInput.evidence.length,
+          process.env.LYNX_BULK_EVIDENCE ??
+            process.env.LYNX_EXPERIMENTAL_BULK_EVIDENCE,
+        ),
+      });
+      _mark("sacg-persist");
       failIfRequested(opts, "run");
     });
   } finally {
     db.endBulk();
+    _mark("end-bulk");
     phaseTimingsMs.persist = Math.max(
       0,
       Date.now() -
@@ -673,6 +699,7 @@ export async function runPipeline(
     filesSkipped,
     llmSummaryCache,
     phaseTimingsMs,
+    persistBreakdown,
     coverage: {
       files_discovered: discovery.files.length,
       files_processed: filesProcessed,

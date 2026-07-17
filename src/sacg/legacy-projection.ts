@@ -21,7 +21,6 @@ import {
   type SemanticRelationType,
 } from "./types.js";
 import type { SacgSnapshotWrite } from "../store/sacg-persistence.js";
-import { getBulkEdgeEvidence } from "../store/edge-evidence.js";
 import type { LynxDatabase } from "../store/database.js";
 
 const PROJECTION_VERSION = "legacy-v1";
@@ -49,6 +48,23 @@ interface LegacyEdgeRow {
   target_id: number;
   type: string;
   properties: string;
+}
+
+interface EdgeEvidenceJoinRow {
+  id: number;
+  source_id: number;
+  target_id: number;
+  type: string;
+  evidence_id: number | null;
+  evidence_type: string | null;
+  source_kind: string | null;
+  source_path: string | null;
+  start_line: number | null;
+  end_line: number | null;
+  extractor: string | null;
+  strength: number | null;
+  payload_json: string | null;
+  created_at: string | null;
 }
 
 export interface LegacySacgProjectionContext {
@@ -295,6 +311,14 @@ export function projectLegacyGraphToSacg(
   project: string,
   context: LegacySacgProjectionContext,
 ): SacgSnapshotWrite {
+  const _timings: Record<string, number> = {};
+  let _t = Date.now();
+  const _mark = (label: string) => {
+    const now = Date.now();
+    _timings[label] = now - _t;
+    _t = now;
+  };
+
   if (!project.trim()) {
     throw new Error("SACG projection project must be non-empty");
   }
@@ -316,6 +340,7 @@ export function projectLegacyGraphToSacg(
       ORDER BY n.id ASC
     `)
     .all(project) as LegacyNodeRow[];
+  _mark('select-nodes');
 
   const projectedNodes = nodeRows
     .map((row) => projectEntity(row, project, timestamp))
@@ -323,124 +348,177 @@ export function projectLegacyGraphToSacg(
   const nodeByLegacyId = new Map(
     projectedNodes.map((item) => [item.row.id, item]),
   );
+  _mark('project-nodes');
 
   const relationGroups = new Map<string, RelationAccumulator>();
   let legacyEdgeCount = 0;
   let supportedEdgeCount = 0;
 
-  const accumulateEdgeBatch = (edges: LegacyEdgeRow[]): void => {
-    const evidenceByEdge = getBulkEdgeEvidence(
-      db,
-      project,
-      edges.map((edge) => edge.id),
-    );
+  const accumulateEdgeEvidence = (
+    edge: { id: number; source_id: number; target_id: number; type: SemanticRelationType },
+    evidenceRows: Array<{
+      source_path: string | null;
+      evidence_type: string;
+      source_kind: string;
+      start_line: number | null;
+      end_line: number | null;
+      extractor: string;
+      strength: number;
+      payload: unknown;
+      created_at: string | null;
+    }>,
+  ): void => {
+    const source = nodeByLegacyId.get(edge.source_id);
+    const target = nodeByLegacyId.get(edge.target_id);
+    if (!source || !target) return;
 
-    for (const edge of edges) {
-      const source = nodeByLegacyId.get(edge.source_id);
-      const target = nodeByLegacyId.get(edge.target_id);
-      if (!source || !target || !isSemanticRelationType(edge.type)) continue;
+    const scope: JsonObject = {};
+    const relationId = generateSemanticRelationId({
+      projectNamespace: project,
+      sourceSemanticId: source.entity.semanticId,
+      relationType: edge.type,
+      targetSemanticId: target.entity.semanticId,
+      scope,
+    });
+    const group: RelationAccumulator = relationGroups.get(relationId) ?? {
+      relationType: edge.type,
+      sourceSemanticId: source.entity.semanticId,
+      targetSemanticId: target.entity.semanticId,
+      legacyEdgeCount: 0,
+      evidence: new Map<string, Evidence>(),
+    };
+    group.legacyEdgeCount += 1;
 
-      const scope: JsonObject = {};
-      const relationId = generateSemanticRelationId({
-        projectNamespace: project,
-        sourceSemanticId: source.entity.semanticId,
-        relationType: edge.type,
-        targetSemanticId: target.entity.semanticId,
-        scope,
+    for (const ev of evidenceRows) {
+      const sourcePath = ev.source_path ?? (source.row.file_path || null);
+      const payload = normalizeEvidencePayload({
+        ...(ev.payload !== null && typeof ev.payload === "object" && !Array.isArray(ev.payload)
+          ? ev.payload as JsonObject
+          : {}),
+        semanticRelationId: relationId,
+        sourceQualifiedName: source.row.qualified_name,
+        targetQualifiedName: target.row.qualified_name,
+        projectionVersion: PROJECTION_VERSION,
       });
-      const group = relationGroups.get(relationId) ?? {
-        relationType: edge.type,
+      const extractorVersion = `${ev.extractor}@${PROJECTION_VERSION}`;
+      const sourceHash = buildEvidenceSourceHash({
+        project,
         sourceSemanticId: source.entity.semanticId,
+        relationType: edge.type,
         targetSemanticId: target.entity.semanticId,
-        legacyEdgeCount: 0,
-        evidence: new Map<string, Evidence>(),
-      };
-      group.legacyEdgeCount += 1;
-
-      for (const legacyEvidence of evidenceByEdge.get(edge.id) ?? []) {
-        const sourcePath =
-          legacyEvidence.source_path ?? (source.row.file_path || null);
-        const parsedPayload = legacyEvidence.payload;
-        const payload = normalizeEvidencePayload({
-          ...(parsedPayload !== null && typeof parsedPayload === "object" && !Array.isArray(parsedPayload)
-            ? parsedPayload as JsonObject
-            : {}),
-          semanticRelationId: relationId,
-          sourceQualifiedName: source.row.qualified_name,
-          targetQualifiedName: target.row.qualified_name,
-          projectionVersion: PROJECTION_VERSION,
-        });
-        const extractorVersion = `${legacyEvidence.extractor}@${PROJECTION_VERSION}`;
-        const sourceHash = buildEvidenceSourceHash({
-          project,
-          sourceSemanticId: source.entity.semanticId,
-          relationType: edge.type,
-          targetSemanticId: target.entity.semanticId,
-          sourcePath,
-          startLine: legacyEvidence.start_line,
-          endLine: legacyEvidence.end_line,
-          sourceKind: legacyEvidence.source_kind,
-          extractor: legacyEvidence.extractor,
-          strength: legacyEvidence.strength,
-          payload,
-        });
-        const evidenceId = generateEvidenceId({
-          projectNamespace: project,
-          evidenceType: legacyEvidence.evidence_type,
-          sourceHash,
-          sourcePath,
-          startLine: legacyEvidence.start_line,
-          endLine: legacyEvidence.end_line,
-          symbolSemanticId: source.entity.semanticId,
-          extractorVersion,
-        });
-        group.evidence.set(evidenceId, {
-          evidenceId,
-          project,
-          evidenceType: legacyEvidence.evidence_type,
-          polarity: "supports",
-          sourceKind: legacyEvidence.source_kind,
-          sourcePath,
-          sourceHash,
-          startLine: legacyEvidence.start_line,
-          endLine: legacyEvidence.end_line,
-          symbolSemanticId: source.entity.semanticId,
-          extractor: legacyEvidence.extractor,
-          extractorVersion,
-          payload,
-          strength: legacyEvidence.strength,
-          independenceGroup: null,
-          observedAt: normalizeTimestamp(legacyEvidence.created_at),
-          snapshotId: "",
-          createdAt: timestamp,
-        });
-      }
-
-      relationGroups.set(relationId, group);
+        sourcePath,
+        startLine: ev.start_line,
+        endLine: ev.end_line,
+        sourceKind: ev.source_kind,
+        extractor: ev.extractor,
+        strength: ev.strength,
+        payload,
+      });
+      const evidenceId = generateEvidenceId({
+        projectNamespace: project,
+        evidenceType: ev.evidence_type,
+        sourceHash,
+        sourcePath,
+        startLine: ev.start_line,
+        endLine: ev.end_line,
+        symbolSemanticId: source.entity.semanticId,
+        extractorVersion,
+      });
+      group.evidence.set(evidenceId, {
+        evidenceId,
+        project,
+        evidenceType: ev.evidence_type,
+        polarity: "supports",
+        sourceKind: ev.source_kind,
+        sourcePath,
+        sourceHash,
+        startLine: ev.start_line,
+        endLine: ev.end_line,
+        symbolSemanticId: source.entity.semanticId,
+        extractor: ev.extractor,
+        extractorVersion,
+        payload,
+        strength: ev.strength,
+        independenceGroup: null,
+        observedAt: normalizeTimestamp(ev.created_at ?? timestamp),
+        snapshotId: "",
+        createdAt: timestamp,
+      });
     }
+
+    relationGroups.set(relationId, group);
   };
 
-  let edgeBatch: LegacyEdgeRow[] = [];
-  const edgeRows = db.db
-    .prepare("SELECT * FROM edges WHERE project = ? ORDER BY id ASC")
-    .iterate(project) as IterableIterator<LegacyEdgeRow>;
-  for (const edge of edgeRows) {
-    legacyEdgeCount += 1;
-    if (
-      !isSemanticRelationType(edge.type) ||
-      !nodeByLegacyId.has(edge.source_id) ||
-      !nodeByLegacyId.has(edge.target_id)
-    ) {
+  const joinIter = db.db.prepare(`
+    SELECT e.id, e.source_id, e.target_id, e.type,
+           ee.id AS evidence_id, ee.evidence_type, ee.source_kind, ee.source_path,
+           ee.start_line, ee.end_line, ee.extractor, ee.strength,
+           ee.payload_json, ee.created_at
+    FROM edges e
+    LEFT JOIN edge_evidence ee ON ee.project = e.project AND ee.edge_id = e.id
+    WHERE e.project = ? AND e.type IN ('CALLS','IMPORTS','TESTS','CONFIGURES','EMITS','LISTENS_ON')
+    ORDER BY e.id ASC, ee.strength DESC, ee.id ASC
+  `).iterate(project) as IterableIterator<EdgeEvidenceJoinRow>;
+
+  legacyEdgeCount = (
+    db.db.prepare(
+      "SELECT COUNT(*) AS count FROM edges WHERE project = ?",
+    ).get(project) as { count: number }
+  ).count;
+
+  let currentEdge: { id: number; source_id: number; target_id: number; type: SemanticRelationType } | null = null;
+  let currentEvidence: Array<{
+    source_path: string | null;
+    evidence_type: string;
+    source_kind: string;
+    start_line: number | null;
+    end_line: number | null;
+    extractor: string;
+    strength: number;
+    payload: unknown;
+    created_at: string | null;
+  }> = [];
+
+  for (const row of joinIter) {
+    if (!nodeByLegacyId.has(row.source_id) || !nodeByLegacyId.has(row.target_id)) {
       continue;
     }
-    supportedEdgeCount += 1;
-    edgeBatch.push(edge);
-    if (edgeBatch.length === 500) {
-      accumulateEdgeBatch(edgeBatch);
-      edgeBatch = [];
+
+    if (currentEdge === null || row.id !== currentEdge.id) {
+      if (currentEdge !== null) {
+        supportedEdgeCount += 1;
+        accumulateEdgeEvidence(currentEdge, currentEvidence);
+      }
+      currentEdge = { id: row.id, source_id: row.source_id, target_id: row.target_id, type: row.type as SemanticRelationType };
+      currentEvidence = [];
+    }
+
+    if (row.evidence_id !== null) {
+      let payload: unknown = {};
+      try {
+        payload = JSON.parse(row.payload_json || '{}');
+      } catch {
+        payload = {};
+      }
+      currentEvidence.push({
+        source_path: row.source_path,
+        evidence_type: row.evidence_type!,
+        source_kind: row.source_kind!,
+        start_line: row.start_line,
+        end_line: row.end_line,
+        extractor: row.extractor!,
+        strength: row.strength!,
+        payload,
+        created_at: row.created_at,
+      });
     }
   }
-  if (edgeBatch.length > 0) accumulateEdgeBatch(edgeBatch);
+
+  if (currentEdge !== null) {
+    supportedEdgeCount += 1;
+    accumulateEdgeEvidence(currentEdge, currentEvidence);
+  }
+  _mark('process-edges');
 
   const evidence = [...relationGroups.values()]
     .flatMap((group) => [...group.evidence.values()])
@@ -488,6 +566,7 @@ export function projectLegacyGraphToSacg(
     evidence,
   });
   const snapshotId = `sacg-${PROJECTION_VERSION}-${digest}`;
+  _mark('build-output');
 
   for (const entity of entities) {
     entity.firstSeenSnapshot = snapshotId;
@@ -523,6 +602,12 @@ export function projectLegacyGraphToSacg(
       evidenceCount: evidence.length,
     },
   };
+
+  _mark('snapshot');
+
+  if (process.env.LYNX_PROFILE) {
+    process.stderr.write(`[sacg-project.profile] ${JSON.stringify(_timings)}\n`);
+  }
 
   return { snapshot, entities, relations, evidence };
 }

@@ -31,6 +31,12 @@ export interface PersistSacgSnapshotOptions {
   canonicalPayloads?: boolean;
   /** Content-addressed projectors may treat an existing snapshot as immutable. */
   skipExistingSnapshot?: boolean;
+  /**
+   * Stage evidence rows in a TEMP table and flush via a single
+   * INSERT ... SELECT ... ON CONFLICT instead of row-by-row upserts. Same
+   * semantics, lower SQLite overhead.
+   */
+  bulkEvidence?: boolean;
 }
 
 function assertSnapshotBundle(input: SacgSnapshotWrite): void {
@@ -88,11 +94,22 @@ export function persistSacgSnapshot(
   input: SacgSnapshotWrite,
   options: PersistSacgSnapshotOptions = {},
 ): PersistSacgSnapshotResult {
+  const _timings: Record<string, number> = {};
+  let _t = Date.now();
+  const _mark = (label: string) => {
+    const now = Date.now();
+    _timings[label] = now - _t;
+    _t = now;
+  };
+
   assertSnapshotBundle(input);
+  _mark("assert");
   if (options.skipExistingSnapshot) {
-    const existing = db.db.prepare(
-      'SELECT 1 FROM graph_snapshots WHERE project = ? AND snapshot_id = ?',
-    ).get(input.snapshot.project, input.snapshot.snapshotId);
+    const existing = db.db
+      .prepare(
+        "SELECT 1 FROM graph_snapshots WHERE project = ? AND snapshot_id = ?",
+      )
+      .get(input.snapshot.project, input.snapshot.snapshotId);
     if (existing) {
       return {
         project: input.snapshot.project,
@@ -205,6 +222,110 @@ export function persistSacgSnapshot(
       snapshot_id = excluded.snapshot_id
   `);
 
+  const stagingBulkEvidence = options.bulkEvidence
+    ? (items: readonly Evidence[]) => {
+        if (items.length === 0) return;
+        // TEMP staging table: same column structure, no indexes or FKs.
+        db.db.exec(`
+          CREATE TEMP TABLE IF NOT EXISTS _bulk_evidence (
+            ordinal INTEGER NOT NULL,
+            evidence_id TEXT NOT NULL,
+            project TEXT NOT NULL,
+            evidence_type TEXT NOT NULL,
+            polarity TEXT NOT NULL,
+            source_kind TEXT NOT NULL,
+            source_path TEXT,
+            source_hash TEXT NOT NULL,
+            start_line INTEGER,
+            end_line INTEGER,
+            symbol_semantic_id TEXT,
+            extractor TEXT NOT NULL,
+            extractor_version TEXT NOT NULL,
+            payload_json TEXT NOT NULL DEFAULT '{}',
+            strength REAL NOT NULL,
+            independence_group TEXT,
+            observed_at TEXT NOT NULL,
+            snapshot_id TEXT NOT NULL,
+            created_at TEXT NOT NULL
+          )
+        `);
+        db.db.exec("DELETE FROM _bulk_evidence");
+
+        const insertStaging = db.db.prepare(`
+          INSERT INTO _bulk_evidence (
+            ordinal, evidence_id, project, evidence_type, polarity, source_kind, source_path,
+            source_hash, start_line, end_line, symbol_semantic_id, extractor,
+            extractor_version, payload_json, strength, independence_group,
+            observed_at, snapshot_id, created_at
+          ) VALUES (
+            @ordinal, @evidence_id, @project, @evidence_type, @polarity, @source_kind, @source_path,
+            @source_hash, @start_line, @end_line, @symbol_semantic_id, @extractor,
+            @extractor_version, @payload_json, @strength, @independence_group,
+            @observed_at, @snapshot_id, @created_at
+          )
+        `);
+
+        for (const [ordinal, item] of items.entries()) {
+          insertStaging.run({
+            ordinal,
+            evidence_id: item.evidenceId,
+            project: item.project,
+            evidence_type: item.evidenceType,
+            polarity: item.polarity,
+            source_kind: item.sourceKind,
+            source_path: item.sourcePath,
+            source_hash: item.sourceHash,
+            start_line: item.startLine,
+            end_line: item.endLine,
+            symbol_semantic_id: item.symbolSemanticId,
+            extractor: item.extractor,
+            extractor_version: item.extractorVersion,
+            payload_json: serialize(item.payload),
+            strength: item.strength,
+            independence_group: item.independenceGroup,
+            observed_at: item.observedAt,
+            snapshot_id: item.snapshotId,
+            created_at: item.createdAt,
+          });
+        }
+
+        // Flush staging into real evidence table in one shot.
+        db.db.exec(`
+          INSERT INTO evidence (
+            evidence_id, project, evidence_type, polarity, source_kind, source_path,
+            source_hash, start_line, end_line, symbol_semantic_id, extractor,
+            extractor_version, payload_json, strength, independence_group,
+            observed_at, snapshot_id, created_at
+          )
+          SELECT
+            evidence_id, project, evidence_type, polarity, source_kind, source_path,
+            source_hash, start_line, end_line, symbol_semantic_id, extractor,
+            extractor_version, payload_json, strength, independence_group,
+            observed_at, snapshot_id, created_at
+          FROM _bulk_evidence
+          ORDER BY ordinal ASC
+          ON CONFLICT(project, evidence_id) DO UPDATE SET
+            evidence_type = excluded.evidence_type,
+            polarity = excluded.polarity,
+            source_kind = excluded.source_kind,
+            source_path = excluded.source_path,
+            source_hash = excluded.source_hash,
+            start_line = excluded.start_line,
+            end_line = excluded.end_line,
+            symbol_semantic_id = excluded.symbol_semantic_id,
+            extractor = excluded.extractor,
+            extractor_version = excluded.extractor_version,
+            payload_json = excluded.payload_json,
+            strength = excluded.strength,
+            independence_group = excluded.independence_group,
+            observed_at = excluded.observed_at,
+            snapshot_id = excluded.snapshot_id
+        `);
+
+        db.db.exec("DELETE FROM _bulk_evidence");
+      }
+    : null;
+
   db.transaction(() => {
     const snapshot = input.snapshot;
     insertSnapshot.run({
@@ -220,6 +341,7 @@ export function persistSacgSnapshot(
       completed_at: snapshot.completedAt,
       metadata_json: serialize(snapshot.metadata),
     });
+    _mark("snapshot");
 
     for (const entity of input.entities) {
       upsertEntity.run({
@@ -239,6 +361,7 @@ export function persistSacgSnapshot(
         updated_at: entity.updatedAt,
       });
     }
+    _mark("entities");
 
     for (const relation of input.relations) {
       upsertRelation.run({
@@ -259,30 +382,42 @@ export function persistSacgSnapshot(
         updated_at: relation.updatedAt,
       });
     }
+    _mark("relations");
 
-    for (const item of input.evidence) {
-      upsertEvidence.run({
-        evidence_id: item.evidenceId,
-        project: item.project,
-        evidence_type: item.evidenceType,
-        polarity: item.polarity,
-        source_kind: item.sourceKind,
-        source_path: item.sourcePath,
-        source_hash: item.sourceHash,
-        start_line: item.startLine,
-        end_line: item.endLine,
-        symbol_semantic_id: item.symbolSemanticId,
-        extractor: item.extractor,
-        extractor_version: item.extractorVersion,
-        payload_json: serialize(item.payload),
-        strength: item.strength,
-        independence_group: item.independenceGroup,
-        observed_at: item.observedAt,
-        snapshot_id: item.snapshotId,
-        created_at: item.createdAt,
-      });
+    if (stagingBulkEvidence) {
+      stagingBulkEvidence(input.evidence);
+    } else {
+      for (const item of input.evidence) {
+        upsertEvidence.run({
+          evidence_id: item.evidenceId,
+          project: item.project,
+          evidence_type: item.evidenceType,
+          polarity: item.polarity,
+          source_kind: item.sourceKind,
+          source_path: item.sourcePath,
+          source_hash: item.sourceHash,
+          start_line: item.startLine,
+          end_line: item.endLine,
+          symbol_semantic_id: item.symbolSemanticId,
+          extractor: item.extractor,
+          extractor_version: item.extractorVersion,
+          payload_json: serialize(item.payload),
+          strength: item.strength,
+          independence_group: item.independenceGroup,
+          observed_at: item.observedAt,
+          snapshot_id: item.snapshotId,
+          created_at: item.createdAt,
+        });
+      }
     }
+    _mark("evidence");
   });
+
+  if (process.env.LYNX_PROFILE) {
+    process.stderr.write(
+      `[sacg-persist.profile] ${JSON.stringify(_timings)}\n`,
+    );
+  }
 
   return {
     project: input.snapshot.project,

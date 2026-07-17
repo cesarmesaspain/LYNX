@@ -109,6 +109,9 @@ export async function cmdIndex(args: string[]): Promise<void> {
         : `Hotspots: ${architecture.hotspots.length}, Clusters: ${architecture.clusters.length}`,
     );
     console.log(`Phases: ${JSON.stringify(phaseTimingsMs)}`);
+    if (result.persistBreakdown) {
+      console.log(`Persist breakdown: ${JSON.stringify(result.persistBreakdown)}`);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     db.setProjectStatus(projectName, 'failed', message.slice(0, 500));

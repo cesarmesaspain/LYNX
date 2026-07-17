@@ -94,6 +94,11 @@ Initial Apple M4 reference budgets for a medium project:
 **Gate:** benchmark CI fails on a statistically significant regression beyond
 the agreed tolerance, with raw sanitized results retained for inspection.
 
+Current foundation: `docs/PERFORMANCE_BUDGETS.md` defines and CI enforces the
+first deterministic budgets for exact graph search and no-op incremental
+indexing. Additional snippet, trace, context-pack, resource, and parallel-load
+budgets remain required before this domain gate is complete.
+
 ## 5. Extraction depth and language parity
 
 - TypeScript/JavaScript, Python, C, C++, Swift, and other advertised languages

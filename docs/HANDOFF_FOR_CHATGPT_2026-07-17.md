@@ -74,7 +74,7 @@ These are not release blockers for the current local installation, but they prev
 3. `tree-sitter-extractor.ts` and `discover.ts` are classified as generated and receive partial semantic extraction; verify whether that classification is intentional.
 4. Team security and cross-platform installation gates still need reproducible clean-machine evidence.
 5. Tool contracts, failure envelopes, performance budgets, and privacy/telemetry gates must be exercised as a single release matrix.
-6. ChatGPT/FreeGPT is producing an independent evidence-backed ranking of the five highest-value remaining 10/10 gaps. Incorporate it only after checking its evidence against the graph and tests.
+6. The independent ChatGPT/FreeGPT audit ranked the remaining integral gates as: (1) generated cross-tool consistency across the complete public registry, (2) per-language golden truth sets with precision/recall/F1, (3) CI-enforced performance budgets, (4) clean-machine install/upgrade/reinstall/rollback/uninstall across macOS, Linux, and Windows, and (5) adversarial Team tenant-isolation and webhook-replay security. These are stronger priorities than adding isolated unit tests.
 
 ## Working methodology to preserve
 
@@ -91,7 +91,7 @@ These are not release blockers for the current local installation, but they prev
 
 ## Immediate continuation
 
-1. Review the independent ChatGPT 10/10 audit.
-2. Restart Codex so the new installed MCP process is loaded.
-3. In the new session, resolve `lynx-project`, run representative tool batches, and confirm live runtime behavior.
-4. Begin the highest-ranked remaining 10/10 gap with a benchmark and acceptance test fixed before implementation.
+1. Restart Codex so the new installed MCP process is loaded.
+2. In the new session, resolve `lynx-project`, run representative tool batches, and confirm live runtime behavior.
+3. Review ChatGPT's isolated first implementation of the generated cross-tool consistency contract; it must derive the registry rather than hard-code a count and must remain uncommitted until Codex validates it.
+4. Continue the remaining ranked gates with acceptance thresholds fixed before implementation.

@@ -10,8 +10,10 @@ LYNX is installed, indexed, healthy, and ready for live MCP use. The working bra
 - Main suite: 132 files, 1097/1097 tests passed with process-isolated native runtimes.
 - API suite: 5 files, 22/22 tests passed.
 - Root and API typechecks passed.
-- Full index: 440 files processed, 440 files with graph nodes, 6,241 nodes, 31,110 edges, 2.41 s.
-- No-op incremental baseline: 0 processed, 436 skipped, no graph mutations, 0.06 s; revalidation at 438 files is required after the current documentation commit.
+- Full index at commit `406074c`: 446 files processed, 446 files with graph
+  nodes, 6,487 nodes, 34,964 edges, 2.25 s.
+- No-op incremental baseline at the same commit: 0 processed, 446 skipped,
+  no graph mutations, identical 6,487/34,964 counts, 0.13 s.
 - The local branch contains newer validated commits than the last published GitHub state; do not claim synchronization until the branch is pushed.
 
 ## Work completed
@@ -147,6 +149,11 @@ coherent slices separately. Never weaken a truth set, reshape a denominator, or
 restore bare-name resolution to make a metric look better.
 
 ### P0 — close and publish the current validated slice
+
+Local closure completed in commit `406074c feat: propagate native macro
+environments`. Its full-index/no-op evidence is recorded in Current state.
+Rebuild/install, installed-runtime diagnosis, agent restart, GitHub publication,
+and remote CI remain the outstanding publication steps.
 
 1. Confirm the working tree contains only the intended native preprocessing,
    Swift golden, documentation, and rebuilt native-binary changes.

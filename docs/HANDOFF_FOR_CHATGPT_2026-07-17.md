@@ -7,12 +7,12 @@ LYNX is installed, indexed, healthy, and ready for live MCP use. The working bra
 - `lynx doctor`: 11/11 checks passed.
 - MCP runtime: 33/33 tools exposed.
 - Dashboard: supervised service healthy at `http://127.0.0.1:9191`.
-- Main suite: 132 files, 1081/1081 tests passed.
+- Main suite: 132 files, 1090/1090 tests passed.
 - API suite: 5 files, 22/22 tests passed.
 - Root and API typechecks passed.
-- Full index: 436 files processed, 436 files with graph nodes, 6,187 nodes, 30,565 edges, 2.14 s.
-- No-op incremental: 0 processed, 436 skipped, no graph mutations, 0.06 s.
-- GitHub is synchronized through the handoff commit on `codex/harden-and-operationalize`; the coverage and dashboard commits listed below are published.
+- Full index: 438 files processed, 438 files with graph nodes, 6,211 nodes, 30,982 edges, 2.16 s.
+- No-op incremental baseline: 0 processed, 436 skipped, no graph mutations, 0.06 s; revalidation at 438 files is required after the current documentation commit.
+- The local branch contains newer validated commits than the last published GitHub state; do not claim synchronization until the branch is pushed.
 
 ## Work completed
 
@@ -73,7 +73,7 @@ The generated cross-tool contract derives the public surface from the canonical 
 
 ### Language golden truth sets and Go package resolution
 
-TypeScript, C, Python, Go, Rust, and Java fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All six current fixtures require 1.0. The Go wave exposed and closed package-directory resolution; Rust added canonical `crate`/`self` use-path normalization; Java now preserves qualified method names and exposes methods from an imported class file to call resolution.
+TypeScript, C, Python, Go, Rust, Java, and Ruby fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All seven current fixtures require 1.0. The Go wave exposed and closed package-directory resolution; Rust added canonical `crate`/`self` use-path normalization; Java now preserves qualified method names and exposes methods from an imported class file to call resolution. Ruby exposed and closed missing `require_relative` imports and a broader defect where ordinary Ruby calls could be recorded as import metadata.
 
 ### Deterministic performance budget foundation
 
@@ -91,11 +91,13 @@ The tree-sitter extractor previously discarded the receiver of member calls befo
 
 The first evidence-based receiver wave resolves `this/self` calls only against the caller's exact lexical owner and resolves `ImportedClass.method()` only when one imported class identity and one child callable agree. It does not fall back to a global method-name match. On the live repository this raised confirmed resolutions from 5,414 to 5,610 and reduced missing internal-import targets from 331 to 152.
 
+Declared parameter names and types are now preserved for functions and methods across TypeScript, Python, Java, Go, and Rust syntax orders. The resolver uses that evidence for `parameter.method()` only when one concrete local/imported owner and one child callable agree. Runtime-owned typed receivers and dynamic local receiver bindings are classified separately without creating graph edges. This reduced the remaining unknown-receiver bucket from 11,968 to 9,799 while identifying 2,001 dynamic local bindings and 386 runtime built-ins.
+
 ## Remaining gaps
 
 These are not release blockers for the current local installation, but they prevent a 10/10 claim:
 
-1. Full-index call resolution is 5,610/27,343 (20.52%) after receiver-preserving extraction and the first owner-aware resolution wave. Unresolved calls now separate 11,954 unknown receiver targets, 6,801 external dependency targets, 1,808 absent targets, 774 native targets, 189 dynamic local bindings, 152 missing internal-import targets, 29 ambiguous internal targets, 20 self-references, and 6 missing callers. The next root work is parameter/local-variable type flow, broader alias-aware internal-import coverage, and native resolution. Do not restore the old ratio through bare-name matching or denominator shaping.
+1. Full-index call resolution is 5,677/27,471 (20.67%) after receiver-preserving extraction, owner-aware resolution, and declared-parameter type flow. Unresolved calls now separate 9,799 unknown receiver targets, 6,811 external dependency targets, 2,001 dynamic local bindings, 1,815 absent targets, 774 native targets, 386 runtime built-in receivers, 152 missing internal-import targets, 30 ambiguous internal targets, 20 self-references, and 6 missing callers. The next root work is scoped local-variable/assignment type flow, broader alias-aware internal-import coverage, and native resolution. Do not restore the old ratio through bare-name matching or denominator shaping.
 2. Native C/C++ extraction still reports partial handling for member/qualified calls, function pointers, preprocessing, and lexical shadowing.
 3. ~~`tree-sitter-extractor.ts` and `discover.ts` are classified as generated.~~ Closed: generated-source detection now reads only the continuous leading metadata/comment preamble. Phrases inside executable code, regexes, strings, or comments after code no longer suppress semantic extraction; legitimate generated headers remain supported and regressions cover both boundaries.
 4. Team security and cross-platform installation gates still need reproducible clean-machine evidence.

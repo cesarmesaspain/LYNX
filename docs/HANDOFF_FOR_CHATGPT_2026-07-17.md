@@ -325,6 +325,17 @@ key/rotation, then a thin packaged-only `upgrade` adapter. Keep the existing
 database maintenance steps after successful distribution acceptance; a failed
 distribution must never run forward migrations.
 
+Hot-swap prerequisite is active in `src/build-identity.ts` and
+`src/mcp/server.ts`. MCP `initialize.serverInfo.version` no longer lies with a
+hard-coded `1.0.0`; it uses the canonical LYNX package version. Internal request
+`lynx/buildIdentity` returns schema `lynx.build-identity.v1`, version, source
+commit, distribution/native hashes, build timestamp, and packaged/source mode.
+Missing or malformed provenance remains `null`, never invented. The first test
+exposed that generic asset lookup could select Vitest's package and report
+`4.1.10`; package identity now accepts only `package.json` with canonical name
+`lynx`. Typecheck and 21/21 focused identity/MCP tests pass. Complete suite,
+commit, live request proof, and build-time provenance injection remain pending.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

@@ -48,6 +48,7 @@ import { handleCheckInvariants } from "./handlers/check_invariants.js";
 import { handleCheckRules } from "../rules/engine.js";
 import { decayCounter } from "../cli/hook-augment.js";
 import { cleanupNativeExtractor } from "../paths.js";
+import { getBuildIdentity } from "../build-identity.js";
 import { LynxDatabase } from "../store/database.js";
 import { storedTimestampMs } from "../store/time.js";
 import { detectGraphDrift } from "../store/graph-drift.js";
@@ -651,6 +652,7 @@ export function buildIndexContext(
 
 async function dispatch(req: JsonRpcRequest): Promise<string> {
   const id = req.id;
+  const buildIdentity = getBuildIdentity();
 
   // ── initialize ──────────────────────────────────────────
   if (req.method === "initialize") {
@@ -659,9 +661,13 @@ async function dispatch(req: JsonRpcRequest): Promise<string> {
       capabilities: { tools: {} },
       serverInfo: {
         name: "lynx",
-        version: "1.0.0",
+        version: buildIdentity.version,
       },
     });
+  }
+
+  if (req.method === "lynx/buildIdentity") {
+    return jsonRpcResult(id, buildIdentity);
   }
 
   // ── notifications (no response) ─────────────────────────

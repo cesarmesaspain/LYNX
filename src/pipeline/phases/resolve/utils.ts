@@ -68,7 +68,7 @@ export function sameLanguageGroup(leftFile: string, rightFile: string): boolean 
   return languageGroup(leftFile) === languageGroup(rightFile);
 }
 
-function declaredParamOwner(properties: string | null, receiverName: string): string | undefined {
+export function declaredParamOwner(properties: string | null, receiverName: string): string | undefined {
   if (!properties) return undefined;
   try {
     const paramTypes = (JSON.parse(properties) as { paramTypes?: Record<string, unknown> }).paramTypes;
@@ -84,6 +84,18 @@ function declaredParamOwner(properties: string | null, receiverName: string): st
   } catch {
     return undefined;
   }
+}
+
+const runtimeReceiverTypes: Record<string, Set<string>> = {
+  ts: new Set(['string', 'number', 'boolean', 'bigint', 'symbol', 'Array', 'ReadonlyArray', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Promise', 'Date', 'RegExp']),
+  py: new Set(['str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple', 'bytes']),
+  go: new Set(['string', 'int', 'int8', 'int16', 'int32', 'int64', 'uint', 'uint8', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'bool']),
+  rs: new Set(['String', 'str', 'Vec', 'Option', 'Result', 'HashMap', 'HashSet']),
+  jvm: new Set(['String', 'List', 'Map', 'Set', 'Collection', 'Optional']),
+};
+
+export function isRuntimeReceiverType(filePath: string, ownerName: string | undefined): boolean {
+  return !!ownerName && !!runtimeReceiverTypes[languageGroup(filePath)]?.has(ownerName);
 }
 
 export function resolveCallee(

@@ -10,7 +10,7 @@ import type { LynxEdge } from '../../../src/types.js';
 import type { ExtractionResult } from '../../../src/extraction/extractor.js';
 import type { ResolverState } from '../../../src/pipeline/phases/resolve/indexes.js';
 import {
-  resetIdCounter, makeFileNode, makeFuncNode, makeClassNode,
+  resetIdCounter, makeFileNode, makeFuncNode, makeClassNode, makeVariableNode,
   makeEmptyResult, makeBatch, createEmptyIndexes, populateIndex, getEdgesByType,
 } from './helpers.js';
 
@@ -154,6 +154,39 @@ describe('passCalls', () => {
     const httpEdges = getEdgesByType(edges, 'HTTP_CALLS');
     expect(httpEdges.length).toBe(0);
     expect(state.unresolvedCallReasons).toEqual({ receiver_target_unknown: 1 });
+  });
+
+  it('classifies typed runtime receiver calls without fabricating edges', () => {
+    const fileNode = makeFileNode(1, 'src/app.ts');
+    const caller = {
+      ...makeFuncNode(2, 'main', 'src/app.ts'),
+      properties: JSON.stringify({ paramTypes: { value: 'string' } }),
+    };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, caller]);
+    const batch = makeBatch('src/app.ts', '/fake/src/app.ts',
+      makeCallResult('value.trim', 'app.main'));
+    const edges: LynxEdge[] = [];
+    const state = makeResolverState();
+
+    passCalls(db, [batch], idx, edges, state);
+
+    expect(getEdgesByType(edges, 'CALLS')).toEqual([]);
+    expect(state.unresolvedCallReasons).toEqual({ runtime_builtin_receiver: 1 });
+  });
+
+  it('classifies a qualified call from its receiver binding, not its method name', () => {
+    const fileNode = makeFileNode(1, 'src/app.ts');
+    const caller = makeFuncNode(2, 'main', 'src/app.ts');
+    const receiver = makeVariableNode(3, 'client', 'src/app.ts');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, caller, receiver]);
+    const state = makeResolverState();
+
+    passCalls(db, [makeBatch('src/app.ts', '/fake/src/app.ts',
+      makeCallResult('client.send', 'app.main'))], idx, [], state);
+
+    expect(state.unresolvedCallReasons).toEqual({ dynamic_local_binding: 1 });
   });
 
   it('resolves callee to imported symbol when name collides across files', () => {

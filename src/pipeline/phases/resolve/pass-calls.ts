@@ -8,7 +8,10 @@ import { upsertNode } from '../../../store/nodes.js';
 import type { LynxEdge, LynxRoute } from '../../../types.js';
 import type { ExtractionBatch } from '../extract.js';
 import type { NodeRef, ResolverIndexes, ResolverState } from './indexes.js';
-import { addEdge, hashString, resolveCaller, resolveCallee } from './utils.js';
+import {
+  addEdge, declaredParamOwner, hashString, isRuntimeReceiverType,
+  resolveCaller, resolveCallee,
+} from './utils.js';
 
 const HTTP_METHOD_BY_CALL = new Map<string, string>([
   ['fetch', 'GET'], ['request', 'GET'],
@@ -166,14 +169,18 @@ export function passCalls(
           : methodName;
         const imported = batch.result.imports.find((entry) =>
           entry.localName === receiverName || entry.localName === methodName);
-        const localBinding = (idx.kindNameToRows.get(`Variable:${methodName}`) || [])
+        const localBinding = (idx.kindNameToRows.get(`Variable:${receiverName}`) || [])
           .some((node) => node.file_path === batch.file.relPath);
+        const callerOwnerType = declaredParamOwner(caller.properties, receiverName);
         const internalCandidates = [
           ...(idx.kindNameToRows.get(`Function:${methodName}`) || []),
           ...(idx.kindNameToRows.get(`Method:${methodName}`) || []),
         ];
         let reason = 'target_absent';
         if (localBinding) reason = 'dynamic_local_binding';
+        else if (isRuntimeReceiverType(batch.file.relPath, callerOwnerType)) {
+          reason = 'runtime_builtin_receiver';
+        }
         else if (imported) {
           reason = /^\.{1,2}\//.test(imported.modulePath)
             ? 'imported_internal_target_missing'

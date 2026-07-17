@@ -31,6 +31,7 @@ export interface ResolutionStats {
   totalEdges: number;
   edgeTypeBreakdown: Record<string, number>;
   passTimingsMs: Record<string, number>;
+  fileCoverage: ResolverState['fileCoverage'];
 }
 
 export function resolveAll(
@@ -46,6 +47,7 @@ export function resolveAll(
       totalEdges: 0,
       edgeTypeBreakdown: {},
       passTimingsMs: {},
+      fileCoverage: new Map(),
     };
   }
 
@@ -54,6 +56,7 @@ export function resolveAll(
     totalCalls: 0,
     unresolvedCalls: 0,
     unresolvedCallReasons: {},
+    fileCoverage: new Map(),
   };
   const idx = buildIndexes(db, project);
   const passTimingsMs: Record<string, number> = {};
@@ -101,5 +104,6 @@ export function resolveAll(
     totalEdges: deduped.length,
     edgeTypeBreakdown,
     passTimingsMs,
+    fileCoverage: state.fileCoverage,
   };
 }

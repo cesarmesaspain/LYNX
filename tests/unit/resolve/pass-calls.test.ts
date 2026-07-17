@@ -22,7 +22,7 @@ function makeCallResult(calleeName: string, enclosingFuncQn: string, args: strin
 }
 
 function makeResolverState(): ResolverState {
-  return { totalCalls: 0, unresolvedCalls: 0, unresolvedCallReasons: {} };
+  return { totalCalls: 0, unresolvedCalls: 0, unresolvedCallReasons: {}, fileCoverage: new Map() };
 }
 
 describe('passCalls', () => {

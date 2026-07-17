@@ -272,6 +272,94 @@ export interface IndexRunCoverage {
   partialFiles: Array<{ file: string; reasons: string[] }>;
 }
 
+export interface FileCallCoverage {
+  filePath: string;
+  totalCalls: number;
+  unresolvedCalls: number;
+  unresolvedCallReasons: Record<string, number>;
+  partialReasons: string[];
+}
+
+export function upsertFileCallCoverage(
+  db: LynxDatabase,
+  project: string,
+  coverage: FileCallCoverage,
+): void {
+  db.db.prepare(`
+    INSERT INTO file_call_coverage (
+      project, file_path, total_calls, unresolved_calls, reasons_json, partial_reasons_json
+    ) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(project, file_path) DO UPDATE SET
+      total_calls = excluded.total_calls,
+      unresolved_calls = excluded.unresolved_calls,
+      reasons_json = excluded.reasons_json,
+      partial_reasons_json = excluded.partial_reasons_json
+  `).run(
+    project,
+    coverage.filePath,
+    coverage.totalCalls,
+    coverage.unresolvedCalls,
+    JSON.stringify(coverage.unresolvedCallReasons),
+    JSON.stringify(coverage.partialReasons),
+  );
+}
+
+export function deleteFileCallCoverage(db: LynxDatabase, project: string, filePath?: string): void {
+  if (filePath) {
+    db.db.prepare('DELETE FROM file_call_coverage WHERE project = ? AND file_path = ?')
+      .run(project, filePath);
+  } else {
+    db.db.prepare('DELETE FROM file_call_coverage WHERE project = ?').run(project);
+  }
+}
+
+export function countFileCallCoverage(db: LynxDatabase, project: string): number {
+  return (db.db.prepare('SELECT COUNT(*) AS count FROM file_call_coverage WHERE project = ?')
+    .get(project) as { count: number }).count;
+}
+
+export function getProjectCallCoverage(db: LynxDatabase, project: string): IndexRunCoverage {
+  const rows = db.db.prepare(`
+    SELECT file_path, total_calls, unresolved_calls, reasons_json, partial_reasons_json
+    FROM file_call_coverage WHERE project = ? ORDER BY file_path
+  `).all(project) as Array<{
+    file_path: string;
+    total_calls: number;
+    unresolved_calls: number;
+    reasons_json: string;
+    partial_reasons_json: string;
+  }>;
+  const unresolvedCallReasons: Record<string, number> = {};
+  const partialFiles: Array<{ file: string; reasons: string[] }> = [];
+  let callsExtracted = 0;
+  let callsUnresolved = 0;
+  for (const row of rows) {
+    callsExtracted += row.total_calls;
+    callsUnresolved += row.unresolved_calls;
+    try {
+      const reasons = JSON.parse(row.reasons_json) as Record<string, number>;
+      for (const [reason, count] of Object.entries(reasons)) {
+        unresolvedCallReasons[reason] = (unresolvedCallReasons[reason] || 0) + count;
+      }
+    } catch { /* invalid legacy payload contributes no classified reasons */ }
+    try {
+      const reasons = JSON.parse(row.partial_reasons_json) as string[];
+      if (reasons.length > 0) partialFiles.push({ file: row.file_path, reasons });
+    } catch { /* invalid legacy payload contributes no partial reason */ }
+  }
+  const callsResolved = Math.max(0, callsExtracted - callsUnresolved);
+  return {
+    callsExtracted,
+    callsResolved,
+    callsUnresolved,
+    unresolvedCallReasons,
+    callResolutionRate: callsExtracted === 0
+      ? 1
+      : Number((callsResolved / callsExtracted).toFixed(4)),
+    partialFiles,
+  };
+}
+
 export function insertIndexRun(
   db: LynxDatabase,
   run: Omit<RunSnapshot, 'id' | 'runAt'>

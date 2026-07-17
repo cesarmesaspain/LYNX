@@ -41,6 +41,11 @@ export interface ResolverState {
   totalCalls: number;
   unresolvedCalls: number;
   unresolvedCallReasons: Record<string, number>;
+  fileCoverage: Map<string, {
+    totalCalls: number;
+    unresolvedCalls: number;
+    unresolvedCallReasons: Record<string, number>;
+  }>;
 }
 
 export function buildIndexes(db: LynxDatabase, project: string): ResolverIndexes {

@@ -32,6 +32,10 @@ import {
   upsertFileHash,
   insertIndexRun,
   getLastIndexCoverage,
+  countFileCallCoverage,
+  deleteFileCallCoverage,
+  getProjectCallCoverage,
+  upsertFileCallCoverage,
   deleteFileHash,
   deleteFindingsByFile,
   getCachedLlmSummary,
@@ -209,6 +213,7 @@ export async function runPipeline(
   const fileHashMap = requestedIncremental
     ? getAllFileHashes(db, project)
     : undefined;
+  const persistedFileCount = fileHashMap?.size || 0;
   const presentPaths = new Set(discovery.files.map((file) => file.relPath));
   const deleted = fileHashMap
     ? [...fileHashMap.keys()].filter((file) => !presentPaths.has(file)).sort()
@@ -251,7 +256,7 @@ export async function runPipeline(
     fallbackReason === null &&
     beforeNodes > 0 &&
     (fileHashMap?.size || 0) > 0 &&
-    !persistedCoverage
+    (!persistedCoverage || countFileCallCoverage(db, project) !== persistedFileCount)
   ) {
     fallbackReason = "missing_persisted_coverage_requires_full_rebuild";
   }
@@ -428,6 +433,7 @@ export async function runPipeline(
   let filesSkipped = 0;
   let partialFiles: Array<{ file: string; reasons: string[] }> = [];
   let reindexedFiles: string[] = [];
+  let aggregateCoverage!: ReturnType<typeof getProjectCallCoverage>;
   // Everything below is persistent graph state. Nested helper transactions use
   // SQLite savepoints, so this outer transaction is the only commit boundary.
   const persistBreakdown: Record<string, number> = {};
@@ -451,6 +457,7 @@ export async function runPipeline(
           db.db
             .prepare("DELETE FROM file_hashes WHERE project = ?")
             .run(project);
+          deleteFileCallCoverage(db, project);
         });
       }
       _mark("cleanup");
@@ -470,6 +477,9 @@ export async function runPipeline(
              WHERE project = ? AND file_path = ?`,
               )
               .run(to, oldModuleQn, newModuleQn, project, from);
+            db.db.prepare(
+              'UPDATE file_call_coverage SET file_path = ? WHERE project = ? AND file_path = ?',
+            ).run(to, project, from);
             const hash = fileHashMap.get(from)!;
             deleteFileHash(db, project, from);
             const newFile = discovery.files.find((f) => f.relPath === to)!;
@@ -491,6 +501,7 @@ export async function runPipeline(
             deleteNodesByFile(db, project, file);
             deleteFindingsByFile(db, project, file);
             deleteFileHash(db, project, file);
+            deleteFileCallCoverage(db, project, file);
           }
         });
       }
@@ -501,6 +512,7 @@ export async function runPipeline(
           for (const batch of batches) {
             if (batch.skipped) continue;
             changedFiles.push(batch.file.relPath);
+            deleteFileCallCoverage(db, project, batch.file.relPath);
             deleteEdgesForNodesInFile(db, project, batch.file.relPath);
             deleteNodesByFile(db, project, batch.file.relPath);
           }
@@ -542,6 +554,26 @@ export async function runPipeline(
         stats.totalEdges += nativeEdges.length;
         for (const edge of nativeEdges) {
           stats.edgeTypeBreakdown[edge.type] = (stats.edgeTypeBreakdown[edge.type] || 0) + 1;
+        }
+        for (const batch of batches) {
+          if (!batch.nativeEdges) continue;
+          const nativeCalls = batch.result.calls.length;
+          const resolvedNativeCalls = Math.min(
+            nativeCalls,
+            batch.nativeEdges.filter((edge) => edge.type === 'CALLS').length,
+          );
+          const unresolvedNativeCalls = Math.max(0, nativeCalls - resolvedNativeCalls);
+          const fileCoverage = stats.fileCoverage.get(batch.file.relPath) || {
+            totalCalls: 0,
+            unresolvedCalls: 0,
+            unresolvedCallReasons: {},
+          };
+          fileCoverage.totalCalls += nativeCalls;
+          fileCoverage.unresolvedCalls += unresolvedNativeCalls;
+          if (unresolvedNativeCalls > 0) {
+            fileCoverage.unresolvedCallReasons.native_target_not_found = unresolvedNativeCalls;
+          }
+          stats.fileCoverage.set(batch.file.relPath, fileCoverage);
         }
       }
       phaseTimingsMs.resolve = Date.now() - phaseStartedAt;
@@ -588,6 +620,22 @@ export async function runPipeline(
           file: batch.file.relPath,
           reasons: batch.result.partialReasons!,
         }));
+      for (const batch of batches) {
+        if (batch.skipped) continue;
+        const fileCoverage = stats.fileCoverage.get(batch.file.relPath) || {
+          totalCalls: 0,
+          unresolvedCalls: 0,
+          unresolvedCallReasons: {},
+        };
+        upsertFileCallCoverage(db, project, {
+          filePath: batch.file.relPath,
+          totalCalls: fileCoverage.totalCalls,
+          unresolvedCalls: fileCoverage.unresolvedCalls,
+          unresolvedCallReasons: fileCoverage.unresolvedCallReasons,
+          partialReasons: batch.result.partialReasons || [],
+        });
+      }
+      aggregateCoverage = getProjectCallCoverage(db, project);
       reindexedFiles = batches
         .filter((batch) => !batch.skipped)
         .map((batch) => batch.file.relPath)
@@ -620,16 +668,7 @@ export async function runPipeline(
         filesProcessed,
         filesSkipped,
         mode,
-        coverage: {
-          callsExtracted: stats.totalCalls,
-          callsResolved: Math.max(0, stats.totalCalls - stats.unresolvedCalls),
-          callsUnresolved: stats.unresolvedCalls,
-          unresolvedCallReasons: stats.unresolvedCallReasons,
-          callResolutionRate: stats.totalCalls === 0
-            ? 1
-            : Number(((stats.totalCalls - stats.unresolvedCalls) / stats.totalCalls).toFixed(4)),
-          partialFiles,
-        },
+        coverage: aggregateCoverage,
       });
       _mark("insert-run");
       const sacgInput = projectLegacyGraphToSacg(db, project, {
@@ -730,20 +769,12 @@ export async function runPipeline(
       files_with_nodes: filesWithNodes,
       excluded_directories: discovery.excludedDirs.slice(0, 100),
       functions_extracted: functionsExtracted.count,
-      calls_extracted: stats.totalCalls,
-      calls_resolved: Math.max(0, stats.totalCalls - stats.unresolvedCalls),
-      calls_unresolved: stats.unresolvedCalls,
-      unresolved_call_reasons: stats.unresolvedCallReasons,
-      call_resolution_rate:
-        stats.totalCalls === 0
-          ? 1
-          : Number(
-              (
-                (stats.totalCalls - stats.unresolvedCalls) /
-                stats.totalCalls
-              ).toFixed(4),
-            ),
-      partial_files: partialFiles,
+      calls_extracted: aggregateCoverage.callsExtracted,
+      calls_resolved: aggregateCoverage.callsResolved,
+      calls_unresolved: aggregateCoverage.callsUnresolved,
+      unresolved_call_reasons: aggregateCoverage.unresolvedCallReasons,
+      call_resolution_rate: aggregateCoverage.callResolutionRate,
+      partial_files: aggregateCoverage.partialFiles,
     },
     incremental: {
       updateMode: incremental

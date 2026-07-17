@@ -81,7 +81,9 @@ CI now runs a deterministic synthetic 40-module TypeScript workload, enforces p9
 
 ### Authoritative no-op resolution coverage
 
-No-op incremental indexing previously counted persisted `CALLS` edges as both extracted and resolved calls, discarded unresolved calls and their causes, and therefore reported a fabricated 100% resolution rate. Full and incremental runs now persist the complete resolution summary in `index_runs.coverage_json`; no-op responses reuse that authoritative snapshot exactly. Schema migration 4 adds the column idempotently. A legacy database without a stored snapshot performs one full rebuild instead of guessing, then subsequent no-ops remain read-only and truthful.
+No-op incremental indexing previously counted persisted `CALLS` edges as both extracted and resolved calls, discarded unresolved calls and their causes, and therefore reported a fabricated 100% resolution rate. Full and incremental runs now persist the complete resolution summary in `index_runs.coverage_json`; no-op responses reuse that authoritative snapshot exactly. Schema migration 4 adds the column idempotently.
+
+Partial incremental runs also used to replace project-wide coverage with statistics from only the changed files. Schema migration 5 adds `file_call_coverage`, including zero-call files and partial-resolution reasons. Changed, deleted, and renamed files update that table transactionally, and every non-no-op run recomposes the project summary from all current per-file rows before writing `index_runs`. A legacy database without a complete snapshot or one coverage row per indexed file performs one full rebuild instead of guessing; subsequent partial updates and no-ops remain truthful.
 
 ## Remaining gaps
 

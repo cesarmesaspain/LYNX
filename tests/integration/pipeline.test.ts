@@ -242,6 +242,51 @@ describe("incremental pipeline safety", () => {
     }
   }, 30000);
 
+  it("recomposes global call coverage from per-file incremental deltas", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "lynx-incremental-"));
+    const db = LynxDatabase.openMemory();
+    try {
+      fs.mkdirSync(path.join(root, "src"), { recursive: true });
+      fs.writeFileSync(
+        path.join(root, "src", "a.ts"),
+        "function helper() { return 1; } export function run() { return helper(); }",
+      );
+      fs.writeFileSync(
+        path.join(root, "src", "b.ts"),
+        "export function broken() { return missingTarget(); }",
+      );
+      initGit(root);
+      const first = await runPipeline(db, root, "per-file-coverage", {
+        mode: "fast",
+        testSkipProjectBrief: true,
+      });
+      expect(first.coverage.calls_extracted).toBe(2);
+      expect(first.coverage.calls_resolved).toBe(1);
+      expect(first.coverage.calls_unresolved).toBe(1);
+
+      fs.writeFileSync(
+        path.join(root, "src", "a.ts"),
+        "function helper() { return 1; } export function run() { helper(); return helper(); }",
+      );
+      const updated = await runPipeline(db, root, "per-file-coverage", {
+        mode: "fast",
+        incremental: true,
+        testSkipProjectBrief: true,
+      });
+
+      expect(updated.incremental.updateMode).toBe("incremental");
+      expect(updated.incremental.reindexed).toEqual(["src/a.ts"]);
+      expect(updated.coverage.calls_extracted).toBe(3);
+      expect(updated.coverage.calls_resolved).toBe(2);
+      expect(updated.coverage.calls_unresolved).toBe(1);
+      expect(updated.coverage.unresolved_call_reasons.target_absent).toBe(1);
+      expect(updated.coverage.call_resolution_rate).toBe(0.6667);
+    } finally {
+      db.close();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }, 30000);
+
   it("reindexes a modified file incrementally", async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "lynx-incremental-"));
     const db = LynxDatabase.openMemory();

@@ -224,13 +224,14 @@ shown by CLI, MCP, CSV export, and dashboard.
 2. Reproduce a defect before editing.
 3. Trace the cause to the earliest incorrect contract or state transition.
 4. Add a regression test at that boundary.
-5. Persist denominators and unresolved classifications when later fast paths
-   cannot reconstruct them from graph edges; never infer extracted work from
-   successful edges alone.
-5. Run focused validation, workspace validation, and the complete suite.
-6. Commit coherent changes before rebuild/reinstall operations.
-7. Rebuild TypeScript and native artifacts, reinstall, and run `lynx doctor`.
-8. Full-index once, run an incremental no-op, restart the agent, and verify again.
+5. Persist denominators and unresolved classifications per file when later fast
+   paths cannot reconstruct them from graph edges. Recompose project-wide
+   coverage from the complete current file set; never infer extracted work from
+   successful edges or from only the changed-file batch.
+6. Run focused validation, workspace validation, and the complete suite.
+7. Commit coherent changes before rebuild/reinstall operations.
+8. Rebuild TypeScript and native artifacts, reinstall, and run `lynx doctor`.
+9. Full-index once, run an incremental no-op, restart the agent, and verify again.
 9. Save measured evidence and update this standard when a gate evolves.
 
 ## Current baseline — 2026-07-17

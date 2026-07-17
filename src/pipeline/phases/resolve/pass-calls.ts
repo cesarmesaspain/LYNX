@@ -118,13 +118,25 @@ export function passCalls(
   state: ResolverState
 ): void {
   for (const batch of batches) {
+    const fileCoverage = {
+      totalCalls: 0,
+      unresolvedCalls: 0,
+      unresolvedCallReasons: {} as Record<string, number>,
+    };
+    state.fileCoverage.set(batch.file.relPath, fileCoverage);
+    const unresolved = (reason: string): void => {
+      state.unresolvedCalls++;
+      state.unresolvedCallReasons[reason] = (state.unresolvedCallReasons[reason] || 0) + 1;
+      fileCoverage.unresolvedCalls++;
+      fileCoverage.unresolvedCallReasons[reason] =
+        (fileCoverage.unresolvedCallReasons[reason] || 0) + 1;
+    };
     for (const call of batch.result.calls) {
       state.totalCalls++;
+      fileCoverage.totalCalls++;
       const caller = resolveCaller(idx, batch.file.relPath, call.enclosingFuncQn);
       if (!caller) {
-        state.unresolvedCalls++;
-        state.unresolvedCallReasons.caller_not_found =
-          (state.unresolvedCallReasons.caller_not_found || 0) + 1;
+        unresolved('caller_not_found');
         continue;
       }
 
@@ -143,7 +155,6 @@ export function passCalls(
 
       const resolved = resolveCallee(idx, batch.file.relPath, call.calleeName);
       if (!resolved) {
-        state.unresolvedCalls++;
         const methodName = call.calleeName.split('.').pop() || call.calleeName;
         const receiverName = call.calleeName.includes('.')
           ? call.calleeName.split('.')[0]
@@ -164,14 +175,11 @@ export function passCalls(
             : 'external_dependency_target';
         } else if (call.calleeName.includes('.')) reason = 'receiver_target_unknown';
         else if (internalCandidates.length > 0) reason = 'ambiguous_internal_target';
-        state.unresolvedCallReasons[reason] =
-          (state.unresolvedCallReasons[reason] || 0) + 1;
+        unresolved(reason);
         continue;
       }
       if (resolved.node.id === caller.id) {
-        state.unresolvedCalls++;
-        state.unresolvedCallReasons.self_reference =
-          (state.unresolvedCallReasons.self_reference || 0) + 1;
+        unresolved('self_reference');
         continue;
       }
 

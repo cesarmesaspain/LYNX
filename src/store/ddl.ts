@@ -135,6 +135,19 @@ export const CORE_SCHEMA = `
 
   CREATE INDEX IF NOT EXISTS idx_index_runs_project ON index_runs(project);
 
+  CREATE TABLE IF NOT EXISTS file_call_coverage (
+    project TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    total_calls INTEGER NOT NULL DEFAULT 0,
+    unresolved_calls INTEGER NOT NULL DEFAULT 0,
+    reasons_json TEXT NOT NULL DEFAULT '{}',
+    partial_reasons_json TEXT NOT NULL DEFAULT '[]',
+    PRIMARY KEY (project, file_path)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_file_call_coverage_project
+    ON file_call_coverage(project);
+
   CREATE TABLE IF NOT EXISTS project_briefs (
     project TEXT PRIMARY KEY,
     digest_hash TEXT NOT NULL,
@@ -194,9 +207,27 @@ export function migrateV03toV04(db: BetterSqlite3.Database): void {
   }
 }
 
+/** Add per-file resolution denominators for truthful partial incremental totals. */
+export function migrateV04toV05(db: BetterSqlite3.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS file_call_coverage (
+      project TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      total_calls INTEGER NOT NULL DEFAULT 0,
+      unresolved_calls INTEGER NOT NULL DEFAULT 0,
+      reasons_json TEXT NOT NULL DEFAULT '{}',
+      partial_reasons_json TEXT NOT NULL DEFAULT '[]',
+      PRIMARY KEY (project, file_path)
+    );
+    CREATE INDEX IF NOT EXISTS idx_file_call_coverage_project
+      ON file_call_coverage(project);
+  `);
+}
+
 export const GRAPH_SCHEMA_MIGRATIONS: readonly SchemaMigration[] = [
   { version: 1, name: 'project freshness columns', up: migrateV01toV02 },
   { version: 2, name: 'project indexed commit', up: migrateV02toV03 },
   { version: 3, name: 'SACG vertical slice tables', up: createSacgVerticalSliceSchema },
   { version: 4, name: 'index run resolution coverage', up: migrateV03toV04 },
+  { version: 5, name: 'per-file call resolution coverage', up: migrateV04toV05 },
 ];

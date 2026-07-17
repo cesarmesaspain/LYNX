@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearSessionDedup,
   clearUsageEvents,
@@ -19,6 +19,7 @@ import {
   usageLogPath,
 } from './metrics.js';
 import { layerValueMetrics } from './value-metrics.js';
+import { LynxDatabase } from '../store/database.js';
 
 let tempHome: string;
 
@@ -35,6 +36,18 @@ afterEach(() => {
 });
 
 describe('usage metrics', () => {
+  it('closes the temporary project database used for file-size estimates', () => {
+    const db = LynxDatabase.openProject('close-check');
+    db.upsertProject('close-check', tempHome);
+    db.close();
+    const close = vi.spyOn(LynxDatabase.prototype, 'close');
+
+    estimateTokensFromFiles(['missing.ts'], tempHome, 'close-check');
+
+    expect(close).toHaveBeenCalledTimes(1);
+    close.mockRestore();
+  });
+
   it('separates conservative savings, exploration potential, and structural confidence', () => {
     const value = layerValueMetrics(
       { estimated_tokens_saved: 1200, estimated_files_avoided: 2, confidence: 'medium' },

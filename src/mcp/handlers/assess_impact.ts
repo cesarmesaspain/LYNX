@@ -17,10 +17,12 @@
  *   5. unindexed_modified_files  — git diff files not in graph
  */
 
-import * as child_process from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getDb } from '../server.js';
+import { getModifiedFiles } from '../../git/diff.js';
+import { discoverInvariants, checkInvariantsBroken, type InvariantViolation } from './check_invariants.js';
+import { loadRules, detectArchitectureViolations, type RuleViolation } from '../../rules/engine.js';
 
 const CODE_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
@@ -63,7 +65,9 @@ export type AssessmentCategory =
   | 'untested_changes'
   | 'new_symbols_no_callers'
   | 'deleted_symbols_live_refs'
-  | 'unindexed_modified_files';
+  | 'unindexed_modified_files'
+  | 'downstream_dependents'
+  | 'async_dependents';
 
 export type EvidenceStrength = 'confirmed' | 'heuristic' | 'unknown' | 'searched_not_found';
 
@@ -97,6 +101,10 @@ export interface AssessImpactResult {
   category_filter?: string;
   findings_by_category: Record<string, number>;
   findings: ImpactFinding[];
+  direct_dependent_files: string[];
+  async_dependent_files: string[];
+  sibling_invariants_broken: InvariantViolation[];
+  architecture_rules_broken: RuleViolation[];
   ignored_files?: { count: number; examples: string[]; reason: string };
   uncertainties: string[];
   recommended_inspection: string[];
@@ -137,70 +145,9 @@ export function resolveRequestedFiles(args: Record<string, unknown>): string[] |
     || normalizeFileArg(args.changed_files);
 }
 
-export function collectGitDiffFiles(rootPath: string, baseBranch: string): string[] {
-  const files = new Set<string>();
+// getModifiedFiles is shared in src/git/diff.ts
 
-  function addFromNameStatus(stdout: string) {
-    for (const line of stdout.trim().split('\n')) {
-      if (!line.trim()) continue;
-      const parts = line.split('\t');
-      if (parts.length >= 3 && parts[0].startsWith('R')) {
-        files.add(parts[2].trim());
-      } else if (parts.length >= 2) {
-        files.add(parts.slice(1).join('\t'));
-      }
-    }
-  }
-
-  try {
-    try {
-      const out = child_process.execFileSync(
-        'git', ['diff', '--name-status', `${baseBranch}...HEAD`],
-        { cwd: rootPath, encoding: 'utf-8', timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] }
-      );
-      addFromNameStatus(out);
-    } catch {
-      try {
-        const out = child_process.execFileSync(
-          'git', ['diff', '--name-status', 'HEAD~1'],
-          { cwd: rootPath, encoding: 'utf-8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] }
-        );
-        addFromNameStatus(out);
-      } catch { /* no commits */ }
-    }
-
-    try {
-      const out = child_process.execFileSync(
-        'git', ['diff', '--name-only'],
-        { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
-      );
-      for (const f of out.trim().split('\n')) {
-        if (f.trim()) files.add(f.trim());
-      }
-    } catch { /* ignore */ }
-
-    try {
-      const out = child_process.execFileSync(
-        'git', ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=normal'],
-        { cwd: rootPath, encoding: 'utf-8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }
-      );
-      for (const rawLine of out.trim().split('\n')) {
-        const line = rawLine.replace(/[\r\n]+$/, '');
-        if (line.length < 3) continue;
-        let file = line.slice(3).trim();
-        const arrow = file.indexOf(' -> ');
-        if (arrow > 0) file = file.substring(arrow + 4);
-        if (file) files.add(file);
-      }
-    } catch { /* ignore */ }
-  } catch {
-    return [];
-  }
-
-  return Array.from(files).sort();
-}
-
-function isFileIndexed(db: ReturnType<typeof getDb>, project: string, relPath: string): boolean {
+export function isFileIndexed(db: ReturnType<typeof getDb>, project: string, relPath: string): boolean {
   const cnt = db.db.prepare(
     'SELECT COUNT(*) as cnt FROM nodes WHERE project = ? AND file_path = ?'
   ).get(project, relPath) as { cnt: number };
@@ -598,7 +545,93 @@ export function queryUnindexedModified(
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Fair truncation
+// Query 6: Downstream dependents (Blast Radius)
+// ═══════════════════════════════════════════════════════════════
+
+export function queryDownstreamDependents(
+  db: ReturnType<typeof getDb>,
+  project: string,
+  diffFiles: string[]
+): string[] {
+  if (diffFiles.length === 0) return [];
+
+  // All modified files that are indexed
+  const indexedFiles = diffFiles.filter(f => isFileIndexed(db, project, f));
+  if (indexedFiles.length === 0) return [];
+
+  // Build placeholders for IN clause
+  const placeholders = indexedFiles.map(() => '?').join(',');
+  const rows = db.db.prepare(
+    `SELECT DISTINCT tgt.file_path AS target_file
+     FROM edges e
+     JOIN nodes tgt ON tgt.id = e.target_id
+     WHERE tgt.project = ?
+       AND e.type IN ('CALLS', 'IMPORTS', 'USAGE')
+       AND e.source_id IN (
+         SELECT id FROM nodes
+         WHERE project = ? AND file_path IN (${placeholders})
+       )
+       AND tgt.file_path NOT IN (${placeholders})
+     ORDER BY target_file`
+  ).all(project, project, ...indexedFiles, ...indexedFiles) as Array<{ target_file: string }>;
+
+  return rows.map(r => r.target_file);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Query 7: Async dependents — Event-Bridge Blast Radius
+// ═══════════════════════════════════════════════════════════════
+
+export function queryAsyncDependents(
+  db: ReturnType<typeof getDb>,
+  project: string,
+  diffFiles: string[]
+): string[] {
+  if (diffFiles.length === 0) return [];
+
+  const indexedFiles = diffFiles.filter(f => isFileIndexed(db, project, f));
+  if (indexedFiles.length === 0) return [];
+
+  const placeholders = indexedFiles.map(() => '?').join(',');
+
+  // Files whose functions emit to channels that functions in other files listen on.
+  const rows = db.db.prepare(
+    `SELECT DISTINCT listener.file_path AS dependent_file
+     FROM edges emit_e
+     JOIN nodes ch ON ch.id = emit_e.target_id AND ch.kind = 'Channel'
+     JOIN edges listen_e ON listen_e.target_id = ch.id AND listen_e.type = 'LISTENS_ON'
+     JOIN nodes listener ON listener.id = listen_e.source_id
+     WHERE emit_e.project = ?
+       AND emit_e.type = 'EMITS'
+       AND emit_e.source_id IN (
+         SELECT id FROM nodes
+         WHERE project = ? AND file_path IN (${placeholders})
+       )
+       AND listener.file_path NOT IN (${placeholders})
+     ORDER BY dependent_file`
+  ).all(project, project, ...indexedFiles, ...indexedFiles) as Array<{ dependent_file: string }>;
+
+  // Also: files whose functions listen on channels that other modified files emit to
+  const reverseRows = db.db.prepare(
+    `SELECT DISTINCT emitter.file_path AS dependent_file
+     FROM edges listen_e
+     JOIN nodes ch ON ch.id = listen_e.target_id AND ch.kind = 'Channel'
+     JOIN edges emit_e ON emit_e.target_id = ch.id AND emit_e.type = 'EMITS'
+     JOIN nodes emitter ON emitter.id = emit_e.source_id
+     WHERE listen_e.project = ?
+       AND listen_e.type = 'LISTENS_ON'
+       AND listen_e.source_id IN (
+         SELECT id FROM nodes
+         WHERE project = ? AND file_path IN (${placeholders})
+       )
+       AND emitter.file_path NOT IN (${placeholders})
+     ORDER BY dependent_file`
+  ).all(project, project, ...indexedFiles, ...indexedFiles) as Array<{ dependent_file: string }>;
+
+  const allFiles = new Set(rows.map(r => r.dependent_file));
+  for (const r of reverseRows) allFiles.add(r.dependent_file);
+  return Array.from(allFiles).sort();
+}
 // ═══════════════════════════════════════════════════════════════
 
 const CONFIDENCE_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
@@ -713,6 +746,10 @@ export async function handleAssessImpact(
       limit: maxFindings,
       findings_by_category: {},
       findings: [],
+      direct_dependent_files: [],
+      async_dependent_files: [],
+      sibling_invariants_broken: [],
+      architecture_rules_broken: [],
       uncertainties: ['Project not found in index.'],
       recommended_inspection: ['Run index_repository first.'],
       confidence_note: 'Cannot assess impact without indexed project.',
@@ -720,7 +757,7 @@ export async function handleAssessImpact(
   }
   const rootPath = projectMeta.rootPath;
 
-  let diffFiles = collectGitDiffFiles(rootPath, baseBranch);
+  let diffFiles = getModifiedFiles(rootPath, baseBranch);
   const uncertainties: string[] = [];
   let ignoredFiles: { count: number; examples: string[]; reason: string } | undefined;
 
@@ -755,6 +792,23 @@ export async function handleAssessImpact(
   allFindings.push(...queryNewSymbolsNoCallers(db, project, scopedFiles));
   allFindings.push(...queryDeletedSymbolsLiveRefs(db, project, rootPath));
   allFindings.push(...queryUnindexedModified(db, project, scopedFiles, rootPath));
+
+  // Query 6: Blast Radius — what depends on modified symbols?
+  const dependents = queryDownstreamDependents(db, project, scopedFiles);
+
+  // Query 7: Async Blast Radius — what depends via event channels?
+  const asyncDeps = queryAsyncDependents(db, project, scopedFiles);
+
+  // Query 8: Sibling-call invariants broken in modified code
+  const allInvariants = discoverInvariants(db, project);
+  const invariantsBroken = checkInvariantsBroken(db, project, allInvariants, scopedFiles);
+
+  // Query 9: Architecture rules broken in modified code
+  let architectureViolations: RuleViolation[] = [];
+  const rules = loadRules(rootPath);
+  if (rules) {
+    architectureViolations = detectArchitectureViolations(db, project, rules, scopedFiles);
+  }
 
   // Apply optional category filter (before count, before truncation)
   const filteredFindings = categoryFilter
@@ -814,6 +868,10 @@ export async function handleAssessImpact(
     ...(categoryFilter ? { category_filter: categoryFilter } : {}),
     findings_by_category: fullCategoryTotals,
     findings: selected,
+    direct_dependent_files: dependents.slice(0, 30),
+    async_dependent_files: asyncDeps.slice(0, 30),
+    sibling_invariants_broken: invariantsBroken.slice(0, 20),
+    architecture_rules_broken: architectureViolations.slice(0, 20),
     ...(ignoredFiles ? { ignored_files: ignoredFiles } : {}),
     uncertainties: uncertainties.length > 0 ? uncertainties : ['Assessment completed with no blockers.'],
     recommended_inspection: recommended,

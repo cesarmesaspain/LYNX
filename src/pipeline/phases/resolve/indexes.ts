@@ -27,6 +27,8 @@ export interface ResolverIndexes {
   fileToNodes: Map<string, NodeRef[]>;
   suffixToRows: Map<string, NodeRef[]>;
   moduleToFileNode: Map<string, NodeRef>;
+  /** Header basename -> candidate File nodes. Used for conservative C/C++ include-path resolution. */
+  headerBasenameToFileNodes: Map<string, NodeRef[]>;
   exportedByModule: Map<string, NodeRef[]>;
   folderToId: Map<string, number>;
   /** file_path → set of qualified_names that file imports. Built by passImports, consumed by resolveCallee. */
@@ -38,6 +40,12 @@ export interface ResolverIndexes {
 export interface ResolverState {
   totalCalls: number;
   unresolvedCalls: number;
+  unresolvedCallReasons: Record<string, number>;
+  fileCoverage: Map<string, {
+    totalCalls: number;
+    unresolvedCalls: number;
+    unresolvedCallReasons: Record<string, number>;
+  }>;
 }
 
 export function buildIndexes(db: LynxDatabase, project: string): ResolverIndexes {
@@ -55,6 +63,7 @@ export function buildIndexes(db: LynxDatabase, project: string): ResolverIndexes
     fileToNodes: new Map(),
     suffixToRows: new Map(),
     moduleToFileNode: new Map(),
+    headerBasenameToFileNodes: new Map(),
     exportedByModule: new Map(),
     folderToId: new Map(),
     importedQnByFile: new Map(),
@@ -74,6 +83,10 @@ export function buildIndexes(db: LynxDatabase, project: string): ResolverIndexes
 
     if (row.kind === 'File') {
       idx.moduleToFileNode.set(filePathToModuleKey(row.file_path), row);
+      if (/\.(?:h|hh|hpp|hxx)$/i.test(row.file_path)) {
+        const basename = row.file_path.replace(/\\/g, '/').split('/').pop()!.toLowerCase();
+        pushMap(idx.headerBasenameToFileNodes, basename, row);
+      }
     }
 
     if (symbolKinds.has(row.kind)) {

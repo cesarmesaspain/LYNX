@@ -15,6 +15,7 @@ import type {
   LynxExternalSymbol,
   LynxNode,
 } from '../../../types.js';
+import type { ExtractedLocalBinding } from '../../../extraction/extractor.js';
 import type { NodeRef, ResolverIndexes } from './indexes.js';
 import { callableKinds, symbolKinds, typeKinds } from './constants.js';
 
@@ -54,25 +55,126 @@ const langGroups: Record<string, string> = {
   py: 'py', pyx: 'py', pyi: 'py',
   go: 'go',
   rs: 'rs',
+  c: 'c-family', h: 'c-family', cc: 'c-family', cpp: 'c-family', cxx: 'c-family',
+  hh: 'c-family', hpp: 'c-family', hxx: 'c-family', m: 'c-family', mm: 'c-family',
+  java: 'jvm', kt: 'jvm', kts: 'jvm',
 };
 
-function languageGroup(filePath: string): string {
+export function languageGroup(filePath: string): string {
   const ext = filePath.split('.').pop()?.toLowerCase() || '';
   return langGroups[ext] || ext;
+}
+
+export function sameLanguageGroup(leftFile: string, rightFile: string): boolean {
+  return languageGroup(leftFile) === languageGroup(rightFile);
+}
+
+function nominalOwnerName(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const normalized = raw.trim().replace(/^[:*&\s]+/, '').replace(/[?\s]+$/, '');
+  // Union/intersection types do not identify one concrete owner.
+  if (!normalized || normalized.includes('|') || normalized.includes('&')) return undefined;
+  const withoutGenerics = normalized.replace(/<.*>$/, '').replace(/\[\]$/, '');
+  const parts = withoutGenerics.split(/\.|::/).filter(Boolean);
+  const owner = parts[parts.length - 1];
+  return /^[A-Za-z_$][\w$]*$/.test(owner || '') ? owner : undefined;
+}
+
+export function declaredParamOwner(properties: string | null, receiverName: string): string | undefined {
+  if (!properties) return undefined;
+  try {
+    const paramTypes = (JSON.parse(properties) as { paramTypes?: Record<string, unknown> }).paramTypes;
+    return nominalOwnerName(paramTypes?.[receiverName]);
+  } catch {
+    return undefined;
+  }
+}
+
+const runtimeReceiverTypes: Record<string, Set<string>> = {
+  ts: new Set(['string', 'number', 'boolean', 'bigint', 'symbol', 'Array', 'ReadonlyArray', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Promise', 'Date', 'RegExp']),
+  py: new Set(['str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple', 'bytes']),
+  go: new Set(['string', 'int', 'int8', 'int16', 'int32', 'int64', 'uint', 'uint8', 'uint16', 'uint32', 'uint64', 'float32', 'float64', 'bool']),
+  rs: new Set(['String', 'str', 'Vec', 'Option', 'Result', 'HashMap', 'HashSet']),
+  jvm: new Set(['String', 'List', 'Map', 'Set', 'Collection', 'Optional']),
+};
+
+export function isRuntimeReceiverType(filePath: string, ownerName: string | undefined): boolean {
+  return !!ownerName && !!runtimeReceiverTypes[languageGroup(filePath)]?.has(ownerName);
 }
 
 export function resolveCallee(
   idx: ResolverIndexes,
   filePath: string,
-  calleeName: string
+  calleeName: string,
+  callerQn?: string,
+  localBindings?: ExtractedLocalBinding[],
+  callLine?: number,
 ): { node: NodeRef; reason: string; confidence: number } | undefined {
   const methodName = calleeName.split('.').pop() || calleeName;
+  const isQualifiedCall = calleeName.includes('.');
 
   const callerLang = languageGroup(filePath);
+  const importedQns = idx.importedQnByFile.get(filePath);
+
+  // `this.method()` / `self.method()` carry enough lexical evidence to bind
+  // the call to the caller's own class. Match the complete parent QN so two
+  // classes with the same method name in one file remain unambiguous.
+  if (callerQn && /^(?:this|self)\.[A-Za-z_$][\w$]*$/.test(calleeName)) {
+    const parentQn = callerQn.includes('.')
+      ? callerQn.slice(0, callerQn.lastIndexOf('.'))
+      : '';
+    if (parentQn) {
+      const lexicalTarget = getFileNodes(idx, filePath).find((node) =>
+        callableKinds.has(node.kind) && node.qualified_name === `${parentQn}.${methodName}`,
+      );
+      if (lexicalTarget) {
+        return { node: lexicalTarget, reason: 'lexical-receiver', confidence: 0.98 };
+      }
+    }
+  }
+
+  // Resolve `parameter.method()` only when the caller records a concrete
+  // declared parameter type and that type identifies one local/imported owner
+  // with one matching child callable.
+  const simpleQualified = calleeName.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/);
+  if (callerQn && simpleQualified) {
+    const callerId = idx.qnToId.get(callerQn);
+    const callerNode = callerId ? idx.idToRow.get(callerId) : undefined;
+    const scopedBinding = localBindings?.find((binding) =>
+      binding.ownerQn === callerQn &&
+      binding.name === simpleQualified[1] &&
+      binding.declarationLine <= (callLine ?? Number.MAX_SAFE_INTEGER) &&
+      binding.scopeStartLine <= (callLine ?? binding.scopeStartLine) &&
+      binding.scopeEndLine >= (callLine ?? binding.scopeEndLine),
+    );
+    const ownerName = declaredParamOwner(callerNode?.properties || null, simpleQualified[1]) ||
+      nominalOwnerName(scopedBinding?.typeName);
+    if (ownerName) {
+      const owners = [
+        ...(idx.kindNameToRows.get(`Class:${ownerName}`) || []),
+        ...(idx.kindNameToRows.get(`Interface:${ownerName}`) || []),
+      ].filter((owner) =>
+        languageGroup(owner.file_path) === callerLang &&
+        (owner.file_path === filePath || importedQns?.has(owner.qualified_name)),
+      );
+      const typedTargets = owners.flatMap((owner) =>
+        (idx.kindNameToRows.get(`Method:${methodName}`) || []).filter((candidate) =>
+          candidate.qualified_name.startsWith(`${owner.qualified_name}.`),
+        ),
+      );
+      if (owners.length === 1 && typedTargets.length === 1) {
+        return {
+          node: typedTargets[0],
+          reason: scopedBinding ? 'scoped-local-type' : 'declared-parameter-type',
+          confidence: scopedBinding?.origin === 'constructor' ? 0.99 : 0.97,
+        };
+      }
+    }
+  }
 
   const local = getFileNodes(idx, filePath)
     .filter((node) => callableKinds.has(node.kind))
-    .find((node) => node.qualified_name.endsWith(`.${calleeName}`) || node.name === methodName);
+    .find((node) => node.qualified_name.endsWith(`.${calleeName}`) || (!isQualifiedCall && node.name === methodName));
   if (local) return { node: local, reason: 'same-file', confidence: 0.95 };
 
   // If the callee name matches a local variable (const/let/var) in the same
@@ -95,23 +197,52 @@ export function resolveCallee(
   // candidates that match those imports over global name matches. This
   // eliminates false-positive CALLS edges when two functions share a name
   // across different files — the file can only call what it imports.
-  const importedQns = idx.importedQnByFile.get(filePath);
   if (importedQns && importedQns.size > 0) {
     const importedCallables = callableByName.filter((node) => importedQns.has(node.qualified_name));
     if (importedCallables.length === 1) return { node: importedCallables[0], reason: 'imported-name', confidence: 0.92 };
     if (importedCallables.length > 1) {
+      const implementations = importedCallables.filter((node) =>
+        !/\.(?:h|hh|hpp|hxx)$/i.test(node.file_path),
+      );
+      if (implementations.length === 1) {
+        return { node: implementations[0], reason: 'imported-implementation', confidence: 0.96 };
+      }
       const best = importedCallables.find((n) => n.file_path !== filePath) || importedCallables[0];
       return { node: best, reason: 'imported-name', confidence: 0.85 };
     }
     // No imported candidate matched — fall through to global search for
     // built-ins, dynamic imports, and extraction gaps.
+
+    // A class import binds qualified static/member calls through the imported
+    // class identity. Require one imported class QN and one child callable;
+    // aliases or ambiguous class identities remain unresolved.
+    const qualified = calleeName.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/);
+    if (qualified) {
+      const receiverName = qualified[1];
+      const importedOwners = [...importedQns].filter((qn) =>
+        qn === receiverName || qn.endsWith(`.${receiverName}`),
+      );
+      const ownerCallables = callableByName.filter((node) =>
+        importedOwners.some((ownerQn) => node.qualified_name.startsWith(`${ownerQn}.`)),
+      );
+      if (importedOwners.length === 1 && ownerCallables.length === 1) {
+        return { node: ownerCallables[0], reason: 'imported-owner', confidence: 0.96 };
+      }
+    }
   }
+
+  // A receiver-qualified call such as db.get() or map.set() does not identify
+  // the owning type. Resolving it to the only globally indexed method named
+  // "get"/"set" creates high-confidence-looking false edges. Without exact
+  // local or import evidence, preserve it as unresolved.
+  if (isQualifiedCall) return undefined;
 
   // For global name matches, exclude unexported symbols unless they're in
   // the same file. Module-private functions (no `export` keyword) cannot be
   // called from other files — matching them by name alone produces false
   // CALLS edges (e.g. `params.toString()` → `lib/backups.toString`).
-  const exportedCallable = callableByName.filter((n) => n.is_exported !== 0 || n.file_path === filePath);
+  const exportedCallable = callableByName.filter((n) =>
+    n.kind !== 'Method' && (n.is_exported !== 0 || n.file_path === filePath));
   if (exportedCallable.length === 1) return { node: exportedCallable[0], reason: 'unique-name', confidence: 0.8 };
 
   if (exportedCallable.length > 0) {
@@ -123,6 +254,7 @@ export function resolveCallee(
   // This catches `params.toString()` matching `lib/backups.toString` (unexported).
   if (callableByName.length === 1) {
     const only = callableByName[0];
+    if (only.kind === 'Method' && only.file_path !== filePath) return undefined;
     if (idx.hasExportedCallables && only.is_exported === 0 && only.file_path !== filePath) return undefined;
     return { node: only, reason: 'unique-name', confidence: 0.8 };
   }
@@ -130,7 +262,9 @@ export function resolveCallee(
   const suffixCandidates = (idx.suffixToRows.get(calleeName) || idx.suffixToRows.get(methodName) || [])
     .filter((node) => languageGroup(node.file_path) === callerLang);
   const callableSuffix = suffixCandidates.filter((node) => callableKinds.has(node.kind));
-  if (callableSuffix.length === 1) return { node: callableSuffix[0], reason: 'suffix-index', confidence: 0.7 };
+  if (callableSuffix.length === 1 && (callableSuffix[0].kind !== 'Method' || callableSuffix[0].file_path === filePath)) {
+    return { node: callableSuffix[0], reason: 'suffix-index', confidence: 0.7 };
+  }
 
   const samePkg = preferSamePackage(callableByName, filePath);
   if (samePkg) return { node: samePkg, reason: 'package-name', confidence: 0.55 };
@@ -374,6 +508,100 @@ export function qnSuffixes(qn: string): string[] {
 
 export function resolveImportToModuleKey(importPath: string, currentFile: string): string {
   return filePathToModuleKey(resolveImportToFile(importPath, currentFile));
+}
+
+/**
+ * Resolve an import/include to an indexed File node.
+ *
+ * Module-key lookup remains authoritative. C/C++ compilers also search configured
+ * include roots, which are not always available to a syntax-only indexer. For a
+ * header include we therefore accept a repository path suffix only when it has a
+ * single candidate. Ambiguous basenames deliberately remain unresolved rather
+ * than creating a plausible-looking but false dependency.
+ */
+export function resolveImportedFile(
+  idx: ResolverIndexes,
+  importPath: string,
+  currentFile: string,
+): NodeRef | undefined {
+  const moduleKey = resolveImportToModuleKey(importPath, currentFile);
+  const exact = idx.moduleToFileNode.get(moduleKey);
+  if (exact) return exact;
+
+  if (languageGroup(currentFile) === 'go') {
+    return resolveGoPackageFiles(idx, importPath)[0];
+  }
+
+  if (languageGroup(currentFile) !== 'c-family') return undefined;
+  const normalized = importPath
+    .trim()
+    .replace(/^[<"']|[>"']$/g, '')
+    .replace(/\\/g, '/')
+    .replace(/^\.\//, '')
+    .replace(/^\/+/, '')
+    .toLowerCase();
+  if (!/\.(?:h|hh|hpp|hxx)$/.test(normalized)) return undefined;
+
+  const basename = normalized.split('/').pop()!;
+  const candidates = (idx.headerBasenameToFileNodes.get(basename) || [])
+    .filter((node) => {
+      const candidate = node.file_path.replace(/\\/g, '/').toLowerCase();
+      return candidate === normalized || candidate.endsWith(`/${normalized}`);
+    });
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
+/**
+ * Go imports address packages, not individual source files. A repository-local
+ * package may be prefixed by the module declared in go.mod, so match the
+ * longest directory suffix and only accept a single package directory.
+ */
+export function resolveGoPackageFiles(idx: ResolverIndexes, importPath: string): NodeRef[] {
+  const importSegments = importPath
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean);
+  if (importSegments.length < 2) return [];
+
+  const packageFiles = new Map<string, NodeRef[]>();
+  for (const nodes of idx.fileToNodes.values()) {
+    const file = nodes.find((node) => node.kind === 'File' && /\.go$/i.test(node.file_path));
+    if (!file) continue;
+    const normalized = file.file_path.replace(/\\/g, '/');
+    const directory = normalized.split('/').slice(0, -1).join('/');
+    if (!directory) continue;
+    const files = packageFiles.get(directory) || [];
+    files.push(file);
+    packageFiles.set(directory, files);
+  }
+
+  let bestLength = 0;
+  let bestDirectories: string[] = [];
+  for (const directory of packageFiles.keys()) {
+    const directorySegments = directory.split('/').filter(Boolean);
+    let suffixLength = 0;
+    const max = Math.min(directorySegments.length, importSegments.length);
+    while (
+      suffixLength < max &&
+      directorySegments[directorySegments.length - 1 - suffixLength] ===
+        importSegments[importSegments.length - 1 - suffixLength]
+    ) {
+      suffixLength++;
+    }
+    if (suffixLength === 0) continue;
+    if (suffixLength > bestLength) {
+      bestLength = suffixLength;
+      bestDirectories = [directory];
+    } else if (suffixLength === bestLength) {
+      bestDirectories.push(directory);
+    }
+  }
+
+  if (bestDirectories.length !== 1) return [];
+  return (packageFiles.get(bestDirectories[0]) || [])
+    .sort((left, right) => left.file_path.localeCompare(right.file_path));
 }
 
 export function filePathToModuleKey(filePath: string): string {

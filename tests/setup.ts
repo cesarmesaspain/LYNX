@@ -1,7 +1,7 @@
 /*
  * tests/setup.ts — Vitest setupFiles entry (runs in each worker thread before test files).
  *
- * Creates an isolated LYNX_HOME per worker so zero test data touches
+ * Creates an isolated LYNX_HOME per forked worker so zero test data touches
  * the user's real ~/.lynx directory.
  *
  * Cleanup uses Vitest's afterAll hook (runs when all test suites in this
@@ -21,7 +21,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { afterAll } from 'vitest';
 
-// ── Worker identity (unique per worker thread) ─────────
+// ── Worker identity (unique per forked worker process) ─────────
 
 const WORKER_ID = `w${process.pid}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 

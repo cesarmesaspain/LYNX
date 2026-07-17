@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { restoreNativeEntryPointFlags } from '../../../src/pipeline/phases/extract.js';
+import { restoreNativeEntryPointFlags, selectExtractionWorkerCount } from '../../../src/pipeline/phases/extract.js';
 
 describe('native extraction normalization', () => {
   it('restores the conventional entry-point mark on native index modules', () => {
@@ -24,5 +24,22 @@ describe('native extraction normalization', () => {
     restoreNativeEntryPointFlags(nodes, 'src/service.ts');
 
     expect(nodes[0].isEntryPoint).toBe(false);
+  });
+});
+
+describe('extraction worker selection', () => {
+  it('uses sixty percent of available parallelism by default', () => {
+    expect(selectExtractionWorkerCount(100, 0, 8)).toBe(5);
+    expect(selectExtractionWorkerCount(100, 0, 32)).toBe(20);
+  });
+
+  it('honors explicit workers while capping by tasks and available parallelism', () => {
+    expect(selectExtractionWorkerCount(3, 12, 16)).toBe(3);
+    expect(selectExtractionWorkerCount(100, 12, 16)).toBe(12);
+  });
+
+  it('normalizes invalid and fractional inputs safely', () => {
+    expect(selectExtractionWorkerCount(0, Number.NaN, 0)).toBe(1);
+    expect(selectExtractionWorkerCount(9.8, 2.9, 4.9)).toBe(2);
   });
 });

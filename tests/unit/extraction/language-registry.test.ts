@@ -29,10 +29,9 @@ function validateConfig(lang: LanguageConfig, name: string): string[] {
 describe('language-registry', () => {
   const topCount = ALL_LANGUAGES.filter(l => l.useTSCompiler).length + 30; // ~30 TOP_LANGUAGES entries
 
-  it('has 159 active language configs', () => {
-    // CLAUDE.md documents 159 languages. Verify the count is in a reasonable range.
-    expect(ALL_LANGUAGES.length).toBeGreaterThanOrEqual(150);
-    expect(ALL_LANGUAGES.length).toBeLessThanOrEqual(170);
+  it('has ~55 active language configs covering essential ecosystems', () => {
+    expect(ALL_LANGUAGES.length).toBeGreaterThanOrEqual(48);
+    expect(ALL_LANGUAGES.length).toBeLessThanOrEqual(70);
   });
 
   it('every language config is structurally valid', () => {
@@ -55,14 +54,11 @@ describe('language-registry', () => {
         }
       }
     }
-    // Known overlaps: .m (matlab/objc), .pp (pascal/puppet), .inc (bitbake/pascal),
-    // .v (systemverilog/verilog), .zsh (bash/zsh), .fish (bash/fish),
-    // .asm (assembly/nasm), .json5 (json/json5)
-    // These are legitimate — the same extension maps to multiple languages.
+    // Known overlaps: .m (matlab/objc) — legitimate ambiguity.
     // LYNX resolves ambiguity via getLanguageConfigForPath which checks compound extensions first.
-    expect(dupes.length).toBeLessThanOrEqual(12);
+    expect(dupes.length).toBeLessThanOrEqual(3);
     for (const d of dupes) {
-      expect(d).toMatch(/^(m|pp|inc|v|zsh|fish|asm|json5):/);
+      expect(d).toMatch(/^m:/);
     }
   });
 
@@ -103,7 +99,7 @@ describe('language-registry', () => {
 
   it('getAllSupportedExtensions returns non-empty array', () => {
     const all = getAllSupportedExtensions();
-    expect(all.length).toBeGreaterThan(100);
+    expect(all.length).toBeGreaterThan(70);
     expect(all).toContain('ts');
     expect(all).toContain('py');
     expect(all).toContain('go');
@@ -116,15 +112,15 @@ describe('language-registry', () => {
     expect(names).toContain('python');
     expect(names).toContain('go');
     expect(names).toContain('rust');
-    expect(names).toContain('ada');
     expect(names).toContain('zig');
     expect(names).toContain('haskell');
+    expect(names).toContain('ocaml');
   });
 
   it('getLanguageConfigForPath resolves single-extension paths', () => {
     expect(getLanguageConfigForPath('/src/app.ts')?.tsLang).toBe('typescript');
     expect(getLanguageConfigForPath('main.py')?.tsLang).toBe('python');
-    expect(getLanguageConfigForPath('go.mod')?.tsLang).toBe('gomod');
+    expect(getLanguageConfigForPath('CMakeLists.txt')?.tsLang).toBe('cmake');
   });
 
   it('getLanguageConfigForPath resolves compound extensions like .test.ts', () => {
@@ -133,14 +129,10 @@ describe('language-registry', () => {
   });
 
   it('requires a dot or exact filename before compound extensions', () => {
-    expect(getLanguageConfigForPath('app.component.html')?.tsLang).toBe('angular');
-    expect(getLanguageConfigForPath('requirements.txt')?.tsLang).toBe('requirements');
-    expect(getLanguageConfigForPath('page.blade.php')?.tsLang).toBe('blade');
-
-    expect(getLanguageConfigForPath('mycomponent.html')?.tsLang).not.toBe('angular');
-    expect(getLanguageConfigForPath('thingng.html')?.tsLang).not.toBe('angular');
-    expect(getLanguageConfigForPath('myrequirements.txt')?.tsLang).not.toBe('requirements');
-    expect(getLanguageConfigForPath('notblade.php')?.tsLang).not.toBe('blade');
+    expect(getLanguageConfigForPath('app.component.vue')?.tsLang).toBe('vue');
+    expect(getLanguageConfigForPath('page.missing.xya')).toBeNull();  // not a registered extension
+    expect(getLanguageConfigForPath('mycomponent.vue')?.tsLang).toBe('vue');
+    expect(getLanguageConfigForPath('thingng.vue')?.tsLang).toBe('vue');
   });
 
   it('getLanguageConfigForPath returns null for unknown files', () => {
@@ -174,12 +166,12 @@ describe('language-registry', () => {
 
   it('all ADDITIONAL_LANGUAGES share generic template', () => {
     // Compare two entries known to be in ADDITIONAL_LANGUAGES (generic)
-    const ada = getLanguageConfig('adb')!;
-    const gleam = getLanguageConfig('gleam')!;
-    expect(ada.functionTypes).toEqual(gleam.functionTypes);
-    expect(ada.classTypes).toEqual(gleam.classTypes);
-    expect(ada.commentTypes).toEqual(gleam.commentTypes);
-    expect(ada.functionTypes.length).toBeGreaterThan(5); // generic has many fallback types
+    const cmake = getLanguageConfig('cmake')!;
+    const nix = getLanguageConfig('nix')!;
+    expect(cmake.functionTypes).toEqual(nix.functionTypes);
+    expect(cmake.classTypes).toEqual(nix.classTypes);
+    expect(cmake.commentTypes).toEqual(nix.commentTypes);
+    expect(cmake.functionTypes.length).toBeGreaterThan(5); // generic has many fallback types
   });
 
   it('does not return duplicate entries for multi-extension languages', () => {

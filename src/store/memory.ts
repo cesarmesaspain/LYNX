@@ -159,6 +159,23 @@ export function getAllFileHashes(
   return map;
 }
 
+/** Count canonical indexed files that produced at least one graph node. */
+export function countFilesWithGraphNodes(
+  db: LynxDatabase,
+  project: string,
+): number {
+  const row = db.db
+    .prepare(
+      `SELECT COUNT(DISTINCT n.file_path) AS count
+       FROM nodes n
+       INNER JOIN file_hashes h
+         ON h.project = n.project AND h.rel_path = n.file_path
+       WHERE n.project = ? AND n.file_path != ''`,
+    )
+    .get(project) as { count: number };
+  return row.count;
+}
+
 export function upsertFileHash(
   db: LynxDatabase,
   project: string,
@@ -243,6 +260,104 @@ export interface RunSnapshot {
   filesProcessed: number;
   filesSkipped: number;
   mode: string;
+  coverage: IndexRunCoverage | null;
+}
+
+export interface IndexRunCoverage {
+  callsExtracted: number;
+  callsResolved: number;
+  callsUnresolved: number;
+  unresolvedCallReasons: Record<string, number>;
+  callResolutionRate: number;
+  partialFiles: Array<{ file: string; reasons: string[] }>;
+}
+
+export interface FileCallCoverage {
+  filePath: string;
+  totalCalls: number;
+  unresolvedCalls: number;
+  unresolvedCallReasons: Record<string, number>;
+  partialReasons: string[];
+}
+
+export function upsertFileCallCoverage(
+  db: LynxDatabase,
+  project: string,
+  coverage: FileCallCoverage,
+): void {
+  db.db.prepare(`
+    INSERT INTO file_call_coverage (
+      project, file_path, total_calls, unresolved_calls, reasons_json, partial_reasons_json
+    ) VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(project, file_path) DO UPDATE SET
+      total_calls = excluded.total_calls,
+      unresolved_calls = excluded.unresolved_calls,
+      reasons_json = excluded.reasons_json,
+      partial_reasons_json = excluded.partial_reasons_json
+  `).run(
+    project,
+    coverage.filePath,
+    coverage.totalCalls,
+    coverage.unresolvedCalls,
+    JSON.stringify(coverage.unresolvedCallReasons),
+    JSON.stringify(coverage.partialReasons),
+  );
+}
+
+export function deleteFileCallCoverage(db: LynxDatabase, project: string, filePath?: string): void {
+  if (filePath) {
+    db.db.prepare('DELETE FROM file_call_coverage WHERE project = ? AND file_path = ?')
+      .run(project, filePath);
+  } else {
+    db.db.prepare('DELETE FROM file_call_coverage WHERE project = ?').run(project);
+  }
+}
+
+export function countFileCallCoverage(db: LynxDatabase, project: string): number {
+  return (db.db.prepare('SELECT COUNT(*) AS count FROM file_call_coverage WHERE project = ?')
+    .get(project) as { count: number }).count;
+}
+
+export function getProjectCallCoverage(db: LynxDatabase, project: string): IndexRunCoverage {
+  const rows = db.db.prepare(`
+    SELECT file_path, total_calls, unresolved_calls, reasons_json, partial_reasons_json
+    FROM file_call_coverage WHERE project = ? ORDER BY file_path
+  `).all(project) as Array<{
+    file_path: string;
+    total_calls: number;
+    unresolved_calls: number;
+    reasons_json: string;
+    partial_reasons_json: string;
+  }>;
+  const unresolvedCallReasons: Record<string, number> = {};
+  const partialFiles: Array<{ file: string; reasons: string[] }> = [];
+  let callsExtracted = 0;
+  let callsUnresolved = 0;
+  for (const row of rows) {
+    callsExtracted += row.total_calls;
+    callsUnresolved += row.unresolved_calls;
+    try {
+      const reasons = JSON.parse(row.reasons_json) as Record<string, number>;
+      for (const [reason, count] of Object.entries(reasons)) {
+        unresolvedCallReasons[reason] = (unresolvedCallReasons[reason] || 0) + count;
+      }
+    } catch { /* invalid legacy payload contributes no classified reasons */ }
+    try {
+      const reasons = JSON.parse(row.partial_reasons_json) as string[];
+      if (reasons.length > 0) partialFiles.push({ file: row.file_path, reasons });
+    } catch { /* invalid legacy payload contributes no partial reason */ }
+  }
+  const callsResolved = Math.max(0, callsExtracted - callsUnresolved);
+  return {
+    callsExtracted,
+    callsResolved,
+    callsUnresolved,
+    unresolvedCallReasons,
+    callResolutionRate: callsExtracted === 0
+      ? 1
+      : Number((callsResolved / callsExtracted).toFixed(4)),
+    partialFiles,
+  };
 }
 
 export function insertIndexRun(
@@ -252,8 +367,8 @@ export function insertIndexRun(
   const result = db.db
     .prepare(
       `INSERT INTO index_runs (project, total_nodes, total_edges, hotspot_count,
-         avg_complexity, files_processed, files_skipped, mode)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         avg_complexity, files_processed, files_skipped, mode, coverage_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       run.project,
@@ -263,7 +378,8 @@ export function insertIndexRun(
       run.avgComplexity,
       run.filesProcessed,
       run.filesSkipped,
-      run.mode
+      run.mode,
+      run.coverage ? JSON.stringify(run.coverage) : null,
     );
   return Number(result.lastInsertRowid);
 }
@@ -281,6 +397,7 @@ export function getLastRuns(
       id: number; project: string; run_at: string;
       total_nodes: number; total_edges: number; hotspot_count: number;
       avg_complexity: number; files_processed: number; files_skipped: number; mode: string;
+      coverage_json: string | null;
     }>;
 
   return rows.map((r) => ({
@@ -294,7 +411,29 @@ export function getLastRuns(
     filesProcessed: r.files_processed,
     filesSkipped: r.files_skipped,
     mode: r.mode,
+    coverage: parseIndexRunCoverage(r.coverage_json),
   }));
+}
+
+export function getLastIndexCoverage(
+  db: LynxDatabase,
+  project: string,
+): IndexRunCoverage | null {
+  const row = db.db
+    .prepare('SELECT coverage_json FROM index_runs WHERE project = ? ORDER BY id DESC LIMIT 1')
+    .get(project) as { coverage_json: string | null } | undefined;
+  return parseIndexRunCoverage(row?.coverage_json ?? null);
+}
+
+function parseIndexRunCoverage(value: string | null): IndexRunCoverage | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as IndexRunCoverage;
+    if (!Number.isFinite(parsed.callsExtracted) || !Number.isFinite(parsed.callsUnresolved)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 // ── Trend analysis ───────────────────────────────────────────────
@@ -336,8 +475,8 @@ export function getComplexityTrend(
       firstValue: valid[0]?.complexity ?? null,
       lastValue: valid[0]?.complexity ?? null,
       narrative: valid.length === 0
-        ? 'Sin historial de complejidad registrado.'
-        : 'Solo hay un snapshot de complejidad — se necesita al menos un segundo para calcular la tendencia.',
+        ? 'No complexity history recorded.'
+        : 'Only one complexity snapshot exists — at least two are required to calculate a trend.',
     };
     return fallback;
   }
@@ -351,13 +490,13 @@ export function getComplexityTrend(
 
   if (delta < -5) {
     direction = 'improving';
-    narrative = `Mejorando — complejidad bajó de ${first} a ${last} (${Math.abs(delta)} puntos) en ${valid.length} snapshots.`;
+    narrative = `Improving — complexity decreased from ${first} to ${last} (${Math.abs(delta)} points) across ${valid.length} snapshots.`;
   } else if (delta > 5) {
     direction = 'worsening';
-    narrative = `Empeorando — complejidad subió de ${first} a ${last} (+${delta} puntos) en ${valid.length} snapshots.`;
+    narrative = `Worsening — complexity increased from ${first} to ${last} (+${delta} points) across ${valid.length} snapshots.`;
   } else {
     direction = 'stable';
-    narrative = `Estable — complejidad oscila cerca de ${last} (±${Math.abs(delta)} puntos) sobre ${valid.length} snapshots.`;
+    narrative = `Stable — complexity remains near ${last} (±${Math.abs(delta)} points) across ${valid.length} snapshots.`;
   }
 
   return {

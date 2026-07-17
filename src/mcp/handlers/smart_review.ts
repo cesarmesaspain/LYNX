@@ -9,12 +9,14 @@
  *  - Suggested actions (refactor, split, add tests, document)
  */
 
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getDb } from '../server.js';
 import type { LynxDatabase } from '../../store/database.js';
 import { getFindingsByFile, getFindingsByQn } from '../../store/memory.js';
 import { estimateTokensSaved, recordUsageEvent } from '../../usage/metrics.js';
 import { projectNotIndexed } from '../diagnostics.js';
+import { classifySmell } from '../../llm/client.js';
 import type { LynxFinding } from '../../types.js';
 
 function dedupeFindings(findings: LynxFinding[]): LynxFinding[] {
@@ -53,6 +55,7 @@ export async function handleSmartReview(
   const qualifiedName = args.qualified_name ? String(args.qualified_name) : undefined;
   const requestedLimit = args.limit !== undefined ? Number(args.limit) : 20;
   const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 100)) : 20;
+  const enableLlm = args.enable_llm === true;
 
   if (!project) return { error: 'project is required' };
   if (!filePath && !qualifiedName) return { error: 'file or qualified_name is required' };
@@ -77,7 +80,7 @@ export async function handleSmartReview(
     };
   }
 
-  const issues = reviewNodes(db, project, nodes);
+  const issues = await reviewNodes(db, project, nodes, projectMeta.rootPath, enableLlm);
 
   // Memory findings for the target
   const memoryFindings = qualifiedName
@@ -89,11 +92,13 @@ export async function handleSmartReview(
 
 // ── Per-node review ────────────────────────────────────
 
-function reviewNodes(
+async function reviewNodes(
   db: LynxDatabase,
   project: string,
   nodes: any[],
-): ReviewIssue[] {
+  rootPath: string,
+  enableLlm: boolean,
+): Promise<ReviewIssue[]> {
   const issues: ReviewIssue[] = [];
   const seenWarnings = new Set<string>();
 
@@ -175,28 +180,65 @@ function reviewNodes(
       });
     }
 
-    // No tests nearby
+    // Test coverage is a graph relationship, not a directory convention.
+    // Tests commonly live under a separate tests/ tree, so checking only the
+    // production directory contradicts find_tests and creates false warnings.
     const testFile = node.file_path.includes('.test.') || node.file_path.includes('.spec.') || node.file_path.includes('__tests__');
     if (node.is_test !== 1 && !testFile) {
-      const hasTestInDir = db.db
+      const coverage = db.db
         .prepare(
-          `SELECT COUNT(*) as cnt FROM nodes WHERE project = ?
-           AND file_path LIKE ? AND kind = 'Function' AND is_test = 1 LIMIT 1`
+          `SELECT COUNT(*) AS cnt FROM edges e
+           JOIN nodes target ON target.id = e.target_id AND target.project = e.project
+           WHERE e.project = ?
+             AND e.type IN ('TESTS', 'TESTS_FILE')
+             AND (target.id = ? OR target.file_path = ?)`
         )
-        .get(project, path.dirname(node.file_path) + '%') as { cnt: number };
+        .get(project, node.id, node.file_path) as { cnt: number };
 
-      if (hasTestInDir.cnt === 0 && (cyclomatic > 10 || fanIn.cnt > 5)) {
-        const key = `notest:${path.dirname(node.file_path)}`;
+      if (coverage.cnt === 0 && (cyclomatic > 10 || fanIn.cnt > 5)) {
+        const key = `notest:${node.file_path}`;
         if (!seenWarnings.has(key)) {
           seenWarnings.add(key);
           issues.push({
             severity: 'medium', category: 'test-coverage',
-            title: 'No tests in this directory',
-            description: `No test files found in ${path.dirname(node.file_path)} for a function with complexity ${cyclomatic} and ${fanIn.cnt} callers.`,
-            location: path.dirname(node.file_path),
+            title: 'No linked tests found',
+            description: `No TESTS or TESTS_FILE graph relationship covers ${node.file_path} for a function with complexity ${cyclomatic} and ${fanIn.cnt} callers.`,
+            location: node.file_path,
             suggestion: `Add unit tests for \`${node.name}\` covering base cases and edge cases.`,
           });
         }
+      }
+    }
+
+    // LLM smell classification for significant functions
+    if (enableLlm && (cyclomatic > 10 || lineCount > 80)) {
+      try {
+        const absPath = path.join(rootPath, node.file_path);
+        const fileContent = fs.readFileSync(absPath, 'utf-8');
+        const lines = fileContent.split('\n');
+        const funcSource = lines.slice(node.start_line - 1, node.end_line).join('\n');
+        const smell = await classifySmell(
+          funcSource.slice(0, 2000),
+          node.name,
+          { cyclomatic, lineCount, loopDepth },
+        );
+        if (smell.category !== 'fine') {
+          issues.push({
+            severity: 'info',
+            category: 'smell-classification',
+            title: `Code smell: ${smell.category.replace(/_/g, ' ')}`,
+            description: `${node.kind} \`${node.name}\` classified as \`${smell.category}\`: ${smell.explanation}`,
+            location: `${node.file_path}:${node.start_line}`,
+            suggestion: smell.category === 'tech_debt'
+              ? 'Plan refactoring in the next maintenance cycle.'
+              : smell.category === 'over_engineered'
+                ? 'Consider simplifying the abstraction.'
+                : 'Review whether the complexity is justified by the business logic.',
+          });
+        }
+      } catch {
+        // File read failed or LLM unavailable — heuristic fallback already covers
+        // the deterministic checks above; this is purely additive enrichment.
       }
     }
   }

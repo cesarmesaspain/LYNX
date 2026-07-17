@@ -8,7 +8,7 @@ import { passSemanticLight } from '../../../src/pipeline/phases/resolve/pass-sem
 import type { LynxEdge } from '../../../src/types.js';
 import type { ExtractionResult } from '../../../src/extraction/extractor.js';
 import {
-  resetIdCounter, makeFileNode,
+  resetIdCounter, makeFileNode, makeFuncNode,
   makeEmptyResult, makeBatch, createEmptyIndexes, populateIndex, getEdgesByType,
 } from './helpers.js';
 
@@ -118,5 +118,37 @@ describe('passSemanticLight', () => {
     const edges: LynxEdge[] = [];
     expect(() => passSemanticLight(db, [batch], idx, edges)).not.toThrow();
     expect(edges.length).toBe(0);
+  });
+
+  it('anchors EMITS to enclosing function node when callable and in same file', () => {
+    const fileNode = makeFileNode(1, 'src/app.ts');
+    const funcNode = makeFuncNode(2, 'main', 'src/app.ts');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, funcNode]);
+
+    const batch = makeBatch('src/app.ts', '/fake/src/app.ts',
+      makeChannelResult('user.created', 'rabbitmq'));
+    const edges: LynxEdge[] = [];
+    passSemanticLight(db, [batch], idx, edges);
+
+    const emitEdges = getEdgesByType(edges, 'EMITS');
+    expect(emitEdges.length).toBe(1);
+    expect(emitEdges[0].sourceId).toBe(2);
+    expect(emitEdges[0].properties.channelName).toBe('user.created');
+  });
+
+  it('falls back to file node when enclosing function not indexed', () => {
+    const fileNode = makeFileNode(1, 'src/app.ts');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode]);
+
+    const batch = makeBatch('src/app.ts', '/fake/src/app.ts',
+      makeChannelResult('user.created', 'rabbitmq'));
+    const edges: LynxEdge[] = [];
+    passSemanticLight(db, [batch], idx, edges);
+
+    const emitEdges = getEdgesByType(edges, 'EMITS');
+    expect(emitEdges.length).toBe(1);
+    expect(emitEdges[0].sourceId).toBe(1);
   });
 });

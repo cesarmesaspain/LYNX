@@ -12,6 +12,8 @@ import { readLynxConfigSafe, lynxHome } from '../../config/runtime.js';
 import { findDuplicateProjectRoots, scanIndexedProjects } from '../project-catalog.js';
 import { storedTimestampMs } from '../../store/time.js';
 import { listOrphanedLocks } from '../../store/lock.js';
+import { getDb } from '../server.js';
+import { detectGraphDrift } from '../../store/graph-drift.js';
 
 type Health = 'healthy' | 'attention_needed';
 
@@ -22,13 +24,22 @@ export async function handleDiagnose(): Promise<Record<string, unknown>> {
   const staleThresholdMs = Math.max(1, config.stale_threshold_hours) * 60 * 60 * 1_000;
   const projectHealth = projects.map((project) => {
     const ageMs = Math.max(0, now - storedTimestampMs(project.indexedAt));
-    const freshness = project.status === 'ready' && project.nodeCount > 0 && ageMs <= staleThresholdMs
+    let freshness = project.status === 'ready' && project.nodeCount > 0 && ageMs <= staleThresholdMs
       ? 'fresh'
       : project.status === 'ready' && project.nodeCount === 0
         ? 'empty'
         : project.status === 'ready'
           ? 'stale'
           : project.status;
+    if (freshness === 'fresh') {
+      try {
+        const db = getDb(project.name);
+        const meta = db.getProject(project.name);
+        if (meta && detectGraphDrift(db, meta)?.status === 'drifted') freshness = 'drifted';
+      } catch {
+        // Temporal health remains useful when the project root cannot be scanned.
+      }
+    }
     return {
       project: project.name,
       root_path: project.rootPath,
@@ -47,6 +58,7 @@ export async function handleDiagnose(): Promise<Record<string, unknown>> {
   if (!runtimeAvailable) recommendations.push('Reinstall LYNX so the configured runtime is available.');
   if (locks.length > 0) recommendations.push('Run a normal index; LYNX will safely clear orphaned locks before indexing.');
   if (projectHealth.some((project) => project.freshness === 'stale')) recommendations.push('Re-index stale projects incrementally.');
+  if (projectHealth.some((project) => project.freshness === 'drifted')) recommendations.push('Re-index projects whose working tree has drifted from the graph.');
   if (projectHealth.some((project) => project.freshness === 'empty' || project.freshness === 'failed')) recommendations.push('Re-index empty or failed projects before trusting graph results.');
   if (duplicateRoots.length > 0) recommendations.push('Resolve duplicate project aliases that point to the same root so metrics and graph state remain unified.');
 

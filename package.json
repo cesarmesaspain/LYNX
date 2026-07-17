@@ -1,25 +1,39 @@
 {
   "name": "lynx",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "LYNX — Code Analysis & Exploration with Semantic Architecture Reasoning. A codebase intelligence MCP server with persistent memory and narrative explanations.",
-  "private": true,
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "lynx": "./dist/cli.js"
   },
+  "files": [
+    "dist/",
+    "native/",
+    "scripts/build-native-extractor.js"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc",
+    "build:native-core": "node scripts/build-native-core.js",
     "dev": "tsx src/index.ts",
     "cli": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:api": "npm --prefix api test",
+    "test:native-core": "npm run build && npm run build:native-core && node scripts/native-core-smoke.mjs && vitest run tests/unit/native-core/staging.test.ts tests/integration/native-core-pipeline.test.ts",
+    "benchmark:native-core": "npm run build && npm run build:native-core && node scripts/native-core-benchmark.mjs",
+    "test:performance-budget": "npm run build && node scripts/performance-budget.mjs",
+    "compare:native-core": "npm run build && npm run build:native-core && node scripts/native-core-parity.mjs",
     "typecheck:api": "npm --prefix api run typecheck",
     "validate": "npm run typecheck && npm test && npm run typecheck:api && npm run test:api",
+    "postinstall": "node scripts/build-native-extractor.js",
+    "prepack": "npm run build && npm run build:native-core",
     "test:coverage": "vitest run --coverage",
-    "bundle": "npm run build && esbuild src/cli.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/pkg-cli.cjs --external:better-sqlite3 --external:web-tree-sitter --external:tree-sitter-wasm --external:ws && node scripts/fix-pkg-deps.js && node scripts/build-native-extractor.js && pkg dist/pkg-cli.cjs --public --targets node20-macos-arm64 --output dist/bin/lynx",
-    "bundle:all": "npm run build && esbuild src/cli.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/pkg-cli.cjs --external:better-sqlite3 --external:web-tree-sitter --external:tree-sitter-wasm --external:ws && node scripts/fix-pkg-deps.js && node scripts/build-native-extractor.js --all && pkg dist/pkg-cli.cjs --public --targets node20-macos-arm64,node20-macos-x64,node20-linux-x64,node20-linux-arm64,node20-win-x64 --output dist/bin/lynx"
+    "bundle": "npm run build && npm run build:native-core && esbuild src/cli.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/pkg-cli.cjs --external:better-sqlite3 --external:web-tree-sitter --external:tree-sitter-wasm --external:tree-sitter --external:tree-sitter-typescript --external:ws && node scripts/fix-pkg-deps.js && node scripts/build-native-extractor.js && pkg --config package.json dist/pkg-cli.cjs --public --targets node20-macos-arm64 --output dist/bin/lynx",
+    "bundle:all": "npm run build && esbuild src/cli.ts --bundle --platform=node --format=cjs --target=node20 --outfile=dist/pkg-cli.cjs --external:better-sqlite3 --external:web-tree-sitter --external:tree-sitter-wasm --external:tree-sitter --external:tree-sitter-typescript --external:ws && node scripts/fix-pkg-deps.js && node scripts/build-native-extractor.js --all && pkg --config package.json dist/pkg-cli.cjs --public --targets node20-macos-arm64,node20-macos-x64,node20-linux-x64,node20-linux-arm64,node20-win-x64 --output dist/bin/lynx"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -36,6 +50,9 @@
     "@vitest/coverage-v8": "^4.1.10",
     "@yao-pkg/pkg": "^6.14.2",
     "esbuild": "^0.28.1",
+    "tree-sitter-runtime-source": "npm:tree-sitter@^0.25.0",
+    "tree-sitter-c": "^0.24.1",
+    "tree-sitter-cpp": "^0.23.4",
     "tsx": "^4.19.0",
     "typescript": "^5",
     "vitest": "^4.1.7"
@@ -47,7 +64,8 @@
       "node_modules/tree-sitter-wasm/manifest.json",
       "node_modules/better-sqlite3/build/Release/better_sqlite3.node",
       "node_modules/better-sqlite3/lib/binding/**/*.node",
-      "native/lynx_ts_extractor"
+      "native/lynx_ts_extractor",
+      "native/lynx_native_core"
     ],
     "outputPath": "dist/bin"
   }

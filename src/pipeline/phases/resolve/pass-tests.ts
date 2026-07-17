@@ -5,7 +5,7 @@
 import type { LynxEdge } from '../../../types.js';
 import type { ExtractionBatch } from '../extract.js';
 import type { ResolverIndexes } from './indexes.js';
-import { addEdge, getFileNode, resolveImportToModuleKey } from './utils.js';
+import { addEdge, getFileNode, resolveImportedFile } from './utils.js';
 
 function isTestPath(filePath: string): boolean {
   const base = filePath.split('/').pop() || filePath;
@@ -70,8 +70,7 @@ export function passTests(batches: ExtractionBatch[], idx: ResolverIndexes, edge
 
     if (batch.result.isTestFile) {
       for (const imp of batch.result.imports) {
-        const moduleKey = resolveImportToModuleKey(imp.modulePath, batch.file.relPath);
-        const importedFile = idx.moduleToFileNode.get(moduleKey);
+        const importedFile = resolveImportedFile(idx, imp.modulePath, batch.file.relPath);
         if (importedFile && importedFile.id !== fileNode.id) {
           addEdge(edges, idx.project, fileNode.id, importedFile.id, 'TESTS_FILE', {
             modulePath: imp.modulePath,
@@ -97,7 +96,9 @@ export function passTests(batches: ExtractionBatch[], idx: ResolverIndexes, edge
     const source = idx.idToRow.get(edge.sourceId);
     const target = idx.idToRow.get(edge.targetId);
     if (!source || !target) continue;
-    if (!isTestPath(source.file_path) && !isTestFunctionName(source.name)) continue;
+    // A production helper can legitimately have a test-like name. File
+    // location is authoritative; the name only adjusts confidence below.
+    if (!isTestPath(source.file_path)) continue;
     if (isTestPath(target.file_path) || isTestFunctionName(target.name)) continue;
 
     addEdge(edges, idx.project, source.id, target.id, 'TESTS', {

@@ -55,6 +55,16 @@ export interface ExtractedDecorator {
   startLine: number;
 }
 
+export interface ExtractedLocalBinding {
+  name: string;
+  typeName: string;
+  ownerQn: string;
+  declarationLine: number;
+  scopeStartLine: number;
+  scopeEndLine: number;
+  origin: 'annotation' | 'constructor';
+}
+
 export interface ExtractionResult {
   nodes: LynxNode[];
   calls: ExtractedCall[];
@@ -63,10 +73,14 @@ export interface ExtractionResult {
   channels: ExtractedChannel[];
   throws: ExtractedThrow[];
   decorators: ExtractedDecorator[];
+  /** Scope-bound type evidence; never promoted into global symbol indexes. */
+  localBindings?: ExtractedLocalBinding[];
   hasError: boolean;
   errorMsg: string | null;
   isTestFile: boolean;
   language: string;
+  /** Non-fatal coverage limits applied while extracting a dense source file. */
+  partialReasons?: string[];
   /** LLM-enriched metadata (summary, entry point detection, test detection) */
   llmMetadata?: import('../llm/types.js').LlmFileMetadata;
 }
@@ -91,7 +105,7 @@ export async function extractFile(
   // Files use tree-sitter/native extraction where available and a conservative
   // textual fallback for languages whose grammar is not bundled locally.
   if (config) {
-    const result = await extractWithTreeSitter(source, relPath, project, config);
+    const result = await extractWithTreeSitter(source, relPath, project, config, moduleQn);
     return {
       nodes: result.nodes,
       calls: result.calls.map((c) => ({ ...c, loopDepth: 0 })),
@@ -114,10 +128,12 @@ export async function extractFile(
         targetQn: d.targetQn,
         startLine: d.startLine,
       })),
+      localBindings: result.localBindings,
       hasError: result.hasError,
       errorMsg: result.errorMsg,
       isTestFile: result.isTestFile,
       language: result.language,
+      partialReasons: result.partialReasons,
     };
   }
 

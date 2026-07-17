@@ -184,6 +184,18 @@ describe('pack_context decision mode', () => {
     expect(result.critical_constraints).toContain('VALIDATE_BEFORE_FINAL');
   });
 
+  it('does not infer UI scope from substrings in unrelated words', async () => {
+    seedDb(db, PROJECT, process.cwd());
+    setDb(PROJECT, db);
+
+    const result = await handlePackContext({
+      project: PROJECT,
+      task: 'audit full graph rebuild and evidence quality',
+    });
+
+    expect(result.critical_constraints).not.toContain('UI_ONLY');
+  });
+
   it('non-decision modes do not include decision_summary', async () => {
     seedDb(db, PROJECT, process.cwd());
     setDb(PROJECT, db);
@@ -218,5 +230,28 @@ describe('pack_context context selection', () => {
   it('detects only close deterministic candidate scores as ambiguous', () => {
     expect(hasAmbiguousCandidatePool([{ score: 10 }, { score: 9 }, { score: 2 }])).toBe(true);
     expect(hasAmbiguousCandidatePool([{ score: 10 }, { score: 7 }, { score: 2 }])).toBe(false);
+  });
+
+  it('prioritizes the named subsystem over unrelated high-fan-in symbols', async () => {
+    const db = LynxDatabase.openMemory();
+    db.upsertProject(PROJECT, process.cwd());
+    db.db.prepare(`INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
+      VALUES (1, ?, 'Function', 'makeTools', 'cli.makeTools', 'src/cli/tool-definitions.ts', 1, 1, 1, 0, 0, '{}'),
+             (2, ?, 'Function', 'handleTools', 'mcp.handleTools', 'src/mcp/handlers/tool_catalog.ts', 1, 1, 1, 0, 0, '{}')`).run(PROJECT, PROJECT);
+    for (let id = 10; id < 30; id++) {
+      db.db.prepare(`INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
+        VALUES (?, ?, 'Function', ?, ?, 'src/cli/caller.ts', 1, 1, 0, 0, 0, '{}')`).run(id, PROJECT, `caller${id}`, `cli.caller${id}`);
+      db.db.prepare(`INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, 1, 'CALLS', '{}')`).run(PROJECT, id);
+    }
+    setDb(PROJECT, db);
+
+    const result = await handlePackContext({
+      project: PROJECT,
+      task: 'audit MCP tools for systemic improvements',
+      mode: 'full',
+    });
+
+    expect(result.graph_candidates[0].file_path).toBe('src/mcp/handlers/tool_catalog.ts');
+    db.close();
   });
 });

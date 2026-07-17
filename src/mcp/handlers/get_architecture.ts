@@ -70,7 +70,7 @@ export async function handleGetArchitecture(
     if (omitted.length > 0) {
       result._omitted_aspects = omitted.join(', ');
       result._omit_note =
-        `Usa aspects: [${omitted.map(a => `"${a}"`).join(', ')}] para incluir estas secciones si las necesitas.`;
+        `Use aspects: [${omitted.map(a => `"${a}"`).join(', ')}] to include these sections when needed.`;
     }
   }
 
@@ -134,7 +134,7 @@ function buildAspectSections(
     const truncated = hots.length > 15;
     result.hotspots = hots.slice(0, 15);
     if (truncated) {
-      result._hotspots_truncated = `${hots.length - 15} hotspots omitidos para control de tokens`;
+      result._hotspots_truncated = `${hots.length - 15} hotspots omitted to control response size`;
       tokenEstimate += 60;
     }
     tokenEstimate += hots.length * 50;
@@ -159,7 +159,7 @@ function buildAspectSections(
     const truncated = tree.length > limit;
     result.file_tree = tree.slice(0, limit);
     if (truncated) {
-      result._file_tree_truncated = `${tree.length - limit} entradas omitidas para control de tokens`;
+      result._file_tree_truncated = `${tree.length - limit} entries omitted to control response size`;
       tokenEstimate += 50;
     }
     tokenEstimate += Math.min(tree.length, limit) * 12;

@@ -8,7 +8,22 @@ import { upsertNode } from '../../../store/nodes.js';
 import type { LynxEdge, LynxRoute } from '../../../types.js';
 import type { ExtractionBatch } from '../extract.js';
 import type { NodeRef, ResolverIndexes, ResolverState } from './indexes.js';
-import { addEdge, hashString, resolveCaller, resolveCallee } from './utils.js';
+import {
+  addEdge, declaredParamOwner, hashString, isRuntimeReceiverType,
+  resolveCaller, resolveCallee,
+} from './utils.js';
+
+const HTTP_METHOD_BY_CALL = new Map<string, string>([
+  ['fetch', 'GET'], ['request', 'GET'],
+  ['get', 'GET'], ['post', 'POST'], ['put', 'PUT'],
+  ['patch', 'PATCH'], ['delete', 'DELETE'], ['del', 'DELETE'],
+  ['head', 'HEAD'], ['options', 'OPTIONS'],
+]);
+
+const KNOWN_HTTP_CLIENTS = new Set([
+  'axios', 'ky', 'got', 'undici', 'ofetch', '$fetch',
+  'api', 'httpClient', 'client', 'supabase',
+]);
 
 function resolveHttpRoute(
   db: LynxDatabase,
@@ -17,24 +32,13 @@ function resolveHttpRoute(
   args: string[]
 ): (NodeRef & { urlPath: string; httpMethod: string }) | undefined {
   const methodPart = calleeName.split('.').pop()?.toLowerCase() || calleeName.toLowerCase();
-  const httpMethodMap: Record<string, string> = {
-    fetch: 'GET', request: 'GET',
-    get: 'GET', post: 'POST', put: 'PUT',
-    patch: 'PATCH', delete: 'DELETE', del: 'DELETE',
-    head: 'HEAD', options: 'OPTIONS',
-  };
-  const httpMethod = httpMethodMap[methodPart];
+  const httpMethod = HTTP_METHOD_BY_CALL.get(methodPart);
   if (!httpMethod) return undefined;
-
-  const knownHttpClients = new Set([
-    'axios', 'ky', 'got', 'undici', 'ofetch', '$fetch',
-    'api', 'httpClient', 'client', 'supabase',
-  ]);
   const dotIdx = calleeName.indexOf('.');
   if (dotIdx > 0) {
     const prefixed = calleeName.slice(0, dotIdx);
     const clientPrefix = prefixed.split('.').pop() || '';
-    if (!knownHttpClients.has(clientPrefix) && !knownHttpClients.has(prefixed)) {
+    if (!KNOWN_HTTP_CLIENTS.has(clientPrefix) && !KNOWN_HTTP_CLIENTS.has(prefixed)) {
       const maybeUrl = extractUrl(args);
       if (!maybeUrl) return undefined;
     }
@@ -117,11 +121,25 @@ export function passCalls(
   state: ResolverState
 ): void {
   for (const batch of batches) {
+    const fileCoverage = {
+      totalCalls: 0,
+      unresolvedCalls: 0,
+      unresolvedCallReasons: {} as Record<string, number>,
+    };
+    state.fileCoverage.set(batch.file.relPath, fileCoverage);
+    const unresolved = (reason: string): void => {
+      state.unresolvedCalls++;
+      state.unresolvedCallReasons[reason] = (state.unresolvedCallReasons[reason] || 0) + 1;
+      fileCoverage.unresolvedCalls++;
+      fileCoverage.unresolvedCallReasons[reason] =
+        (fileCoverage.unresolvedCallReasons[reason] || 0) + 1;
+    };
     for (const call of batch.result.calls) {
       state.totalCalls++;
+      fileCoverage.totalCalls++;
       const caller = resolveCaller(idx, batch.file.relPath, call.enclosingFuncQn);
       if (!caller) {
-        state.unresolvedCalls++;
+        unresolved('caller_not_found');
         continue;
       }
 
@@ -138,9 +156,44 @@ export function passCalls(
         continue;
       }
 
-      const resolved = resolveCallee(idx, batch.file.relPath, call.calleeName);
-      if (!resolved || resolved.node.id === caller.id) {
-        state.unresolvedCalls++;
+      const resolved = resolveCallee(
+        idx,
+        batch.file.relPath,
+        call.calleeName,
+        caller.qualified_name,
+        batch.result.localBindings,
+        call.startLine,
+      );
+      if (!resolved) {
+        const methodName = call.calleeName.split('.').pop() || call.calleeName;
+        const receiverName = call.calleeName.includes('.')
+          ? call.calleeName.split('.')[0]
+          : methodName;
+        const imported = batch.result.imports.find((entry) =>
+          entry.localName === receiverName || entry.localName === methodName);
+        const localBinding = (idx.kindNameToRows.get(`Variable:${receiverName}`) || [])
+          .some((node) => node.file_path === batch.file.relPath);
+        const callerOwnerType = declaredParamOwner(caller.properties, receiverName);
+        const internalCandidates = [
+          ...(idx.kindNameToRows.get(`Function:${methodName}`) || []),
+          ...(idx.kindNameToRows.get(`Method:${methodName}`) || []),
+        ];
+        let reason = 'target_absent';
+        if (localBinding) reason = 'dynamic_local_binding';
+        else if (isRuntimeReceiverType(batch.file.relPath, callerOwnerType)) {
+          reason = 'runtime_builtin_receiver';
+        }
+        else if (imported) {
+          reason = /^\.{1,2}\//.test(imported.modulePath)
+            ? 'imported_internal_target_missing'
+            : 'external_dependency_target';
+        } else if (call.calleeName.includes('.')) reason = 'receiver_target_unknown';
+        else if (internalCandidates.length > 0) reason = 'ambiguous_internal_target';
+        unresolved(reason);
+        continue;
+      }
+      if (resolved.node.id === caller.id) {
+        unresolved('self_reference');
         continue;
       }
 

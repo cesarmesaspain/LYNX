@@ -6,15 +6,24 @@
  */
 
 import type BetterSqlite3 from 'better-sqlite3';
+import type { SchemaMigration } from './migrations.js';
+import { createSacgVerticalSliceSchema } from './sacg-schema.js';
 
 /** Full core schema: projects, graph data, file hashes, persistent LLM summaries, and metrics. */
 export const CORE_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS projects (
     name TEXT PRIMARY KEY,
     root_path TEXT NOT NULL,
     indexed_at TEXT NOT NULL DEFAULT (datetime('now')),
     status TEXT NOT NULL DEFAULT 'ready',
-    status_error TEXT
+    status_error TEXT,
+    indexed_commit TEXT
   );
 
   CREATE TABLE IF NOT EXISTS nodes (
@@ -120,10 +129,24 @@ export const CORE_SCHEMA = `
     avg_complexity REAL NOT NULL DEFAULT 0,
     files_processed INTEGER NOT NULL DEFAULT 0,
     files_skipped INTEGER NOT NULL DEFAULT 0,
-    mode TEXT NOT NULL DEFAULT 'full'
+    mode TEXT NOT NULL DEFAULT 'full',
+    coverage_json TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_index_runs_project ON index_runs(project);
+
+  CREATE TABLE IF NOT EXISTS file_call_coverage (
+    project TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    total_calls INTEGER NOT NULL DEFAULT 0,
+    unresolved_calls INTEGER NOT NULL DEFAULT 0,
+    reasons_json TEXT NOT NULL DEFAULT '{}',
+    partial_reasons_json TEXT NOT NULL DEFAULT '[]',
+    PRIMARY KEY (project, file_path)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_file_call_coverage_project
+    ON file_call_coverage(project);
 
   CREATE TABLE IF NOT EXISTS project_briefs (
     project TEXT PRIMARY KEY,
@@ -154,16 +177,57 @@ export const CREATE_EDGE_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(project, type);
 `;
 
+function tableColumns(db: BetterSqlite3.Database, table: string): Set<string> {
+  const rows = db.prepare(`PRAGMA table_info('${table}')`).all() as Array<{ name: string }>;
+  return new Set(rows.map((row) => row.name));
+}
+
 /** Add v0.1 → v0.2 freshness columns (status, status_error) if missing. */
 export function migrateV01toV02(db: BetterSqlite3.Database): void {
-  for (const { col, def } of [
-    { col: 'status', def: "TEXT NOT NULL DEFAULT 'ready'" },
-    { col: 'status_error', def: 'TEXT' },
-  ]) {
-    try {
-      db.exec('ALTER TABLE projects ADD COLUMN ' + col + ' ' + def);
-    } catch {
-      // Column already exists
-    }
+  const columns = tableColumns(db, 'projects');
+  if (!columns.has('status')) {
+    db.exec("ALTER TABLE projects ADD COLUMN status TEXT NOT NULL DEFAULT 'ready'");
+  }
+  if (!columns.has('status_error')) {
+    db.exec('ALTER TABLE projects ADD COLUMN status_error TEXT');
   }
 }
+
+/** Add the commit captured by the last successful index, if missing. */
+export function migrateV02toV03(db: BetterSqlite3.Database): void {
+  if (!tableColumns(db, 'projects').has('indexed_commit')) {
+    db.exec('ALTER TABLE projects ADD COLUMN indexed_commit TEXT');
+  }
+}
+
+/** Persist resolution coverage so no-op runs can report the last graph truth. */
+export function migrateV03toV04(db: BetterSqlite3.Database): void {
+  if (!tableColumns(db, 'index_runs').has('coverage_json')) {
+    db.exec('ALTER TABLE index_runs ADD COLUMN coverage_json TEXT');
+  }
+}
+
+/** Add per-file resolution denominators for truthful partial incremental totals. */
+export function migrateV04toV05(db: BetterSqlite3.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS file_call_coverage (
+      project TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      total_calls INTEGER NOT NULL DEFAULT 0,
+      unresolved_calls INTEGER NOT NULL DEFAULT 0,
+      reasons_json TEXT NOT NULL DEFAULT '{}',
+      partial_reasons_json TEXT NOT NULL DEFAULT '[]',
+      PRIMARY KEY (project, file_path)
+    );
+    CREATE INDEX IF NOT EXISTS idx_file_call_coverage_project
+      ON file_call_coverage(project);
+  `);
+}
+
+export const GRAPH_SCHEMA_MIGRATIONS: readonly SchemaMigration[] = [
+  { version: 1, name: 'project freshness columns', up: migrateV01toV02 },
+  { version: 2, name: 'project indexed commit', up: migrateV02toV03 },
+  { version: 3, name: 'SACG vertical slice tables', up: createSacgVerticalSliceSchema },
+  { version: 4, name: 'index run resolution coverage', up: migrateV03toV04 },
+  { version: 5, name: 'per-file call resolution coverage', up: migrateV04toV05 },
+];

@@ -201,6 +201,13 @@ function columnSql(expr: string, varName: string): string {
 
 function conditionSql(clause: string, varName: string): string {
   const result = clause
+    .replace(new RegExp(`${varName}\\.(\\w+)\\s+CONTAINS\\s+'((?:[^'\\\\]|\\\\')+)'`, 'gi'), (_, prop, val) => {
+      const sqlVal = val.replace(/\\'/g, "''");
+      const col = ['name', 'qualified_name', 'file_path', 'kind'].includes(prop)
+        ? `${varName}.${prop}`
+        : `json_extract(${varName}.properties, '$.${prop}')`;
+      return `instr(${col}, '${sqlVal}') > 0`;
+    })
     .replace(new RegExp(`${varName}\\.(\\w+)\\s*=\\s*'((?:[^'\\\\]|\\\\')+)'`, 'g'), (_, prop, val) => {
       // Convert Cypher \' escape to SQLite '' escape
       const sqlVal = val.replace(/\\'/g, "''");
@@ -228,6 +235,10 @@ function conditionSql(clause: string, varName: string): string {
   // var.prop = 'value' conditions is legitimate and passes through safely.
   if (/\bOR\b/i.test(result) || /\bUNION\b/i.test(result) || /;/.test(result) || /--/.test(result)) {
     throw new Error(`Unsafe WHERE condition: "${clause}". OR, UNION, ;, and -- are not supported in WHERE. Use multiple var.prop = 'value' conditions joined by AND.`);
+  }
+
+  if (/\bCONTAINS\b/i.test(result)) {
+    throw new Error(`Unsupported CONTAINS condition: "${clause}". Use var.property CONTAINS 'text'.`);
   }
 
   return result;

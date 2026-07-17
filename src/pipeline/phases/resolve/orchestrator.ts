@@ -26,9 +26,12 @@ import { passRegistryDispatch } from './pass-registry-dispatch.js';
 
 export interface ResolutionStats {
   unresolvedCalls: number;
+  unresolvedCallReasons: Record<string, number>;
   totalCalls: number;
   totalEdges: number;
   edgeTypeBreakdown: Record<string, number>;
+  passTimingsMs: Record<string, number>;
+  fileCoverage: ResolverState['fileCoverage'];
 }
 
 export function resolveAll(
@@ -39,44 +42,68 @@ export function resolveAll(
   if (batches.length === 0) {
     return {
       unresolvedCalls: 0,
+      unresolvedCallReasons: {},
       totalCalls: 0,
       totalEdges: 0,
       edgeTypeBreakdown: {},
+      passTimingsMs: {},
+      fileCoverage: new Map(),
     };
   }
 
   const edges: LynxEdge[] = [];
-  const state: ResolverState = { totalCalls: 0, unresolvedCalls: 0 };
+  const state: ResolverState = {
+    totalCalls: 0,
+    unresolvedCalls: 0,
+    unresolvedCallReasons: {},
+    fileCoverage: new Map(),
+  };
   const idx = buildIndexes(db, project);
+  const passTimingsMs: Record<string, number> = {};
+  const timed = (name: string, operation: () => void): void => {
+    const started = performance.now();
+    operation();
+    passTimingsMs[name] = Number((performance.now() - started).toFixed(2));
+  };
 
-  passStructure(db, batches, idx, edges);
-  passBranch(db, batches, project, idx, edges);
-  passDefinitions(batches, idx, edges);
-  enrichHeritageFromSource(batches, idx);
-  passHeritage(idx, edges);
-  passImports(batches, idx, edges);
-  passCalls(db, batches, idx, edges, state);
-  passRegistryDispatch(batches, idx, edges);
-  passRoutes(db, batches, idx, edges);
-  passUsages(batches, idx, edges);
-  passThrows(db, batches, idx, edges);
-  passTests(batches, idx, edges);
-  passSemanticLight(db, batches, idx, edges);
-  passChannelsFromSource(db, batches, idx, edges);
-  passDependencies(db, batches, idx, edges);
-  passDecorators(batches, idx, edges);
+  timed('structure', () => passStructure(db, batches, idx, edges));
+  timed('branch', () => passBranch(db, batches, project, idx, edges));
+  timed('definitions', () => passDefinitions(batches, idx, edges));
+  timed('heritage-source', () => enrichHeritageFromSource(batches, idx));
+  timed('heritage', () => passHeritage(idx, edges));
+  timed('imports', () => passImports(batches, idx, edges));
+  timed('calls', () => passCalls(db, batches, idx, edges, state));
+  timed('registry-dispatch', () => passRegistryDispatch(batches, idx, edges));
+  timed('routes', () => passRoutes(db, batches, idx, edges));
+  timed('usages', () => passUsages(batches, idx, edges));
+  timed('throws', () => passThrows(db, batches, idx, edges));
+  timed('tests', () => passTests(batches, idx, edges));
+  timed('semantic', () => passSemanticLight(db, batches, idx, edges));
+  timed('channels', () => passChannelsFromSource(db, batches, idx, edges));
+  timed('dependencies', () => passDependencies(db, batches, idx, edges));
+  timed('decorators', () => passDecorators(batches, idx, edges));
 
+  const dedupeStarted = performance.now();
   const deduped = dedupeEdges(edges);
+  passTimingsMs.dedupe = Number((performance.now() - dedupeStarted).toFixed(2));
   const edgeTypeBreakdown = countByType(deduped);
 
   if (deduped.length > 0) {
+    const insertStarted = performance.now();
     insertEdgesBatch(db, deduped);
+    passTimingsMs.insert = Number((performance.now() - insertStarted).toFixed(2));
+  }
+  if (process.env.LYNX_PROFILE === '1') {
+    process.stderr.write(`[resolve.profile] ${JSON.stringify(passTimingsMs)}\n`);
   }
 
   return {
     unresolvedCalls: state.unresolvedCalls,
+    unresolvedCallReasons: state.unresolvedCallReasons,
     totalCalls: state.totalCalls,
     totalEdges: deduped.length,
     edgeTypeBreakdown,
+    passTimingsMs,
+    fileCoverage: state.fileCoverage,
   };
 }

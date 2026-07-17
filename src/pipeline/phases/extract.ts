@@ -15,23 +15,39 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { Worker } from 'node:worker_threads';
 import { createHash } from 'node:crypto';
+import Database from 'better-sqlite3';
 import { extractFile } from '../../extraction/extractor.js';
 import { isSupportedFilePath } from '../../extraction/language-registry.js';
-import { getNativeExtractorPath, getProjectRoot } from '../../paths.js';
+import { getNativeCorePath, getNativeExtractorPath, getProjectRoot } from '../../paths.js';
+import { validateNativeStaging } from '../../native-core/staging.js';
 import type { DiscoveredFile } from './discover.js';
 import type { ExtractionResult } from '../../extraction/extractor.js';
+import { baseModuleQn, buildModuleIdentityMap, moduleIdentityForPath } from '../../extraction/module-identity.js';
 
 export interface ExtractionBatch {
   file: DiscoveredFile;
   result: ExtractionResult;
   sha256?: string;
   skipped?: boolean;
+  nativeEdges?: NativeResolvedEdge[];
+}
+
+export interface NativeResolvedEdge {
+  sourceQualifiedName: string;
+  targetQualifiedName: string;
+  type: 'CALLS' | 'READS' | 'WRITES';
+  startLine: number;
+  startColumn: number;
+  confidence: number;
+  strategy: string;
+  evidence: Record<string, unknown>;
 }
 
 interface WorkerTask {
   id: number;
   file: DiscoveredFile;
   cachedHash?: string;
+  moduleQn: string;
   project: string;
 }
 
@@ -50,6 +66,29 @@ interface ProcessItem {
   cachedHash?: string;
   ext: string;
   sourceHash?: string;
+  moduleQn: string;
+}
+
+export function selectExtractionWorkerCount(
+  taskCount: number,
+  requestedWorkers: number,
+  availableParallelism: number,
+): number {
+  const safeTaskCount = Math.max(1, Math.floor(taskCount));
+  const safeParallelism = Math.max(1, Math.floor(availableParallelism));
+  const explicitWorkers = Number.isFinite(requestedWorkers)
+    ? Math.floor(requestedWorkers)
+    : 0;
+  const adaptiveWorkers = Math.max(1, Math.ceil(safeParallelism * 0.6));
+
+  return Math.max(
+    1,
+    Math.min(
+      explicitWorkers > 0 ? explicitWorkers : adaptiveWorkers,
+      safeParallelism,
+      safeTaskCount,
+    ),
+  );
 }
 
 /**
@@ -80,11 +119,15 @@ export async function extractAll(
 
   const ordered: Array<ExtractionBatch | ProcessItem> = [];
   const toProcess: ProcessItem[] = [];
+  const supportedFiles = files.filter((file) => isSupportedFilePath(file.relPath));
+  const moduleIdentities = buildModuleIdentityMap(
+    supportedFiles.map((file) => file.relPath),
+  );
 
-  for (const file of files) {
+  for (const file of supportedFiles) {
     const ext = file.relPath.split('.').pop()?.toLowerCase() || '';
-    if (!isSupportedFilePath(file.relPath)) continue;
     const cachedHash = fileHashMap?.get(file.relPath);
+    const moduleQn = moduleIdentityForPath(moduleIdentities, file.relPath);
     let sourceHash: string | undefined;
     if (cachedHash) {
       try {
@@ -98,13 +141,14 @@ export async function extractAll(
         // Let the extractor report the read error in the normal path.
       }
     }
-
-    const item: ProcessItem = { file, cachedHash, ext, sourceHash };
+    const item: ProcessItem = { file, cachedHash, ext, sourceHash, moduleQn };
     ordered.push(item);
     toProcess.push(item);
   }
 
+  const coreResults = await extractNativeCoreFiles(toProcess, project);
   const nativeResults = await extractNativeLargeFiles(toProcess, project);
+  for (const [index, result] of coreResults) nativeResults.set(index, result);
 
   const remaining = toProcess.filter((_, index) => !nativeResults.has(index));
   const workerResults = await extractWithWorkers(remaining, project, emptyResult);
@@ -121,6 +165,153 @@ export async function extractAll(
     if ('result' in entry) return entry;
     return processed[processedIndex++];
   });
+}
+
+async function extractNativeCoreFiles(
+  toProcess: ProcessItem[],
+  project: string,
+): Promise<Map<number, ExtractionBatch>> {
+  if (process.env.LYNX_DISABLE_NATIVE === '1' || process.env.LYNX_DISABLE_NATIVE_CORE === '1') {
+    return new Map();
+  }
+  const binary = getNativeCorePath();
+  const tasks = toProcess
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => ['c', 'h', 'cc', 'cpp', 'cxx', 'hh', 'hpp', 'hxx'].includes(item.ext));
+  if (!binary || tasks.length === 0) return new Map();
+
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-native-pipeline-'));
+  const manifest = path.join(temp, 'manifest.tsv');
+  const stagingPath = path.join(temp, 'staging.db');
+  const relativeDirectory = path.dirname(tasks[0].item.file.relPath);
+  const repositoryRoot = path.resolve(
+    path.dirname(tasks[0].item.file.absPath),
+    ...Array(relativeDirectory === '.' ? 0 : relativeDirectory.split('/').length).fill('..'),
+  );
+  fs.writeFileSync(manifest, tasks.map(({ item }) => {
+    const language = ['cc', 'cpp', 'cxx', 'hh', 'hpp', 'hxx'].includes(item.ext) ? 'cpp' : 'c';
+    return `${language}\t${item.file.relPath}\t${item.file.absPath}`;
+  }).join('\n') + '\n');
+
+  try {
+    const workers = Math.max(1, Math.min(10, os.availableParallelism?.() || os.cpus().length || 4, tasks.length));
+    await runProcess(binary, [project, repositoryRoot, manifest, stagingPath, String(workers), 'full']);
+    const db = new Database(stagingPath, { readonly: true });
+    try {
+      const validation = validateNativeStaging(db, project);
+      if (!validation.valid) throw new Error(validation.errors.join('; '));
+      const result = new Map<number, ExtractionBatch>();
+      for (const { item, index } of tasks) {
+        const file = db.prepare('SELECT id, language, partial_reasons_json FROM native_files WHERE rel_path = ?')
+          .get(item.file.relPath) as { id: number; language: string; partial_reasons_json: string } | undefined;
+        if (!file) continue;
+        const nativeNodes = (db.prepare('SELECT * FROM native_nodes WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)
+          .map((row) => nativeNode(project, item.file.relPath, row));
+        const moduleQn = fileToModuleQn(item.file.relPath);
+        const fileLineCount = Math.max(1, fs.readFileSync(item.file.absPath, 'utf8').split(/\r?\n/).length);
+        const nodes: ExtractionResult['nodes'] = [
+          {
+            project, kind: 'File', name: path.basename(item.file.relPath),
+            qualifiedName: `${project}.file.${moduleQn}`, filePath: item.file.relPath,
+            startLine: 1, endLine: fileLineCount, isExported: false, isTest: false,
+            isEntryPoint: false, extension: path.extname(item.file.relPath),
+            lastModified: null as any, changeCount: null as any,
+          } as any,
+          {
+            project, kind: 'Module', name: moduleQn.split('.').pop() || moduleQn,
+            qualifiedName: `${project}.module.${moduleQn}`, filePath: item.file.relPath,
+            startLine: 1, endLine: fileLineCount, isExported: false, isTest: false,
+            isEntryPoint: false, lineCount: fileLineCount,
+          } as any,
+          ...nativeNodes,
+        ];
+        const calls = (db.prepare('SELECT * FROM native_calls WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)
+          .map((row) => ({ calleeName: String(row.callee_name), enclosingFuncQn: String(row.enclosing_qualified_name), args: [], startLine: Number(row.start_line), loopDepth: 0 }));
+        const imports = (db.prepare('SELECT * FROM native_imports WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)
+          .map((row) => ({ localName: String(row.local_name), modulePath: String(row.module_path), startLine: Number(row.start_line) }));
+        const usages = (db.prepare('SELECT * FROM native_usages WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)
+          .map((row) => ({ refName: String(row.referenced_name), enclosingFuncQn: String(row.enclosing_qualified_name), startLine: Number(row.start_line), isWrite: Number(row.is_write) === 1 }));
+        const nativeEdges = (db.prepare('SELECT * FROM native_edges WHERE file_id = ? ORDER BY id').all(file.id) as Array<Record<string, unknown>>)
+          .map((row): NativeResolvedEdge => ({
+            sourceQualifiedName: String(row.source_qualified_name), targetQualifiedName: String(row.target_qualified_name),
+            type: String(row.type) as NativeResolvedEdge['type'], startLine: Number(row.start_line),
+            startColumn: Number(row.start_column), confidence: Number(row.confidence), strategy: String(row.strategy),
+            evidence: JSON.parse(String(row.evidence_json || '{}')) as Record<string, unknown>,
+          }));
+        result.set(index, {
+          file: item.file,
+          sha256: item.sourceHash || String((db.prepare('SELECT sha256 FROM native_files WHERE id = ?').get(file.id) as { sha256: string }).sha256),
+          result: { nodes, calls, imports, usages, channels: [], throws: [], decorators: [], hasError: false,
+            errorMsg: null, isTestFile: /(^|\/)(test|tests|spec)(\/|_|\.)/i.test(item.file.relPath),
+            language: file.language, partialReasons: JSON.parse(file.partial_reasons_json) as string[] },
+          nativeEdges,
+        });
+      }
+      return result;
+    } finally {
+      db.close();
+    }
+  } catch (error) {
+    console.error('[lynx] Native structural core failed; using safe fallback:', error instanceof Error ? error.message : String(error));
+    return new Map();
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+}
+
+function runProcess(command: string, args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    const errors: Buffer[] = [];
+    let settled = false;
+    const timeoutMs = Math.max(1_000, Number(process.env.LYNX_NATIVE_CORE_TIMEOUT_MS || 5 * 60_000));
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.kill('SIGKILL');
+      reject(new Error(`native core timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    timer.unref();
+    child.stderr.on('data', (chunk) => errors.push(Buffer.from(chunk)));
+    child.once('error', (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once('close', (code, signal) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (code === 0) resolve();
+      else reject(new Error(Buffer.concat(errors).toString('utf8') || `native core ${signal || `exit ${code}`}`));
+    });
+  });
+}
+
+function nativeNode(project: string, filePath: string, row: Record<string, unknown>): ExtractionResult['nodes'][number] {
+  const rawKind = String(row.kind);
+  const kind = rawKind === 'Method' || rawKind === 'Constructor' || rawKind === 'Destructor' ? 'Method'
+    : rawKind === 'Class' || rawKind === 'Struct' || rawKind === 'Union' ? 'Class'
+    : rawKind === 'Enum' ? 'Enum'
+    : rawKind === 'Namespace' ? 'Module'
+    : rawKind === 'TypeAlias' ? 'Type'
+    : rawKind === 'Macro' ? 'Macro'
+    : rawKind === 'Function' ? 'Function' : 'Variable';
+  const base = { project, kind, name: String(row.name), qualifiedName: String(row.qualified_name), filePath,
+    startLine: Number(row.start_line), endLine: Number(row.end_line), isExported: Number(row.is_exported) === 1,
+    isTest: Number(row.is_test) === 1, isEntryPoint: Number(row.is_entry_point) === 1 };
+  if (kind === 'Function') return { ...base, kind, signature: null, returnType: null, paramNames: [], cyclomaticComplexity: 1,
+    cognitiveComplexity: 0, lineCount: Math.max(1, base.endLine - base.startLine + 1), loopCount: 0, loopDepth: 0,
+    transitiveLoopDepth: 0, linearScanInLoop: 0, allocInLoop: 0, recursive: false };
+  if (kind === 'Method') return { ...base, kind, parentClass: base.qualifiedName.split('.').slice(0, -1).join('.'), signature: null,
+    returnType: null, paramNames: [], cyclomaticComplexity: 1, cognitiveComplexity: 0,
+    lineCount: Math.max(1, base.endLine - base.startLine + 1) };
+  if (kind === 'Class') return { ...base, kind, baseClasses: [], lineCount: Math.max(1, base.endLine - base.startLine + 1), cyclomaticComplexity: 1 };
+  if (kind === 'Enum') return { ...base, kind, members: [] };
+  if (kind === 'Module') return { ...base, kind, lineCount: Math.max(1, base.endLine - base.startLine + 1) };
+  if (kind === 'Type' || kind === 'Macro') return { ...base, kind };
+  return { ...base, kind: 'Variable', typeAnnotation: rawKind };
 }
 
 async function extractNativeLargeFiles(
@@ -250,14 +441,10 @@ async function extractWithWorkers(
     return extractDirect(toProcess, project, emptyResult);
   }
 
-  const requestedWorkers = Number(process.env.LYNX_WORKERS || 0);
-  const workerCount = Math.max(
-    1,
-    Math.min(
-      requestedWorkers > 0 ? requestedWorkers : (os.availableParallelism?.() || os.cpus().length || 4),
-      10,
-      toProcess.length
-    )
+  const workerCount = selectExtractionWorkerCount(
+    toProcess.length,
+    Number(process.env.LYNX_WORKERS || 0),
+    os.availableParallelism?.() || os.cpus().length || 4,
   );
   const results = new Array<ExtractionBatch>(toProcess.length);
   let nextTask = 0;
@@ -285,6 +472,7 @@ async function extractWithWorkers(
         id,
         file: item.file,
         cachedHash: item.cachedHash,
+        moduleQn: item.moduleQn,
         project,
       };
       worker.postMessage(task);

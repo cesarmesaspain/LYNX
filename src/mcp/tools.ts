@@ -28,9 +28,9 @@ const EVIDENCE_TOOLS = new Set([
   'get_architecture', 'query_graph', 'get_graph_schema', 'search_code',
   'detect_changes', 'assess_impact', 'pack_memory', 'analyze_hotspots',
   'find_dead_code', 'compare_runs', 'explain_symbol', 'smart_review',
-  'semantic_search', 'find_tests', 'batch_get_code',
+  'semantic_search', 'find_tests', 'batch_get_code', 'check_invariants',
   'diagnose', 'usage_summary', 'get_edge_evidence',
-  'investigate_symbol',
+  'investigate_symbol', 'check_rules',
 ]);
 
 /** Tools which only inspect an already indexed project or its working tree. */
@@ -41,7 +41,7 @@ export const READ_ONLY_TOOL_NAMES = new Set([
   'assess_impact', 'pack_memory', 'analyze_hotspots', 'find_dead_code',
   'compare_runs', 'explain_symbol', 'smart_review', 'semantic_search',
   'find_tests', 'batch_get_code', 'diagnose', 'usage_summary',
-  'investigate_symbol',
+  'check_invariants', 'investigate_symbol', 'check_rules',
 ]);
 
 const DESTRUCTIVE_TOOL_NAMES = new Set(['delete_project']);
@@ -252,6 +252,10 @@ export const TOOLS: LynxToolDef[] = [
         type: { type: 'string', description: 'Optional edge type filter.' },
       },
       required: ['project'],
+      anyOf: [
+        { required: ['edge_id'] },
+        { required: ['source_name', 'target_name'] },
+      ],
     },
   },
   {
@@ -270,7 +274,12 @@ export const TOOLS: LynxToolDef[] = [
         include_evidence: { type: 'boolean', description: 'Include edge evidence in traces (default true).' },
         verbose: { type: 'boolean', description: 'Include value_metrics, llm_usage, and index context (default false — compact agent-friendly output).' },
       },
-      required: ['project', 'symbol'],
+      required: ['project'],
+      anyOf: [
+        { required: ['symbol'] },
+        { required: ['name'] },
+        { required: ['qualified_name'] },
+      ],
     },
   },
   {
@@ -373,6 +382,20 @@ export const TOOLS: LynxToolDef[] = [
     },
   },
   {
+    name: 'check_invariants',
+    description: 'Discover sibling-call invariants and detect violations in modified code. Learns co-occurrence patterns from the CALLS graph (e.g. lock() always appears with unlock()) and flags functions that break the pattern.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string' },
+        files: { type: 'array', items: { type: 'string' }, description: 'Optional file list to check for violations. If omitted, only invariants are returned.' },
+        min_confidence: { type: 'number', description: 'Minimum confidence threshold (0.0–1.0, default 0.8).' },
+        limit: { type: 'integer', description: 'Maximum discovered invariants returned (default 30, max 100). Violations are not truncated.' },
+      },
+      required: ['project'],
+    },
+  },
+  {
     name: 'manage_adr',
     description: 'Create or update Architecture Decision Records.',
     inputSchema: {
@@ -464,7 +487,7 @@ export const TOOLS: LynxToolDef[] = [
     name: 'explain_symbol',
     description:
       'Get a detailed explanation of a code symbol (function, class, method). Returns source code, ' +
-      'callers, callees, complexity metrics, risk assessment, related findings, and a Spanish narrative.',
+      'callers, callees, complexity metrics, risk assessment, related findings, and a concise narrative.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -487,6 +510,7 @@ export const TOOLS: LynxToolDef[] = [
         file: { type: 'string', description: 'File path to review (all functions in file).' },
         qualified_name: { type: 'string', description: 'Single function/class to review.' },
         limit: { type: 'integer', description: 'Max issues (default 20).' },
+        enable_llm: { type: 'boolean', description: 'Opt in to LLM smell classification. Default false; deterministic graph review remains local.' },
       },
       required: ['project'],
     },
@@ -567,6 +591,21 @@ export const TOOLS: LynxToolDef[] = [
         limit: { type: 'integer', description: 'Max results (default 20, max 30).' },
       },
       required: ['project', 'qualified_names'],
+    },
+  },
+  {
+    name: 'check_rules',
+    description:
+      'Check architecture rules defined in lynx-rules.json against the indexed dependency graph. ' +
+      'Detects forbidden cross-layer imports and returns violations with source/target file and symbol details. ' +
+      'Use to enforce layer boundaries (e.g. domain must not import infrastructure).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        project: { type: 'string' },
+        files: { type: 'array', items: { type: 'string' }, description: 'Optional file list to scope violation detection. If omitted, all indexed files are checked.' },
+      },
+      required: ['project'],
     },
   },
 ];

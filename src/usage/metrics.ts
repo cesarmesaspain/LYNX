@@ -170,15 +170,19 @@ export function estimateTokensFromFiles(
   // stat — the file watcher updates hashes on every file change.
   let dbSizeCache: Map<string, number> | null = null;
   if (project) {
+    let db: LynxDatabase | null = null;
     try {
       dbSizeCache = new Map();
-      const db = LynxDatabase.openProject(project);
+      db = LynxDatabase.openProject(project);
       const stmt = db.db.prepare('SELECT size FROM file_hashes WHERE project = ? AND rel_path = ?');
       for (const f of files) {
         const row = stmt.get(project, f) as { size: number } | undefined;
         if (row && row.size > 0) dbSizeCache.set(f, row.size);
       }
     } catch { /* DB not available, fall back to disk */ }
+    finally {
+      db?.close();
+    }
   }
 
   for (const f of files) {

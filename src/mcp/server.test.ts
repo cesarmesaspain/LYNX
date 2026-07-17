@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { TOOLS } from './tools.js';
-import { buildIndexContext, getDb, listMcpTools, setDb, unsetDb } from './server.js';
+import { buildIndexContext, getDb, listMcpTools, setDb, unsetDb, validateToolArguments } from './server.js';
 import { LynxDatabase } from '../store/database.js';
 import { handleGetEdgeEvidence } from './handlers/get_edge_evidence.js';
 import { handleTracePath } from './handlers/trace_path.js';
 import { handleInvestigateSymbol } from './handlers/investigate_symbol.js';
+import { handleIndexStatus } from './handlers/index_status.js';
 
 describe('MCP tool registry', () => {
   it('returns the complete registry in one tools/list response', () => {
-    expect(TOOLS).toHaveLength(31);
+    process.env.LYNX_TOOL_PROFILE = 'full'; // default is now 'core', force full for this test
+    expect(TOOLS).toHaveLength(33);
     expect(new Set(TOOLS.map((tool) => tool.name)).size).toBe(TOOLS.length);
     expect(TOOLS.map((tool) => tool.name)).toContain('find_dead_code');
     expect(TOOLS.map((tool) => tool.name)).toContain('diagnose');
@@ -32,6 +34,40 @@ describe('MCP tool registry', () => {
       readOnlyHint: false,
       destructiveHint: true,
     });
+  });
+
+  it('validates every call from the public tool schema', () => {
+    expect(validateToolArguments('index_repository', { path: '/tmp/project' })).toMatchObject({
+      valid: false,
+      error: 'INVALID_TOOL_ARGUMENTS',
+      problems: ["Missing required argument 'repo_path'."],
+      required_arguments: ['repo_path'],
+    });
+    expect(validateToolArguments('batch_get_code', {
+      project: 'LYNX',
+      qualified_names: 'not-an-array',
+    })).toMatchObject({
+      valid: false,
+      problems: ["Argument 'qualified_names' must be array."],
+    });
+    expect(validateToolArguments('pack_context', { task: 'audit', mode: 'invalid' })).toMatchObject({
+      valid: false,
+      problems: [expect.stringContaining('compact, full, decision')],
+    });
+    expect(validateToolArguments('batch_get_code', {
+      project: 'LYNX',
+      qualified_names: ['mcp.server.listMcpTools'],
+    })).toEqual({ valid: true });
+    expect(validateToolArguments('investigate_symbol', {
+      project: 'LYNX', qualified_name: 'mcp.server.listMcpTools',
+    })).toEqual({ valid: true });
+    expect(validateToolArguments('investigate_symbol', { project: 'LYNX' })).toMatchObject({
+      valid: false,
+      problems: [expect.stringContaining('symbol OR name OR qualified_name')],
+    });
+    expect(validateToolArguments('get_edge_evidence', {
+      project: 'LYNX', source_name: 'source', target_name: 'target',
+    })).toEqual({ valid: true });
   });
 
   it('offers the compact profile only when explicitly requested', () => {
@@ -76,6 +112,28 @@ describe('MCP database cache', () => {
 });
 
 describe('MCP index context', () => {
+  it('counts canonical indexed files with nodes without counting folders', async () => {
+    const project = 'file-coverage-count';
+    const db = LynxDatabase.openMemory();
+    db.upsertProject(project, process.cwd());
+    db.db.prepare(`INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
+      VALUES (1, ?, 'File', 'one.ts', 'file.one', 'src/one.ts', 1, 1, 0, 0, 0, '{}'),
+             (2, ?, 'Function', 'one', 'one.fn', 'src/one.ts', 1, 1, 0, 0, 0, '{}'),
+             (3, ?, 'Folder', 'src', 'folder.src', 'src', 1, 1, 0, 0, 0, '{}'),
+             (4, ?, 'Function', 'native', 'native.fn', 'src/native.c', 1, 1, 0, 0, 0, '{}')`).run(project, project, project, project);
+    db.db.prepare(`INSERT INTO file_hashes (project, rel_path, sha256, mtime_ns, size)
+      VALUES (?, 'src/one.ts', 'one', 1, 1), (?, 'src/native.c', 'native', 1, 1)`).run(project, project);
+    setDb(project, db);
+
+    const status = await handleIndexStatus({ project }) as { files: number };
+    expect(status).toMatchObject({
+      files: 2,
+      coverage: { indexed_files_with_nodes: 2 },
+    });
+    unsetDb(project, { close: false });
+    db.close();
+  });
+
   it('does not label an empty project database as fresh', () => {
     const project = 'empty-index-context';
     const db = LynxDatabase.openMemory();

@@ -163,10 +163,11 @@ async function handleApiMetrics(res: http.ServerResponse, url: URL): Promise<voi
     };
 
     if (format === 'csv') {
-      const csv = metricsToCsv(data);
+      const csv = metricsToCsv(data, project || 'all');
+      const filenameProject = (project || 'all').replace(/[^a-zA-Z0-9._-]/g, '-');
       res.writeHead(200, {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="lynx-metrics-${project || 'all'}-${window}.csv"`,
+        'Content-Disposition': `attachment; filename="lynx-metrics-${filenameProject}-${window}.csv"`,
       });
       res.end(csv);
       return;
@@ -414,6 +415,10 @@ export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
 
     function broadcastUpdate() {
       if (clients.size === 0) return;
+      // Opening project databases while collecting cards can itself touch WAL
+      // metadata. Ignore those self-generated fs.watch events so one external
+      // write cannot turn into an endless refresh → WAL event → refresh loop.
+      suppressWatchUntil = Date.now() + 1_000;
       invalidateCardsCache();
       const cards = collectProjectCards();
       const briefPayload = Object.fromEntries(cards
@@ -436,7 +441,9 @@ export function startDashboard(port = PORT, retryAttempt = 0): http.Server {
       fs.mkdirSync(dbsDir, { recursive: true });
     }
     let watchDebounce: ReturnType<typeof setTimeout> | null = null;
+    let suppressWatchUntil = 0;
     const scheduleBroadcast = () => {
+      if (Date.now() < suppressWatchUntil) return;
       if (watchDebounce) clearTimeout(watchDebounce);
       watchDebounce = setTimeout(broadcastUpdate, 100);
     };
@@ -500,53 +507,99 @@ export function stopDashboard(): void {
 
 import type { WindowedMetrics } from '../../usage/aggregation.js';
 
-function metricsToCsv(data: WindowedMetrics): string {
-  const lines: string[] = [];
+function csvCell(value: unknown): string {
+  const text = String(value ?? '');
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
 
-  // Header section with metadata
-  lines.push('# LYNX Metrics Export');
-  lines.push(`# Window: ${data.window}`);
-  lines.push(`# Period: ${data.since} — ${data.until}`);
-  lines.push(`# Computed: ${data.computed_at}`);
-  lines.push('');
+function metricsToCsv(data: WindowedMetrics, project: string): string {
+  const header = [
+    'project', 'window', 'since', 'until', 'computed_at', 'section', 'key',
+    'label', 'value', 'unit', 'provenance', 'formula', 'confidence',
+    'sample_size', 'status', 'notes',
+  ];
+  const lines = [header.join(',')];
+  const englishLabels: Record<string, string> = {
+    tokens_saved: 'Tokens saved',
+    files_avoided: 'Files avoided',
+    unique_files: 'Unique historical file paths referenced',
+    events: 'Recorded events',
+    sessions: 'Distinct sessions',
+    tasks: 'Distinct tasks',
+    llm_cost: 'Estimated LLM cost',
+    llm_events: 'LLM events',
+  };
+  const categoryLabels: Record<string, string> = {
+    architecture_overview: 'Architecture overview',
+    direct_discovery: 'Direct discovery',
+    smart_navigation: 'Smart navigation',
+    context_packing: 'Context packing',
+    impact_analysis: 'Impact analysis',
+    llm_rerank: 'Semantic reranking',
+    hook_augment: 'Hook augmentation',
+    project_operations: 'Project operations',
+    other: 'Other',
+  };
+  const notesByMetric: Record<string, string> = {
+    unique_files: 'Distinct historical paths referenced by recorded events; renamed or deleted paths remain and the count may exceed the current indexed file count.',
+    sessions: 'COUNT(DISTINCT session_id). This is independent from the task count; equal values do not imply identical concepts.',
+    tasks: 'COUNT(DISTINCT task_id). This is independent from the session count; equal values may occur when each session records one task.',
+  };
+  const addRow = (section: string, key: string, label: string, value: unknown, unit: string,
+    provenance: string, formula = '', confidence: unknown = '', sampleSize: unknown = '',
+    status = 'available', notes = '') => {
+    lines.push([
+      project, data.window, data.since, data.until, data.computed_at, section, key,
+      label, value, unit, provenance, formula, confidence, sampleSize, status, notes,
+    ].map(csvCell).join(','));
+  };
 
-  // Totals — derive provenance from the metrics array
-  const provByKey = new Map(data.metrics.map(m => [m.key, m.provenance.kind]));
-  const p = (key: string) => provByKey.get(key) || 'measured';
-  lines.push('## Totals');
-  lines.push('metric,value,unit,provenance,category');
-  lines.push(`tokens_saved,${data.totals.tokens_saved},tokens,${p('tokens_saved')},total`);
-  lines.push(`files_avoided,${data.totals.files_avoided},files,${p('files_avoided')},total`);
-  lines.push(`unique_files_avoided,${data.totals.unique_files_avoided},files,${p('unique_files')},total`);
-  lines.push(`events,${data.totals.events},events,${p('events')},total`);
-  lines.push(`llm_events,${data.totals.llm_events},events,${p('llm_events')},total`);
-  lines.push(`llm_cost_usd,${data.totals.llm_cost_usd},USD,${p('llm_cost')},total`);
-  lines.push(`sessions,${data.totals.sessions},sessions,${p('sessions')},total`);
-  lines.push(`tasks,${data.totals.tasks},tasks,${p('tasks')},total`);
-  lines.push(`deterministic_events,${data.totals.deterministic_events},events,measured,total`);
-  lines.push('');
-
-  // Category breakdown
-  lines.push('## Categories (mutually exclusive)');
-  lines.push('category,label,tokens_saved,files_avoided,events,latency_ms');
-  for (const c of data.categories) {
-    lines.push(`${c.category},"${c.label}",${c.tokens_saved},${c.files_avoided},${c.events},${c.latency_ms}`);
+  for (const metric of data.metrics) {
+    addRow(
+      'total', metric.key, englishLabels[metric.key] || metric.key, metric.value,
+      metric.unit === 'archivos' ? 'files' : metric.unit === 'eventos' ? 'events' :
+        metric.unit === 'sesiones' ? 'sessions' : metric.unit === 'tareas' ? 'tasks' : metric.unit,
+      metric.provenance.kind, metric.provenance.formula || '',
+      metric.provenance.confidence, metric.provenance.sample_size, 'available',
+      notesByMetric[metric.key] || '',
+    );
   }
-  lines.push('');
 
-  // Metrics with provenance
-  lines.push('## Metrics');
-  lines.push('key,label,value,unit,kind,formula,confidence,sample_size');
-  for (const m of data.metrics) {
-    const formula = m.provenance.formula ? `"${m.provenance.formula.replace(/"/g, '""')}"` : '';
-    lines.push(`${m.key},"${m.label}",${m.value},${m.unit},${m.provenance.kind},${formula},${m.provenance.confidence},${m.provenance.sample_size}`);
+  addRow('total', 'events_explicitly_marked_deterministic', 'Events explicitly marked deterministic',
+    data.totals.deterministic_events, 'events', 'measured', 'count(event.deterministic_mode = true)',
+    1, data.totals.events, 'available',
+    'Only explicit deterministic_mode=true flags are counted; non-LLM events are not automatically classified as deterministic.');
+  addRow('total', 'llm_latency_ms', 'Recorded LLM latency',
+    data.totals.llm_latency_ms > 0 ? data.totals.llm_latency_ms : '', 'ms', 'measured',
+    'sum(event.llm_latency_ms)', 1, data.totals.llm_events,
+    data.totals.llm_latency_ms > 0 ? 'available' : 'unavailable',
+    data.totals.llm_latency_ms > 0 ? '' : 'No positive LLM latency values were recorded for this window.');
+
+  for (const category of data.categories) {
+    const label = categoryLabels[category.category] || category.category;
+    addRow('category', `${category.category}.tokens_saved`, `${label} — tokens saved`,
+      category.tokens_saved, 'tokens', 'estimated', 'sum(event.tokens_saved)', 0.7, category.events);
+    addRow('category', `${category.category}.files_avoided`, `${label} — files avoided`,
+      category.files_avoided, 'files', 'estimated', 'sum(event.files_avoided)', 0.7, category.events);
+    addRow('category', `${category.category}.events`, `${label} — events`,
+      category.events, 'events', 'measured', 'count(events)', 1, category.events);
+    addRow('category', `${category.category}.latency_ms`, `${label} — recorded latency`,
+      category.latency_ms > 0 ? category.latency_ms : '', 'ms', 'measured', 'sum(event.latency_ms)',
+      1, category.events, category.latency_ms > 0 ? 'available' : 'unavailable',
+      category.latency_ms > 0 ? '' : 'No positive latency values were recorded for this category.');
   }
-  lines.push('');
 
-  // Coverage
-  lines.push('## Telemetry Coverage');
-  lines.push('event_coverage,sessions_tracked,tasks_tracked,llm_active,deterministic_mode,summary');
-  lines.push(`${data.coverage.event_coverage},${data.coverage.sessions_tracked},${data.coverage.tasks_tracked},${data.coverage.llm_tracking_active},${data.coverage.deterministic_mode},"${data.coverage.summary}"`);
+  addRow('coverage', 'event_coverage', 'Event telemetry coverage', data.coverage.event_coverage,
+    'ratio', 'measured', '', 1, data.totals.events, data.totals.events > 0 ? 'available' : 'unavailable',
+    'A value of 1 means event data exists; the total number of possible events is unknown.');
+  addRow('coverage', 'sessions_available', 'Session identifiers available', data.coverage.sessions_available,
+    'boolean', 'measured');
+  addRow('coverage', 'tasks_available', 'Task identifiers available', data.coverage.tasks_available,
+    'boolean', 'measured');
+  addRow('coverage', 'llm_tracking_active', 'LLM tracking active', data.coverage.llm_tracking_active,
+    'boolean', 'measured');
+  addRow('coverage', 'deterministic_mode', 'Predominantly deterministic mode', data.coverage.deterministic_mode,
+    'boolean', 'measured', 'explicit deterministic events >= 90% of recorded events');
 
   return lines.join('\n') + '\n';
 }

@@ -17,14 +17,14 @@ afterEach(() => {
 });
 
 describe('Codex SessionStart installation', () => {
-  it('installs a guarded fast index command for new chats in config.toml', () => {
+  it('installs a guarded depth-preserving incremental index command for new chats', () => {
     const configDir = makeConfigDir();
 
     installCodexHook(configDir, false);
 
     const config = fs.readFileSync(path.join(configDir, 'config.toml'), 'utf-8');
     expect(config).toContain('matcher = "startup"');
-    expect(config).toContain('lynx index \\"$PWD\\" --mode fast');
+    expect(config).toContain('lynx index \\"$PWD\\" --mode full --incremental');
     expect(config).toContain('[ -f \\"$PWD/CLAUDE.md\\" ] || [ -f \\"$PWD/AGENTS.md\\" ]');
   });
 
@@ -49,7 +49,7 @@ describe('Codex SessionStart installation', () => {
       matcher: 'startup',
       hooks: [{
         type: 'command',
-        command: 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --mode fast --incremental; fi',
+        command: 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --mode full --incremental; fi',
       }],
     }]);
   });

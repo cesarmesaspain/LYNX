@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handlers = vi.hoisted(() => ({
   runPipeline: vi.fn(async () => ({ status: { totalNodes: 1, totalEdges: 1 }, architecture: { hotspots: [], clusters: [] } })),
-  openProject: vi.fn(() => ({ close: vi.fn() })),
+  openProject: vi.fn(() => ({ close: vi.fn(), setProjectStatus: vi.fn() })),
   cleanupNativeExtractor: vi.fn(),
   resolveProjectPath: vi.fn(() => ({ rootPath: process.cwd(), name: "LYNX" })),
 }));
@@ -17,6 +17,17 @@ import { cmdIndex } from "../../../src/cli/commands/index-cmd.js";
 beforeEach(() => vi.clearAllMocks());
 
 describe("index CLI command", () => {
+  it("prints subcommand help without indexing", async () => {
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    await cmdIndex(["--help"]);
+
+    expect(output).toHaveBeenCalledWith(expect.stringContaining("Usage: lynx index"));
+    expect(handlers.resolveProjectPath).not.toHaveBeenCalled();
+    expect(handlers.openProject).not.toHaveBeenCalled();
+    expect(handlers.runPipeline).not.toHaveBeenCalled();
+  });
+
   it("passes parsed options to pipeline", async () => {
     await cmdIndex([".", "--mode", "fast", "--llm", "--name", "TEST"]);
     expect(handlers.runPipeline).toHaveBeenCalled();

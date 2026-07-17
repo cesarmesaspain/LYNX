@@ -12,6 +12,7 @@ export type LynxNode =
   | LynxClass
   | LynxMethod
   | LynxVariable
+  | LynxMacro
   | LynxType
   | LynxInterface
   | LynxEnum
@@ -46,6 +47,8 @@ export interface LynxFunction extends LynxNodeBase {
   signature: string | null;
   returnType: string | null;
   paramNames: string[];
+  /** Raw declared parameter types keyed by local parameter name. */
+  paramTypes?: Record<string, string>;
   cyclomaticComplexity: number;
   cognitiveComplexity: number;
   lineCount: number;
@@ -70,6 +73,8 @@ export interface LynxMethod extends LynxNodeBase {
   signature: string | null;
   returnType: string | null;
   paramNames: string[];
+  /** Raw declared parameter types keyed by local parameter name. */
+  paramTypes?: Record<string, string>;
   cyclomaticComplexity: number;
   cognitiveComplexity: number;
   lineCount: number;
@@ -78,6 +83,10 @@ export interface LynxMethod extends LynxNodeBase {
 export interface LynxVariable extends LynxNodeBase {
   kind: 'Variable';
   typeAnnotation: string | null;
+}
+
+export interface LynxMacro extends LynxNodeBase {
+  kind: 'Macro';
 }
 
 export interface LynxType extends LynxNodeBase {

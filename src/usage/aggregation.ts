@@ -85,6 +85,8 @@ const CATEGORY_BY_TYPE: Record<string, string> = {
 };
 
 const OBSERVATION_CATEGORY_BY_TOOL: Record<string, string> = {
+  investigate_symbol: 'smart_navigation',
+  get_edge_evidence: 'smart_navigation',
   detect_changes: 'impact_analysis',
   assess_impact: 'impact_analysis',
   analyze_hotspots: 'impact_analysis',
@@ -98,6 +100,7 @@ const OBSERVATION_CATEGORY_BY_TOOL: Record<string, string> = {
   watch_project: 'project_operations',
   manage_adr: 'project_operations',
   delete_project: 'project_operations',
+  auto_index: 'project_operations',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -277,8 +280,15 @@ export function aggregateTotal(
   // DB-only: events_archive is the single source of truth.
   const archived = readArchivedEvents(project, 50000);
   const merged = dedupEvents(archived.map(attributeLegacyToolObservation));
+  const actualWindow: WindowInfo = {
+    ...win,
+    // The total window starts at the first recorded event. When there is no
+    // history yet, use the computation time instead of a synthetic sentinel.
+    since: merged.reduce((earliest, event) =>
+      event.ts < earliest ? event.ts : earliest, merged[0]?.ts || now),
+  };
 
-  return buildFromEvents(win, merged, now);
+  return buildFromEvents(actualWindow, merged, now);
 }
 
 // ── Build from events ──────────────────────────────────────────
@@ -435,7 +445,12 @@ function buildCategoryBreakdown(events: UsageEvent[]): CategoryBreakdown[] {
         latency_ms: e.latency,
       };
     })
-    .filter((c) => c.events > 0 || c.tokens_saved > 0);
+    .filter((c) => c.events > 0 || c.tokens_saved > 0)
+    .sort((a, b) =>
+      b.tokens_saved - a.tokens_saved ||
+      b.events - a.events ||
+      a.category.localeCompare(b.category)
+    );
 }
 
 // ── Metric points with provenance ──────────────────────────────

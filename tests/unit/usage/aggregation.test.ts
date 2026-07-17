@@ -124,6 +124,12 @@ describe('aggregation invariants', () => {
     const names = result.categories.map((c) => c.category);
     expect(new Set(names).size).toBe(names.length);
   });
+
+  it('orders active categories by estimated tokens saved from highest to lowest', () => {
+    const result = aggregateByWindow('test', 'total', '2026-07-10T12:00:00Z');
+    const values = result.categories.map((category) => category.tokens_saved);
+    expect(values).toEqual([...values].sort((a, b) => b - a));
+  });
 });
 
 // ── Empty / no data ────────────────────────────────────────────

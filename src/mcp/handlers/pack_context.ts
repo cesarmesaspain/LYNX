@@ -23,8 +23,8 @@ import {
   summarizeUsage,
 } from '../../usage/metrics.js';
 import { computeRealSavings } from '../../usage/session.js';
-import * as child_process from 'node:child_process';
 import * as path from 'node:path';
+import { getModifiedFiles } from '../../git/diff.js';
 import { storedTimestampMs } from '../../store/time.js';
 import { rerankSearchWithMeta, type RerankMeta } from '../../llm/client.js';
 import { readLynxConfig } from '../../config/runtime.js';
@@ -149,9 +149,9 @@ export async function handlePackContext(
 
 function buildConstraints(task: string): string[] {
   const taskLower = task.toLowerCase();
-  const isFrontend = /frontend|ui|react|component|page|view|style|css|tailwind|jsx/i.test(taskLower);
-  const isBackend = /backend|api|server|database|db|prisma|sql|query|route|endpoint/i.test(taskLower);
-  const isReadonly = /analizar|analyze|review|audit|check|explor|investigar|read.only|readonly/i.test(taskLower);
+  const isFrontend = /\b(?:frontend|ui|react|components?|pages?|views?|styles?|css|tailwind|jsx)\b/i.test(taskLower);
+  const isBackend = /\b(?:backend|api|server|database|db|prisma|sql|queries|query|routes?|endpoints?)\b/i.test(taskLower);
+  const isReadonly = /\b(?:analizar|analyze|review|audit|check|explore|exploring|investigar|read-only|readonly)\b/i.test(taskLower);
 
   const constraints: string[] = [];
   constraints.push('READ_TARGET_FILES_BEFORE_EDITING');
@@ -191,7 +191,7 @@ async function buildProjectPackContext(
         kind: r.node.kind,
         flow_area: area,
         why: explainCandidate(r.node.kind, r.node.filePath, taskLower, term, fanIn),
-        score: r.score + r.tokenScore,
+        score: r.score + r.tokenScore + subsystemAffinity(taskLower, r.node.filePath),
         change_risk: assessChangeRisk(fanIn, r.node.filePath),
         fan_in: fanIn,
       });
@@ -256,7 +256,8 @@ async function buildProjectPackContext(
             type: 'llm_rerank', project, query: task.slice(0, 240),
             result_count: rerankInput.length, unique_files: new Set(reordered.map(c => c.file_path)).size,
             files_avoided: 0, tokens_saved: 0, confidence: 'low',
-            llm_provider: rerank.provider, llm_latency_ms: llmUsage.latency_ms,
+            llm_provider: rerank.provider, llm_model: rerank.model || undefined,
+            llm_latency_ms: llmUsage.latency_ms,
             estimated_llm_cost_usd: estimateRerankCostUsd(rerankInput.length),
             rank_changed: true, top_changed: reordered[0]?.qualified_name !== candidatePool[0]?.qualified_name,
             tool_hint: 'pack_context selection', files: reordered.slice(0, selectionLimit).map(c => c.file_path),
@@ -393,17 +394,30 @@ evidence_count: row.evidence_count,
 function dedupeCandidates(candidates: GraphCandidate[]): GraphCandidate[] {
   const seen = new Set<string>();
   const ranked = [...candidates].sort((a, b) => {
+    const relevanceDiff = b.score - a.score;
+    if (Math.abs(relevanceDiff) > 0.001) return relevanceDiff;
     const areaScore = areaPriority(a.flow_area) - areaPriority(b.flow_area);
     if (areaScore !== 0) return areaScore;
     const fanDiff = (b.fan_in || 0) - (a.fan_in || 0);
-    if (Math.abs(fanDiff) > 5) return fanDiff;
-    return b.score - a.score;
+    return fanDiff;
   });
   return ranked.filter(candidate => {
     if (seen.has(candidate.qualified_name)) return false;
     seen.add(candidate.qualified_name);
     return true;
   });
+}
+
+function subsystemAffinity(taskLower: string, filePath: string): number {
+  const scopes: Array<[RegExp, RegExp]> = [
+    [/\b(?:mcp|tools?|handlers?)\b/, /(?:^|\/)src\/mcp\//],
+    [/\b(?:dashboard|metrics?|cards?|tooltip|frontend|ui)\b/, /(?:^|\/)src\/server\/dashboard\//],
+    [/\b(?:index|indexing|indexer|watcher|incremental)\b/, /(?:^|\/)src\/(?:pipeline|watcher)\//],
+    [/\b(?:graph|edges?|nodes?|relationships?)\b/, /(?:^|\/)src\/(?:store|pipeline\/phases\/resolve)\//],
+    [/\b(?:tests?|coverage|vitest)\b/, /(?:^|\/)(?:tests?\/|[^/]+\.(?:test|spec)\.)/],
+  ];
+  return scopes.reduce((boost, [intent, pathPattern]) =>
+    boost + (intent.test(taskLower) && pathPattern.test(filePath) ? 30 : 0), 0);
 }
 
 export function hasAmbiguousCandidatePool(candidates: readonly Pick<GraphCandidate, 'score'>[]): boolean {
@@ -486,11 +500,15 @@ function extractTerms(text: string, _isSpanish: boolean): string[] {
     // Generic dev verbs — too common to be useful search terms
     'add', 'new', 'make', 'use', 'get', 'set', 'put', 'the', 'not',
     'its', 'also', 'just', 'will', 'need', 'want', 'into', 'our',
+    // Audit/process language describes the activity, not a code target.
+    'audit', 'auditing', 'review', 'second', 'root', 'cause', 'real',
+    'execution', 'executions', 'systemic', 'correctness', 'consistency',
+    'quality', 'efficiency', 'defect', 'defects', 'improvement', 'improvements',
   ]);
 
   const tokens = text
     .toLowerCase()
-    .split(/[\s,;:.'"()\[\]{}]+/)
+    .split(/[\s,;:.'"()\[\]{}_\/-]+/)
     .filter(t => t.length >= 3 && !stopWords.has(t));
 
   return [...new Set(tokens)];
@@ -554,35 +572,7 @@ function shortestUniqueSuffix(target: string, all: string[]): string {
   return target;
 }
 
-function collectGitDiffFiles(rootPath: string): string[] {
-  const files = new Set<string>();
-  try {
-    const out = child_process.execSync(
-      'git diff --name-only',
-      { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
-    );
-    for (const f of out.trim().split('\n')) {
-      if (f.trim()) files.add(f.trim());
-    }
-  } catch { /* no git or no changes */ }
-
-  try {
-    const out = child_process.execSync(
-      'git --no-optional-locks status --porcelain --untracked-files=normal',
-      { cwd: rootPath, encoding: 'utf-8', timeout: 5000 }
-    );
-    for (const rawLine of out.trim().split('\n')) {
-      const line = rawLine.replace(/[\r\n]+$/, '');
-      if (line.length < 3) continue;
-      let file = line.slice(3).trim();
-      const arrow = file.indexOf(' -> ');
-      if (arrow > 0) file = file.substring(arrow + 4);
-      if (file) files.add(file);
-    }
-  } catch { /* ignore */ }
-
-  return Array.from(files);
-}
+// getModifiedFiles is shared in src/git/diff.ts
 
 function buildDecisionSummary(project: string, task: string): string {
   const db = getDb(project);
@@ -590,7 +580,7 @@ function buildDecisionSummary(project: string, task: string): string {
   if (!meta) return 'Project not indexed. Run index_repository first for decision support.';
 
   const rootPath = meta.rootPath;
-  const diffFiles = collectGitDiffFiles(rootPath);
+  const diffFiles = getModifiedFiles(rootPath, undefined, false);
 
   if (diffFiles.length === 0) {
     return 'No uncommitted changes detected. The working tree is clean. If a material question remains, re-run with a specific task description so LYNX can target only the relevant code areas.';

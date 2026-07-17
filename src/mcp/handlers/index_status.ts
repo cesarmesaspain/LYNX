@@ -3,8 +3,10 @@ import { readLynxConfig } from '../../config/runtime.js';
 import { isProjectLocked, listOrphanedLocks } from '../../store/lock.js';
 import { storedTimestampMs } from '../../store/time.js';
 import { discoverFiles } from '../../pipeline/phases/discover.js';
+import { detectGraphDrift } from '../../store/graph-drift.js';
+import { countFilesWithGraphNodes } from '../../store/memory.js';
 
-type IndexFreshness = 'ready' | 'stale' | 'updating' | 'failed' | 'unknown';
+type IndexFreshness = 'ready' | 'stale' | 'drifted' | 'updating' | 'failed' | 'unknown';
 
 export async function handleIndexStatus(
   args: Record<string, unknown>
@@ -24,9 +26,7 @@ export async function handleIndexStatus(
     .prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ?')
     .get(project) as { cnt: number };
 
-  const fileCount = db.db
-    .prepare('SELECT COUNT(DISTINCT file_path) as cnt FROM nodes WHERE project = ?')
-    .get(project) as { cnt: number };
+  const fileCount = { cnt: countFilesWithGraphNodes(db, project) };
 
   const nodeLabels = db.db
     .prepare(
@@ -53,6 +53,7 @@ export async function handleIndexStatus(
   // ── Freshness ──────────────────────────────────────────
   let freshness: IndexFreshness = 'unknown';
   const cfg = readLynxConfig();
+  const graphDrift = meta && nodeCount.cnt > 0 ? detectGraphDrift(db, meta) : null;
 
   if (meta) {
     if (meta.status === 'failed') {
@@ -62,7 +63,9 @@ export async function handleIndexStatus(
     } else if (nodeCount.cnt > 0) {
       const indexedMs = storedTimestampMs(meta.indexedAt);
       const ageHours = (Date.now() - indexedMs) / (1000 * 60 * 60);
-      freshness = ageHours > cfg.stale_threshold_hours ? 'stale' : 'ready';
+      freshness = graphDrift?.status === 'drifted'
+        ? 'drifted'
+        : ageHours > cfg.stale_threshold_hours ? 'stale' : 'ready';
     }
   }
 
@@ -83,12 +86,17 @@ export async function handleIndexStatus(
   let coverage: Record<string, unknown> | null = null;
   if (meta?.rootPath) {
     try {
-      const discovery = discoverFiles(meta.rootPath, 'fast');
+      const coverageMode = lastRun?.mode === 'full' || lastRun?.mode === 'moderate'
+        ? lastRun.mode
+        : 'fast';
+      const discovery = discoverFiles(meta.rootPath, coverageMode);
       coverage = {
-        mode: 'fast',
+        mode: coverageMode,
         discoverable_files: discovery.files.length,
         indexed_files_with_nodes: fileCount.cnt,
-        indexed_file_ratio: discovery.files.length === 0 ? 1 : Number((fileCount.cnt / discovery.files.length).toFixed(3)),
+        indexed_file_ratio: discovery.files.length === 0
+          ? 1
+          : Number(Math.min(1, fileCount.cnt / discovery.files.length).toFixed(3)),
         excluded_directories: discovery.excludedDirs.slice(0, 100),
         note: 'Freshness is temporal; coverage reports how much discoverable source has graph nodes.',
       };
@@ -106,6 +114,7 @@ export async function handleIndexStatus(
     indexed_at: indexedAt,
     project_status: meta?.status || null,
     project_status_error: meta?.statusError || null,
+    graph_drift: graphDrift,
     lock_info: lockInfo,
     nodes: nodeCount.cnt,
     edges: edgeCount.cnt,

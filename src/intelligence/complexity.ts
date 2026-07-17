@@ -184,7 +184,8 @@ export function computeCyclomaticComplexities(
   const funcs = db.db
     .prepare(
       `SELECT id, name, qualified_name, file_path, start_line, end_line, kind
-       FROM nodes WHERE project = ? AND kind IN ('Function', 'Method')`
+       FROM nodes WHERE project = ? AND kind IN ('Function', 'Method')
+       ORDER BY file_path, start_line`
     )
     .all(project) as {
     id: number; name: string; qualified_name: string;
@@ -207,13 +208,22 @@ export function computeCyclomaticComplexities(
   );
 
   let computed = 0;
+  let currentFilePath = '';
+  let currentLines: string[] | null = null;
   db.db.transaction(() => {
     for (const func of funcs) {
-      const fullPath = path.join(rootPath, func.file_path);
+      if (func.file_path !== currentFilePath) {
+        currentFilePath = func.file_path;
+        try {
+          currentLines = fs.readFileSync(path.join(rootPath, func.file_path), 'utf8').split('\n');
+        } catch {
+          currentLines = null;
+        }
+      }
+      if (!currentLines) continue;
+
       let source = '';
       try {
-        const fileContent = fs.readFileSync(fullPath, 'utf8');
-        const lines = fileContent.split('\n');
         const start = Math.max(0, func.start_line - 1);
         // When the extractor can only capture a single line (common for
         // non-TS/TSX languages), limit to the actual line — don't feed 500
@@ -221,9 +231,9 @@ export function computeCyclomaticComplexities(
         const end = func.end_line > func.start_line
           ? func.end_line
           : start + 1;
-        source = lines.slice(start, end).join('\n');
+        source = currentLines.slice(start, end).join('\n');
       } catch {
-        continue; // file not readable — skip
+        continue;
       }
 
       const lineCount = func.end_line > func.start_line

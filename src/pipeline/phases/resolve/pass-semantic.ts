@@ -46,7 +46,18 @@ export function passSemanticLight(
     for (const channel of batch.result.channels) {
       const edgeType: LynxEdgeType = channel.direction === 'emit' ? 'EMITS' : 'LISTENS_ON';
       const channelId = upsertChannelNode(db, idx, channel.channelName, channel.transport);
-      addEdge(edges, idx.project, fileNode.id, channelId, edgeType, {
+
+      // Anchor EMITS/LISTENS_ON to the enclosing function when available,
+      // so trace_path can traverse event-driven dependencies at symbol level.
+      const enclosingFnId = channel.enclosingFuncQn
+        ? idx.qnToId.get(channel.enclosingFuncQn)
+        : undefined;
+      const fnNode = enclosingFnId !== undefined ? idx.idToRow.get(enclosingFnId) : undefined;
+      const isCallable = fnNode && (fnNode.kind === 'Function' || fnNode.kind === 'Method');
+      const sameFile = fnNode && fnNode.file_path === batch.file.relPath;
+      const sourceId = (isCallable && sameFile) ? fnNode!.id : fileNode.id;
+
+      addEdge(edges, idx.project, sourceId, channelId, edgeType, {
         channelName: channel.channelName,
         transport: channel.transport,
         direction: channel.direction,

@@ -54,38 +54,43 @@ export function detectClusters(
   // Initialize: each node is its own community
   const labels = Array.from({ length: n }, (_, i) => i);
 
-  // Label propagation: iterate until convergence (max 50 iterations)
-  for (let iter = 0; iter < 50; iter++) {
-    let changed = false;
+  // Stable pseudo-random order avoids path-order bias without making index
+  // output change from run to run. Build it once; allocating and shuffling an
+  // O(n) array on every iteration was a measurable full-index bottleneck.
+  const order = Array.from({ length: n }, (_, i) => i)
+    .sort((a, b) => stableOrderKey(nodes[a].id) - stableOrderKey(nodes[b].id));
+  const labelCounts = new Int32Array(n);
+  const touchedLabels: number[] = [];
 
-    // Random order each iteration
-    const order = Array.from({ length: n }, (_, i) => i);
-    shuffle(order);
+  // Label propagation: iterate until convergence. The typed-array accumulator
+  // removes one Map allocation per node per iteration.
+  for (let iter = 0; iter < 30; iter++) {
+    let changed = false;
 
     for (const i of order) {
       if (adj[i].length === 0) continue;
 
       // Count labels of neighbors
-      const labelCounts = new Map<number, number>();
       for (const neighbor of adj[i]) {
         const label = labels[neighbor];
-        labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
+        if (labelCounts[label] === 0) touchedLabels.push(label);
+        labelCounts[label]++;
       }
 
-      // Pick the most frequent label (ties broken randomly)
+      // Pick the most frequent label; stable tie-breaking keeps graph output
+      // reproducible across identical runs.
       let maxCount = 0;
-      const bestLabels: number[] = [];
-      for (const [label, count] of labelCounts) {
-        if (count > maxCount) {
+      let newLabel = labels[i];
+      for (const label of touchedLabels) {
+        const count = labelCounts[label];
+        if (count > maxCount || (count === maxCount && label < newLabel)) {
           maxCount = count;
-          bestLabels.length = 0;
-          bestLabels.push(label);
-        } else if (count === maxCount) {
-          bestLabels.push(label);
+          newLabel = label;
         }
+        labelCounts[label] = 0;
       }
+      touchedLabels.length = 0;
 
-      const newLabel = bestLabels[Math.floor(Math.random() * bestLabels.length)];
       if (labels[i] !== newLabel) {
         labels[i] = newLabel;
         changed = true;
@@ -155,6 +160,13 @@ export function detectClusters(
   return communityList;
 }
 
+function stableOrderKey(value: number): number {
+  let x = value | 0;
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  return (x ^ (x >>> 16)) >>> 0;
+}
+
 function computeClusterLabel(
   members: number[],
   nodes: { name: string; qualified_name: string; file_path: string }[]
@@ -175,11 +187,4 @@ function computeClusterLabel(
     .slice(0, 2)
     .map(([w]) => w);
   return topWords.join('/') || 'cluster';
-}
-
-function shuffle<T>(arr: T[]): void {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
 }

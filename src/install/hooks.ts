@@ -41,13 +41,19 @@ function lynxDiscoveryReminder(): string {
  * or Claude while still covering projects initialized by `lynx init`.
  */
 function sessionStartIndexCommand(): string {
-  return 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --mode fast --incremental; fi';
+  // Preserve the richest graph explicitly. The CLI defaults to fast mode;
+  // leaving the mode implicit would make full-only files look deleted on the
+  // next agent startup. Full + incremental is still a cheap no-op when the
+  // repository is unchanged and can only upgrade, never degrade, a shallower
+  // existing index.
+  return 'if [ -f "$PWD/CLAUDE.md" ] || [ -f "$PWD/AGENTS.md" ]; then lynx index "$PWD" --mode full --incremental; fi';
 }
 
 function isLynxCodexSessionStartHook(hook: Record<string, unknown>): boolean {
   const command = String(hook.command || '');
   return command.includes('LYNX code discovery protocol') ||
-    command.includes('lynx index "$PWD" --mode fast');
+    command.includes('lynx index "$PWD" --mode fast') ||
+    command.includes('lynx index "$PWD" --mode full --incremental');
 }
 
 // ── Hooks (Claude Code) ────────────────────────────────────────────

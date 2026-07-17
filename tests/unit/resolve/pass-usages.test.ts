@@ -243,4 +243,38 @@ describe('passUsages', () => {
     expect(usageEdges[0].properties.confidence).toBe(0.70);
     expect(usageEdges[0].properties.resolution).toBe('unique-name');
   });
+
+  it('does not resolve a weak TypeScript usage to a same-named C symbol', () => {
+    const tsFile = makeFileNode(1, 'ui/example.test.ts');
+    const cFile = makeFileNode(2, 'src/assertions.c');
+    const caller = makeFuncNode(3, 'run', 'ui/example.test.ts');
+    const cTarget = makeFuncNode(4, 'expectUniqueResult', 'src/assertions.c');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [tsFile, cFile, caller, cTarget]);
+
+    const edges: LynxEdge[] = [];
+    passUsages([
+      makeBatch('ui/example.test.ts', '/fake/ui/example.test.ts',
+        makeUsageResult('expectUniqueResult', 'example.test.run')),
+    ], idx, edges);
+
+    expect(edges).toEqual([]);
+  });
+
+  it('treats C source and header files as one language ecosystem', () => {
+    const sourceFile = makeFileNode(1, 'tests/check.c');
+    const headerFile = makeFileNode(2, 'include/api.h');
+    const caller = makeFuncNode(3, 'test_api', 'tests/check.c');
+    const target = makeFuncNode(4, 'cbm_distinctive_api', 'include/api.h');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [sourceFile, headerFile, caller, target]);
+
+    const edges: LynxEdge[] = [];
+    passUsages([
+      makeBatch('tests/check.c', '/fake/tests/check.c',
+        makeUsageResult('cbm_distinctive_api', 'check.test_api')),
+    ], idx, edges);
+
+    expect(getEdgesByType(edges, 'USAGE')).toHaveLength(1);
+  });
 });

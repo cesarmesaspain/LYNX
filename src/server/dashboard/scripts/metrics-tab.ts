@@ -2,9 +2,14 @@
  * dashboard/scripts/metrics-tab.ts — Metrics tab JavaScript.
  */
 
-import type { ProjectCard } from '../data.js';
+import type { ProjectCard } from "../data.js";
 
-export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], totalTokens: number, totalFiles: number): string {
+export function metricsTabScript(
+  isSpanish: boolean,
+  cards: ProjectCard[],
+  totalTokens: number,
+  totalFiles: number,
+): string {
   return `
 (function(){
   var metricEls = {
@@ -29,11 +34,34 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
   };
   var isSpanish = ${isSpanish};
   var CAT_COLORS = ['#38bdf8','#22d3ee','#a78bfa','#f59e0b','#f472b6','#4ade80','#94a3b8'];
+  var pendingBarsHtml = null;
+  var barsRefreshTimer = null;
+
+  function flushPendingBars() {
+    if (!metricEls.bars || pendingBarsHtml === null) return;
+    if (metricEls.bars.querySelector('.metric-explainer:hover, .metric-explainer:focus')) {
+      barsRefreshTimer = setTimeout(flushPendingBars, 150);
+      return;
+    }
+    if (metricEls.bars.innerHTML !== pendingBarsHtml) metricEls.bars.innerHTML = pendingBarsHtml;
+    pendingBarsHtml = null;
+    barsRefreshTimer = null;
+  }
+
+  function updateBarsHtml(html) {
+    if (!metricEls.bars || metricEls.bars.innerHTML === html) return;
+    pendingBarsHtml = html;
+    if (!barsRefreshTimer) flushPendingBars();
+  }
 
   function escapeHtml(value) {
     var span = document.createElement('span');
     span.textContent = String(value == null ? '' : value);
     return span.innerHTML;
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function categoryLabel(category, fallback) {
@@ -49,6 +77,35 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
       project_operations: 'Project operations', llm_rerank: 'Semantic reranking',
     };
     return labels[category] || fallback;
+  }
+
+  function categoryExplanation(category) {
+    var explanations = isSpanish ? {
+      architecture_overview: 'Consultas que ofrecen una visión general del sistema: estructura, módulos, puntos de entrada y relaciones principales.',
+      direct_discovery: 'Búsquedas que localizan directamente símbolos, archivos o fragmentos relevantes a partir de nombres, texto o intención.',
+      smart_navigation: 'Navegación dirigida entre definiciones, llamadas, referencias y fragmentos de código relacionados.',
+      context_packing: 'Contexto compacto preparado para que un agente entienda una tarea sin leer manualmente grandes cantidades de código.',
+      impact_analysis: 'Operaciones que estudian riesgos, dependencias, pruebas y posibles consecuencias de modificar código.',
+      llm_rerank: 'Reordenamiento semántico opcional que usa un modelo para mejorar el orden de resultados ambiguos.',
+      hook_augment: 'Contexto que LYNX añade automáticamente antes de que una herramienta del agente explore el repositorio.',
+      project_operations: 'Tareas operativas del proyecto, como indexar, comprobar el índice, vigilar cambios o gestionar decisiones técnicas.',
+      other: 'Actividad registrada que todavía no pertenece a una categoría más específica.',
+    } : {
+      architecture_overview: 'Queries that provide a system-level view: structure, modules, entry points, and principal relationships.',
+      direct_discovery: 'Searches that directly locate relevant symbols, files, or snippets from names, text, or intent.',
+      smart_navigation: 'Targeted navigation across definitions, calls, references, and related code snippets.',
+      context_packing: 'Compact context prepared so an agent can understand a task without manually reading large amounts of code.',
+      impact_analysis: 'Operations that examine risks, dependencies, tests, and the possible consequences of changing code.',
+      llm_rerank: 'Optional semantic reranking that uses a model to improve the ordering of ambiguous results.',
+      hook_augment: 'Context LYNX adds automatically before an agent tool explores the repository.',
+      project_operations: 'Project operations such as indexing, checking index status, watching changes, or managing technical decisions.',
+      other: 'Recorded activity that does not yet belong to a more specific category.',
+    };
+    return explanations[category] || (isSpanish ? 'Actividad registrada por LYNX.' : 'Activity recorded by LYNX.');
+  }
+
+  function categoryTooltip(category, label) {
+    return label + '. ' + categoryExplanation(category);
   }
 
   function coverageSummary(coverage) {
@@ -73,6 +130,18 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
   }
 
   function fmt(n) { return n != null ? Number(n).toLocaleString() : '—'; }
+  function fitMetricValues() {
+    document.querySelectorAll('#metricsSummary .metric-value').forEach(function(element) {
+      element.style.fontSize = '';
+      if (element.clientWidth <= 0 || element.scrollWidth <= element.clientWidth) return;
+      var size = parseFloat(window.getComputedStyle(element).fontSize) || 17;
+      while (element.scrollWidth > element.clientWidth && size > 13) {
+        size -= 0.5;
+        element.style.fontSize = size + 'px';
+      }
+    });
+  }
+
   function fmtUsd(n) {
     var value = Number(n || 0);
     if (value > 0 && value < 0.000001) return '< $0.000001';
@@ -114,7 +183,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     var legacy = isSpanish ? 'Modelo no registrado' : 'Model not recorded';
     metricEls.llmBreakdown.style.display = '';
     metricEls.llmBreakdown.innerHTML = '<div class="llm-model-heading"><div><span>' + heading + '</span><small>' + (isSpanish ? 'Llamadas reales y coste estimado' : 'Real calls and estimated cost') + '</small></div></div><div class="llm-model-list">' + rows.map(function(row) {
-      var name = escapeHtml(row.provider + ' · ' + (row.model || legacy));
+      var name = escapeHtml(row.model || (row.provider + ' · ' + legacy));
       return '<div class="llm-model-row"><div class="llm-model-name"><span class="llm-model-dot"></span><strong>' + name + '</strong></div><div class="llm-model-stat"><b>' + fmt(row.calls) + '</b><span>' + calls + '</span></div><div class="llm-model-stat"><b>' + fmtUsd(row.estimated_cost_usd) + '</b><span>' + (isSpanish ? 'coste estimado' : 'estimated cost') + '</span></div><div class="llm-model-stat"><b>' + fmt(row.latency_ms) + ' ms</b><span>' + latency + '</span></div></div>';
     }).join('') + '</div>';
   }
@@ -176,8 +245,6 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     var url = '/api/metrics?window=' + win;
     if (project) url += '&project=' + encodeURIComponent(project);
 
-    if (metricEls.events) metricEls.events.textContent = '...';
-
     fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(d) {
@@ -216,25 +283,30 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
         if (metricEls.tasksProv && metaByKey.tasks)
           metricEls.tasksProv.innerHTML = provBadge(metaByKey.tasks.kind);
 
+        requestAnimationFrame(fitMetricValues);
+
         var cats = d.categories || [];
         if (cats.length === 0) {
-          if (metricEls.bars)
-            metricEls.bars.innerHTML = '<div class="bars-placeholder">' + (isSpanish ? 'Sin datos de categoría para esta ventana.' : 'No category data for this window.') + '</div>';
+          updateBarsHtml('<div class="bars-placeholder">' + (isSpanish ? 'Sin datos de categoría para esta ventana.' : 'No category data for this window.') + '</div>');
         } else {
-          var maxTokens = Math.max.apply(null, cats.map(function(c) { return c.tokens_saved; })) || 1;
+          var totalTk = cats.reduce(function(s, c) { return s + c.tokens_saved; }, 0);
+          var totalEv = cats.reduce(function(s, c) { return s + c.events; }, 0);
+          var widthBase = totalTk || 1;
           var html = '';
+          html += '<div class="bar-row bar-total-row"><div class="bar-label" style="font-weight:700;color:#38bdf8">' + (isSpanish ? 'TOTAL' : 'TOTAL') + '</div><div class="bar-track"><div class="bar-fill bar-fill-total" style="width:100%;background:#ffffff"></div></div><div class="bar-value">' + fmt(totalTk) + ' <span style="color:#64748b;font-size:11px">' + fmt(totalEv) + ' ' + (isSpanish ? 'ops' : 'ops') + '</span></div></div>';
           cats.forEach(function(c, i) {
-            var pct = Math.round((c.tokens_saved / maxTokens) * 100);
+            var pct = Math.round((c.tokens_saved / widthBase) * 100);
             var color = CAT_COLORS[i % CAT_COLORS.length];
             var label = categoryLabel(c.category, c.label);
             var eventLabel = isSpanish ? 'eventos' : 'events';
-            html += '<div class="bar-row">' +
+            var tooltip = categoryTooltip(c.category, label);
+            html += '<div class="bar-row metric-explainer" tabindex="0" aria-label="' + escapeAttr(tooltip) + '" data-tooltip="' + escapeAttr(tooltip) + '">' +
               '<div class="bar-label">' + escapeHtml(label) + '</div>' +
-              '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '" title="' + fmt(c.tokens_saved) + ' tokens, ' + c.events + ' ' + eventLabel + '"></div></div>' +
+              '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
               '<div class="bar-value">' + fmt(c.tokens_saved) + ' <span style="color:#64748b;font-size:11px">' + c.events + ' ev</span></div>' +
               '</div>';
           });
-          if (metricEls.bars) metricEls.bars.innerHTML = html;
+          updateBarsHtml(html);
         }
 
         if (metricEls.coverage) metricEls.coverage.textContent = coverageSummary(d.coverage);
@@ -255,17 +327,51 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
       });
   }
 
+  function updateCsvExportUrl() {
+    var exportLink = document.getElementById('exportMetricsCsv');
+    if (!exportLink) return;
+    var project = document.getElementById('metricsProject').value;
+    var win = document.querySelector('.win-btn.active') ? document.querySelector('.win-btn.active').dataset.win : 'total';
+    var url = '/api/metrics?window=' + encodeURIComponent(win) + '&format=csv';
+    if (project) url += '&project=' + encodeURIComponent(project);
+    exportLink.setAttribute('href', url);
+  }
+
   document.querySelectorAll('.win-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       document.querySelectorAll('.win-btn').forEach(function(b) { b.classList.remove('active'); });
       btn.classList.add('active');
+      updateCsvExportUrl();
       loadMetrics();
     });
   });
 
   var projSelect = document.getElementById('metricsProject');
   if (projSelect) {
-    projSelect.addEventListener('change', loadMetrics);
+    try {
+      var savedProject = localStorage.getItem('lynx.metrics.project');
+      if (savedProject !== null) {
+        var savedOptionExists = Array.prototype.some.call(projSelect.options, function(option) {
+          return option.value === savedProject;
+        });
+        if (savedOptionExists) projSelect.value = savedProject;
+        else localStorage.removeItem('lynx.metrics.project');
+      }
+    } catch (_) { /* localStorage may be unavailable in restricted browsers */ }
+
+    projSelect.addEventListener('change', function() {
+      try { localStorage.setItem('lynx.metrics.project', projSelect.value); } catch (_) { /* ignore */ }
+      updateCsvExportUrl();
+      loadMetrics();
+    });
+  }
+  updateCsvExportUrl();
+
+  var metricsSummary = document.getElementById('metricsSummary');
+  if (metricsSummary && typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(function() { requestAnimationFrame(fitMetricValues); }).observe(metricsSummary);
+  } else {
+    window.addEventListener('resize', function() { requestAnimationFrame(fitMetricValues); });
   }
 
   var clearBtn = document.getElementById('clearMetricsBtn');
@@ -318,7 +424,7 @@ export function metricsTabScript(isSpanish: boolean, cards: ProjectCard[], total
     }
   }
 
-  var metricsTabBtn = document.querySelector('[data-tab="metrics"]');
+  window.loadMetrics = loadMetrics;\n  var metricsTabBtn = document.querySelector('[data-tab="metrics"]');
   if (metricsTabBtn) {
     metricsTabBtn.addEventListener('click', function() { setTimeout(loadMetrics, 50); });
   }

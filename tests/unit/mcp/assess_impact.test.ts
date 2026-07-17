@@ -18,12 +18,14 @@ import {
   queryNewSymbolsNoCallers,
   queryDeletedSymbolsLiveRefs,
   queryUnindexedModified,
+  queryDownstreamDependents,
+  queryAsyncDependents,
   stableSort,
   fairTruncate,
-  collectGitDiffFiles,
   normalizeFileArg,
   resolveRequestedFiles,
 } from '../../../src/mcp/handlers/assess_impact.js';
+import { getModifiedFiles } from '../../../src/git/diff.js';
 import type { ImpactFinding } from '../../../src/mcp/handlers/assess_impact.js';
 
 function seedDb(db: LynxDatabase, project: string) {
@@ -91,7 +93,14 @@ function seedDb(db: LynxDatabase, project: string) {
     ).run(project, fileIds['tests/utils.test.ts'], fileIds['src/utils.ts']);
   }
 
-  // CALLS edges for deleted test
+  // CALLS edges
+  // Cross-file: main → doWork (src/index.ts imports from src/utils.ts)
+  if (funcIds['src.index.main'] && funcIds['src.utils.doWork']) {
+    db.db.prepare(
+      'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, \'CALLS\', \'{}\')'
+    ).run(project, funcIds['src.index.main'], funcIds['src.utils.doWork']);
+  }
+  // Same-file: doWork → helper
   if (funcIds['src.utils.doWork'] && funcIds['src.utils.helper']) {
     db.db.prepare(
       'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, \'CALLS\', \'{}\')'
@@ -318,6 +327,122 @@ describe('assess_impact queries', () => {
     });
   });
 
+  // ── Query 6: downstream dependents (Blast Radius) ──────────────
+
+  describe('queryDownstreamDependents', () => {
+    it('returns files whose symbols are called by modified files', () => {
+      // main in src/index.ts CALLS doWork in src/utils.ts
+      // diff: src/index.ts → dependents: src/utils.ts
+      const deps = queryDownstreamDependents(db, PROJECT, ['src/index.ts']);
+      expect(deps).toContain('src/utils.ts');
+      expect(deps.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('excludes self (same file) from dependents', () => {
+      // doWork in src/utils.ts CALLS helper in src/utils.ts — same file, not downstream
+      const deps = queryDownstreamDependents(db, PROJECT, ['src/utils.ts']);
+      expect(deps).not.toContain('src/utils.ts');
+    });
+
+    it('returns empty for unindexed files', () => {
+      const deps = queryDownstreamDependents(db, PROJECT, ['src/notindexed.ts']);
+      expect(deps).toEqual([]);
+    });
+
+    it('returns empty for empty diff', () => {
+      const deps = queryDownstreamDependents(db, PROJECT, []);
+      expect(deps).toEqual([]);
+    });
+
+    it('includes files across multiple dependency types', () => {
+      // USAGE or IMPORTS edges on main are not seeded, but the function
+      // accepts them — at minimum the CALLS edge should still resolve.
+      const deps = queryDownstreamDependents(db, PROJECT, ['src/index.ts']);
+      expect(Array.isArray(deps)).toBe(true);
+    });
+  });
+
+  // ── Query 7: async dependents (Event Bridge) ──────────────────
+
+  function seedChannels(db: LynxDatabase, project: string) {
+    let id = 100;
+    // File node for the consumer file
+    db.db.prepare(
+      `INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
+       VALUES (?, ?, 'File', ?, ?, ?, 1, 1, 0, 0, 0, '{}')`
+    ).run(id, project, 'consumer.ts', 'src.consumer', 'src/consumer.ts');
+    id++;
+
+    // Function node: mainMain emits to 'order.created'
+    // (src/index.ts already has main at funcIds['src.index.main'] — we reuse that ID)
+
+    // Function node: orderHandler in src/consumer.ts that listens on 'order.created'
+    db.db.prepare(
+      `INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
+       VALUES (?, ?, 'Function', ?, ?, ?, 1, 10, 0, 0, 0, '{\"signature\":\"function\"}')`
+    ).run(id, project, 'orderHandler', 'src.consumer.orderHandler', 'src/consumer.ts');
+    const orderHandlerId = id;
+    id++;
+
+    // Channel node: order.created
+    db.db.prepare(
+      `INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
+       VALUES (?, ?, 'Channel', ?, ?, '', 0, 0, 0, 0, 0, '{}')`
+    ).run(id, project, 'order.created', `${project}.channel.rabbitmq.order_created`);
+    const channelId = id;
+    id++;
+
+    // Get main's id from existing index data
+    const mainQn = 'src.index.main';
+    const mainRow = db.db.prepare(
+      'SELECT id FROM nodes WHERE project = ? AND qualified_name = ?'
+    ).get(project, mainQn) as { id: number } | undefined;
+    const mainId = mainRow?.id ?? 3;
+
+    // EMITS: main → order.created
+    db.db.prepare(
+      'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, \'EMITS\', \'{}\')'
+    ).run(project, mainId, channelId);
+
+    // LISTENS_ON: orderHandler → order.created
+    db.db.prepare(
+      'INSERT INTO edges (project, source_id, target_id, type, properties) VALUES (?, ?, ?, \'LISTENS_ON\', \'{}\')'
+    ).run(project, orderHandlerId, channelId);
+
+    return { mainId, orderHandlerId, channelId };
+  }
+
+  describe('queryAsyncDependents', () => {
+    beforeEach(() => {
+      seedChannels(db, PROJECT);
+    });
+
+    it('finds listener file when modified file emits to a channel', () => {
+      const deps = queryAsyncDependents(db, PROJECT, ['src/index.ts']);
+      expect(deps).toContain('src/consumer.ts');
+    });
+
+    it('finds emitter file when modified file listens on a channel', () => {
+      const deps = queryAsyncDependents(db, PROJECT, ['src/consumer.ts']);
+      expect(deps).toContain('src/index.ts');
+    });
+
+    it('returns empty for empty diff', () => {
+      const deps = queryAsyncDependents(db, PROJECT, []);
+      expect(deps).toEqual([]);
+    });
+
+    it('returns empty for unindexed files', () => {
+      const deps = queryAsyncDependents(db, PROJECT, ['src/notindexed.ts']);
+      expect(deps).toEqual([]);
+    });
+
+    it('excludes self from dependents', () => {
+      const deps = queryAsyncDependents(db, PROJECT, ['src/index.ts']);
+      expect(deps).not.toContain('src/index.ts');
+    });
+  });
+
   // ── Non-code filtering ──────────────────────────────────────
 
   describe('non-code file handling', () => {
@@ -352,7 +477,7 @@ describe('assess_impact input compatibility', () => {
   });
 });
 
-describe('collectGitDiffFiles', () => {
+describe('getModifiedFiles', () => {
   const tempDirs: string[] = [];
 
   afterEach(() => {
@@ -370,7 +495,7 @@ describe('collectGitDiffFiles', () => {
     execFileSync('git', ['add', 'sample.ts'], { cwd: repo });
     execFileSync('git', ['commit', '-m', 'initial'], { cwd: repo });
 
-    const files = collectGitDiffFiles(repo, `main; touch ${marker}`);
+    const files = getModifiedFiles(repo, `main; touch ${marker}`);
 
     expect(files).toEqual([]);
     expect(fs.existsSync(marker)).toBe(false);

@@ -34,7 +34,8 @@ export interface AnalyzeResult {
 
 export function analyze(
   db: LynxDatabase,
-  project: string
+  project: string,
+  options: { lightweight?: boolean } = {},
 ): AnalyzeResult {
   // Language counts
   const fileNodes = db.db
@@ -76,10 +77,10 @@ export function analyze(
   const hotspots = findHotspots(db, project, 20);
 
   // Clusters — label propagation community detection
-  const clusters = detectClusters(db, project);
+  const clusters = options.lightweight ? [] : detectClusters(db, project);
 
   // File tree — hierarchical structure
-  const fileTree = buildFileTree(db, project);
+  const fileTree = options.lightweight ? [] : buildFileTree(db, project);
 
   // Node label and edge type counts
   const nodeLabels = getKindCounts(db, project);
@@ -101,16 +102,18 @@ export function analyze(
   };
 
   // Save hotspot snapshot to findings (persistent memory)
-  saveHotspotSnapshot(
-    db,
-    project,
-    hotspots.map((hs) => ({
-      qn: hs.qualifiedName,
-      file: hs.filePath,
-      fanIn: hs.fanIn,
-      complexity: hs.complexity,
-    }))
-  );
+  if (!options.lightweight) {
+    saveHotspotSnapshot(
+      db,
+      project,
+      hotspots.map((hs) => ({
+        qn: hs.qualifiedName,
+        file: hs.filePath,
+        fanIn: hs.fanIn,
+        complexity: hs.complexity,
+      }))
+    );
+  }
 
   return {
     architecture,

@@ -56,25 +56,64 @@ export function findEnclosingClass(node: SyntaxNode, config: LanguageConfig, sou
   return null;
 }
 
-export function extractSignature(node: SyntaxNode, source: string): string {
+export function extractSignature(node: SyntaxNode, source: string, lang?: string): string {
   const text = node.text;
   const firstLine = text.split('\n')[0];
-  // Return up to the first { or :
+  // A colon inside a parameter is a type annotation, not a body delimiter.
+  // Braces are unambiguous for C-family/TS/Java/Rust. For Python-like syntax,
+  // only a colon after the closing parameter list begins the body.
+  const brace = firstLine.indexOf('{');
+  const closeParen = firstLine.lastIndexOf(')');
+  const colonDelimitedBody = ['python', 'ruby'].includes(lang || '');
+  const bodyColon = colonDelimitedBody && closeParen >= 0
+    ? firstLine.indexOf(':', closeParen + 1)
+    : -1;
   const endIdx = Math.min(
-    firstLine.indexOf('{') !== -1 ? firstLine.indexOf('{') : Infinity,
-    firstLine.indexOf(':') !== -1 ? firstLine.indexOf(':') : Infinity,
-    firstLine.length
+    brace >= 0 ? brace : Infinity,
+    bodyColon >= 0 ? bodyColon : Infinity,
+    firstLine.length,
   );
   return firstLine.substring(0, endIdx).trim();
 }
 
+const parameterNodeTypes = [
+  'parameter', 'formal_parameter', 'param', 'required_parameter',
+  'optional_parameter', 'typed_parameter', 'simple_parameter',
+  'parameter_declaration', 'rest_parameter',
+];
+
 export function extractParamNames(node: SyntaxNode, source: string, lang: string): string[] {
-  const params = node.descendantsOfType(['parameter', 'formal_parameter', 'param']);
+  const params = node.descendantsOfType(parameterNodeTypes);
   return params.map((p: SyntaxNode) => {
+    const named = p.childForFieldName?.('name');
+    if (named?.text) return named.text;
     const text = p.text.split('\n')[0].trim();
-    const match = text.match(/^(\w+)/);
-    return match ? match[1] : text.substring(0, 30);
-  });
+    const colonName = text.match(/^(?:\.\.\.)?([A-Za-z_$][\w$]*)\??\s*:/);
+    if (colonName) return colonName[1];
+    const trailingName = text.match(/([A-Za-z_$][\w$]*)\s*(?:=.*)?$/);
+    return trailingName ? trailingName[1] : text.substring(0, 30);
+  }).filter(Boolean);
+}
+
+export function extractParamTypes(node: SyntaxNode, lang?: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const param of node.descendantsOfType(parameterNodeTypes)) {
+    const text = param.text.split('\n')[0].trim();
+    const named = param.childForFieldName?.('name')?.text;
+    const colon = text.match(/^(?:\.\.\.)?([A-Za-z_$][\w$]*)\??\s*:\s*([^=]+?)(?:\s*=.*)?$/);
+    if (colon) {
+      result[named || colon[1]] = colon[2].trim();
+      continue;
+    }
+    if (lang === 'go') {
+      const nameFirst = text.match(/^([A-Za-z_$][\w$]*)\s+(.+?)\s*(?:=.*)?$/);
+      if (nameFirst) result[named || nameFirst[1]] = nameFirst[2].trim();
+      continue;
+    }
+    const typeFirst = text.match(/^(?:final\s+)?([*&]*[A-Za-z_$][\w$.:<>?\[\]]*)\s+([A-Za-z_$][\w$]*)\s*(?:=.*)?$/);
+    if (typeFirst) result[named || typeFirst[2]] = typeFirst[1].trim();
+  }
+  return result;
 }
 
 export function extractTypeAnnotation(node: SyntaxNode, source: string, lang: string): string | undefined {
@@ -250,6 +289,7 @@ export function extractDecorators(
 // ── Utility ───────────────────────────────────────────────────────
 
 export function filePathToModuleQn(filePath: string): string {
+  const extension = path.extname(filePath).toLowerCase();
   const withoutExt = filePath.replace(/\.[^.]+$/, '');
   const qn = withoutExt
     .replace(/^\//, '')
@@ -258,7 +298,10 @@ export function filePathToModuleQn(filePath: string): string {
   const parts = qn.split('.');
   if (parts.length > 1 && parts[parts.length - 1] === 'index') parts.pop();
   if (parts.length > 1 && parts[0] === 'src') parts.shift();
-  return parts.join('.') || path.basename(withoutExt) || 'root';
+  const moduleQn = parts.join('.') || path.basename(withoutExt) || 'root';
+  // Same-stem headers and implementations must not share symbol identities:
+  // otherwise a prototype upsert can replace the real source definition.
+  return /\.(?:h|hh|hpp|hxx)$/.test(extension) ? `${moduleQn}.__header` : moduleQn;
 }
 
 export function countLines(source: string): number {

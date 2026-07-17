@@ -24,9 +24,6 @@ const STRUCTURAL_BOOST: Record<string, number> = {
 };
 
 const QUERY_STOPWORDS = new Set([
-  'a', 'al', 'algo', 'como', 'con', 'cual', 'cuando', 'de', 'del', 'donde',
-  'el', 'en', 'es', 'esa', 'ese', 'esta', 'este', 'la', 'las', 'lo', 'los',
-  'para', 'por', 'que', 'quien', 'se', 'su', 'sus', 'un', 'una', 'y', 'o',
   'how', 'what', 'where', 'who', 'when', 'the', 'is', 'are', 'to', 'of',
   'in', 'on', 'for', 'with', 'and', 'or',
 ]);
@@ -313,88 +310,9 @@ export function searchFullText(
   }));
 }
 
-// ── Spanish-English bilingual synonym dictionary ─────────────
-// Maps Spanish terms to their common English code equivalents so
-// "buscar usuario" finds findUser/getUser/fetchUser even though the
-// Search is English-only. Also includes English synonym groups.
+// ── English synonym groups ──────────────────────────────────
 
-const ES_TO_EN: Record<string, string[]> = {
-  // Auth / session
-  autenticar: ['authenticate', 'auth', 'login', 'signin'],
-  autenticacion: ['auth', 'authentication', 'login'],
-  sesion: ['session', 'login', 'auth'],
-  credenciales: ['credentials', 'password', 'secret'],
-  contraseña: ['password', 'passphrase', 'secret', 'pwd'],
-  token: ['token', 'jwt', 'bearer'],
-  permiso: ['permission', 'role', 'acl', 'authorize'],
-  rol: ['role', 'permission', 'access'],
-  // CRUD
-  buscar: ['find', 'search', 'query', 'lookup', 'get'],
-  crear: ['create', 'new', 'add', 'insert', 'make', 'build'],
-  actualizar: ['update', 'edit', 'modify', 'patch', 'set'],
-  eliminar: ['delete', 'remove', 'destroy', 'drop', 'clear'],
-  listar: ['list', 'findAll', 'getAll', 'fetch', 'query'],
-  obtener: ['get', 'fetch', 'retrieve', 'find', 'read'],
-  guardar: ['save', 'persist', 'store', 'write', 'commit'],
-  // Actions
-  enviar: ['send', 'email', 'dispatch', 'post', 'submit'],
-  validar: ['validate', 'validation', 'check', 'verify', 'assert', 'test'],
-  valida: ['validate', 'validation', 'check', 'verify'],
-  validacion: ['validate', 'validation', 'check', 'verify', 'audit'],
-  calcular: ['calculate', 'compute', 'evaluate', 'process', 'run'],
-  procesar: ['process', 'handle', 'execute', 'run', 'apply'],
-  configurar: ['configure', 'config', 'configuration', 'setup', 'settings', 'init'],
-  configuracion: ['config', 'configuration', 'settings', 'runtime', 'policy'],
-  ajustes: ['settings', 'config', 'configuration', 'preferences'],
-  notificar: ['notify', 'alert', 'send', 'email', 'push'],
-  exportar: ['export', 'download', 'generate', 'render'],
-  importar: ['import', 'upload', 'parse', 'load'],
-  gestionar: ['manage', 'handle', 'control', 'admin'],
-  generar: ['generate', 'create', 'build', 'produce', 'render'],
-  asignar: ['assign', 'set', 'allocate', 'put'],
-  cancelar: ['cancel', 'abort', 'stop', 'reject'],
-  // Entities
-  usuario: ['user', 'account', 'profile', 'member'],
-  cliente: ['client', 'customer', 'lead', 'contact', 'account'],
-  caso: ['case', 'lead', 'ticket', 'incident', 'issue'],
-  propuesta: ['proposal', 'quote', 'budget', 'offer', 'estimate'],
-  pago: ['payment', 'pay', 'transaction', 'billing', 'invoice'],
-  factura: ['invoice', 'bill', 'receipt', 'payment'],
-  producto: ['product', 'item', 'sku', 'good'],
-  pedido: ['order', 'request', 'purchase', 'cart'],
-  archivo: ['file', 'document', 'attachment', 'upload'],
-  imagen: ['image', 'photo', 'picture', 'media', 'file'],
-  mensaje: ['message', 'msg', 'chat', 'text', 'notification'],
-  plantilla: ['template', 'layout', 'pattern', 'boilerplate'],
-  escenario: ['scenario', 'flow', 'workflow', 'runtime', 'pipeline', 'case'],
-  escenarios: ['scenario', 'scenarios', 'flow', 'workflow', 'runtime', 'pipeline'],
-  runtime: ['runtime', 'scenarioRuntime', 'execution', 'executor', 'run'],
-  flujo: ['flow', 'workflow', 'scenario', 'runtime'],
-  flujos: ['flow', 'workflow', 'scenario', 'runtime'],
-  director: ['director', 'manager', 'orchestrator', 'controller'],
-  especialista: ['specialist', 'expert', 'worker'],
-  agente: ['agent', 'agents', 'opsAgent', 'routingAgent', 'specialist'],
-  agentes: ['agent', 'agents', 'opsAgent', 'routingAgent', 'specialist'],
-  programa: ['schedule', 'plan', 'calendar', 'timeline'],
-  // Status
-  pendiente: ['pending', 'waiting', 'queued', 'scheduled'],
-  completado: ['completed', 'done', 'finished', 'success'],
-  error: ['error', 'fail', 'failure', 'exception', 'fault'],
-  // Misc
-  resumen: ['summary', 'resume', 'overview', 'abstract'],
-  informe: ['report', 'analysis', 'audit', 'review'],
-  estadistica: ['stats', 'statistics', 'metrics', 'analytics'],
-  auditoria: ['audit', 'review', 'check', 'inspection'],
-  presupuesto: ['budget', 'estimate', 'quote', 'cost'],
-  contrato: ['contract', 'agreement', 'deal', 'terms'],
-  comercial: ['commercial', 'sales', 'business', 'marketing'],
-  config: ['config', 'configuration', 'settings', 'runtime', 'policy'],
-  settings: ['settings', 'config', 'configuration', 'preferences'],
-  agent: ['agent', 'agents', 'routingAgent', 'opsAgent', 'specialist'],
-  validate: ['validate', 'validation', 'check', 'verify', 'audit'],
-  tecnico: ['technical', 'tech', 'engineering'],
-  salud: ['health', 'status', 'wellness'],
-  // English synonym groups (existing + expanded)
+const SYNONYMS: Record<string, string[]> = {
   send: ['send', 'email', 'mail', 'resend', 'deliver', 'dispatch'],
   sent: ['sent', 'email', 'mail', 'resend'],
   email: ['email', 'mail', 'resend', 'smtp', 'send'],
@@ -402,85 +320,23 @@ const ES_TO_EN: Record<string, string[]> = {
   customer: ['customer', 'client', 'lead', 'contact', 'account'],
   approve: ['approve', 'approval', 'approved', 'accept', 'confirm'],
   approved: ['approved', 'approval', 'approve', 'accepted', 'confirmed'],
-  proposal: ['proposal', 'propuesta', 'quote', 'budget', 'offer'],
+  proposal: ['proposal', 'quote', 'budget', 'offer'],
   task: ['task', 'work', 'job', 'todo', 'action'],
   case: ['case', 'lead', 'ticket', 'incident', 'customer'],
   schedule: ['schedule', 'plan', 'calendar', 'cron', 'timer'],
+  agent: ['agent', 'agents', 'routingAgent', 'opsAgent', 'specialist'],
+  validate: ['validate', 'validation', 'check', 'verify', 'audit'],
+  config: ['config', 'configuration', 'settings', 'runtime', 'policy'],
+  settings: ['settings', 'config', 'configuration', 'preferences'],
 };
-
-const ES_ROOTS_TO_EN: Array<[string, string[]]> = [
-  ['aprob', ['approve', 'approved', 'approval', 'accepted', 'confirm']],
-  ['envi', ['send', 'email', 'mail', 'dispatch', 'deliver']],
-  ['configur', ['config', 'configuration', 'settings', 'runtime', 'policy']],
-  ['guard', ['save', 'persist', 'store', 'write', 'commit']],
-  ['valid', ['validate', 'validation', 'check', 'verify', 'audit']],
-  ['escenar', ['scenario', 'scenarios', 'flow', 'workflow', 'runtime']],
-  ['recuper', ['recover', 'recovery', 'retry', 'restore']],
-  ['pend', ['pending', 'queued', 'waiting']],
-  ['fall', ['failed', 'failure', 'error']],
-  ['client', ['client', 'customer', 'lead', 'contact', 'account']],
-  ['agent', ['agent', 'agents', 'opsAgent', 'routingAgent', 'specialist']],
-];
-
-/** Light Spanish stemming — remove common suffixes to match root forms. */
-function stemSpanish(word: string): string[] {
-  const stems: string[] = [word];
-  // Noun plurals
-  if (word.endsWith('es')) stems.push(word.slice(0, -2));
-  if (word.endsWith('s') && !word.endsWith('ss')) stems.push(word.slice(0, -1));
-  // Verb conjugations
-  for (const suffix of ['ando', 'iendo', 'aron', 'ieron', 'aban', 'ían', 'ará', 'erá', 'iré']) {
-    if (word.endsWith(suffix) && word.length > suffix.length + 2) {
-      stems.push(word.slice(0, -suffix.length) + 'ar');
-      stems.push(word.slice(0, -suffix.length) + 'er');
-      stems.push(word.slice(0, -suffix.length) + 'ir');
-    }
-  }
-  // Adjective/noun suffixes
-  for (const suffix of ['ción', 'sión', 'dad', 'miento', 'mente', 'able', 'ible']) {
-    if (word.endsWith(suffix) && word.length > suffix.length + 2) {
-      stems.push(word.slice(0, -suffix.length));
-    }
-  }
-  for (const suffix of ['ados', 'adas', 'ido', 'ida', 'idos', 'idas', 'ado', 'ada']) {
-    if (word.endsWith(suffix) && word.length > suffix.length + 2) {
-      stems.push(word.slice(0, -suffix.length));
-    }
-  }
-  return [...new Set(stems)];
-}
-
-function normalizeSpanish(text: string): string {
-  return text
-    .normalize('NFD').replace(/[̀-ͯ]/g, '') // strip accents
-    .replace(/ñ/g, 'n').replace(/Ñ/g, 'N')
-    .replace(/ü/g, 'u').replace(/Ü/g, 'U');
-}
 
 export function expandTokens(tokens: string[]): string[] {
   const expanded: string[] = [];
-  for (const raw of tokens) {
-    const token = normalizeSpanish(raw);
+  for (const token of tokens) {
     if (QUERY_STOPWORDS.has(token)) continue;
-    // 1. Direct token
     if (token.length >= 2 && !expanded.includes(token)) expanded.push(token);
-    // 2. English synonyms
-    for (const syn of ES_TO_EN[token] || []) {
+    for (const syn of SYNONYMS[token] || []) {
       if (!expanded.includes(syn)) expanded.push(syn);
-    }
-    // 3. Spanish stems → map each stem through dictionary
-    for (const stem of stemSpanish(token)) {
-      if (stem !== token && !expanded.includes(stem)) expanded.push(stem);
-      for (const syn of ES_TO_EN[stem] || []) {
-        if (!expanded.includes(syn)) expanded.push(syn);
-      }
-      for (const [root, synonyms] of ES_ROOTS_TO_EN) {
-        if (stem.startsWith(root)) {
-          for (const syn of synonyms) {
-            if (!expanded.includes(syn)) expanded.push(syn);
-          }
-        }
-      }
     }
   }
   return expanded.slice(0, 36);
@@ -495,7 +351,7 @@ export function expandQuery(query: string): string[] {
 }
 
 function inferIntentTerms(query: string): string[] {
-  const q = normalizeSpanish(query.toLowerCase());
+  const q = query.toLowerCase();
   const terms: string[] = [];
 
   const add = (...items: string[]) => {
@@ -504,19 +360,19 @@ function inferIntentTerms(query: string): string[] {
     }
   };
 
-  if (hasAll(q, ['configuracion', 'agente']) || hasAll(q, ['ajustes', 'agente'])) {
+  if (hasAll(q, ['agent', 'config']) || hasAll(q, ['agent', 'settings'])) {
     add('agent', 'agents', 'opsAgent', 'runtimeConfig', 'config', 'settings', 'policy', 'route');
   }
-  if (hasAll(q, ['runtime', 'escenario']) || hasAll(q, ['valid', 'runtime']) || hasAll(q, ['escenario', 'valid'])) {
+  if (hasAll(q, ['runtime', 'scenario']) || hasAll(q, ['validate', 'runtime']) || hasAll(q, ['scenario', 'validate'])) {
     add('scenarioRuntime', 'runtime', 'validate', 'validation', 'nodeRegistry', 'nodeHandlers', 'flowSimulation');
   }
-  if (hasAny(q, ['email', 'correo', 'mail']) && hasAny(q, ['aprob', 'cliente', 'enviar'])) {
+  if (hasAny(q, ['email', 'mail']) && hasAny(q, ['approve', 'client', 'send'])) {
     add('email', 'send', 'approved', 'approval', 'client', 'customer', 'smtp', 'resend');
   }
-  if (hasAny(q, ['propuesta', 'presupuesto']) && hasAny(q, ['aprob', 'comercial'])) {
+  if (hasAny(q, ['proposal', 'budget']) && hasAny(q, ['approve', 'commercial'])) {
     add('proposal', 'approval', 'commercial', 'budget', 'quote', 'accepted');
   }
-  if (hasAny(q, ['pendiente', 'fallido', 'recuper'])) {
+  if (hasAny(q, ['pending', 'failed', 'recover'])) {
     add('recover', 'pending', 'workResult', 'directorWorkRecovery', 'retry', 'failed');
   }
 
@@ -538,18 +394,16 @@ function tokenize(query: string): string[] {
   for (const part of parts) {
     if (part.length === 0) continue;
     const lower = part.toLowerCase();
-    const normalized = normalizeSpanish(lower);
-    if (QUERY_STOPWORDS.has(normalized)) continue;
+    if (QUERY_STOPWORDS.has(lower)) continue;
     // Split camelCase
     const camelTokens = lower.split(/(?=[A-Z])/).filter((t) => t.length > 0);
     for (const ct of camelTokens) {
-      const normalizedCamel = normalizeSpanish(ct);
-      if (ct.length >= 2 && !QUERY_STOPWORDS.has(normalizedCamel) && !tokens.includes(ct)) {
+      if (ct.length >= 2 && !QUERY_STOPWORDS.has(ct) && !tokens.includes(ct)) {
         tokens.push(ct);
       }
     }
     // Also add the full part as-is (for compound words)
-    if (lower.length >= 2 && !QUERY_STOPWORDS.has(normalized) && !tokens.includes(lower)) tokens.push(lower);
+    if (lower.length >= 2 && !QUERY_STOPWORDS.has(lower) && !tokens.includes(lower)) tokens.push(lower);
   }
   return tokens;
 }

@@ -61,6 +61,25 @@ describe('local dashboard HTTP boundary', () => {
     expect(tooLarge.status).toBe(413);
   });
 
+  it('downloads metrics as CSV for the requested time window', async () => {
+    server = startDashboard(0);
+    const port = await waitForListening(server);
+    const response = await request(port, '/api/metrics?window=7d&format=csv');
+
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toBe('text/csv; charset=utf-8');
+    expect(response.headers['content-disposition']).toBe('attachment; filename="lynx-metrics-all-7d.csv"');
+    const lines = response.body.trim().split('\n');
+    const columnCount = lines[0].split(',').length;
+    expect(lines[0]).toBe('project,window,since,until,computed_at,section,key,label,value,unit,provenance,formula,confidence,sample_size,status,notes');
+    expect(lines.length).toBeGreaterThan(1);
+    expect(lines.every(line => line.split(',').length === columnCount)).toBe(true);
+    expect(response.body).toContain('all,7d,');
+    expect(response.body).toContain('Events explicitly marked deterministic');
+    expect(response.body).not.toContain('Tokens ahorrados');
+    expect(response.body.endsWith('\n')).toBe(true);
+  });
+
   it('physically removes a project database through the delete endpoint', async () => {
     const project = 'dashboard-delete-regression';
     const db = LynxDatabase.openProject(project);

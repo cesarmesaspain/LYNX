@@ -57,6 +57,17 @@ describe('smart_review loop-depth evidence', () => {
     expect(performanceIssue?.suggestion).toContain('before claiming Big-O complexity');
   });
 
+  it('keeps LLM enrichment opt-in for a fast deterministic default', async () => {
+    const started = Date.now();
+    const result = await handleSmartReview({
+      project: PROJECT,
+      qualified_name: 'src.worker.nestedWork',
+    }) as { issues: Array<{ category: string }> };
+
+    expect(result.issues.some(issue => issue.category === 'smell-classification')).toBe(false);
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
   it('accepts target as a file alias for review workflow handoffs', async () => {
     const result = await handleSmartReview({
       project: PROJECT,
@@ -65,5 +76,31 @@ describe('smart_review loop-depth evidence', () => {
 
     expect(result.target.file).toBe('src/worker.ts');
     expect(result.issues.length).toBeGreaterThan(0);
+  });
+
+  it('uses graph-linked tests even when they live outside the source directory', async () => {
+    db.db.prepare('UPDATE nodes SET properties = ? WHERE id = 1').run(JSON.stringify({
+      cyclomaticComplexity: 12,
+      cognitiveComplexity: 14,
+      loopDepth: 0,
+    }));
+    db.db.prepare(
+      `INSERT INTO nodes (
+        id, project, kind, name, qualified_name, file_path,
+        start_line, end_line, is_exported, is_test, is_entry_point, properties
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(2, PROJECT, 'Function', 'testsNestedWork', 'tests.worker.testsNestedWork',
+      'tests/unit/worker.test.ts', 1, 10, 0, 1, 0, '{}');
+    db.db.prepare(
+      `INSERT INTO edges (project, source_id, target_id, type, properties)
+       VALUES (?, ?, ?, 'TESTS', '{}')`
+    ).run(PROJECT, 2, 1);
+
+    const result = await handleSmartReview({
+      project: PROJECT,
+      qualified_name: 'src.worker.nestedWork',
+    }) as { issues: Array<{ category: string }> };
+
+    expect(result.issues.some(issue => issue.category === 'test-coverage')).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 /*
  * analyze_hotspots — LYNX's KEY DIFFERENTIATOR.
  *
- * Hotspot analysis with narrative explanations in Spanish.
+ * Hotspot analysis with concise narrative explanations.
  * Returns the N riskiest functions/classes with:
  *  - Fan-in score (how many things depend on this)
  *  - Complexity metrics (cyclomatic, cognitive, loop depth)
@@ -30,12 +30,13 @@ export async function handleAnalyzeHotspots(
   const hotspots = findHotspots(db, project, topN, includeTests);
   // A god component must be materially large. Passing 5 here previously
   // classified ordinary six-line functions as architectural risks.
-  const godComponents = includeGod ? findGodComponents(db, project) : [];
+  const godComponents = includeGod ? findGodComponents(db, project, 300, includeTests) : [];
   const largestFiles = db.db.prepare(`
     SELECT n.file_path AS file,
            CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) AS lines
     FROM nodes n
     WHERE n.project = ? AND n.kind = 'Module'
+      AND (? = 1 OR (n.is_test = 0 AND n.file_path NOT LIKE 'tests/%' AND n.file_path NOT LIKE '%/tests/%'))
       AND CAST(json_extract(n.properties, '$.lineCount') AS INTEGER) > 10
       AND (n.file_path LIKE '%.ts' OR n.file_path LIKE '%.tsx' OR n.file_path LIKE '%.js'
         OR n.file_path LIKE '%.jsx' OR n.file_path LIKE '%.py' OR n.file_path LIKE '%.go'
@@ -43,7 +44,7 @@ export async function handleAnalyzeHotspots(
         OR n.file_path LIKE '%.java' OR n.file_path LIKE '%.rb')
     ORDER BY lines DESC
     LIMIT ?
-  `).all(project, topN) as Array<{ file: string; lines: number }>;
+  `).all(project, includeTests ? 1 : 0, topN) as Array<{ file: string; lines: number }>;
 
   const mostComplex = db.db.prepare(`
     SELECT n.name, n.qualified_name, n.file_path,
@@ -51,9 +52,10 @@ export async function handleAnalyzeHotspots(
     FROM nodes n
     WHERE n.project = ?
       AND n.kind IN ('Function', 'Method')
+      AND (? = 1 OR (n.is_test = 0 AND n.file_path NOT LIKE 'tests/%' AND n.file_path NOT LIKE '%/tests/%'))
     ORDER BY complexity DESC
     LIMIT ?
-  `).all(project, topN) as Array<{
+  `).all(project, includeTests ? 1 : 0, topN) as Array<{
     name: string;
     qualified_name: string;
     file_path: string;
@@ -66,10 +68,11 @@ export async function handleAnalyzeHotspots(
     JOIN edges e ON e.project = n.project AND e.target_id = n.id
     WHERE n.project = ?
       AND n.kind IN ('Function', 'Method', 'Class', 'Module')
+      AND (? = 1 OR (n.is_test = 0 AND n.file_path NOT LIKE 'tests/%' AND n.file_path NOT LIKE '%/tests/%'))
     GROUP BY n.id
     ORDER BY fan_in DESC
     LIMIT ?
-  `).all(project, topN) as Array<{
+  `).all(project, includeTests ? 1 : 0, topN) as Array<{
     name: string;
     qualified_name: string;
     file_path: string;
@@ -84,9 +87,10 @@ export async function handleAnalyzeHotspots(
         AVG(json_extract(properties, '$.cyclomaticComplexity')) as avg_cyclomatic,
         AVG(json_extract(properties, '$.cognitiveComplexity')) as avg_cognitive,
         AVG(json_extract(properties, '$.loopDepth')) as avg_loop_depth
-      FROM nodes WHERE project = ? AND kind IN ('Function', 'Method')`
+      FROM nodes WHERE project = ? AND kind IN ('Function', 'Method')
+        AND (? = 1 OR (is_test = 0 AND file_path NOT LIKE 'tests/%' AND file_path NOT LIKE '%/tests/%'))`
     )
-    .get(project) as {
+    .get(project, includeTests ? 1 : 0) as {
     total_nodes: number;
     avg_cyclomatic: number;
     avg_cognitive: number;
@@ -114,7 +118,7 @@ export async function handleAnalyzeHotspots(
     file_path: g.filePath,
     lines: g.complexity,
     risk_level: 'GOD_COMPONENT',
-    explanation: `Componente de ${g.complexity} lineas — extremadamente grande y dificil de mantener. Considera dividirlo en modulos mas pequenos.`,
+    explanation: `Component with ${g.complexity} lines — extremely large and difficult to maintain. Consider splitting it into smaller modules.`,
   }));
 
   return {
@@ -138,17 +142,17 @@ function generateSummary(
   hotspots: Array<{ risk_level: string; summary: string }>,
   godComponents: Array<{ risk_level: string; explanation: string }>
 ): string {
-  const critical = hotspots.filter((h) => h.risk_level === 'critico').length;
-  const high = hotspots.filter((h) => h.risk_level === 'alto').length;
-  const medium = hotspots.filter((h) => h.risk_level === 'medio').length;
+  const critical = hotspots.filter((h) => h.risk_level === 'critical').length;
+  const high = hotspots.filter((h) => h.risk_level === 'high').length;
+  const medium = hotspots.filter((h) => h.risk_level === 'medium').length;
 
   const parts: string[] = [];
-  if (critical > 0) parts.push(`${critical} hotspots CRÍTICOS requieren atención inmediata`);
-  if (high > 0) parts.push(`${high} hotspots de riesgo ALTO`);
-  if (medium > 0) parts.push(`${medium} hotspots de riesgo MEDIO`);
+  if (critical > 0) parts.push(`${critical} critical hotspots require immediate attention`);
+  if (high > 0) parts.push(`${high} high-risk hotspots`);
+  if (medium > 0) parts.push(`${medium} medium-risk hotspots`);
   if (godComponents.length > 0)
-    parts.push(`${godComponents.length} god components detectados`);
+    parts.push(`${godComponents.length} god components detected`);
 
-  if (parts.length === 0) return 'El proyecto luce saludable — sin hotspots críticos detectados.';
+  if (parts.length === 0) return 'The project looks healthy — no critical hotspots detected.';
   return parts.join('. ') + '.';
 }

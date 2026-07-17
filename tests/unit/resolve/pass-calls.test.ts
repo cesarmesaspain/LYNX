@@ -10,7 +10,7 @@ import type { LynxEdge } from '../../../src/types.js';
 import type { ExtractionResult } from '../../../src/extraction/extractor.js';
 import type { ResolverState } from '../../../src/pipeline/phases/resolve/indexes.js';
 import {
-  resetIdCounter, makeFileNode, makeFuncNode,
+  resetIdCounter, makeFileNode, makeFuncNode, makeClassNode, makeVariableNode,
   makeEmptyResult, makeBatch, createEmptyIndexes, populateIndex, getEdgesByType,
 } from './helpers.js';
 
@@ -22,7 +22,7 @@ function makeCallResult(calleeName: string, enclosingFuncQn: string, args: strin
 }
 
 function makeResolverState(): ResolverState {
-  return { totalCalls: 0, unresolvedCalls: 0 };
+  return { totalCalls: 0, unresolvedCalls: 0, unresolvedCallReasons: {}, fileCoverage: new Map() };
 }
 
 describe('passCalls', () => {
@@ -93,6 +93,7 @@ describe('passCalls', () => {
     expect(edges.length).toBe(0);
     expect(state.totalCalls).toBe(1);
     expect(state.unresolvedCalls).toBe(1);
+    expect(state.unresolvedCallReasons).toEqual({ caller_not_found: 1 });
   });
 
   it('increments unresolvedCalls when callee not resolved', () => {
@@ -110,6 +111,30 @@ describe('passCalls', () => {
 
     expect(state.totalCalls).toBe(1);
     expect(state.unresolvedCalls).toBe(1);
+    expect(state.unresolvedCallReasons).toEqual({ target_absent: 1 });
+  });
+
+  it('separates unresolved external imports from missing internal imports', () => {
+    const fileNode = makeFileNode(1, 'src/app.ts');
+    const caller = makeFuncNode(2, 'main', 'src/app.ts');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, caller]);
+    const external = makeCallResult('client.send', 'app.main');
+    external.imports = [{ localName: 'client', modulePath: 'remote-sdk', startLine: 1 }];
+    const internal = makeCallResult('missingHelper', 'app.main');
+    internal.imports = [{ localName: 'missingHelper', modulePath: './helpers', startLine: 1 }];
+    const state = makeResolverState();
+
+    passCalls(db, [
+      makeBatch('src/app.ts', '/fake/src/app.ts', external),
+      makeBatch('src/app.ts', '/fake/src/app.ts', internal),
+    ], idx, [], state);
+
+    expect(state.totalCalls).toBe(2);
+    expect(state.unresolvedCallReasons).toEqual({
+      external_dependency_target: 1,
+      imported_internal_target_missing: 1,
+    });
   });
 
   it('skips HTTP_CALLS for non-HTTP client without URL', () => {
@@ -128,6 +153,40 @@ describe('passCalls', () => {
 
     const httpEdges = getEdgesByType(edges, 'HTTP_CALLS');
     expect(httpEdges.length).toBe(0);
+    expect(state.unresolvedCallReasons).toEqual({ receiver_target_unknown: 1 });
+  });
+
+  it('classifies typed runtime receiver calls without fabricating edges', () => {
+    const fileNode = makeFileNode(1, 'src/app.ts');
+    const caller = {
+      ...makeFuncNode(2, 'main', 'src/app.ts'),
+      properties: JSON.stringify({ paramTypes: { value: 'string' } }),
+    };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, caller]);
+    const batch = makeBatch('src/app.ts', '/fake/src/app.ts',
+      makeCallResult('value.trim', 'app.main'));
+    const edges: LynxEdge[] = [];
+    const state = makeResolverState();
+
+    passCalls(db, [batch], idx, edges, state);
+
+    expect(getEdgesByType(edges, 'CALLS')).toEqual([]);
+    expect(state.unresolvedCallReasons).toEqual({ runtime_builtin_receiver: 1 });
+  });
+
+  it('classifies a qualified call from its receiver binding, not its method name', () => {
+    const fileNode = makeFileNode(1, 'src/app.ts');
+    const caller = makeFuncNode(2, 'main', 'src/app.ts');
+    const receiver = makeVariableNode(3, 'client', 'src/app.ts');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, caller, receiver]);
+    const state = makeResolverState();
+
+    passCalls(db, [makeBatch('src/app.ts', '/fake/src/app.ts',
+      makeCallResult('client.send', 'app.main'))], idx, [], state);
+
+    expect(state.unresolvedCallReasons).toEqual({ dynamic_local_binding: 1 });
   });
 
   it('resolves callee to imported symbol when name collides across files', () => {
@@ -154,6 +213,25 @@ describe('passCalls', () => {
     expect(result!.confidence).toBeGreaterThanOrEqual(0.85);
   });
 
+  it('prefers a unique C implementation over its imported header prototype', () => {
+    const callerFile = makeFileNode(1, 'tests/test_store.c');
+    const headerFile = makeFileNode(2, 'src/store/store.h');
+    const sourceFile = makeFileNode(3, 'src/store/store.c');
+    const prototype = makeFuncNode(4, 'store_open', 'src/store/store.h');
+    const implementation = makeFuncNode(5, 'store_open', 'src/store/store.c');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [callerFile, headerFile, sourceFile, prototype, implementation]);
+    idx.importedQnByFile.set('tests/test_store.c', new Set([
+      prototype.qualified_name,
+      implementation.qualified_name,
+    ]));
+
+    const result = resolveCallee(idx, 'tests/test_store.c', 'store_open');
+    expect(result?.node.id).toBe(implementation.id);
+    expect(result?.reason).toBe('imported-implementation');
+    expect(result?.confidence).toBeGreaterThan(0.9);
+  });
+
   it('falls back to unique-name when no import info available', () => {
     // Without import context, a globally unique name should still resolve.
     const fileNode = makeFileNode(1, 'src/lib.ts');
@@ -166,6 +244,122 @@ describe('passCalls', () => {
     expect(result).toBeDefined();
     expect(result!.node.id).toBe(onlyMatch.id);
     expect(result!.reason).toBe('unique-name');
+  });
+
+  it('does not resolve receiver-qualified calls by global method name alone', () => {
+    const fileNode = makeFileNode(1, 'src/cache.ts');
+    const globalGet = { ...makeFuncNode(2, 'get', 'src/cache.ts'), kind: 'Method', is_exported: 1 };
+
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, globalGet]);
+
+    expect(resolveCallee(idx, 'src/database.ts', 'database.get')).toBeUndefined();
+    expect(resolveCallee(idx, 'src/registry.ts', 'commands.get')).toBeUndefined();
+  });
+
+  it('resolves this/self calls only within the caller lexical owner', () => {
+    const fileNode = makeFileNode(1, 'src/service.ts');
+    const caller = { ...makeFuncNode(2, 'run', 'src/service.ts', 'Primary'), kind: 'Method' };
+    const target = { ...makeFuncNode(3, 'flush', 'src/service.ts', 'Primary'), kind: 'Method' };
+    const collision = { ...makeFuncNode(4, 'flush', 'src/service.ts', 'Secondary'), kind: 'Method' };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, caller, target, collision]);
+
+    const result = resolveCallee(idx, 'src/service.ts', 'this.flush', caller.qualified_name);
+    expect(result?.node.id).toBe(target.id);
+    expect(result?.reason).toBe('lexical-receiver');
+    expect(result?.confidence).toBeGreaterThan(0.95);
+  });
+
+  it('resolves a qualified method through an imported class owner', () => {
+    const ownerFile = makeFileNode(1, 'src/store/database.ts');
+    const callerFile = makeFileNode(2, 'src/app.ts');
+    const owner = makeClassNode(3, 'LynxDatabase', 'src/store/database.ts');
+    const method = {
+      ...makeFuncNode(4, 'openMemory', 'src/store/database.ts', 'LynxDatabase'),
+      kind: 'Method',
+    };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [ownerFile, callerFile, owner, method]);
+    idx.importedQnByFile.set('src/app.ts', new Set([owner.qualified_name]));
+
+    const result = resolveCallee(idx, 'src/app.ts', 'LynxDatabase.openMemory');
+    expect(result?.node.id).toBe(method.id);
+    expect(result?.reason).toBe('imported-owner');
+    expect(result?.confidence).toBeGreaterThan(0.95);
+  });
+
+  it('resolves a receiver through its declared parameter type', () => {
+    const ownerFile = makeFileNode(1, 'src/store/database.ts');
+    const callerFile = makeFileNode(2, 'src/app.ts');
+    const owner = makeClassNode(3, 'LynxDatabase', 'src/store/database.ts');
+    const method = {
+      ...makeFuncNode(4, 'close', 'src/store/database.ts', 'LynxDatabase'),
+      kind: 'Method',
+    };
+    const caller = {
+      ...makeFuncNode(5, 'run', 'src/app.ts'),
+      properties: JSON.stringify({ paramTypes: { db: 'LynxDatabase' } }),
+    };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [ownerFile, callerFile, owner, method, caller]);
+    idx.importedQnByFile.set('src/app.ts', new Set([owner.qualified_name]));
+
+    const result = resolveCallee(idx, 'src/app.ts', 'db.close', caller.qualified_name);
+    expect(result?.node.id).toBe(method.id);
+    expect(result?.reason).toBe('declared-parameter-type');
+    expect(result?.confidence).toBeGreaterThan(0.95);
+
+    caller.properties = JSON.stringify({ paramTypes: { db: 'LynxDatabase | null' } });
+    populateIndex(db, idx, [caller]);
+    expect(resolveCallee(idx, 'src/app.ts', 'db.close', caller.qualified_name)).toBeUndefined();
+  });
+
+  it('resolves local receiver evidence only inside its owner and line range', () => {
+    const ownerFile = makeFileNode(1, 'src/service.ts');
+    const callerFile = makeFileNode(2, 'src/app.ts');
+    const owner = makeClassNode(3, 'UserService', 'src/service.ts');
+    const method = {
+      ...makeFuncNode(4, 'run', 'src/service.ts', 'UserService'),
+      kind: 'Method',
+    };
+    const caller = makeFuncNode(5, 'main', 'src/app.ts');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [ownerFile, callerFile, owner, method, caller]);
+    idx.importedQnByFile.set('src/app.ts', new Set([owner.qualified_name]));
+    const result = makeCallResult('service.run', 'app.main');
+    result.calls[0].startLine = 12;
+    result.localBindings = [{
+      name: 'service',
+      typeName: 'UserService',
+      ownerQn: caller.qualified_name,
+      declarationLine: 10,
+      scopeStartLine: 8,
+      scopeEndLine: 20,
+      origin: 'constructor',
+    }];
+    const edges: LynxEdge[] = [];
+
+    passCalls(db, [makeBatch('src/app.ts', '/fake/src/app.ts', result)], idx, edges, makeResolverState());
+
+    expect(getEdgesByType(edges, 'CALLS')).toEqual([
+      expect.objectContaining({
+        sourceId: caller.id,
+        targetId: method.id,
+        properties: expect.objectContaining({ resolution: 'scoped-local-type', confidence: 0.99 }),
+      }),
+    ]);
+    expect(resolveCallee(idx, 'src/app.ts', 'service.run', caller.qualified_name, result.localBindings, 9)).toBeUndefined();
+    expect(resolveCallee(idx, 'src/app.ts', 'service.run', 'app.other', result.localBindings, 12)).toBeUndefined();
+  });
+
+  it('does not resolve an extracted bare method name globally without receiver evidence', () => {
+    const fileNode = makeFileNode(1, 'src/cache.ts');
+    const globalGet = { ...makeFuncNode(2, 'get', 'src/cache.ts'), kind: 'Method', is_exported: 1 };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, globalGet]);
+
+    expect(resolveCallee(idx, 'src/database.ts', 'get')).toBeUndefined();
   });
 
   it('resolves callee through passCalls using imported name', () => {

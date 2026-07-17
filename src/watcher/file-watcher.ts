@@ -15,7 +15,7 @@ import { createHash } from 'node:crypto';
 import { watch, FSWatcher } from 'chokidar';
 import type { LynxDatabase } from '../store/database.js';
 import { upsertNode, upsertNodesBatch, deleteNodesByFile } from '../store/nodes.js';
-import { deleteEdgesForNodesInFile } from '../store/edges.js';
+import { deleteEdgesForNodesInFile, deleteOutgoingEdgesForNodesInFile } from '../store/edges.js';
 import { upsertFileHash } from '../store/memory.js';
 import { extractFile } from '../extraction/extractor.js';
 import { fileToModuleQn } from '../pipeline/phases/extract.js';
@@ -25,6 +25,7 @@ import { getGitContext } from '../git/context.js';
 import type { LynxIndexMode, LynxIndexStatus } from '../types.js';
 import type { ExtractionBatch } from '../pipeline/phases/extract.js';
 import { ensureProjectBrief } from '../intelligence/project-brief.js';
+import { acquireProjectLock, releaseProjectLock } from '../store/lock.js';
 
 const DEBOUNCE_MS = 500;
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min
@@ -37,6 +38,23 @@ export interface WatcherStatus {
   pendingChanges: number;
   lastActivity: number;
   changesProcessed: number;
+}
+
+/** Files whose outbound graph relations target nodes in a file being replaced. */
+export function findInboundDependentFiles(
+  db: LynxDatabase,
+  project: string,
+  relPath: string,
+): string[] {
+  const rows = db.db.prepare(`
+    SELECT DISTINCT src.file_path
+    FROM edges e
+    JOIN nodes src ON src.id = e.source_id AND src.project = e.project
+    JOIN nodes tgt ON tgt.id = e.target_id AND tgt.project = e.project
+    WHERE e.project = ? AND tgt.file_path = ? AND src.file_path <> ?
+    LIMIT 200
+  `).all(project, relPath, relPath) as Array<{ file_path: string }>;
+  return rows.map(row => row.file_path).filter(Boolean);
 }
 
 /**
@@ -169,20 +187,35 @@ export class FileWatcher {
     const files = [...this.pending];
     this.pending.clear();
 
+    const lock = acquireProjectLock(this.project);
+    if (!lock.acquired) {
+      for (const file of files) this.pending.add(file);
+      if (this.active) {
+        if (this.debounceTimer) clearTimeout(this.debounceTimer);
+        this.debounceTimer = setTimeout(() => this.flushPending(), DEBOUNCE_MS);
+      }
+      return;
+    }
+
     const start = Date.now();
     let success = 0;
     let failed = 0;
 
-    for (const relPath of files) {
-      try {
-        await this.reindexOneFile(relPath);
-        success++;
-      } catch (err: any) {
-        failed++;
-        process.stderr.write(
-          `[lynx-watcher] Failed to reindex ${relPath}: ${err.message}\n`
-        );
+    try {
+      for (const relPath of files) {
+        try {
+          await this.reindexOneFile(relPath);
+          success++;
+        } catch (err: any) {
+          failed++;
+          this.pending.add(relPath);
+          process.stderr.write(
+            `[lynx-watcher] Failed to reindex ${relPath}: ${err.message}\n`
+          );
+        }
       }
+    } finally {
+      releaseProjectLock(this.project);
     }
 
     this.changesProcessed += success;
@@ -203,6 +236,10 @@ export class FileWatcher {
    */
   private async reindexOneFile(relPath: string): Promise<void> {
     const absPath = path.resolve(this.repoPath, relPath);
+    // Replacing target nodes invalidates incoming edges from otherwise
+    // unchanged files. Capture those sources before deletion and re-run edge
+    // resolution for them after the new target nodes exist.
+    const dependentFiles = findInboundDependentFiles(this.db, this.project, relPath);
 
     // Handle deleted files — just remove their nodes/edges
     if (!fs.existsSync(absPath)) {
@@ -210,6 +247,7 @@ export class FileWatcher {
         deleteEdgesForNodesInFile(this.db, this.project, relPath);
         deleteNodesByFile(this.db, this.project, relPath);
       });
+      await this.resolveDependentFiles(dependentFiles);
       return;
     }
 
@@ -240,7 +278,8 @@ export class FileWatcher {
       sha256,
     };
 
-    resolveAll(this.db, [batch], this.project);
+    const dependentBatches = await this.extractDependentBatches(dependentFiles);
+    this.resolveBatchesReplacingOutbound([batch, ...dependentBatches]);
 
     // Update file hash cache
     let mtimeNs = 0;
@@ -251,6 +290,42 @@ export class FileWatcher {
     this.db.transaction(() => {
       upsertFileHash(this.db, this.project, relPath, sha256, mtimeNs, source.length);
     });
+  }
+
+  private async extractDependentBatches(relPaths: string[]): Promise<ExtractionBatch[]> {
+    const batches: ExtractionBatch[] = [];
+    for (const relPath of relPaths) {
+      const absPath = path.resolve(this.repoPath, relPath);
+      if (!fs.existsSync(absPath) || !isSupportedFilePath(relPath)) continue;
+      const source = fs.readFileSync(absPath, 'utf-8');
+      const result = await extractFile(source, this.project, relPath, fileToModuleQn(relPath));
+      if (result.hasError) continue;
+      batches.push({
+        file: { relPath, absPath, extension: relPath.split('.').pop() || '', size: source.length },
+        result,
+        sha256: createHash('sha256').update(source).digest('hex'),
+      });
+    }
+    return batches;
+  }
+
+  private async resolveDependentFiles(relPaths: string[]): Promise<void> {
+    const batches = await this.extractDependentBatches(relPaths);
+    this.resolveBatchesReplacingOutbound(batches);
+  }
+
+  private resolveBatchesReplacingOutbound(batches: ExtractionBatch[]): void {
+    if (batches.length === 0) return;
+    // These files are being re-resolved because one of their targets changed.
+    // Remove only relationships they produced first; retaining incoming edges
+    // avoids recursively invalidating unrelated callers while making both
+    // changed-file and deleted-file watcher paths idempotent.
+    this.db.transaction(() => {
+      for (const batch of batches) {
+        deleteOutgoingEdgesForNodesInFile(this.db, this.project, batch.file.relPath);
+      }
+    });
+    resolveAll(this.db, batches, this.project);
   }
 
   private checkIdle(): void {

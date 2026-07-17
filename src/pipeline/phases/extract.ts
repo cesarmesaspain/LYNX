@@ -69,6 +69,28 @@ interface ProcessItem {
   moduleQn: string;
 }
 
+export function selectExtractionWorkerCount(
+  taskCount: number,
+  requestedWorkers: number,
+  availableParallelism: number,
+): number {
+  const safeTaskCount = Math.max(1, Math.floor(taskCount));
+  const safeParallelism = Math.max(1, Math.floor(availableParallelism));
+  const explicitWorkers = Number.isFinite(requestedWorkers)
+    ? Math.floor(requestedWorkers)
+    : 0;
+  const adaptiveWorkers = Math.max(1, Math.ceil(safeParallelism * 0.6));
+
+  return Math.max(
+    1,
+    Math.min(
+      explicitWorkers > 0 ? explicitWorkers : adaptiveWorkers,
+      safeParallelism,
+      safeTaskCount,
+    ),
+  );
+}
+
 /**
  * Extract all discovered files in parallel batches.
  *
@@ -401,14 +423,10 @@ async function extractWithWorkers(
     return extractDirect(toProcess, project, emptyResult);
   }
 
-  const requestedWorkers = Number(process.env.LYNX_WORKERS || 0);
-  const workerCount = Math.max(
-    1,
-    Math.min(
-      requestedWorkers > 0 ? requestedWorkers : (os.availableParallelism?.() || os.cpus().length || 4),
-      10,
-      toProcess.length
-    )
+  const workerCount = selectExtractionWorkerCount(
+    toProcess.length,
+    Number(process.env.LYNX_WORKERS || 0),
+    os.availableParallelism?.() || os.cpus().length || 4,
   );
   const results = new Array<ExtractionBatch>(toProcess.length);
   let nextTask = 0;

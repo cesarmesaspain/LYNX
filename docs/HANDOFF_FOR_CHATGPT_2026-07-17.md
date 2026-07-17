@@ -135,8 +135,8 @@ These are not release blockers for the current local installation, but they prev
 
 ## Immediate continuation
 
-1. Restart Codex so the new installed MCP process is loaded.
-2. In the new session, resolve `lynx-project`, run representative tool batches, and confirm live runtime behavior.
+1. Complete the local authenticated reload control channel so `lynx upgrade` can prepare/promote a signed worker generation through the stable supervisor; normal upgrades must not require restarting Codex.
+2. Add stabilization scheduling, bounded drain/forced cancellation, durable supervisor ownership, and end-to-end upgrade/rollback proof over one stable host connection.
 3. Expand schema/dispatch coverage into domain-specific functional scenarios for every registry entry; retain the canonical fixture and require zero contradictory shared claims.
 4. Add golden truth sets for the remaining advertised languages and expand the documented performance-budget matrix with thresholds fixed before implementation.
 
@@ -427,14 +427,31 @@ new active worker fails during stabilization, it becomes `failed`, the unique
 warm predecessor returns to `active`, and new host traffic resumes there without
 restarting Codex. Only `finalizePromotion()` retires standby after explicit
 stabilization. Typecheck and 12/12 combined generation/protocol/core tests pass.
-Complete suite/commit remain. The process layer must schedule stabilization and
-must treat “no unique predecessor” as fatal rather than guessing.
+Complete suite/commit remain. The process layer must schedule stabilization.
 
-Continuous ChatGPT coordination is part of the active objective. Current task
-ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
-cross-platform CI acceptance design matching this root contract. It must not
-edit repository files or overlap Codex's manifest/transaction slice. Review its
-claims against source and tests before turning any proposal into code.
+The first real supervised `serve` process slice is active. Public `serve` starts
+`src/mcp/supervisor/supervised-server.ts`, which spawns the canonical LYNX
+command as an explicitly marked internal worker. The worker runs `runServer()`
+directly, so recursion is impossible. Before host stdin is consumed, the
+supervisor performs the full private identity/catalog probe and exposes the
+generation only after it passes; the initial generation therefore has the same
+trust boundary as upgrades. Host and worker traffic use the shared bounded
+framer, stderr remains diagnostic-only, and an initial worker failure with no
+predecessor becomes fatal rather than triggering an unsafe guessed rollback. A
+real built `node dist/cli.js serve` exchange returned `initialize` through the
+supervisor and exited cleanly on stdin EOF. Typecheck, 14/14 focused tests, and
+the complete 144-file, 1,144-test suite pass. Pending before the no-restart claim
+is complete: authenticated cross-platform reload control, upgrade notification,
+candidate executable descriptor, stabilization timer, bounded drain/cancel,
+durable single-instance ownership, and end-to-end generation-switch proof.
+
+Continuous ChatGPT coordination is part of the active objective. The language
+coverage audit completed read-only. Current task ID
+`20260717T220051Z-4c9618d83ea8`: design and audit the authenticated local
+cross-platform reload channel, single-instance ownership, stale recovery,
+request/ack contract, accepted-distribution descriptor, stabilization, and
+rollback behavior. It is read-only and must not overlap Codex's process-layer
+implementation. Review every claim against source and tests before coding it.
 
 ### P1 — full functional MCP contract matrix
 

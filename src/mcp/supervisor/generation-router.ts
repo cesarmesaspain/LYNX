@@ -28,6 +28,11 @@ export class McpGenerationRouter {
     this.activeId = generationId;
   }
 
+  beginInitialPreparation(generationId: string): void {
+    if (this.states.size > 0 || this.activeId) throw new Error('Initial MCP generation is already established.');
+    this.states.set(generationId, 'preparing');
+  }
+
   beginPreparation(generationId: string): void {
     if (!this.activeId) throw new Error('Cannot prepare an MCP generation before initial startup.');
     if (this.states.has(generationId)) throw new Error(`MCP generation already exists: ${generationId}.`);
@@ -41,6 +46,11 @@ export class McpGenerationRouter {
 
   promote(generationId: string): string {
     if (this.states.get(generationId) !== 'preparing') throw new Error(`MCP generation is not ready for promotion: ${generationId}.`);
+    if (!this.activeId) {
+      this.states.set(generationId, 'active');
+      this.activeId = generationId;
+      return generationId;
+    }
     const previous = this.requireActive();
     this.states.set(previous, this.inFlightFor(previous) === 0 ? 'standby' : 'draining');
     this.states.set(generationId, 'active');
@@ -92,6 +102,14 @@ export class McpGenerationRouter {
     this.states.set(previous, 'active');
     this.activeId = previous;
     return previous;
+  }
+
+  failActiveWithoutRollback(failedGenerationId: string): void {
+    if (this.activeId !== failedGenerationId || this.states.get(failedGenerationId) !== 'active') {
+      throw new Error(`MCP generation is not active: ${failedGenerationId}.`);
+    }
+    this.states.set(failedGenerationId, 'failed');
+    this.activeId = null;
   }
 
   finalizeStandby(): string[] {

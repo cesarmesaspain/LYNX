@@ -19,6 +19,18 @@ async function waitForProbe(worker: ReturnType<typeof endpoint>) {
 }
 
 describe('MCP supervisor core', () => {
+  it('does not expose the initial generation until its identity and catalog pass', async () => {
+    const core = new McpSupervisorCore(vi.fn());
+    const initial = endpoint();
+    const prepared = core.prepareInitial('v1', initial, { toolNames: ['a'] });
+    await waitForProbe(initial);
+    await expect(core.routeHost({ jsonrpc: '2.0', id: 1, method: 'tools/list' })).rejects.toThrow('No active MCP generation');
+    for (const response of probeResponses(initial, ['a'])) core.handleWorkerMessage('v1', response);
+    await expect(prepared).resolves.toMatchObject({ toolCount: 1 });
+    await core.routeHost({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
+    expect(initial.sent).toHaveLength(4);
+  });
+
   it('probes, promotes and drains the prior worker without losing host IDs', async () => {
     const host: any[] = [];
     const core = new McpSupervisorCore(message => host.push(message));
@@ -68,5 +80,18 @@ describe('MCP supervisor core', () => {
     await core.routeHost({ jsonrpc: '2.0', id: 9, method: 'tools/list' });
     expect(v1.sent).toHaveLength(1);
     expect(core.snapshot().find(item => item.id === 'v1')?.state).toBe('active');
+  });
+
+  it('reports a fatal failure when the initial worker has no predecessor', () => {
+    const fatal = vi.fn();
+    const core = new McpSupervisorCore(vi.fn(), fatal);
+    const initial = endpoint();
+    core.startInitial('v1', initial);
+
+    core.handleWorkerFailure('v1', new Error('initial crash'));
+
+    expect(fatal).toHaveBeenCalledWith(expect.objectContaining({ message: 'initial crash' }));
+    expect(initial.terminate).toHaveBeenCalledOnce();
+    expect(core.snapshot()).toEqual([{ id: 'v1', state: 'failed', inFlight: 0 }]);
   });
 });

@@ -22,7 +22,10 @@ export class McpSupervisorCore {
   private readonly workers = new Map<string, McpWorkerEndpoint>();
   private readonly probes = new Map<string, PendingProbe>();
 
-  constructor(private readonly emitHost: (message: JsonRpcValue) => void) {}
+  constructor(
+    private readonly emitHost: (message: JsonRpcValue) => void,
+    private readonly emitFatal: (error: Error) => void = () => undefined,
+  ) {}
 
   startInitial(generationId: string, endpoint: McpWorkerEndpoint): void {
     this.generations.startInitial(generationId);
@@ -44,6 +47,25 @@ export class McpSupervisorCore {
     timeoutMs = 8_000,
   ): Promise<WorkerProbeResult> {
     this.generations.beginPreparation(generationId);
+    return this.probeAndPromote(generationId, endpoint, expected, timeoutMs);
+  }
+
+  async prepareInitial(
+    generationId: string,
+    endpoint: McpWorkerEndpoint,
+    expected: WorkerProbeExpectation,
+    timeoutMs = 8_000,
+  ): Promise<WorkerProbeResult> {
+    this.generations.beginInitialPreparation(generationId);
+    return this.probeAndPromote(generationId, endpoint, expected, timeoutMs);
+  }
+
+  private async probeAndPromote(
+    generationId: string,
+    endpoint: McpWorkerEndpoint,
+    expected: WorkerProbeExpectation,
+    timeoutMs: number,
+  ): Promise<WorkerProbeResult> {
     this.workers.set(generationId, endpoint);
     const probe = new McpWorkerProbe(expected);
     const completion = new Promise<WorkerProbeResult>((resolve, reject) => {
@@ -89,7 +111,12 @@ export class McpSupervisorCore {
       return;
     }
     if (this.generations.stateOf(generationId) === 'active') {
-      this.generations.rollbackActive(generationId);
+      try {
+        this.generations.rollbackActive(generationId);
+      } catch {
+        this.generations.failActiveWithoutRollback(generationId);
+        this.emitFatal(error);
+      }
       this.workers.get(generationId)?.terminate();
       this.workers.delete(generationId);
     }

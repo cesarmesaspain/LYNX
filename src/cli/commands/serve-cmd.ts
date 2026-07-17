@@ -1,10 +1,15 @@
 import { findNearestProject } from '../../discovery/project-scanner.js';
 import { runServer } from '../../mcp/server.js';
+import { isInternalMcpWorker, runSupervisedServer } from '../../mcp/supervisor/supervised-server.js';
 import { readLynxConfig } from '../../config/runtime.js';
 import { getLynxCommand } from '../../install/agents.js';
 import { ensureDashboardService } from '../../server/dashboard/service.js';
 
 export async function cmdServe(): Promise<void> {
+  if (isInternalMcpWorker()) {
+    await runServer();
+    return;
+  }
   const cfg = readLynxConfig();
   if (cfg.enabled && cfg.auto_dashboard) {
     const { command, args } = getLynxCommand();
@@ -22,5 +27,5 @@ export async function cmdServe(): Promise<void> {
   }
 
   // runServer starts: MCP JSON-RPC over stdio + dashboard + auto-index + auto-watch
-  await runServer();
+  await runSupervisedServer();
 }

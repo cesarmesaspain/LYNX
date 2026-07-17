@@ -45,7 +45,13 @@ function object(name) {
   return path.join(buildDir, `${name}.o`);
 }
 
-const commonC = ['-O3', '-std=c11', '-D_POSIX_C_SOURCE=200809L', ...sanitizerFlags];
+const commonC = [
+  '-O3',
+  '-std=c11',
+  '-D_POSIX_C_SOURCE=200809L',
+  ...(process.platform === 'linux' ? ['-D_DEFAULT_SOURCE'] : []),
+  ...sanitizerFlags,
+];
 // The generated staging DDL intentionally exceeds ISO C's conservative 4095-byte
 // translation-limit guarantee; Clang supports it and every handwritten warning
 // remains fatal in strict mode.

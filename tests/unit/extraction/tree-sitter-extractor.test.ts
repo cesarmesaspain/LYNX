@@ -116,6 +116,25 @@ describe('tree-sitter JavaScript definition identity', () => {
     }
   });
 
+  it('extracts only Ruby require/load calls as imports', async () => {
+    const result = await extractFile(
+      `require_relative './mathlib'
+       require 'json'
+       def run
+         twice(21)
+       end`,
+      'fixture',
+      'main.rb',
+      'main',
+    );
+
+    expect(result.imports).toEqual(expect.arrayContaining([
+      expect.objectContaining({ localName: 'mathlib', modulePath: './mathlib' }),
+      expect.objectContaining({ localName: 'json', modulePath: 'json' }),
+    ]));
+    expect(result.imports).toHaveLength(2);
+  });
+
   it('marks conventional root test files and all of their nodes as tests', async () => {
     const result = await extractFile(
       `function helper() { return true; }

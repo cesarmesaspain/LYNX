@@ -1031,6 +1031,20 @@ function extractImportInfos(
   const startLine = node.startPosition.row + 1;
   const imports: TSExtractedImport[] = [];
 
+  if (lang === 'ruby') {
+    // Ruby represents require/load as ordinary call nodes. Only those specific
+    // calls are imports; treating every call as a fallback import pollutes
+    // import metadata and can misclassify unresolved calls as dependencies.
+    const required = text.match(/^\s*(require_relative|require|load)\s*(?:\(\s*)?['"]([^'"]+)['"]/);
+    if (!required) return [];
+    const rawPath = required[2];
+    const modulePath = required[1] === 'require_relative' && !/^\.{1,2}\//.test(rawPath)
+      ? `./${rawPath}`
+      : rawPath;
+    const localName = rawPath.split('/').pop()?.replace(/\W+/g, '') || rawPath;
+    return localName ? [{ localName, modulePath, startLine }] : [];
+  }
+
   if (lang === 'rust') {
     const usePath = text.match(/^\s*use\s+([^;]+)\s*;?$/)?.[1]?.trim();
     if (!usePath || usePath.includes('{') || usePath.includes('*')) return [];

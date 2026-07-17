@@ -46,6 +46,12 @@ const cases = [
     nodes: ['Method:golden/App.java:run', 'Method:golden/MathLib.java:add', 'Method:golden/MathLib.java:twice'],
     relations: ['CALLS:golden/App.java:run->golden/MathLib.java:twice', 'CALLS:golden/MathLib.java:twice->golden/MathLib.java:add', 'IMPORTS:golden/App.java->golden/MathLib.java'],
   },
+  {
+    language: 'ruby',
+    fixture: 'ruby',
+    nodes: ['Function:main.rb:run', 'Function:mathlib.rb:add', 'Function:mathlib.rb:twice'],
+    relations: ['CALLS:main.rb:run->mathlib.rb:twice', 'CALLS:mathlib.rb:twice->mathlib.rb:add', 'IMPORTS:main.rb->mathlib.rb'],
+  },
 ] as const;
 
 describe('per-language golden truth sets wave 2', () => {

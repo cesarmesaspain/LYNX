@@ -73,7 +73,7 @@ These are not release blockers for the current local installation, but they prev
 
 1. Full-index call resolution is currently 5,516/26,278 (20.99%). The metric includes unresolved lexical candidates, so first separate extractor noise from genuinely unresolved calls, then improve resolution without denominator shaping.
 2. Native C/C++ extraction still reports partial handling for member/qualified calls, function pointers, preprocessing, and lexical shadowing.
-3. `tree-sitter-extractor.ts` and `discover.ts` are classified as generated and receive partial semantic extraction; verify whether that classification is intentional.
+3. ~~`tree-sitter-extractor.ts` and `discover.ts` are classified as generated.~~ Closed: generated-source detection now reads only the continuous leading metadata/comment preamble. Phrases inside executable code, regexes, strings, or comments after code no longer suppress semantic extraction; legitimate generated headers remain supported and regressions cover both boundaries.
 4. Team security and cross-platform installation gates still need reproducible clean-machine evidence.
 5. Tool contracts, failure envelopes, performance budgets, and privacy/telemetry gates must be exercised as a single release matrix.
 6. The independent ChatGPT/FreeGPT audit ranked the remaining integral gates as: (1) generated cross-tool consistency across the complete public registry, (2) per-language golden truth sets with precision/recall/F1, (3) CI-enforced performance budgets, (4) clean-machine install/upgrade/reinstall/rollback/uninstall across macOS, Linux, and Windows, and (5) adversarial Team tenant-isolation and webhook-replay security. These are stronger priorities than adding isolated unit tests.

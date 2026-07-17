@@ -91,9 +91,42 @@ function maxUsagesPerFile(): number {
     : DEFAULT_MAX_USAGES_PER_FILE;
 }
 
+function leadingMetadataComments(source: string): string {
+  const comments: string[] = [];
+  let inBlockComment = false;
+
+  for (const line of source.slice(0, 4_096).split('\n').slice(0, 40)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (comments.length > 0) comments.push('');
+      continue;
+    }
+    if (inBlockComment) {
+      comments.push(line);
+      if (trimmed.includes('*/') || trimmed.includes('-->')) inBlockComment = false;
+      continue;
+    }
+    if (/^(?:\/\/|#|--|;)/.test(trimmed)) {
+      comments.push(line);
+      continue;
+    }
+    if (/^(?:\/\*|<!--)/.test(trimmed)) {
+      comments.push(line);
+      inBlockComment = !(trimmed.includes('*/') || trimmed.includes('-->'));
+      continue;
+    }
+    break;
+  }
+  return comments.join('\n');
+}
+
 function generatedSourceReason(source: string): string | null {
   if (process.env.LYNX_INDEX_GENERATED === '1') return null;
-  const header = source.slice(0, 4_096);
+  // Generated-code notices are metadata: they belong in the leading comment
+  // block. Searching arbitrary source text makes detectors classify files that
+  // merely contain these phrases in strings, regexes, fixtures, or their own
+  // implementation as generated.
+  const header = leadingMetadataComments(source);
   if (/automatically\s+@?generated\b/i.test(header)) return 'automatically generated source';
   if (/\bauto[- ]generated\b/i.test(header)) return 'auto-generated source';
   if (/\bcode generated\b[^\n]*\bdo not edit\b/i.test(header)) return 'generated source';

@@ -27,8 +27,8 @@ export class McpWorkerProbe {
     ];
   }
 
-  accept(message: JsonRpcValue): WorkerProbeResult | null {
-    if (typeof message.id !== 'string' || !message.id.startsWith(`${this.prefix}/`)) return null;
+  accept(message: JsonRpcValue): WorkerProbeResult | null | undefined {
+    if (typeof message.id !== 'string' || !message.id.startsWith(`${this.prefix}/`)) return undefined;
     if (message.error) throw new Error(`MCP worker probe failed: ${JSON.stringify(message.error)}.`);
     const result = message.result as Record<string, unknown> | undefined;
     if (!result) throw new Error('MCP worker probe response has no result.');

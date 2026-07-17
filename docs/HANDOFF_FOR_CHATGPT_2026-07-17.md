@@ -396,6 +396,18 @@ missing/unexpected tools fail closed; unrelated host traffic is ignored.
 Typecheck and 3/3 focused tests pass. Complete suite/commit and manager-owned
 timeout/child termination remain.
 
+Supervisor orchestration core is active in
+`src/mcp/supervisor/supervisor-core.ts` with tests in
+`tests/unit/mcp/supervisor-core.test.ts`. It composes generation/protocol/probe
+owners, sends private probes with an 8-second default timeout, promotes only on
+complete evidence, keeps host traffic on the existing active worker while a
+candidate prepares, terminates a failed candidate, translates host responses,
+and gracefully retires a drained predecessor. Probe handling now distinguishes
+unrelated traffic from a handled-but-incomplete response. Typecheck and the
+combined probe/core suite pass 5/5. Complete suite/commit remain. Deliberately
+not yet claimed: automatic generation rollback if a newly promoted active worker
+dies later; implement that as an explicit state transition before wiring `serve`.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

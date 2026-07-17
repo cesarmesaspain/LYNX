@@ -38,6 +38,6 @@ describe('MCP worker candidate probe', () => {
 
   it('ignores messages outside its private probe namespace', () => {
     const probe = new McpWorkerProbe({ toolNames: [] });
-    expect(probe.accept({ jsonrpc: '2.0', id: 41, result: {} })).toBeNull();
+    expect(probe.accept({ jsonrpc: '2.0', id: 41, result: {} })).toBeUndefined();
   });
 });

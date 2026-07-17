@@ -139,6 +139,49 @@ describe('passImports', () => {
     expect(getEdgesByType(edges, 'IMPORTS')).toHaveLength(0);
   });
 
+  it('resolves a Go module import to the unique local package directory', () => {
+    const sourceFile = makeFileNode(1, 'cmd/main.go');
+    const packageFile = makeFileNode(2, 'pkg/mathlib/mathlib.go');
+    const secondPackageFile = makeFileNode(3, 'pkg/mathlib/extra.go');
+    const twice = makeFuncNode(4, 'Twice', 'pkg/mathlib/mathlib.go');
+    const add = makeFuncNode(5, 'Add', 'pkg/mathlib/extra.go');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [sourceFile, packageFile, secondPackageFile, twice, add]);
+
+    const batch = makeBatch(
+      'cmd/main.go', '/fake/cmd/main.go', makeImportResult('mathlib', 'example.com/acme/project/pkg/mathlib'),
+    );
+    const edges: LynxEdge[] = [];
+    passImports([batch], idx, edges);
+
+    expect(idx.importedQnByFile.get('cmd/main.go')).toEqual(
+      new Set([twice.qualified_name, add.qualified_name]),
+    );
+    expect(getEdgesByType(edges, 'IMPORTS')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ sourceId: sourceFile.id, targetId: packageFile.id }),
+      expect.objectContaining({ sourceId: sourceFile.id, targetId: secondPackageFile.id }),
+    ]));
+  });
+
+  it('does not guess when a Go package suffix is ambiguous', () => {
+    const sourceFile = makeFileNode(1, 'cmd/main.go');
+    const firstPackage = makeFileNode(2, 'first/mathlib/mathlib.go');
+    const secondPackage = makeFileNode(3, 'second/mathlib/mathlib.go');
+    const firstFn = makeFuncNode(4, 'Twice', firstPackage.file_path);
+    const secondFn = makeFuncNode(5, 'Twice', secondPackage.file_path);
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [sourceFile, firstPackage, secondPackage, firstFn, secondFn]);
+
+    const batch = makeBatch(
+      'cmd/main.go', '/fake/cmd/main.go', makeImportResult('mathlib', 'example.com/project/mathlib'),
+    );
+    const edges: LynxEdge[] = [];
+    passImports([batch], idx, edges);
+
+    expect(idx.importedQnByFile.get('cmd/main.go')).toEqual(new Set());
+    expect(getEdgesByType(edges, 'IMPORTS')).toHaveLength(0);
+  });
+
   it('skip when file node not found', () => {
     const idx = createEmptyIndexes();
     const batch = makeBatch('src/ghost.ts', '/fake/src/ghost.ts', makeImportResult('x', './y'));

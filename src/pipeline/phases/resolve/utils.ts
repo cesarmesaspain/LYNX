@@ -418,6 +418,10 @@ export function resolveImportedFile(
   const exact = idx.moduleToFileNode.get(moduleKey);
   if (exact) return exact;
 
+  if (languageGroup(currentFile) === 'go') {
+    return resolveGoPackageFiles(idx, importPath)[0];
+  }
+
   if (languageGroup(currentFile) !== 'c-family') return undefined;
   const normalized = importPath
     .trim()
@@ -435,6 +439,59 @@ export function resolveImportedFile(
       return candidate === normalized || candidate.endsWith(`/${normalized}`);
     });
   return candidates.length === 1 ? candidates[0] : undefined;
+}
+
+/**
+ * Go imports address packages, not individual source files. A repository-local
+ * package may be prefixed by the module declared in go.mod, so match the
+ * longest directory suffix and only accept a single package directory.
+ */
+export function resolveGoPackageFiles(idx: ResolverIndexes, importPath: string): NodeRef[] {
+  const importSegments = importPath
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean);
+  if (importSegments.length < 2) return [];
+
+  const packageFiles = new Map<string, NodeRef[]>();
+  for (const nodes of idx.fileToNodes.values()) {
+    const file = nodes.find((node) => node.kind === 'File' && /\.go$/i.test(node.file_path));
+    if (!file) continue;
+    const normalized = file.file_path.replace(/\\/g, '/');
+    const directory = normalized.split('/').slice(0, -1).join('/');
+    if (!directory) continue;
+    const files = packageFiles.get(directory) || [];
+    files.push(file);
+    packageFiles.set(directory, files);
+  }
+
+  let bestLength = 0;
+  let bestDirectories: string[] = [];
+  for (const directory of packageFiles.keys()) {
+    const directorySegments = directory.split('/').filter(Boolean);
+    let suffixLength = 0;
+    const max = Math.min(directorySegments.length, importSegments.length);
+    while (
+      suffixLength < max &&
+      directorySegments[directorySegments.length - 1 - suffixLength] ===
+        importSegments[importSegments.length - 1 - suffixLength]
+    ) {
+      suffixLength++;
+    }
+    if (suffixLength === 0) continue;
+    if (suffixLength > bestLength) {
+      bestLength = suffixLength;
+      bestDirectories = [directory];
+    } else if (suffixLength === bestLength) {
+      bestDirectories.push(directory);
+    }
+  }
+
+  if (bestDirectories.length !== 1) return [];
+  return (packageFiles.get(bestDirectories[0]) || [])
+    .sort((left, right) => left.file_path.localeCompare(right.file_path));
 }
 
 export function filePathToModuleKey(filePath: string): string {

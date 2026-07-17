@@ -5,7 +5,14 @@
 import type { LynxEdge } from '../../../types.js';
 import type { ExtractionBatch } from '../extract.js';
 import type { ResolverIndexes } from './indexes.js';
-import { addEdge, getFileNode, resolveImportedFile, resolveImportTargets, resolveImportToModuleKey } from './utils.js';
+import {
+  addEdge,
+  getFileNode,
+  resolveGoPackageFiles,
+  resolveImportedFile,
+  resolveImportTargets,
+  resolveImportToModuleKey,
+} from './utils.js';
 import { symbolKinds } from './constants.js';
 
 export function passImports(batches: ExtractionBatch[], idx: ResolverIndexes, edges: LynxEdge[]): void {
@@ -15,12 +22,17 @@ export function passImports(batches: ExtractionBatch[], idx: ResolverIndexes, ed
 
     for (const imp of batch.result.imports) {
       const moduleKey = resolveImportToModuleKey(imp.modulePath, batch.file.relPath);
-      const importedFile = resolveImportedFile(idx, imp.modulePath, batch.file.relPath);
-      if (importedFile && importedFile.id !== fileNode.id) {
-        addEdge(edges, idx.project, fileNode.id, importedFile.id, 'IMPORTS', {
+      const goPackageFiles = /\.go$/i.test(batch.file.relPath)
+        ? resolveGoPackageFiles(idx, imp.modulePath)
+        : [];
+      const importedFile = goPackageFiles[0] || resolveImportedFile(idx, imp.modulePath, batch.file.relPath);
+      const importedFiles = goPackageFiles.length > 0 ? goPackageFiles : importedFile ? [importedFile] : [];
+      for (const targetFile of importedFiles) {
+        if (targetFile.id === fileNode.id) continue;
+        addEdge(edges, idx.project, fileNode.id, targetFile.id, 'IMPORTS', {
           localName: imp.localName,
           modulePath: imp.modulePath,
-          resolution: 'module',
+          resolution: goPackageFiles.length > 0 ? 'go-package' : 'module',
           confidence: 0.95,
         });
       }
@@ -36,6 +48,17 @@ export function passImports(batches: ExtractionBatch[], idx: ResolverIndexes, ed
       }
       for (const target of targets) {
         importedQns.add(target.qualified_name);
+      }
+
+      // Go imports expose an entire package directory. The module prefix in
+      // go.mod is intentionally irrelevant here: the conservative suffix
+      // resolver returns files only when one local package directory wins.
+      if (goPackageFiles.length > 0) {
+        for (const packageFile of goPackageFiles) {
+          for (const target of idx.fileToNodes.get(packageFile.file_path) || []) {
+            if (symbolKinds.has(target.kind)) importedQns.add(target.qualified_name);
+          }
+        }
       }
 
       // C/C++ includes import a header namespace, not one JS-style local

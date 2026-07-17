@@ -69,7 +69,15 @@ The incremental fast path used to return without refreshing filesystem metadata 
 
 ### Cross-tool contract foundation
 
-The first generated cross-tool contract now derives the public surface from the canonical `TOOLS` registry instead of hard-coding a tool count. It verifies registry exposure/schema equality, shared project identity and graph counts, canonical file coverage, bounded deterministic change analysis with LLM disabled by default, scoped impact agreement, and structured validation/failure envelopes. The fixture persists canonical `file_hashes` metadata rather than inventing a second definition of an indexed file. This is the foundation of the 33-tool matrix, not yet proof that every tool's functional scenarios are covered.
+The generated cross-tool contract derives the public surface from the canonical `TOOLS` registry instead of hard-coding a tool count. Registry/handler parity is enforced at MCP startup, including duplicate, missing-handler, and unpublished-handler failures. Valid arguments are generated from every one of the 33 schemas and exercise required fields, `anyOf` branches, and wrong-type rejection. Shared project identity, graph counts, canonical file coverage, bounded deterministic change analysis, scoped impact agreement, and structured failure envelopes remain covered. Domain-specific semantic scenarios for every tool are still broader than this schema/dispatch matrix.
+
+### Language golden truth sets and Go package resolution
+
+TypeScript, C, Python, and Go fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All four current fixtures require 1.0. The Go wave exposed and closed a resolver defect: module-qualified imports now resolve conservatively to the unique local package-directory suffix, expose every package file's symbols to call resolution, emit deterministic package-file IMPORTS edges, and refuse ambiguous suffixes.
+
+### Deterministic performance budget foundation
+
+CI now runs a deterministic synthetic 40-module TypeScript workload, enforces p95 budgets for graph search and no-op incremental indexing, and always uploads the sanitized report with raw samples. The methodology is documented in `docs/PERFORMANCE_BUDGETS.md`. Full-index time, peak RSS, database growth, and large-repository budgets remain open.
 
 ## Remaining gaps
 
@@ -79,8 +87,8 @@ These are not release blockers for the current local installation, but they prev
 2. Native C/C++ extraction still reports partial handling for member/qualified calls, function pointers, preprocessing, and lexical shadowing.
 3. ~~`tree-sitter-extractor.ts` and `discover.ts` are classified as generated.~~ Closed: generated-source detection now reads only the continuous leading metadata/comment preamble. Phrases inside executable code, regexes, strings, or comments after code no longer suppress semantic extraction; legitimate generated headers remain supported and regressions cover both boundaries.
 4. Team security and cross-platform installation gates still need reproducible clean-machine evidence.
-5. Tool contracts, failure envelopes, performance budgets, and privacy/telemetry gates must be exercised as a single release matrix.
-6. The independent ChatGPT/FreeGPT audit ranked the remaining integral gates as: (1) generated cross-tool consistency across the complete public registry, (2) per-language golden truth sets with precision/recall/F1, (3) CI-enforced performance budgets, (4) clean-machine install/upgrade/reinstall/rollback/uninstall across macOS, Linux, and Windows, and (5) adversarial Team tenant-isolation and webhook-replay security. These are stronger priorities than adding isolated unit tests.
+5. Tool semantic contracts, failure envelopes, expanded performance budgets, and privacy/telemetry gates must be exercised as a single release matrix.
+6. The highest remaining integral gates are: (1) extend golden truth sets to every advertised language, (2) expand performance budgets beyond search/no-op incremental, (3) clean-machine install/upgrade/reinstall/rollback/uninstall across macOS, Linux, and Windows, and (4) adversarial Team tenant-isolation and webhook-replay security. These are stronger priorities than adding isolated unit tests.
 
 ## Working methodology to preserve
 
@@ -99,5 +107,5 @@ These are not release blockers for the current local installation, but they prev
 
 1. Restart Codex so the new installed MCP process is loaded.
 2. In the new session, resolve `lynx-project`, run representative tool batches, and confirm live runtime behavior.
-3. Expand the validated cross-tool foundation into generated functional scenarios for every registry entry; retain the canonical fixture and require zero contradictory shared claims.
-4. Continue the remaining ranked gates with acceptance thresholds fixed before implementation.
+3. Expand schema/dispatch coverage into domain-specific functional scenarios for every registry entry; retain the canonical fixture and require zero contradictory shared claims.
+4. Add golden truth sets for the remaining advertised languages and expand the documented performance-budget matrix with thresholds fixed before implementation.

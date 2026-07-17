@@ -248,7 +248,13 @@ The native baseline now distinguishes nested call observations by exact callee
 position and has frozen integration evidence for C++ object-member,
 pointer-member, namespace-qualified, and nested calls. Native parity remains
 open for template/dynamic dispatch, non-lexical/imported function-pointer
-invocation, broader preprocessing, and complete nested-block shadowing.
+invocation, broader preprocessing, and compiler-specific lexical extensions.
+
+Standard native lexical scope is now evidence-backed: declarations carry block
+ranges, repeated uses retain exact positions, same-name locals keep distinct
+identities, and resolution restores the outer binding after compound and
+control-initializer scopes. Only compiler-specific scope extensions remain
+classified as partial.
 
 This score must be recalculated from the gates above after each release; it must
 not rise merely because new features were added.

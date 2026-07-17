@@ -114,6 +114,37 @@ describe.skipIf(!fs.existsSync(nativeCore))('native structural core publication'
           AND target.qualified_name='widget.ui.apply_transform.operation'
       `).get();
       expect(leakedCrossScopeValue).toBeUndefined();
+      const shadowedCalls = db.db.prepare(`
+        SELECT target.qualified_name AS target,
+               json_extract(edge.properties, '$.line') AS call_line,
+               target.start_line AS declaration_line
+        FROM edges edge
+        JOIN nodes source ON source.id=edge.source_id
+        JOIN nodes target ON target.id=edge.target_id
+        WHERE edge.project='native-publication' AND edge.type='CALLS'
+          AND source.qualified_name='widget.ui.apply_shadowed_transform'
+          AND json_extract(edge.properties, '$.resolution')='lexical_function_pointer_invocation'
+        ORDER BY call_line
+      `).all() as Array<{ target: string; call_line: number; declaration_line: number }>;
+      expect(shadowedCalls).toHaveLength(3);
+      expect(shadowedCalls[0]!.target).toBe('widget.ui.apply_shadowed_transform.callback');
+      expect(shadowedCalls[1]!.target).toMatch(/^widget\.ui\.apply_shadowed_transform\.callback\.__variant\.L\d+$/);
+      expect(shadowedCalls[2]!.target).toBe('widget.ui.apply_shadowed_transform.callback');
+      expect(shadowedCalls[1]!.declaration_line).toBeGreaterThan(shadowedCalls[0]!.declaration_line);
+      const controlScopeCalls = db.db.prepare(`
+        SELECT target.qualified_name AS target,
+               json_extract(edge.properties, '$.line') AS call_line
+        FROM edges edge
+        JOIN nodes source ON source.id=edge.source_id
+        JOIN nodes target ON target.id=edge.target_id
+        WHERE edge.project='native-publication' AND edge.type='CALLS'
+          AND source.qualified_name='widget.ui.apply_for_shadowed_transform'
+          AND json_extract(edge.properties, '$.resolution')='lexical_function_pointer_invocation'
+        ORDER BY call_line
+      `).all() as Array<{ target: string; call_line: number }>;
+      expect(controlScopeCalls).toHaveLength(2);
+      expect(controlScopeCalls[0]!.target).toMatch(/\.__variant\.L\d+$/);
+      expect(controlScopeCalls[1]!.target).toBe('widget.ui.apply_for_shadowed_transform.callback');
       expect(nativeCalls).not.toContainEqual(expect.objectContaining({
         source: 'widget.ui.Widget.size',
         target: 'widget.ui.Widget.size',

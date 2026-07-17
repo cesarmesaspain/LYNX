@@ -110,6 +110,8 @@ typedef struct {
   char *declared_type;
   int start_line;
   int end_line;
+  int lexical_scope_start_line;
+  int lexical_scope_end_line;
   int is_exported;
   int is_entry_point;
 } NodeObservation;
@@ -404,6 +406,7 @@ static CallableResolution callable_registry_resolve(
 }
 
 static char *child_qualified_name(const char *parent, const char *name);
+static char *variant_qualified_name(char *base, int line);
 
 static bool qualified_candidate_matches(
   const char *qualified_name, const char *qualified_callee
@@ -955,6 +958,8 @@ static void emit_node(
     .declared_type = NULL,
     .start_line = (int)start.row + 1,
     .end_line = (int)end.row + 1,
+    .lexical_scope_start_line = 0,
+    .lexical_scope_end_line = 0,
     .is_exported = is_exported,
     .is_entry_point = is_entry_point,
   };
@@ -969,6 +974,43 @@ static void emit_typed_node(
   emit_node(buffer, file_index, kind, name, qualified, node, is_exported, is_entry_point);
   if (buffer->nodes.length > before) buffer->nodes.items[buffer->nodes.length - 1].declared_type = declared_type;
   else free(declared_type);
+}
+
+static TSNode nearest_lexical_scope(TSNode node) {
+  for (TSNode current = ts_node_parent(node); !ts_node_is_null(current);
+       current = ts_node_parent(current)) {
+    const char *type = ts_node_type(current);
+    if (strcmp(type, "compound_statement") == 0 || strcmp(type, "function_definition") == 0 ||
+        strcmp(type, "for_statement") == 0 || strcmp(type, "if_statement") == 0 ||
+        strcmp(type, "switch_statement") == 0 || strcmp(type, "while_statement") == 0 ||
+        strcmp(type, "for_range_loop") == 0 || strcmp(type, "catch_clause") == 0 ||
+        strcmp(type, "lambda_expression") == 0) {
+      return current;
+    }
+  }
+  return (TSNode){0};
+}
+
+static char *unique_scoped_qualified_name(
+  const WorkerBuffer *buffer, int file_index, char *qualified, int declaration_line
+) {
+  for (size_t index = buffer->nodes.length; index > 0; index--) {
+    const NodeObservation *item = &buffer->nodes.items[index - 1];
+    if (item->file_index != file_index) continue;
+    if (strcmp(item->qualified_name, qualified) == 0) {
+      return variant_qualified_name(qualified, declaration_line);
+    }
+  }
+  return qualified;
+}
+
+static void set_last_node_lexical_scope(WorkerBuffer *buffer, TSNode declaration) {
+  if (buffer->nodes.length == 0) return;
+  TSNode lexical_scope = nearest_lexical_scope(declaration);
+  if (ts_node_is_null(lexical_scope)) return;
+  NodeObservation *item = &buffer->nodes.items[buffer->nodes.length - 1];
+  item->lexical_scope_start_line = (int)ts_node_start_point(lexical_scope).row + 1;
+  item->lexical_scope_end_line = (int)ts_node_end_point(lexical_scope).row + 1;
 }
 
 static char *declared_type_text(const char *source, TSNode declaration) {
@@ -1147,9 +1189,12 @@ static void extract_scoped_declaration_values(
     TSNode identifier = declarator_identifier(child, &function_pointer);
     if (ts_node_is_null(identifier)) continue;
     char *name = node_text(source, identifier, 256);
+    char *qualified = unique_scoped_qualified_name(buffer, file_index,
+      child_qualified_name(scope, name), (int)ts_node_start_point(declaration).row + 1);
     emit_typed_node(buffer, file_index, function_pointer ? "FunctionPointer" : "Variable", name,
-                    child_qualified_name(scope, name), declared_type_text(source, declaration),
+                    qualified, declared_type_text(source, declaration),
                     declaration, 0, 0);
+    set_last_node_lexical_scope(buffer, declaration);
     if (strcmp(type, "init_declarator") == 0) {
       UsageObservation observation = {
         .file_index = file_index,
@@ -1177,9 +1222,12 @@ static void extract_function_parameters_recursive(
     TSNode identifier = declarator_identifier(declarator, &function_pointer);
     if (!ts_node_is_null(identifier)) {
       char *name = node_text(source, identifier, 256);
+      char *qualified = unique_scoped_qualified_name(buffer, file_index,
+        child_qualified_name(scope, name), (int)ts_node_start_point(node).row + 1);
       emit_typed_node(buffer, file_index, function_pointer ? "FunctionPointer" : "Variable", name,
-                      child_qualified_name(scope, name), declared_type_text(source, node),
+                      qualified, declared_type_text(source, node),
                       node, 0, 0);
+      set_last_node_lexical_scope(buffer, node);
     }
     return;
   }
@@ -1246,12 +1294,14 @@ static bool is_write_identifier(TSNode identifier) {
 }
 
 static bool usage_already_seen(
-  WorkerBuffer *buffer, int file_index, const char *scope, const char *name, int is_write
+  WorkerBuffer *buffer, int file_index, const char *scope, const char *name, int is_write,
+  int start_line, int start_column
 ) {
   for (size_t index = buffer->usages.length; index > 0; index--) {
     UsageObservation *item = &buffer->usages.items[index - 1];
     if (item->file_index != file_index) break;
-    if (item->is_write == is_write && strcmp(item->enclosing_qn, scope) == 0 &&
+    if (item->is_write == is_write && item->start_line == start_line &&
+        item->start_column == start_column && strcmp(item->enclosing_qn, scope) == 0 &&
         strcmp(item->referenced_name, name) == 0) return true;
   }
   return false;
@@ -1462,7 +1512,7 @@ static void walk_tree(
     int start_line = (int)ts_node_start_point(node).row + 1;
     int start_column = (int)ts_node_start_point(node).column;
     if (name && strlen(name) >= 2 &&
-        !usage_already_seen(buffer, file_index, scope, name, is_write)) {
+        !usage_already_seen(buffer, file_index, scope, name, is_write, start_line, start_column)) {
       UsageObservation observation = {
         .file_index = file_index,
         .enclosing_qn = strdup(scope),
@@ -1721,8 +1771,18 @@ static void resolve_staging_edges(sqlite3 *db) {
     "FROM native_calls c "
     "JOIN native_nodes source ON source.file_id=c.file_id AND source.qualified_name=c.enclosing_qualified_name "
     "JOIN native_nodes t ON t.file_id=c.file_id "
-    "AND t.qualified_name=c.enclosing_qualified_name||'.'||c.callee_name "
-    "AND t.kind='FunctionPointer' AND t.start_line<=c.start_line "
+    "AND t.name=c.callee_name AND t.kind='FunctionPointer' AND t.start_line<=c.start_line "
+    "AND (t.qualified_name=c.enclosing_qualified_name||'.'||c.callee_name "
+    "OR t.qualified_name LIKE c.enclosing_qualified_name||'.'||c.callee_name||'.__variant.L%') "
+    "AND json_extract(t.properties_json,'$.lexical_scope_start_line')<=c.start_line "
+    "AND json_extract(t.properties_json,'$.lexical_scope_end_line')>=c.start_line "
+    "AND t.start_line=(SELECT MAX(candidate.start_line) FROM native_nodes candidate "
+    "WHERE candidate.file_id=c.file_id AND candidate.name=c.callee_name "
+    "AND candidate.kind='FunctionPointer' AND candidate.start_line<=c.start_line "
+    "AND (candidate.qualified_name=c.enclosing_qualified_name||'.'||c.callee_name "
+    "OR candidate.qualified_name LIKE c.enclosing_qualified_name||'.'||c.callee_name||'.__variant.L%') "
+    "AND json_extract(candidate.properties_json,'$.lexical_scope_start_line')<=c.start_line "
+    "AND json_extract(candidate.properties_json,'$.lexical_scope_end_line')>=c.start_line) "
     "WHERE c.dispatch_kind='direct';"
   );
   sql_or_die(db,
@@ -1747,9 +1807,19 @@ static void resolve_staging_edges(sqlite3 *db) {
     "'lexical_scope_value',json_object('reference',u.referenced_name,'is_write',u.is_write) "
     "FROM native_usages u "
     "JOIN native_nodes source ON source.file_id=u.file_id AND source.qualified_name=u.enclosing_qualified_name "
-    "JOIN native_nodes t ON t.file_id=u.file_id "
-    "AND t.qualified_name=u.enclosing_qualified_name||'.'||u.referenced_name "
-    "AND t.kind IN ('Variable','FunctionPointer');"
+    "JOIN native_nodes t ON t.file_id=u.file_id AND t.name=u.referenced_name "
+    "AND t.kind IN ('Variable','FunctionPointer') AND t.start_line<=u.start_line "
+    "AND (t.qualified_name=u.enclosing_qualified_name||'.'||u.referenced_name "
+    "OR t.qualified_name LIKE u.enclosing_qualified_name||'.'||u.referenced_name||'.__variant.L%') "
+    "AND json_extract(t.properties_json,'$.lexical_scope_start_line')<=u.start_line "
+    "AND json_extract(t.properties_json,'$.lexical_scope_end_line')>=u.start_line "
+    "AND t.start_line=(SELECT MAX(candidate.start_line) FROM native_nodes candidate "
+    "WHERE candidate.file_id=u.file_id AND candidate.name=u.referenced_name "
+    "AND candidate.kind IN ('Variable','FunctionPointer') AND candidate.start_line<=u.start_line "
+    "AND (candidate.qualified_name=u.enclosing_qualified_name||'.'||u.referenced_name "
+    "OR candidate.qualified_name LIKE u.enclosing_qualified_name||'.'||u.referenced_name||'.__variant.L%') "
+    "AND json_extract(candidate.properties_json,'$.lexical_scope_start_line')<=u.start_line "
+    "AND json_extract(candidate.properties_json,'$.lexical_scope_end_line')>=u.start_line);"
   );
   sql_or_die(db,
     "INSERT OR IGNORE INTO native_edges(file_id,source_qualified_name,target_qualified_name,type,start_line,start_column,confidence,strategy,evidence_json) "
@@ -2017,7 +2087,7 @@ static int write_staging(
   bind_text(run, 2, project); bind_text(run, 3, repo_root); sqlite3_step(run); sqlite3_finalize(run);
 
   sqlite3_stmt *file_stmt = NULL;
-  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial\",\"native-lexical-shadowing-partial\"]')", -1, &file_stmt, NULL);
+  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial\",\"native-lexical-scope-partial-language-extensions\"]')", -1, &file_stmt, NULL);
   for (int index = 0; index < file_count; index++) {
     sqlite3_bind_int(file_stmt, 1, index + 1);
     bind_text(file_stmt, 2, files[index].rel_path);
@@ -2029,7 +2099,7 @@ static int write_staging(
   sqlite3_finalize(file_stmt);
 
   sqlite3_stmt *node_stmt = NULL, *call_stmt = NULL, *import_stmt = NULL, *usage_stmt = NULL;
-  sqlite3_prepare_v2(db, "INSERT OR IGNORE INTO native_nodes(file_id,kind,name,qualified_name,start_line,end_line,is_exported,is_test,is_entry_point,properties_json) VALUES(?,?,?,?,?,?,?,0,?,CASE WHEN ? IS NULL THEN '{}' ELSE json_object('declared_type',?) END)", -1, &node_stmt, NULL);
+  sqlite3_prepare_v2(db, "INSERT OR IGNORE INTO native_nodes(file_id,kind,name,qualified_name,start_line,end_line,is_exported,is_test,is_entry_point,properties_json) VALUES(?,?,?,?,?,?,?,0,?,json_object('declared_type',?,'lexical_scope_start_line',?,'lexical_scope_end_line',?))", -1, &node_stmt, NULL);
   sqlite3_prepare_v2(db, "INSERT INTO native_calls(file_id,enclosing_qualified_name,callee_name,dispatch_kind,receiver_text,start_line,start_column,arguments_json) VALUES(?,?,?,?,?,?,?,'[]')", -1, &call_stmt, NULL);
   sqlite3_prepare_v2(db, "INSERT INTO native_imports(file_id,local_name,imported_name,module_path,resolved_rel_path,start_line) VALUES(?,?,NULL,?,?,?)", -1, &import_stmt, NULL);
   sqlite3_prepare_v2(db, "INSERT INTO native_usages(file_id,enclosing_qualified_name,referenced_name,start_line,start_column,is_write) VALUES(?,?,?,?,?,?)", -1, &usage_stmt, NULL);
@@ -2041,8 +2111,10 @@ static int write_staging(
       bind_text(node_stmt, 3, item->name); bind_text(node_stmt, 4, item->qualified_name);
       sqlite3_bind_int(node_stmt, 5, item->start_line); sqlite3_bind_int(node_stmt, 6, item->end_line);
       sqlite3_bind_int(node_stmt, 7, item->is_exported); sqlite3_bind_int(node_stmt, 8, item->is_entry_point);
-      if (item->declared_type) { bind_text(node_stmt, 9, item->declared_type); bind_text(node_stmt, 10, item->declared_type); }
-      else { sqlite3_bind_null(node_stmt, 9); sqlite3_bind_null(node_stmt, 10); }
+      if (item->declared_type) bind_text(node_stmt, 9, item->declared_type);
+      else sqlite3_bind_null(node_stmt, 9);
+      sqlite3_bind_int(node_stmt, 10, item->lexical_scope_start_line);
+      sqlite3_bind_int(node_stmt, 11, item->lexical_scope_end_line);
       sqlite3_step(node_stmt); sqlite3_reset(node_stmt); sqlite3_clear_bindings(node_stmt);
     }
     for (size_t index = 0; index < buffer->calls.length; index++) {

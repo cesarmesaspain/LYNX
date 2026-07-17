@@ -34,12 +34,34 @@ int operation(int value) {
   return value - 1;
 }
 
+int increment(int value) {
+  return value + 1;
+}
+
 int apply_transform(int (*operation)(int), int value) {
   return operation(value);
 }
 
 int apply_local_transform(int value) {
   int (*callback)(int) = operation;
+  return callback(value);
+}
+
+int apply_shadowed_transform(int value) {
+  int (*callback)(int) = operation;
+  int result = callback(value);
+  {
+    int (*callback)(int) = increment;
+    result = callback(result);
+  }
+  return callback(result);
+}
+
+int apply_for_shadowed_transform(int value) {
+  int (*callback)(int) = operation;
+  for (int (*callback)(int) = increment; value < 1; value++) {
+    value = callback(value);
+  }
   return callback(value);
 }
 

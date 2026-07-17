@@ -153,7 +153,12 @@ export function passCalls(
         continue;
       }
 
-      const resolved = resolveCallee(idx, batch.file.relPath, call.calleeName);
+      const resolved = resolveCallee(
+        idx,
+        batch.file.relPath,
+        call.calleeName,
+        caller.qualified_name,
+      );
       if (!resolved) {
         const methodName = call.calleeName.split('.').pop() || call.calleeName;
         const receiverName = call.calleeName.includes('.')

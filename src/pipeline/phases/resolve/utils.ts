@@ -71,12 +71,30 @@ export function sameLanguageGroup(leftFile: string, rightFile: string): boolean 
 export function resolveCallee(
   idx: ResolverIndexes,
   filePath: string,
-  calleeName: string
+  calleeName: string,
+  callerQn?: string,
 ): { node: NodeRef; reason: string; confidence: number } | undefined {
   const methodName = calleeName.split('.').pop() || calleeName;
   const isQualifiedCall = calleeName.includes('.');
 
   const callerLang = languageGroup(filePath);
+
+  // `this.method()` / `self.method()` carry enough lexical evidence to bind
+  // the call to the caller's own class. Match the complete parent QN so two
+  // classes with the same method name in one file remain unambiguous.
+  if (callerQn && /^(?:this|self)\.[A-Za-z_$][\w$]*$/.test(calleeName)) {
+    const parentQn = callerQn.includes('.')
+      ? callerQn.slice(0, callerQn.lastIndexOf('.'))
+      : '';
+    if (parentQn) {
+      const lexicalTarget = getFileNodes(idx, filePath).find((node) =>
+        callableKinds.has(node.kind) && node.qualified_name === `${parentQn}.${methodName}`,
+      );
+      if (lexicalTarget) {
+        return { node: lexicalTarget, reason: 'lexical-receiver', confidence: 0.98 };
+      }
+    }
+  }
 
   const local = getFileNodes(idx, filePath)
     .filter((node) => callableKinds.has(node.kind))
@@ -119,6 +137,23 @@ export function resolveCallee(
     }
     // No imported candidate matched — fall through to global search for
     // built-ins, dynamic imports, and extraction gaps.
+
+    // A class import binds qualified static/member calls through the imported
+    // class identity. Require one imported class QN and one child callable;
+    // aliases or ambiguous class identities remain unresolved.
+    const qualified = calleeName.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/);
+    if (qualified) {
+      const receiverName = qualified[1];
+      const importedOwners = [...importedQns].filter((qn) =>
+        qn === receiverName || qn.endsWith(`.${receiverName}`),
+      );
+      const ownerCallables = callableByName.filter((node) =>
+        importedOwners.some((ownerQn) => node.qualified_name.startsWith(`${ownerQn}.`)),
+      );
+      if (importedOwners.length === 1 && ownerCallables.length === 1) {
+        return { node: ownerCallables[0], reason: 'imported-owner', confidence: 0.96 };
+      }
+    }
   }
 
   // A receiver-qualified call such as db.get() or map.set() does not identify

@@ -10,7 +10,7 @@ import type { LynxEdge } from '../../../src/types.js';
 import type { ExtractionResult } from '../../../src/extraction/extractor.js';
 import type { ResolverState } from '../../../src/pipeline/phases/resolve/indexes.js';
 import {
-  resetIdCounter, makeFileNode, makeFuncNode,
+  resetIdCounter, makeFileNode, makeFuncNode, makeClassNode,
   makeEmptyResult, makeBatch, createEmptyIndexes, populateIndex, getEdgesByType,
 } from './helpers.js';
 
@@ -222,6 +222,38 @@ describe('passCalls', () => {
 
     expect(resolveCallee(idx, 'src/database.ts', 'database.get')).toBeUndefined();
     expect(resolveCallee(idx, 'src/registry.ts', 'commands.get')).toBeUndefined();
+  });
+
+  it('resolves this/self calls only within the caller lexical owner', () => {
+    const fileNode = makeFileNode(1, 'src/service.ts');
+    const caller = { ...makeFuncNode(2, 'run', 'src/service.ts', 'Primary'), kind: 'Method' };
+    const target = { ...makeFuncNode(3, 'flush', 'src/service.ts', 'Primary'), kind: 'Method' };
+    const collision = { ...makeFuncNode(4, 'flush', 'src/service.ts', 'Secondary'), kind: 'Method' };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [fileNode, caller, target, collision]);
+
+    const result = resolveCallee(idx, 'src/service.ts', 'this.flush', caller.qualified_name);
+    expect(result?.node.id).toBe(target.id);
+    expect(result?.reason).toBe('lexical-receiver');
+    expect(result?.confidence).toBeGreaterThan(0.95);
+  });
+
+  it('resolves a qualified method through an imported class owner', () => {
+    const ownerFile = makeFileNode(1, 'src/store/database.ts');
+    const callerFile = makeFileNode(2, 'src/app.ts');
+    const owner = makeClassNode(3, 'LynxDatabase', 'src/store/database.ts');
+    const method = {
+      ...makeFuncNode(4, 'openMemory', 'src/store/database.ts', 'LynxDatabase'),
+      kind: 'Method',
+    };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [ownerFile, callerFile, owner, method]);
+    idx.importedQnByFile.set('src/app.ts', new Set([owner.qualified_name]));
+
+    const result = resolveCallee(idx, 'src/app.ts', 'LynxDatabase.openMemory');
+    expect(result?.node.id).toBe(method.id);
+    expect(result?.reason).toBe('imported-owner');
+    expect(result?.confidence).toBeGreaterThan(0.95);
   });
 
   it('does not resolve an extracted bare method name globally without receiver evidence', () => {

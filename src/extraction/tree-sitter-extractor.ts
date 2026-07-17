@@ -66,6 +66,16 @@ export interface TSExtractedDecorator {
   startLine: number;
 }
 
+export interface TSExtractedLocalBinding {
+  name: string;
+  typeName: string;
+  ownerQn: string;
+  declarationLine: number;
+  scopeStartLine: number;
+  scopeEndLine: number;
+  origin: 'annotation' | 'constructor';
+}
+
 export interface TSExtractionResult {
   nodes: LynxNode[];
   calls: TSExtractedCall[];
@@ -74,6 +84,7 @@ export interface TSExtractionResult {
   channels: TSExtractedChannel[];
   throws: TSExtractedThrow[];
   decorators: TSExtractedDecorator[];
+  localBindings?: TSExtractedLocalBinding[];
   hasError: boolean;
   errorMsg: string | null;
   isTestFile: boolean;
@@ -270,6 +281,7 @@ export async function extractWithTreeSitter(
   const channels: TSExtractedChannel[] = [];
   const throws: TSExtractedThrow[] = [];
   const decorators: TSExtractedDecorator[] = [];
+  const localBindings: TSExtractedLocalBinding[] = [];
 
   // Fast path: in pkg binary mode, WASM grammars are external and will fail.
   // TS/TSX are handled by the C extractor via extractNativeLargeFiles.
@@ -320,6 +332,7 @@ export async function extractWithTreeSitter(
     // ── Extract function/class/variable definitions ──
     const defNodes = extractDefinitions(rootNode, source, config, project, filePath, moduleQn);
     nodes.push(...defNodes);
+    localBindings.push(...extractLocalBindings(rootNode, config, moduleQn));
 
     // ── Extract calls and usages in one scope-aware AST pass ──
     const usagesComplete = extractCallsAndUsages(
@@ -350,7 +363,7 @@ export async function extractWithTreeSitter(
     parser.delete();
 
     return {
-      nodes, calls, imports, usages, channels, throws, decorators,
+      nodes, calls, imports, usages, channels, throws, decorators, localBindings,
       hasError: false,
       errorMsg: null,
       isTestFile,
@@ -854,6 +867,47 @@ function extraDefinitionTypes(lang: string): string[] {
     return ['interface_declaration', 'type_alias_declaration', 'enum_declaration', 'public_field_definition', 'property_signature'];
   }
   return [];
+}
+
+function extractLocalBindings(
+  rootNode: SyntaxNode,
+  config: LanguageConfig,
+  moduleQn: string,
+): TSExtractedLocalBinding[] {
+  const bindings = new Map<string, TSExtractedLocalBinding>();
+  forEachDescendantOfTypes(rootNode, config.variableTypes, (node) => {
+    let scope: SyntaxNode | null = node.parent;
+    while (scope && !config.functionTypes.includes(scope.type)) scope = scope.parent;
+    if (!scope) return;
+    const functionName = extractDefinitionName(scope, '', config.tsLang);
+    if (!functionName) return;
+
+    const text = node.text.split('\n')[0].trim();
+    const annotation = text.match(/^(?:(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)\??\s*:\s*([A-Za-z_$][\w$.:<>]*)/);
+    const typeFirst = text.match(/^(?:final\s+)?([A-Z][\w$.:<>]*)\s+([A-Za-z_$][\w$]*)\s*(?:=|;|,)/);
+    const constructor = text.match(/^(?:(?:const|let|var)\s+)?([A-Za-z_$][\w$]*)[^=]*=\s*new\s+([A-Z][\w$.:<>]*)/);
+    const match = annotation
+      ? { name: annotation[1], typeName: annotation[2], origin: 'annotation' as const }
+      : typeFirst
+        ? { name: typeFirst[2], typeName: typeFirst[1], origin: 'annotation' as const }
+        : constructor
+          ? { name: constructor[1], typeName: constructor[2], origin: 'constructor' as const }
+          : undefined;
+    if (!match) return;
+
+    const ownerQn = `${moduleQn}.${functionName}`;
+    const binding: TSExtractedLocalBinding = {
+      ...match,
+      ownerQn,
+      declarationLine: node.startPosition.row + 1,
+      scopeStartLine: scope.startPosition.row + 1,
+      scopeEndLine: scope.endPosition.row + 1,
+    };
+    const key = `${ownerQn}:${match.name}:${binding.declarationLine}`;
+    const previous = bindings.get(key);
+    if (!previous || previous.origin === 'constructor') bindings.set(key, binding);
+  });
+  return [...bindings.values()];
 }
 
 // ── Name extraction per language ──────────────────────────────────

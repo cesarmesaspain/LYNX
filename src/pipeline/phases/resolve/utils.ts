@@ -15,6 +15,7 @@ import type {
   LynxExternalSymbol,
   LynxNode,
 } from '../../../types.js';
+import type { ExtractedLocalBinding } from '../../../extraction/extractor.js';
 import type { NodeRef, ResolverIndexes } from './indexes.js';
 import { callableKinds, symbolKinds, typeKinds } from './constants.js';
 
@@ -68,19 +69,22 @@ export function sameLanguageGroup(leftFile: string, rightFile: string): boolean 
   return languageGroup(leftFile) === languageGroup(rightFile);
 }
 
+function nominalOwnerName(raw: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const normalized = raw.trim().replace(/^[:*&\s]+/, '').replace(/[?\s]+$/, '');
+  // Union/intersection types do not identify one concrete owner.
+  if (!normalized || normalized.includes('|') || normalized.includes('&')) return undefined;
+  const withoutGenerics = normalized.replace(/<.*>$/, '').replace(/\[\]$/, '');
+  const parts = withoutGenerics.split(/\.|::/).filter(Boolean);
+  const owner = parts[parts.length - 1];
+  return /^[A-Za-z_$][\w$]*$/.test(owner || '') ? owner : undefined;
+}
+
 export function declaredParamOwner(properties: string | null, receiverName: string): string | undefined {
   if (!properties) return undefined;
   try {
     const paramTypes = (JSON.parse(properties) as { paramTypes?: Record<string, unknown> }).paramTypes;
-    const raw = paramTypes?.[receiverName];
-    if (typeof raw !== 'string') return undefined;
-    const normalized = raw.trim().replace(/^[:*&\s]+/, '').replace(/[?\s]+$/, '');
-    // Union/intersection types do not identify one concrete owner.
-    if (!normalized || normalized.includes('|') || normalized.includes('&')) return undefined;
-    const withoutGenerics = normalized.replace(/<.*>$/, '').replace(/\[\]$/, '');
-    const parts = withoutGenerics.split(/\.|::/).filter(Boolean);
-    const owner = parts[parts.length - 1];
-    return /^[A-Za-z_$][\w$]*$/.test(owner || '') ? owner : undefined;
+    return nominalOwnerName(paramTypes?.[receiverName]);
   } catch {
     return undefined;
   }
@@ -103,6 +107,8 @@ export function resolveCallee(
   filePath: string,
   calleeName: string,
   callerQn?: string,
+  localBindings?: ExtractedLocalBinding[],
+  callLine?: number,
 ): { node: NodeRef; reason: string; confidence: number } | undefined {
   const methodName = calleeName.split('.').pop() || calleeName;
   const isQualifiedCall = calleeName.includes('.');
@@ -134,7 +140,15 @@ export function resolveCallee(
   if (callerQn && simpleQualified) {
     const callerId = idx.qnToId.get(callerQn);
     const callerNode = callerId ? idx.idToRow.get(callerId) : undefined;
-    const ownerName = declaredParamOwner(callerNode?.properties || null, simpleQualified[1]);
+    const scopedBinding = localBindings?.find((binding) =>
+      binding.ownerQn === callerQn &&
+      binding.name === simpleQualified[1] &&
+      binding.declarationLine <= (callLine ?? Number.MAX_SAFE_INTEGER) &&
+      binding.scopeStartLine <= (callLine ?? binding.scopeStartLine) &&
+      binding.scopeEndLine >= (callLine ?? binding.scopeEndLine),
+    );
+    const ownerName = declaredParamOwner(callerNode?.properties || null, simpleQualified[1]) ||
+      nominalOwnerName(scopedBinding?.typeName);
     if (ownerName) {
       const owners = [
         ...(idx.kindNameToRows.get(`Class:${ownerName}`) || []),
@@ -149,7 +163,11 @@ export function resolveCallee(
         ),
       );
       if (owners.length === 1 && typedTargets.length === 1) {
-        return { node: typedTargets[0], reason: 'declared-parameter-type', confidence: 0.97 };
+        return {
+          node: typedTargets[0],
+          reason: scopedBinding ? 'scoped-local-type' : 'declared-parameter-type',
+          confidence: scopedBinding?.origin === 'constructor' ? 0.99 : 0.97,
+        };
       }
     }
   }

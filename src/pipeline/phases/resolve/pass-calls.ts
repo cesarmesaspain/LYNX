@@ -161,6 +161,8 @@ export function passCalls(
         batch.file.relPath,
         call.calleeName,
         caller.qualified_name,
+        batch.result.localBindings,
+        call.startLine,
       );
       if (!resolved) {
         const methodName = call.calleeName.split('.').pop() || call.calleeName;

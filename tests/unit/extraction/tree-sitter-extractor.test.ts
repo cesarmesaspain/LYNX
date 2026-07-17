@@ -155,6 +155,48 @@ describe('tree-sitter JavaScript definition identity', () => {
     expect(result.imports).toHaveLength(3);
   });
 
+  it('keeps local type evidence scoped to its owning function', async () => {
+    const result = await extractFile(
+      `function first() {
+         const service: UserService = new UserService();
+         service.run();
+       }
+       function second() {
+         const service = new OtherService();
+         service.run();
+       }`,
+      'fixture',
+      'locals.ts',
+      'locals',
+    );
+
+    expect(result.localBindings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: 'service', typeName: 'UserService', ownerQn: 'locals.first', origin: 'annotation',
+      }),
+      expect.objectContaining({
+        name: 'service', typeName: 'OtherService', ownerQn: 'locals.second', origin: 'constructor',
+      }),
+    ]));
+    expect(result.localBindings).toHaveLength(2);
+  });
+
+  it('extracts scoped local type evidence across supported declaration forms', async () => {
+    const fixtures = [
+      ['local.py', 'def run():\n    service: UserService = UserService()\n    service.run()'],
+      ['Local.java', 'class Local { void run() { UserService service = new UserService(); service.run(); } }'],
+      ['Local.cs', 'class Local { void Run() { var service = new UserService(); service.Run(); } }'],
+    ] as const;
+
+    for (const [file, source] of fixtures) {
+      const result = await extractFile(source, 'fixture', file, 'local');
+      expect(result.localBindings, file).toEqual(expect.arrayContaining([
+        expect.objectContaining({ name: 'service', typeName: 'UserService' }),
+      ]));
+      expect(result.nodes.some((node) => node.kind === 'Variable' && node.name === 'service'), file).toBe(false);
+    }
+  });
+
   it('marks conventional root test files and all of their nodes as tests', async () => {
     const result = await extractFile(
       `function helper() { return true; }

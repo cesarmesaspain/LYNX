@@ -55,6 +55,16 @@ export interface ExtractedDecorator {
   startLine: number;
 }
 
+export interface ExtractedLocalBinding {
+  name: string;
+  typeName: string;
+  ownerQn: string;
+  declarationLine: number;
+  scopeStartLine: number;
+  scopeEndLine: number;
+  origin: 'annotation' | 'constructor';
+}
+
 export interface ExtractionResult {
   nodes: LynxNode[];
   calls: ExtractedCall[];
@@ -63,6 +73,8 @@ export interface ExtractionResult {
   channels: ExtractedChannel[];
   throws: ExtractedThrow[];
   decorators: ExtractedDecorator[];
+  /** Scope-bound type evidence; never promoted into global symbol indexes. */
+  localBindings?: ExtractedLocalBinding[];
   hasError: boolean;
   errorMsg: string | null;
   isTestFile: boolean;
@@ -116,6 +128,7 @@ export async function extractFile(
         targetQn: d.targetQn,
         startLine: d.startLine,
       })),
+      localBindings: result.localBindings,
       hasError: result.hasError,
       errorMsg: result.errorMsg,
       isTestFile: result.isTestFile,

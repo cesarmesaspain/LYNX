@@ -122,7 +122,7 @@ const TOP_LANGUAGES: LanguageConfig[] = [
     classTypes: ['class_declaration', 'interface_declaration', 'enum_declaration'],
     callTypes: ['method_invocation', 'object_creation_expression'],
     importTypes: ['import_declaration'],
-    variableTypes: ['variable_declaration', 'field_declaration'],
+    variableTypes: ['local_variable_declaration', 'variable_declaration', 'field_declaration'],
     commentTypes: ['line_comment', 'block_comment'],
     hasImports: true,
   },

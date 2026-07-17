@@ -315,6 +315,44 @@ describe('passCalls', () => {
     expect(resolveCallee(idx, 'src/app.ts', 'db.close', caller.qualified_name)).toBeUndefined();
   });
 
+  it('resolves local receiver evidence only inside its owner and line range', () => {
+    const ownerFile = makeFileNode(1, 'src/service.ts');
+    const callerFile = makeFileNode(2, 'src/app.ts');
+    const owner = makeClassNode(3, 'UserService', 'src/service.ts');
+    const method = {
+      ...makeFuncNode(4, 'run', 'src/service.ts', 'UserService'),
+      kind: 'Method',
+    };
+    const caller = makeFuncNode(5, 'main', 'src/app.ts');
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [ownerFile, callerFile, owner, method, caller]);
+    idx.importedQnByFile.set('src/app.ts', new Set([owner.qualified_name]));
+    const result = makeCallResult('service.run', 'app.main');
+    result.calls[0].startLine = 12;
+    result.localBindings = [{
+      name: 'service',
+      typeName: 'UserService',
+      ownerQn: caller.qualified_name,
+      declarationLine: 10,
+      scopeStartLine: 8,
+      scopeEndLine: 20,
+      origin: 'constructor',
+    }];
+    const edges: LynxEdge[] = [];
+
+    passCalls(db, [makeBatch('src/app.ts', '/fake/src/app.ts', result)], idx, edges, makeResolverState());
+
+    expect(getEdgesByType(edges, 'CALLS')).toEqual([
+      expect.objectContaining({
+        sourceId: caller.id,
+        targetId: method.id,
+        properties: expect.objectContaining({ resolution: 'scoped-local-type', confidence: 0.99 }),
+      }),
+    ]);
+    expect(resolveCallee(idx, 'src/app.ts', 'service.run', caller.qualified_name, result.localBindings, 9)).toBeUndefined();
+    expect(resolveCallee(idx, 'src/app.ts', 'service.run', 'app.other', result.localBindings, 12)).toBeUndefined();
+  });
+
   it('does not resolve an extracted bare method name globally without receiver evidence', () => {
     const fileNode = makeFileNode(1, 'src/cache.ts');
     const globalGet = { ...makeFuncNode(2, 'get', 'src/cache.ts'), kind: 'Method', is_exported: 1 };

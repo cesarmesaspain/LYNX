@@ -385,6 +385,17 @@ supports graceful retirement plus forced termination without misclassifying an
 expected exit. Typecheck and 3/3 focused tests pass. Complete suite/commit and
 the multi-worker manager/health probe remain.
 
+Candidate health probing is active in
+`src/mcp/supervisor/worker-probe.ts` with tests in
+`tests/unit/mcp/worker-probe.test.ts`. A private probe namespace requests
+`initialize`, `lynx/buildIdentity`, and `tools/list`; responses may arrive out of
+order but promotion evidence exists only after initialize version equals build
+identity, an expected signed distribution hash (when supplied) matches, and the
+tool-name set exactly matches the canonical registry. Mixed identities and
+missing/unexpected tools fail closed; unrelated host traffic is ignored.
+Typecheck and 3/3 focused tests pass. Complete suite/commit and manager-owned
+timeout/child termination remain.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

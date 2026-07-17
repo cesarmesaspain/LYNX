@@ -159,6 +159,23 @@ export function getAllFileHashes(
   return map;
 }
 
+/** Count canonical indexed files that produced at least one graph node. */
+export function countFilesWithGraphNodes(
+  db: LynxDatabase,
+  project: string,
+): number {
+  const row = db.db
+    .prepare(
+      `SELECT COUNT(DISTINCT n.file_path) AS count
+       FROM nodes n
+       INNER JOIN file_hashes h
+         ON h.project = n.project AND h.rel_path = n.file_path
+       WHERE n.project = ? AND n.file_path != ''`,
+    )
+    .get(project) as { count: number };
+  return row.count;
+}
+
 export function upsertFileHash(
   db: LynxDatabase,
   project: string,

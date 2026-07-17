@@ -4,6 +4,7 @@ import { isProjectLocked, listOrphanedLocks } from '../../store/lock.js';
 import { storedTimestampMs } from '../../store/time.js';
 import { discoverFiles } from '../../pipeline/phases/discover.js';
 import { detectGraphDrift } from '../../store/graph-drift.js';
+import { countFilesWithGraphNodes } from '../../store/memory.js';
 
 type IndexFreshness = 'ready' | 'stale' | 'drifted' | 'updating' | 'failed' | 'unknown';
 
@@ -25,9 +26,7 @@ export async function handleIndexStatus(
     .prepare('SELECT COUNT(*) as cnt FROM edges WHERE project = ?')
     .get(project) as { cnt: number };
 
-  const fileCount = db.db
-    .prepare("SELECT COUNT(DISTINCT file_path) as cnt FROM nodes WHERE project = ? AND kind = 'File'")
-    .get(project) as { cnt: number };
+  const fileCount = { cnt: countFilesWithGraphNodes(db, project) };
 
   const nodeLabels = db.db
     .prepare(

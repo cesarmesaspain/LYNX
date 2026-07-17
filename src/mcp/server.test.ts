@@ -112,18 +112,24 @@ describe('MCP database cache', () => {
 });
 
 describe('MCP index context', () => {
-  it('counts indexed File nodes rather than every node file_path in coverage', async () => {
+  it('counts canonical indexed files with nodes without counting folders', async () => {
     const project = 'file-coverage-count';
     const db = LynxDatabase.openMemory();
     db.upsertProject(project, process.cwd());
     db.db.prepare(`INSERT INTO nodes (id, project, kind, name, qualified_name, file_path, start_line, end_line, is_exported, is_test, is_entry_point, properties)
       VALUES (1, ?, 'File', 'one.ts', 'file.one', 'src/one.ts', 1, 1, 0, 0, 0, '{}'),
              (2, ?, 'Function', 'one', 'one.fn', 'src/one.ts', 1, 1, 0, 0, 0, '{}'),
-             (3, ?, 'Folder', 'src', 'folder.src', 'src', 1, 1, 0, 0, 0, '{}')`).run(project, project, project);
+             (3, ?, 'Folder', 'src', 'folder.src', 'src', 1, 1, 0, 0, 0, '{}'),
+             (4, ?, 'Function', 'native', 'native.fn', 'src/native.c', 1, 1, 0, 0, 0, '{}')`).run(project, project, project, project);
+    db.db.prepare(`INSERT INTO file_hashes (project, rel_path, sha256, mtime_ns, size)
+      VALUES (?, 'src/one.ts', 'one', 1, 1), (?, 'src/native.c', 'native', 1, 1)`).run(project, project);
     setDb(project, db);
 
     const status = await handleIndexStatus({ project }) as { files: number };
-    expect(status.files).toBe(1);
+    expect(status).toMatchObject({
+      files: 2,
+      coverage: { indexed_files_with_nodes: 2 },
+    });
     unsetDb(project, { close: false });
     db.close();
   });

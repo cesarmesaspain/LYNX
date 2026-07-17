@@ -28,6 +28,7 @@ import { findNodeIdsByQns } from "../store/nodes.js";
 import type { LynxEdge } from "../types.js";
 import {
   getAllFileHashes,
+  countFilesWithGraphNodes,
   upsertFileHash,
   insertIndexRun,
   deleteFileHash,
@@ -123,19 +124,6 @@ export interface PipelineResult {
     call_resolution_rate: number;
     partial_files: Array<{ file: string; reasons: string[] }>;
   };
-}
-
-function countFilesWithGraphNodes(db: LynxDatabase, project: string): number {
-  const result = db.db
-    .prepare(
-      `SELECT COUNT(DISTINCT n.file_path) AS count
-       FROM nodes n
-       INNER JOIN file_hashes h
-         ON h.project = n.project AND h.rel_path = n.file_path
-       WHERE n.project = ? AND n.file_path != ''`,
-    )
-    .get(project) as { count: number };
-  return result.count;
 }
 
 type ExtractionBatch = Awaited<ReturnType<typeof extractAll>>[number];

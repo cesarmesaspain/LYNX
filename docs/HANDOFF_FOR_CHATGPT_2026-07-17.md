@@ -30,6 +30,8 @@ Commit: `c192073 fix: count indexed source files from canonical registry`
 
 Verified live result: `files_discovered=415`, `files_with_nodes=415`.
 
+The same canonical counter is now shared by the indexing pipeline and `index_status`. This removes a second contradiction where status counted only explicit `File` nodes and reported 405/416 even though native and other extractors had produced graph nodes for all 416 registered files.
+
 ### Dashboard supervision root fix
 
 Commit: `6ee530d fix: supervise dashboard across MCP restarts`

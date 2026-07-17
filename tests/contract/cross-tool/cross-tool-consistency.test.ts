@@ -25,6 +25,38 @@ const stableChanges = (value: Record<string, unknown>) => ({
   llm_usage: value.llm_usage,
 });
 
+type ContractProperty = {
+  type?: string;
+  enum?: unknown[];
+  items?: { type?: string; enum?: unknown[] };
+};
+
+type ContractSchema = {
+  properties?: Record<string, ContractProperty>;
+  required?: string[];
+  anyOf?: Array<{ required?: string[] }>;
+};
+
+function validExample(property: ContractProperty): unknown {
+  if (property.enum?.length) return property.enum[0];
+  switch (property.type) {
+    case "string": return "contract-value";
+    case "integer": return 1;
+    case "number": return 0.5;
+    case "boolean": return false;
+    case "object": return {};
+    case "array": return [validExample(property.items ?? { type: "string" })];
+    default: return "contract-value";
+  }
+}
+
+function validArguments(schema: ContractSchema, anyOfBranch = 0): Record<string, unknown> {
+  const properties = schema.properties ?? {};
+  const names = new Set(schema.required ?? []);
+  for (const name of schema.anyOf?.[anyOfBranch]?.required ?? []) names.add(name);
+  return Object.fromEntries([...names].map((name) => [name, validExample(properties[name] ?? {})]));
+}
+
 describe("generated cross-tool consistency contracts", () => {
   let root: string;
   let db: LynxDatabase;
@@ -94,6 +126,40 @@ describe("generated cross-tool consistency contracts", () => {
       missing_handlers: ["orphan"],
       unpublished_handlers: ["hidden"],
     });
+  });
+
+  it("generates valid and invalid argument contracts for the complete registry", () => {
+    for (const tool of TOOLS) {
+      const schema = tool.inputSchema as ContractSchema;
+      const properties = schema.properties ?? {};
+      const baseline = validArguments(schema);
+      expect(validateToolArguments(tool.name, baseline), `${tool.name}: generated valid arguments`).toEqual({ valid: true });
+
+      for (const required of schema.required ?? []) {
+        const missing = { ...baseline };
+        delete missing[required];
+        const result = validateToolArguments(tool.name, missing);
+        expect(result.valid, `${tool.name}: missing ${required}`).toBe(false);
+        if (!result.valid) expect(result.problems).toContain(`Missing required argument '${required}'.`);
+      }
+
+      for (const [branchIndex, branch] of (schema.anyOf ?? []).entries()) {
+        const branchArgs = validArguments(schema, branchIndex);
+        expect(validateToolArguments(tool.name, branchArgs), `${tool.name}: anyOf branch ${branchIndex}`).toEqual({ valid: true });
+        const withoutAlternatives = { ...branchArgs };
+        for (const alternative of schema.anyOf ?? []) {
+          for (const name of alternative.required ?? []) delete withoutAlternatives[name];
+        }
+        expect(validateToolArguments(tool.name, withoutAlternatives).valid, `${tool.name}: missing anyOf`).toBe(false);
+      }
+
+      for (const [name, property] of Object.entries(properties)) {
+        if (!property.type) continue;
+        const wrongType = property.type === "string" ? 7 : "wrong-type";
+        const result = validateToolArguments(tool.name, { ...baseline, [name]: wrongType });
+        expect(result.valid, `${tool.name}: wrong type for ${name}`).toBe(false);
+      }
+    }
   });
 
   it("keeps identity and health/coverage claims consistent", async () => {

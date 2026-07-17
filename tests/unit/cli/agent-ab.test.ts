@@ -51,6 +51,7 @@ import {
   readAgentABIndex,
   wilsonInterval,
   aggregateAgentABHistory,
+  DEFAULT_TASK_TOOL_PROFILES,
 } from "../../../src/cli/agent-ab/index.js";
 import type {
   AgentABResult,
@@ -664,6 +665,17 @@ describe("tool-set only difference", () => {
     // baseline has grep — with_lynx does not
     expect(bMap.has("grep")).toBe(true);
     expect(cMap.has("grep")).toBe(false);
+  });
+
+  it("keeps default task tool profiles minimal and task-specific", () => {
+    expect(DEFAULT_TASK_TOOL_PROFILES).toEqual({
+      find_definition: ["search_graph", "read_file"],
+      find_callers: ["trace_path"],
+      change_impact: ["search_graph", "trace_path", "read_file"],
+      find_tests: ["find_tests"],
+      locate_definitions: ["search_graph"],
+      trace_dependency_chain: ["trace_path"],
+    });
   });
 });
 

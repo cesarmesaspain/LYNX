@@ -375,6 +375,16 @@ encoded output. Typecheck and 4/4 focused framing tests pass. Complete suite and
 commit remain; the child transport must use this owner for both host and every
 worker stream rather than maintaining independent string buffers.
 
+Worker connection is active in
+`src/mcp/supervisor/worker-connection.ts` with tests in
+`tests/unit/mcp/worker-connection.test.ts`. It owns one generation child,
+serializes bounded lines to stdin with completion/backpressure awareness, parses
+fragmented stdout through the shared framer, keeps stderr diagnostic-only,
+fails once on malformed/oversized output or unexpected process failure, and
+supports graceful retirement plus forced termination without misclassifying an
+expected exit. Typecheck and 3/3 focused tests pass. Complete suite/commit and
+the multi-worker manager/health probe remain.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

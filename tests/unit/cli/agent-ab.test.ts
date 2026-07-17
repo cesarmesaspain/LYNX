@@ -68,6 +68,25 @@ import {
   parseVitestTestCounts,
   setupB3Worktree,
 } from "../../../src/cli/agent-ab/pilot-suite.js";
+
+function createHistoryIndexFixture(): { indexPath: string; cleanup: () => void } {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lynx-agent-history-"));
+  const indexPath = path.join(dir, "_index.jsonl");
+  const entries = [
+    {
+      base_name: "fixture-valid",
+      project: "fixture-project",
+      tasks: 2,
+      valid: true,
+      evaluated_runs: 2,
+      lynx: { success_rate: 1, median_wall_ms: 10, total_cost_usd: 0.01 },
+      baseline: { success_rate: 0.5, median_wall_ms: 20, total_cost_usd: 0.02 },
+    },
+    { base_name: "fixture-empty", project: "fixture-project", tasks: 0 },
+  ];
+  fs.writeFileSync(indexPath, entries.map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+  return { indexPath, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
+}
 import {
   ensureB3VitestConfig,
   evaluateResponse,
@@ -1422,6 +1441,7 @@ describe("CLI history mode", () => {
   });
 
   it("prints the clean historical aggregate without entering benchmark execution", async () => {
+    const fixture = createHistoryIndexFixture();
     const output: string[] = [];
     const prevLog = console.log;
     const prevError = console.error;
@@ -1436,17 +1456,24 @@ describe("CLI history mode", () => {
     try {
       const { cmdAgentABBenchmark } =
         await import("../../../src/cli/agent-ab/benchmark.js");
-      await cmdAgentABBenchmark(["--history"]);
+      await cmdAgentABBenchmark(["--history", "--history-index", fixture.indexPath]);
     } finally {
       console.log = prevLog;
       console.error = prevError;
+      fixture.cleanup();
     }
 
     expect(output).toHaveLength(1);
     const report = JSON.parse(output[0]);
-    const expectedHistory = readAgentABIndex(
-      path.resolve("benchmarks/results/_index.jsonl"),
-    );
+    const expectedHistory = summarizeAgentABIndexLines([
+      JSON.stringify({
+        base_name: "fixture-valid", project: "fixture-project", tasks: 2, valid: true,
+        evaluated_runs: 2,
+        lynx: { success_rate: 1, median_wall_ms: 10, total_cost_usd: 0.01 },
+        baseline: { success_rate: 0.5, median_wall_ms: 20, total_cost_usd: 0.02 },
+      }),
+      JSON.stringify({ base_name: "fixture-empty", project: "fixture-project", tasks: 0 }),
+    ]);
     const expectedAggregate = aggregateAgentABHistory(expectedHistory.included);
     expect(report.index_exists).toBe(true);
     expect(report.hygiene).toMatchObject({
@@ -2939,9 +2966,12 @@ describe("agent-ab history hygiene", () => {
   });
 
   it("does not hide index read errors other than ENOENT", () => {
-    expect(() =>
-      readAgentABIndex(path.resolve("benchmarks/results")),
-    ).toThrow();
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lynx-agent-history-dir-"));
+    try {
+      expect(() => readAgentABIndex(dir)).toThrow();
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("keeps valid legacy and explicit-valid entries", () => {
@@ -2979,8 +3009,9 @@ describe("agent-ab history hygiene", () => {
   });
 
   it("reads the current historical index without deleting artifacts", () => {
-    const indexPath = path.resolve("benchmarks/results/_index.jsonl");
-    const summary = readAgentABIndex(indexPath);
+    const fixture = createHistoryIndexFixture();
+    const summary = readAgentABIndex(fixture.indexPath);
+    fixture.cleanup();
     expect(summary.total_lines).toBe(
       summary.included_count + summary.excluded_count,
     );
@@ -3139,9 +3170,9 @@ describe("agent-ab history statistics", () => {
   });
 
   it("reports uncertainty for the current clean historical sample", () => {
-    const history = readAgentABIndex(
-      path.resolve("benchmarks/results/_index.jsonl"),
-    );
+    const fixture = createHistoryIndexFixture();
+    const history = readAgentABIndex(fixture.indexPath);
+    fixture.cleanup();
     const aggregate = aggregateAgentABHistory(history.included);
     expect(aggregate.runs).toBe(history.included_count);
     expect(aggregate.cost_runs).toBe(aggregate.runs);

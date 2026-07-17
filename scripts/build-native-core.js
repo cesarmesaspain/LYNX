@@ -10,8 +10,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const buildDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lynx-native-core-'));
 const cc = process.env.CC || 'clang';
 const cxx = process.env.CXX || 'clang++';
-const include = path.join(root, 'node_modules/tree-sitter/vendor/tree-sitter/lib/include');
-const runtimeSource = path.join(root, 'node_modules/tree-sitter/vendor/tree-sitter/lib/src');
+const include = path.join(root, 'node_modules/tree-sitter-runtime-source/vendor/tree-sitter/lib/include');
+const runtimeSource = path.join(root, 'node_modules/tree-sitter-runtime-source/vendor/tree-sitter/lib/src');
 const sqlite = path.join(root, 'node_modules/better-sqlite3/deps/sqlite3');
 const output = path.join(root, 'native', 'lynx_native_core');
 const sanitizerFlags = process.env.LYNX_NATIVE_SANITIZE === '1'

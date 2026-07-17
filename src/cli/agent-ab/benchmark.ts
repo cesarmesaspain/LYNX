@@ -88,6 +88,17 @@ import type {
 import { assertPaidMicrobenchmarkProtocol } from "./experiment.js";
 import { generateFixture } from "../ab-benchmark.js";
 
+export const DEFAULT_TASK_TOOL_PROFILES: Readonly<
+  Record<string, readonly string[]>
+> = {
+  find_definition: ["search_graph", "read_file"],
+  find_callers: ["trace_path"],
+  change_impact: ["search_graph", "trace_path", "read_file"],
+  find_tests: ["find_tests"],
+  locate_definitions: ["search_graph"],
+  trace_dependency_chain: ["trace_path"],
+};
+
 // ── Main runner ───────────────────────────────────────────────
 
 export async function runAgentABBenchmark(
@@ -377,19 +388,11 @@ export async function runAgentABBenchmark(
       tasks = config.taskIds
         ? TASKS.filter((t) => config.taskIds!.includes(t.id))
         : TASKS;
-      const defaultProfiles: Record<string, readonly string[]> = {
-        find_definition: ["search_graph", "read_file"],
-        find_callers: ["search_graph", "trace_path", "read_file"],
-        change_impact: ["search_graph", "trace_path", "read_file"],
-        find_tests: ["find_tests", "read_file"],
-        locate_definitions: ["search_graph", "read_file"],
-        trace_dependency_chain: ["search_graph", "trace_path", "read_file"],
-      };
       const allTools = makeLynxTools();
       suiteOverrides = {
         lynxToolsForTask: (task) =>
           allTools.filter((tool) =>
-            (defaultProfiles[task.id] || ["read_file"]).includes(tool.function.name),
+            (DEFAULT_TASK_TOOL_PROFILES[task.id] || ["read_file"]).includes(tool.function.name),
           ),
       };
     }
@@ -798,7 +801,7 @@ export async function runAgentABBenchmark(
             ? config.tier === "screening"
               ? `with_lynx: LLM has access to a task-specific compact LYNX profile (${screeningToolNames}).`
               : "with_lynx: LLM has access only to the task-specific LYNX tool profile plus read_file."
-            : "with_lynx: LLM has access to a task-specific minimal LYNX graph-tool profile plus read_file.",
+            : "with_lynx: LLM has access only to the task-specific minimal LYNX graph-tool profile.",
           "without_lynx: LLM has access to read_file + grep only.",
           "Fresh conversation per task x condition x run. No shared history or cache between conditions.",
           config.tier === "screening"

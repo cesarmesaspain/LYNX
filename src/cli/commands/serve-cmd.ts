@@ -1,12 +1,18 @@
 import { findNearestProject } from '../../discovery/project-scanner.js';
 import { runServer } from '../../mcp/server.js';
 import { readLynxConfig } from '../../config/runtime.js';
+import { getLynxCommand } from '../../install/agents.js';
+import { ensureDashboardService } from '../../server/dashboard/service.js';
 
 export async function cmdServe(): Promise<void> {
+  const cfg = readLynxConfig();
+  if (cfg.enabled && cfg.auto_dashboard) {
+    const { command, args } = getLynxCommand();
+    console.error(await ensureDashboardService(command, args));
+  }
   const detected = findNearestProject(process.cwd());
   if (detected) {
     console.error(`Auto-detected project: ${detected.name} (${detected.language})`);
-    const cfg = readLynxConfig();
     if (cfg.auto_index) {
       console.error(`Auto-index is enabled; LYNX will refresh this project in the background.`);
     } else {

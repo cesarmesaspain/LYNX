@@ -310,7 +310,7 @@ export async function runInstall(options: boolean | InstallOptions): Promise<voi
   // The dashboard is a user-level local service. It must survive agent and
   // MCP process exits, so it is deliberately started outside the MCP server.
   console.log('\nDashboard service:');
-  log(startDashboardService(command, args, dryRun));
+  log(await startDashboardService(command, args, dryRun));
 
   if (dryRun) {
     console.log('\nDry run complete. Run without --dry-run to apply changes.');

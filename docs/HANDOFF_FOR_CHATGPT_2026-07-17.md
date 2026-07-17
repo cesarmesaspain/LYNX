@@ -366,6 +366,15 @@ so probe/failed generations cannot leak output to Codex. Typecheck and the
 combined generation/protocol suite pass 8/8. Complete-suite validation and
 commit remain before child-process transport work.
 
+Bounded stream framing is active in
+`src/mcp/supervisor/json-rpc-lines.ts` with tests in
+`tests/unit/mcp/json-rpc-lines.test.ts`. It reassembles arbitrary UTF-8 chunks,
+emits multiple newline-delimited object messages, caps complete and partial
+lines before parsing, rejects malformed/non-object/truncated input, and bounds
+encoded output. Typecheck and 4/4 focused framing tests pass. Complete suite and
+commit remain; the child transport must use this owner for both host and every
+worker stream rather than maintaining independent string buffers.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

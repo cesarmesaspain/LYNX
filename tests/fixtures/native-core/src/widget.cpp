@@ -26,6 +26,10 @@ int measure_widget(Widget &widget) {
   return widget.size();
 }
 
+int measure_pointer(Widget *widget) {
+  return widget->size();
+}
+
 int measure_qualified() {
   return ui::label().size();
 }

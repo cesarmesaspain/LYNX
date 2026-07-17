@@ -97,12 +97,14 @@ Scoped local-binding evidence is now carried separately from graph nodes. Explic
 
 The full suite intermittently completed every assertion and then exited with `SIGSEGV` under Vitest worker threads. Every test family and a single-worker full run passed; the complete thread-pooled run reproduced the crash; the complete fork-pooled run passed. Native SQLite and tree-sitter/WASM lifecycles are now isolated by worker process. Two consecutive complete 1,095-test runs pass with exit code 0.
 
+Native call observations now use the exact callee token as their source location instead of the start of the complete call expression. This removes identity collisions between nested calls such as `label().size()`. The native integration fixture freezes object-member, pointer-member, namespace-qualified, and nested-call evidence; all resolve to their exact target and the nested inner call retains its distinct column.
+
 ## Remaining gaps
 
 These are not release blockers for the current local installation, but they prevent a 10/10 claim:
 
 1. Full-index call resolution is 5,706/27,560 (20.70%) after receiver-preserving extraction, owner-aware resolution, declared-parameter types, and scoped local-binding evidence. Unresolved calls now separate 9,810 unknown receiver targets, 6,830 external dependency targets, 2,029 dynamic local bindings, 1,818 absent targets, 774 native targets, 385 runtime built-in receivers, 152 missing internal-import targets, 30 ambiguous internal targets, 20 self-references, and 6 missing callers. The next root work is field/property assignment flow, broader alias-aware internal-import coverage, and native resolution. Do not restore the old ratio through bare-name matching or denominator shaping.
-2. Native C/C++ extraction still reports partial handling for member/qualified calls, function pointers, preprocessing, and lexical shadowing.
+2. Native C/C++ object members, pointer members, namespace-qualified calls, and nested-call identities now have integration evidence. The remaining partial surface is template/dynamic member dispatch, function-pointer invocation, preprocessing beyond the current deterministic subset, and complete lexical shadowing.
 3. ~~`tree-sitter-extractor.ts` and `discover.ts` are classified as generated.~~ Closed: generated-source detection now reads only the continuous leading metadata/comment preamble. Phrases inside executable code, regexes, strings, or comments after code no longer suppress semantic extraction; legitimate generated headers remain supported and regressions cover both boundaries.
 4. Team security and cross-platform installation gates still need reproducible clean-machine evidence.
 5. Tool semantic contracts, failure envelopes, expanded performance budgets, and privacy/telemetry gates must be exercised as a single release matrix.

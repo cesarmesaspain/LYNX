@@ -47,6 +47,58 @@ describe.skipIf(!fs.existsSync(nativeCore))('native structural core publication'
       `).get() as { count: number };
       expect(evidenceCount.count).toBeGreaterThan(0);
 
+      const nativeCalls = db.db.prepare(`
+        SELECT source.qualified_name AS source, target.qualified_name AS target,
+               json_extract(edge.properties, '$.resolution') AS resolution
+        FROM edges edge
+        JOIN nodes source ON source.id=edge.source_id
+        JOIN nodes target ON target.id=edge.target_id
+        WHERE edge.project='native-publication' AND edge.type='CALLS'
+          AND source.qualified_name IN (
+            'widget.ui.measure_widget',
+            'widget.ui.measure_pointer',
+            'widget.ui.measure_qualified',
+            'widget.ui.Widget.size'
+          )
+        ORDER BY source.qualified_name, target.qualified_name
+      `).all() as Array<{ source: string; target: string; resolution: string }>;
+      expect(nativeCalls).toEqual(expect.arrayContaining([
+        {
+          source: 'widget.ui.measure_widget',
+          target: 'widget.ui.Widget.size',
+          resolution: 'receiver_declared_type_member',
+        },
+        {
+          source: 'widget.ui.measure_pointer',
+          target: 'widget.ui.Widget.size',
+          resolution: 'receiver_declared_type_member',
+        },
+        {
+          source: 'widget.ui.measure_qualified',
+          target: 'widget.ui.label',
+          resolution: 'qualified_name_suffix_exact',
+        },
+        {
+          source: 'widget.ui.Widget.size',
+          target: 'widget.ui.label',
+          resolution: 'same_file_direct_unique',
+        },
+      ]));
+      expect(nativeCalls).not.toContainEqual(expect.objectContaining({
+        source: 'widget.ui.Widget.size',
+        target: 'widget.ui.Widget.size',
+      }));
+      const nestedCallEvidence = db.db.prepare(`
+        SELECT json_extract(edge.properties, '$.column') AS column_number
+        FROM edges edge
+        JOIN nodes source ON source.id=edge.source_id
+        JOIN nodes target ON target.id=edge.target_id
+        WHERE edge.project='native-publication' AND edge.type='CALLS'
+          AND source.qualified_name='widget.ui.Widget.size'
+          AND target.qualified_name='widget.ui.label'
+      `).get() as { column_number: number } | undefined;
+      expect(nestedCallEvidence?.column_number).toBe(51);
+
       const before = db.db.prepare("SELECT COUNT(*) AS nodes, (SELECT COUNT(*) FROM edges WHERE project='native-publication') AS edges FROM nodes WHERE project='native-publication'")
         .get();
       await expect(runPipeline(db, fixture, 'native-publication', {

@@ -1001,26 +1001,33 @@ static char *node_text(const char *source, TSNode node, size_t maximum) {
   return copy_range(source, start, end);
 }
 
-static char *call_name(const char *source, TSNode function) {
+static TSNode call_name_node(TSNode function) {
   const char *type = ts_node_type(function);
   if (strcmp(type, "identifier") == 0 || strcmp(type, "field_identifier") == 0) {
-    return node_text(source, function, 256);
+    return function;
   }
   if (strcmp(type, "field_expression") == 0) {
-    TSNode field = ts_node_child_by_field_name(function, "field", 5);
-    return ts_node_is_null(field) ? NULL : node_text(source, field, 256);
+    return ts_node_child_by_field_name(function, "field", 5);
   }
+  if (strcmp(type, "qualified_identifier") == 0 || strcmp(type, "scoped_identifier") == 0) {
+    TSNode name = ts_node_child_by_field_name(function, "name", 4);
+    return ts_node_is_null(name) ? find_named_identifier(function) : name;
+  }
+  if (strcmp(type, "template_function") == 0) {
+    return ts_node_child_by_field_name(function, "name", 4);
+  }
+  return find_named_identifier(function);
+}
+
+static char *call_name(const char *source, TSNode function) {
+  const char *type = ts_node_type(function);
   if (strcmp(type, "qualified_identifier") == 0 || strcmp(type, "scoped_identifier") == 0) {
     char *qualified = node_text(source, function, 256);
     replace_cpp_separators(qualified);
     return qualified;
   }
-  if (strcmp(type, "template_function") == 0) {
-    TSNode name = ts_node_child_by_field_name(function, "name", 4);
-    return ts_node_is_null(name) ? NULL : node_text(source, name, 256);
-  }
-  TSNode identifier = find_named_identifier(function);
-  return ts_node_is_null(identifier) ? NULL : node_text(source, identifier, 256);
+  TSNode name = call_name_node(function);
+  return ts_node_is_null(name) ? NULL : node_text(source, name, 256);
 }
 
 static char *strip_include(char *value) {
@@ -1410,14 +1417,18 @@ static void walk_tree(
     }
     char *callee = call_name(source, function);
     if (callee && *callee) {
+      TSNode callee_node = call_name_node(function);
+      TSPoint callee_start = ts_node_is_null(callee_node)
+        ? ts_node_start_point(node)
+        : ts_node_start_point(callee_node);
       CallObservation observation = {
         .file_index = file_index,
         .enclosing_qn = strdup(scope),
         .callee_name = callee,
         .dispatch_kind = strdup(dispatch_kind),
         .receiver_text = receiver_text,
-        .start_line = (int)ts_node_start_point(node).row + 1,
-        .start_column = (int)ts_node_start_point(node).column,
+        .start_line = (int)callee_start.row + 1,
+        .start_column = (int)callee_start.column,
       };
       PUSH(&buffer->calls, observation);
     } else {

@@ -244,5 +244,11 @@ largest deductions are lifecycle consistency, project identity, diagnostic
 agreement, operational supervision, native extraction parity gaps, and the
 unfinished production Team surface.
 
+The native baseline now distinguishes nested call observations by exact callee
+position and has frozen integration evidence for C++ object-member,
+pointer-member, namespace-qualified, and nested calls. Native parity remains
+open for template/dynamic dispatch, function-pointer invocation, broader
+preprocessing, and complete lexical shadowing.
+
 This score must be recalculated from the gates above after each release; it must
 not rise merely because new features were added.

@@ -67,6 +67,10 @@ The incremental fast path used to return without refreshing filesystem metadata 
 
 `docs/TEN_OUT_OF_TEN_STANDARD.md` is the authoritative product-quality contract. It defines ten scored domains, hard gates, reproducible evidence requirements, and the 9.0 → 9.5 → 10.0 path. Scores must not be rounded up because features exist; every claim requires repeatable proof.
 
+### Cross-tool contract foundation
+
+The first generated cross-tool contract now derives the public surface from the canonical `TOOLS` registry instead of hard-coding a tool count. It verifies registry exposure/schema equality, shared project identity and graph counts, canonical file coverage, bounded deterministic change analysis with LLM disabled by default, scoped impact agreement, and structured validation/failure envelopes. The fixture persists canonical `file_hashes` metadata rather than inventing a second definition of an indexed file. This is the foundation of the 33-tool matrix, not yet proof that every tool's functional scenarios are covered.
+
 ## Remaining gaps
 
 These are not release blockers for the current local installation, but they prevent a 10/10 claim:
@@ -95,5 +99,5 @@ These are not release blockers for the current local installation, but they prev
 
 1. Restart Codex so the new installed MCP process is loaded.
 2. In the new session, resolve `lynx-project`, run representative tool batches, and confirm live runtime behavior.
-3. Review ChatGPT's isolated first implementation of the generated cross-tool consistency contract; it must derive the registry rather than hard-code a count and must remain uncommitted until Codex validates it.
+3. Expand the validated cross-tool foundation into generated functional scenarios for every registry entry; retain the canonical fixture and require zero contradictory shared claims.
 4. Continue the remaining ranked gates with acceptance thresholds fixed before implementation.

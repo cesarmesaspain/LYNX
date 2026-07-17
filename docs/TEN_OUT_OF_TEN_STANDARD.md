@@ -258,10 +258,10 @@ classified as partial.
 
 Native preprocessing now applies a deterministic valued expression evaluator
 before semantic extraction, preserving active includes/macros while removing
-inactive branches. Golden integration evidence covers precedence, `defined`,
-comparisons, arithmetic, logical operators, redefinition, and `#undef`. The
-remaining preprocessing gate is cross-include macro propagation plus advanced
-expansion/operators, not basic branch selection.
+inactive branches. Golden integration evidence covers full integer operator
+precedence, `defined`, arithmetic, shifts, comparisons, bitwise/logical and
+ternary operators, redefinition, and `#undef`. The remaining preprocessing gate
+is cross-include macro propagation and textual/function-like macro expansion.
 
 Native batches now expose canonical File/Module identities, so C/C++ includes
 flow through the shared resolver and publish file-level `IMPORTS` edges instead

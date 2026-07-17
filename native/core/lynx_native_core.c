@@ -692,12 +692,22 @@ static bool expression_take(PreprocessorExpression *expression, const char *toke
   return true;
 }
 
-static long long parse_preprocessor_or(PreprocessorExpression *expression);
+static bool expression_take_single(
+  PreprocessorExpression *expression, char token, char repeated
+) {
+  expression_space(expression);
+  if (expression->cursor >= expression->end || *expression->cursor != token) return false;
+  if (expression->cursor + 1 < expression->end && expression->cursor[1] == repeated) return false;
+  expression->cursor++;
+  return true;
+}
+
+static long long parse_preprocessor_conditional(PreprocessorExpression *expression);
 
 static long long parse_preprocessor_primary(PreprocessorExpression *expression) {
   expression_space(expression);
   if (expression_take(expression, "(")) {
-    long long value = parse_preprocessor_or(expression);
+    long long value = parse_preprocessor_conditional(expression);
     expression_take(expression, ")");
     return value;
   }
@@ -765,30 +775,57 @@ static long long parse_preprocessor_add(PreprocessorExpression *expression) {
   }
 }
 
-static long long parse_preprocessor_compare(PreprocessorExpression *expression) {
+static long long parse_preprocessor_shift(PreprocessorExpression *expression) {
   long long value = parse_preprocessor_add(expression);
   for (;;) {
-    if (expression_take(expression, ">=")) value = value >= parse_preprocessor_add(expression);
-    else if (expression_take(expression, "<=")) value = value <= parse_preprocessor_add(expression);
-    else if (expression_take(expression, ">")) value = value > parse_preprocessor_add(expression);
-    else if (expression_take(expression, "<")) value = value < parse_preprocessor_add(expression);
+    if (expression_take(expression, "<<")) value <<= parse_preprocessor_add(expression);
+    else if (expression_take(expression, ">>")) value >>= parse_preprocessor_add(expression);
+    else return value;
+  }
+}
+
+static long long parse_preprocessor_relational(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_shift(expression);
+  for (;;) {
+    if (expression_take(expression, ">=")) value = value >= parse_preprocessor_shift(expression);
+    else if (expression_take(expression, "<=")) value = value <= parse_preprocessor_shift(expression);
+    else if (expression_take(expression, ">")) value = value > parse_preprocessor_shift(expression);
+    else if (expression_take(expression, "<")) value = value < parse_preprocessor_shift(expression);
     else return value;
   }
 }
 
 static long long parse_preprocessor_equality(PreprocessorExpression *expression) {
-  long long value = parse_preprocessor_compare(expression);
+  long long value = parse_preprocessor_relational(expression);
   for (;;) {
-    if (expression_take(expression, "==")) value = value == parse_preprocessor_compare(expression);
-    else if (expression_take(expression, "!=")) value = value != parse_preprocessor_compare(expression);
+    if (expression_take(expression, "==")) value = value == parse_preprocessor_relational(expression);
+    else if (expression_take(expression, "!=")) value = value != parse_preprocessor_relational(expression);
     else return value;
   }
 }
 
-static long long parse_preprocessor_and(PreprocessorExpression *expression) {
+static long long parse_preprocessor_bit_and(PreprocessorExpression *expression) {
   long long value = parse_preprocessor_equality(expression);
+  while (expression_take_single(expression, '&', '&')) value &= parse_preprocessor_equality(expression);
+  return value;
+}
+
+static long long parse_preprocessor_bit_xor(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_bit_and(expression);
+  while (expression_take(expression, "^")) value ^= parse_preprocessor_bit_and(expression);
+  return value;
+}
+
+static long long parse_preprocessor_bit_or(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_bit_xor(expression);
+  while (expression_take_single(expression, '|', '|')) value |= parse_preprocessor_bit_xor(expression);
+  return value;
+}
+
+static long long parse_preprocessor_and(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_bit_or(expression);
   while (expression_take(expression, "&&")) {
-    long long right = parse_preprocessor_equality(expression);
+    long long right = parse_preprocessor_bit_or(expression);
     value = value && right;
   }
   return value;
@@ -803,11 +840,20 @@ static long long parse_preprocessor_or(PreprocessorExpression *expression) {
   return value;
 }
 
+static long long parse_preprocessor_conditional(PreprocessorExpression *expression) {
+  long long condition = parse_preprocessor_or(expression);
+  if (!expression_take(expression, "?")) return condition;
+  long long when_true = parse_preprocessor_conditional(expression);
+  if (!expression_take(expression, ":")) return condition ? when_true : 0;
+  long long when_false = parse_preprocessor_conditional(expression);
+  return condition ? when_true : when_false;
+}
+
 static long long evaluate_expression(
   const char *text, const char *end, MacroDefinition definitions[256], int count
 ) {
   PreprocessorExpression expression = { text, end, definitions, count };
-  return parse_preprocessor_or(&expression);
+  return parse_preprocessor_conditional(&expression);
 }
 
 static bool evaluate_condition(
@@ -2251,7 +2297,7 @@ static int write_staging(
   bind_text(run, 2, project); bind_text(run, 3, repo_root); sqlite3_step(run); sqlite3_finalize(run);
 
   sqlite3_stmt *file_stmt = NULL;
-  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial-cross-include-and-advanced-expressions\",\"native-lexical-scope-partial-language-extensions\"]')", -1, &file_stmt, NULL);
+  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial-cross-include-and-macro-expansion\",\"native-lexical-scope-partial-language-extensions\"]')", -1, &file_stmt, NULL);
   for (int index = 0; index < file_count; index++) {
     sqlite3_bind_int(file_stmt, 1, index + 1);
     bind_text(file_stmt, 2, files[index].rel_path);

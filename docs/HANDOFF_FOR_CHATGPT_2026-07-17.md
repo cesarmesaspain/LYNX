@@ -12,7 +12,7 @@ LYNX is installed, indexed, healthy, and ready for live MCP use. The working bra
 - Root and API typechecks passed.
 - Full index: 415 files processed, 415 files with graph nodes, 5,934 nodes, 29,645 edges, 2.11 s.
 - No-op incremental: 0 processed, 415 skipped, no graph mutations, 0.13 s.
-- GitHub was synchronized through `77423b2`; the two later commits listed below still need the final push at the time this document was written.
+- GitHub is synchronized through the handoff commit on `codex/harden-and-operationalize`; the coverage and dashboard commits listed below are published.
 
 ## Work completed
 
@@ -84,7 +84,6 @@ These are not release blockers for the current local installation, but they prev
 ## Immediate continuation
 
 1. Review the independent ChatGPT 10/10 audit.
-2. Push `c192073` and `6ee530d` plus this handoff commit.
-3. Restart Codex so the new installed MCP process is loaded.
-4. In the new session, resolve `lynx-project`, run representative tool batches, and confirm live runtime behavior.
-5. Begin the highest-ranked remaining 10/10 gap with a benchmark and acceptance test fixed before implementation.
+2. Restart Codex so the new installed MCP process is loaded.
+3. In the new session, resolve `lynx-project`, run representative tool batches, and confirm live runtime behavior.
+4. Begin the highest-ranked remaining 10/10 gap with a benchmark and acceptance test fixed before implementation.

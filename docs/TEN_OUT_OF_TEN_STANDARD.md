@@ -236,6 +236,17 @@ shown by CLI, MCP, CSV export, and dashboard.
 9. Full-index once, run an incremental no-op, restart the agent, and verify again.
 9. Save measured evidence and update this standard when a gate evolves.
 
+## Additional mandatory cross-cutting gates
+
+The ten domains also require: signed/checksummed supply-chain provenance and an
+SBOM; crash, power-loss, disk-full, backup/restore and export/import recovery;
+versioned MCP/CLI/config/database compatibility with explicit deprecation;
+rejection of mixed build identities; provable offline operation without hidden
+network calls; local diagnostics with bounded redacted traces; accessible
+bilingual onboarding and executable versioned documentation. These are evidence
+requirements within the existing domains, not bonus points or a way to score
+above ten.
+
 ## Current baseline — 2026-07-17
 
 Current practical assessment: **8.5/10**.

@@ -263,6 +263,21 @@ strategy rather than pretending `install.sh` covers Windows. Do not implement
 download/rollback as shell-only behavior: the lifecycle contract must be shared
 by CLI and platform entry points.
 
+Active lifecycle slice after the audit: `src/install/distribution.ts` now owns
+the platform-neutral filesystem transaction, and
+`tests/unit/install/distribution.test.ts` freezes it. An already-downloaded
+artifact is SHA-256 verified before any installed file moves; copied to a unique
+sibling stage and verified again; published with a same-filesystem rename; then
+accepted through an injected real-runtime callback. The accepted current build
+is retained as `.previous`. Acceptance failure restores the original build and
+removes transaction debris. Explicit rollback swaps current/previous, runs the
+same acceptance boundary, restores the pre-rollback state on failure, and keeps
+the displaced build available. Root typecheck and 4/4 focused lifecycle tests
+pass. Still required before this slice is complete: manifest schema/signature
+owner, download adapter, real MCP/doctor acceptance adapter, integration into
+`lynx upgrade`, explicit `lynx rollback`, source-linked runtime protection,
+complete suite, commit, install/reindex/doctor, and cross-platform acceptance.
+
 ### P1 — full functional MCP contract matrix
 
 The 33/33 registry, handler, and generated argument contracts are complete.

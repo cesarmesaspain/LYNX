@@ -3,9 +3,10 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    // threads: each worker is a worker_thread — LYNX_HOME is set via
-    // setupFiles and inherited by all dynamic imports within the worker.
-    pool: 'threads',
+    // LYNX exercises native SQLite and tree-sitter/WASM lifecycles. Isolate
+    // those resources by process: worker_threads can complete every assertion
+    // and still segfault while concurrent native runtimes tear down.
+    pool: 'forks',
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
     exclude: ['**/hidden-tests/**'],
     // setupFiles runs in each worker before any test file is imported.

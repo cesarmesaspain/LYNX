@@ -201,7 +201,8 @@ shown by CLI, MCP, CSV export, and dashboard.
    is startup-enforced and schemas generate required-field, branch, and type contracts.
 2. ◐ Establish language truth sets and precision/recall reports: TypeScript, C,
    Python, Go, Rust, Java, Ruby, and C# now run through the real pipeline with
-   raw FP/FN and fixed 1.0 thresholds; the remaining advertised languages still
+   raw FP/FN and fixed 1.0 thresholds. Swift now joins the frozen set with
+   same-module cross-file call semantics; the remaining advertised languages still
    need equivalent fixtures.
 3. Close remaining native C/C++ gaps against Codebase Memory.
 4. ◐ Add performance regression CI and resource budgets: deterministic search
@@ -260,8 +261,10 @@ Native preprocessing now applies a deterministic valued expression evaluator
 before semantic extraction, preserving active includes/macros while removing
 inactive branches. Golden integration evidence covers full integer operator
 precedence, `defined`, arithmetic, shifts, comparisons, bitwise/logical and
-ternary operators, redefinition, and `#undef`. The remaining preprocessing gate
-is cross-include macro propagation and textual/function-like macro expansion.
+ternary operators, redefinition, and `#undef`. Local includes propagate the
+macro environment recursively in directive order with include guards and a
+bounded depth. The remaining preprocessing gate is textual/function-like macro
+expansion.
 
 Native batches now expose canonical File/Module identities, so C/C++ includes
 flow through the shared resolver and publish file-level `IMPORTS` edges instead

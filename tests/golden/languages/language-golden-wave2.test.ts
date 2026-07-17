@@ -58,6 +58,12 @@ const cases = [
     nodes: ['Method:App.cs:Run', 'Method:MathLib.cs:Add', 'Method:MathLib.cs:Twice'],
     relations: ['CALLS:App.cs:Run->MathLib.cs:Twice', 'CALLS:MathLib.cs:Twice->MathLib.cs:Add', 'IMPORTS:App.cs->MathLib.cs'],
   },
+  {
+    language: 'swift',
+    fixture: 'swift',
+    nodes: ['Function:main.swift:run', 'Function:math.swift:add', 'Function:math.swift:twice'],
+    relations: ['CALLS:main.swift:run->math.swift:twice', 'CALLS:math.swift:twice->math.swift:add'],
+  },
 ] as const;
 
 describe('per-language golden truth sets wave 2', () => {

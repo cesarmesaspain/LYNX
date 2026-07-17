@@ -645,6 +645,8 @@ typedef struct {
   bool any_taken;
 } ConditionalFrame;
 
+static char *resolve_relative_include(const char *caller_path, const char *include_path);
+
 typedef struct {
   char name[128];
   long long value;
@@ -863,15 +865,16 @@ static bool evaluate_condition(
 }
 
 /* Select one deterministic preprocessor branch while preserving byte length and line numbers. */
-static char *conditioned_source(const char *source, size_t length) {
+static char *conditioned_source_with_environment(
+  const char *source, size_t length, MacroDefinition definitions[256], int *definition_count,
+  FileTask *files, int file_count, const char *current_rel_path, int include_depth
+) {
   char *output = malloc(length + 1);
   if (!output) return NULL;
   memcpy(output, source, length + 1);
   ConditionalFrame frames[64];
   int depth = 0;
   bool active = true;
-  MacroDefinition definitions[256];
-  int definition_count = 0;
   bool continued_directive = false;
   bool preserve_continuation = false;
   size_t line_start = 0;
@@ -901,15 +904,15 @@ static char *conditioned_source(const char *source, size_t length) {
            strcmp(command, "if") == 0) && depth < 64) {
         char name[128]; directive_name(cursor, name);
         bool condition = strcmp(command, "if") == 0
-          ? evaluate_condition(cursor, limit, definitions, definition_count)
-          : macro_is_defined(definitions, definition_count, name);
+          ? evaluate_condition(cursor, limit, definitions, *definition_count)
+          : macro_is_defined(definitions, *definition_count, name);
         if (strcmp(command, "ifndef") == 0) condition = !condition;
         frames[depth++] = (ConditionalFrame){ .parent_active = active,
           .active = active && condition, .any_taken = condition };
         active = frames[depth - 1].active;
       } else if (strcmp(command, "elif") == 0 && depth > 0) {
         ConditionalFrame *frame = &frames[depth - 1];
-        bool condition = evaluate_condition(cursor, limit, definitions, definition_count);
+        bool condition = evaluate_condition(cursor, limit, definitions, *definition_count);
         frame->active = frame->parent_active && !frame->any_taken && condition;
         frame->any_taken = frame->any_taken || condition;
         active = frame->active;
@@ -921,13 +924,13 @@ static char *conditioned_source(const char *source, size_t length) {
       } else if (strcmp(command, "endif") == 0 && depth > 0) {
         ConditionalFrame frame = frames[--depth];
         active = frame.parent_active;
-      } else if (strcmp(command, "define") == 0 && active && definition_count < 256) {
+      } else if (strcmp(command, "define") == 0 && active && *definition_count < 256) {
         char name[128]; directive_name(cursor, name);
         if (*name) {
-          int existing = macro_definition_index(definitions, definition_count, name);
+          int existing = macro_definition_index(definitions, *definition_count, name);
           MacroDefinition *definition = existing >= 0
             ? &definitions[existing]
-            : &definitions[definition_count++];
+            : &definitions[(*definition_count)++];
           strcpy(definition->name, name);
           const char *value_text = cursor;
           while (value_text < limit &&
@@ -935,21 +938,46 @@ static char *conditioned_source(const char *source, size_t length) {
           while (value_text < limit && (*value_text == ' ' || *value_text == '\t')) value_text++;
           definition->value = value_text < limit
             ? evaluate_expression(value_text, limit, definitions,
-                existing >= 0 ? definition_count : definition_count - 1)
+                existing >= 0 ? *definition_count : *definition_count - 1)
             : 1;
         }
         preserve_directive = true;
       } else if (strcmp(command, "undef") == 0 && active) {
         char name[128]; directive_name(cursor, name);
-        for (int index = 0; index < definition_count; index++) {
+        for (int index = 0; index < *definition_count; index++) {
           if (strcmp(definitions[index].name, name) == 0) {
-            definitions[index] = definitions[--definition_count];
+            definitions[index] = definitions[--(*definition_count)];
             break;
           }
         }
         preserve_directive = true;
       } else if (active && strcmp(command, "include") == 0) {
         preserve_directive = true;
+        if (include_depth < 32 && cursor < limit && *cursor == '"') {
+          const char *path_start = ++cursor;
+          while (cursor < limit && *cursor != '"') cursor++;
+          char *include_path = copy_range(path_start, 0, (uint32_t)(cursor - path_start));
+          char *resolved_path = include_path
+            ? resolve_relative_include(current_rel_path, include_path)
+            : NULL;
+          if (resolved_path) {
+            for (int file_index = 0; file_index < file_count; file_index++) {
+              if (strcmp(files[file_index].rel_path, resolved_path) != 0) continue;
+              size_t included_length = 0;
+              char *included_source = read_file(files[file_index].abs_path, &included_length);
+              if (included_source) {
+                char *included_conditioned = conditioned_source_with_environment(
+                  included_source, included_length, definitions, definition_count,
+                  files, file_count, files[file_index].rel_path, include_depth + 1);
+                free(included_conditioned);
+                free(included_source);
+              }
+              break;
+            }
+          }
+          free(resolved_path);
+          free(include_path);
+        }
       }
       if (!preserve_directive) {
         for (size_t index = line_start; index < line_end; index++) output[index] = ' ';
@@ -965,6 +993,15 @@ static char *conditioned_source(const char *source, size_t length) {
     line_start = line_end < length ? line_end + 1 : length;
   }
   return output;
+}
+
+static char *conditioned_source(
+  const char *source, size_t length, FileTask *files, int file_count, const char *current_rel_path
+) {
+  MacroDefinition definitions[256];
+  int definition_count = 0;
+  return conditioned_source_with_environment(
+    source, length, definitions, &definition_count, files, file_count, current_rel_path, 0);
 }
 
 static char *module_name(const char *rel_path) {
@@ -1822,7 +1859,9 @@ static void walk_recovered_definitions(
   }
 }
 
-static void process_file(WorkerBuffer *buffer, FileTask *task, int file_index) {
+static void process_file(
+  WorkerBuffer *buffer, FileTask *task, int file_index, FileTask *files, int file_count
+) {
   size_t length = 0;
   char *source = read_file(task->abs_path, &length);
   if (!source) { buffer->errors++; return; }
@@ -1839,7 +1878,7 @@ static void process_file(WorkerBuffer *buffer, FileTask *task, int file_index) {
     buffer->errors++;
     return;
   }
-  char *conditioned = conditioned_source(source, length);
+  char *conditioned = conditioned_source(source, length, files, file_count, task->rel_path);
   if (!conditioned) {
     ts_parser_delete(parser);
     free(source);
@@ -1885,7 +1924,8 @@ static void *worker_main(void *opaque) {
   for (;;) {
     int file_index = atomic_fetch_add_explicit(&context->next_file, 1, memory_order_relaxed);
     if (file_index >= context->file_count) break;
-    process_file(buffer, &context->files[file_index], file_index);
+    process_file(buffer, &context->files[file_index], file_index,
+                 context->files, context->file_count);
   }
   return NULL;
 }
@@ -2297,7 +2337,7 @@ static int write_staging(
   bind_text(run, 2, project); bind_text(run, 3, repo_root); sqlite3_step(run); sqlite3_finalize(run);
 
   sqlite3_stmt *file_stmt = NULL;
-  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial-cross-include-and-macro-expansion\",\"native-lexical-scope-partial-language-extensions\"]')", -1, &file_stmt, NULL);
+  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial-textual-macro-expansion\",\"native-lexical-scope-partial-language-extensions\"]')", -1, &file_stmt, NULL);
   for (int index = 0; index < file_count; index++) {
     sqlite3_bind_int(file_stmt, 1, index + 1);
     bind_text(file_stmt, 2, files[index].rel_path);

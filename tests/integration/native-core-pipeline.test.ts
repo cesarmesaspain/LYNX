@@ -58,7 +58,9 @@ describe.skipIf(!fs.existsSync(nativeCore))('native structural core publication'
             'widget.ui.measure_widget',
             'widget.ui.measure_pointer',
             'widget.ui.measure_qualified',
-            'widget.ui.Widget.size'
+            'widget.ui.Widget.size',
+            'widget.ui.apply_transform',
+            'widget.ui.apply_local_transform'
           )
         ORDER BY source.qualified_name, target.qualified_name
       `).all() as Array<{ source: string; target: string; resolution: string }>;
@@ -83,7 +85,35 @@ describe.skipIf(!fs.existsSync(nativeCore))('native structural core publication'
           target: 'widget.ui.label',
           resolution: 'same_file_direct_unique',
         },
+        {
+          source: 'widget.ui.apply_transform',
+          target: 'widget.ui.apply_transform.operation',
+          resolution: 'lexical_function_pointer_invocation',
+        },
+        {
+          source: 'widget.ui.apply_local_transform',
+          target: 'widget.ui.apply_local_transform.callback',
+          resolution: 'lexical_function_pointer_invocation',
+        },
       ]));
+      expect(nativeCalls).not.toContainEqual(expect.objectContaining({
+        source: 'widget.ui.apply_transform',
+        target: 'widget.ui.operation',
+      }));
+      expect(nativeCalls).not.toContainEqual(expect.objectContaining({
+        source: 'widget.ui.apply_local_transform',
+        target: 'widget.ui.operation',
+      }));
+      const leakedCrossScopeValue = db.db.prepare(`
+        SELECT 1
+        FROM edges edge
+        JOIN nodes source ON source.id=edge.source_id
+        JOIN nodes target ON target.id=edge.target_id
+        WHERE edge.project='native-publication'
+          AND source.qualified_name='widget.ui.apply_local_transform'
+          AND target.qualified_name='widget.ui.apply_transform.operation'
+      `).get();
+      expect(leakedCrossScopeValue).toBeUndefined();
       expect(nativeCalls).not.toContainEqual(expect.objectContaining({
         source: 'widget.ui.Widget.size',
         target: 'widget.ui.Widget.size',

@@ -1717,12 +1717,26 @@ static void resolve_staging_edges(sqlite3 *db) {
   sql_or_die(db,
     "INSERT OR IGNORE INTO native_edges(file_id,source_qualified_name,target_qualified_name,type,start_line,start_column,confidence,strategy,evidence_json) "
     "SELECT c.file_id,c.enclosing_qualified_name,t.qualified_name,'CALLS',c.start_line,c.start_column,1.0, "
+    "'lexical_function_pointer_invocation',json_object('dispatch',c.dispatch_kind,'callee',c.callee_name) "
+    "FROM native_calls c "
+    "JOIN native_nodes source ON source.file_id=c.file_id AND source.qualified_name=c.enclosing_qualified_name "
+    "JOIN native_nodes t ON t.file_id=c.file_id "
+    "AND t.qualified_name=c.enclosing_qualified_name||'.'||c.callee_name "
+    "AND t.kind='FunctionPointer' AND t.start_line<=c.start_line "
+    "WHERE c.dispatch_kind='direct';"
+  );
+  sql_or_die(db,
+    "INSERT OR IGNORE INTO native_edges(file_id,source_qualified_name,target_qualified_name,type,start_line,start_column,confidence,strategy,evidence_json) "
+    "SELECT c.file_id,c.enclosing_qualified_name,t.qualified_name,'CALLS',c.start_line,c.start_column,1.0, "
     "'same_file_direct_unique',json_object('dispatch',c.dispatch_kind,'callee',c.callee_name) "
     "FROM native_calls c "
     "JOIN native_nodes s ON s.file_id=c.file_id AND s.qualified_name=c.enclosing_qualified_name "
     "JOIN native_nodes t ON t.file_id=c.file_id AND t.name=c.callee_name "
     "AND t.kind IN ('Function','Method','Constructor','Destructor') "
     "WHERE c.dispatch_kind='direct' "
+    "AND NOT EXISTS (SELECT 1 FROM native_nodes shadow WHERE shadow.file_id=c.file_id "
+    "AND shadow.qualified_name=c.enclosing_qualified_name||'.'||c.callee_name "
+    "AND shadow.kind='FunctionPointer' AND shadow.start_line<=c.start_line) "
     "AND (SELECT COUNT(*) FROM native_nodes x WHERE x.file_id=c.file_id AND x.name=c.callee_name "
     "AND x.kind IN ('Function','Method','Constructor','Destructor'))=1;"
   );
@@ -1778,12 +1792,18 @@ static void resolve_staging_edges(sqlite3 *db) {
     "JOIN native_nodes source ON source.file_id=u.file_id AND source.qualified_name=u.enclosing_qualified_name "
     "JOIN native_nodes t ON t.file_id=u.file_id AND t.name=u.referenced_name "
     "AND t.kind IN ('Variable','FunctionPointer','Macro') "
+    "AND NOT EXISTS (SELECT 1 FROM native_nodes owner WHERE owner.file_id=t.file_id "
+    "AND owner.kind IN ('Function','Method','Constructor','Destructor') "
+    "AND t.qualified_name=owner.qualified_name||'.'||t.name) "
     "WHERE NOT EXISTS (SELECT 1 FROM native_edges edge WHERE edge.file_id=u.file_id "
     "AND edge.source_qualified_name=u.enclosing_qualified_name AND edge.start_line=u.start_line "
     "AND edge.start_column=u.start_column "
     "AND edge.type=CASE WHEN u.is_write=1 THEN 'WRITES' ELSE 'READS' END) "
     "AND (SELECT COUNT(*) FROM native_nodes candidate WHERE candidate.file_id=u.file_id "
-    "AND candidate.name=u.referenced_name AND candidate.kind IN ('Variable','FunctionPointer','Macro'))=1;"
+    "AND candidate.name=u.referenced_name AND candidate.kind IN ('Variable','FunctionPointer','Macro') "
+    "AND NOT EXISTS (SELECT 1 FROM native_nodes owner WHERE owner.file_id=candidate.file_id "
+    "AND owner.kind IN ('Function','Method','Constructor','Destructor') "
+    "AND candidate.qualified_name=owner.qualified_name||'.'||candidate.name))=1;"
   );
 }
 
@@ -1997,7 +2017,7 @@ static int write_staging(
   bind_text(run, 2, project); bind_text(run, 3, repo_root); sqlite3_step(run); sqlite3_finalize(run);
 
   sqlite3_stmt *file_stmt = NULL;
-  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-function-pointer\",\"native-preprocessing-partial\",\"native-lexical-shadowing-partial\"]')", -1, &file_stmt, NULL);
+  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial\",\"native-lexical-shadowing-partial\"]')", -1, &file_stmt, NULL);
   for (int index = 0; index < file_count; index++) {
     sqlite3_bind_int(file_stmt, 1, index + 1);
     bind_text(file_stmt, 2, files[index].rel_path);

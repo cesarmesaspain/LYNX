@@ -30,6 +30,19 @@ int measure_pointer(Widget *widget) {
   return widget->size();
 }
 
+int operation(int value) {
+  return value - 1;
+}
+
+int apply_transform(int (*operation)(int), int value) {
+  return operation(value);
+}
+
+int apply_local_transform(int value) {
+  int (*callback)(int) = operation;
+  return callback(value);
+}
+
 int measure_qualified() {
   return ui::label().size();
 }

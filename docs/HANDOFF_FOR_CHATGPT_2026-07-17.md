@@ -99,12 +99,14 @@ The full suite intermittently completed every assertion and then exited with `SI
 
 Native call observations now use the exact callee token as their source location instead of the start of the complete call expression. This removes identity collisions between nested calls such as `label().size()`. The native integration fixture freezes object-member, pointer-member, namespace-qualified, and nested-call evidence; all resolve to their exact target and the nested inner call retains its distinct column.
 
+Native function-pointer parameters and local variables now resolve only through an exact lexical child identity owned by the caller. A same-file function with the same short name cannot create a second edge, and the general same-file value fallback can no longer cross from one function into another function's locals or parameters. The remaining function-pointer partial reason is explicitly limited to non-lexical cases.
+
 ## Remaining gaps
 
 These are not release blockers for the current local installation, but they prevent a 10/10 claim:
 
 1. Full-index call resolution is 5,706/27,560 (20.70%) after receiver-preserving extraction, owner-aware resolution, declared-parameter types, and scoped local-binding evidence. Unresolved calls now separate 9,810 unknown receiver targets, 6,830 external dependency targets, 2,029 dynamic local bindings, 1,818 absent targets, 774 native targets, 385 runtime built-in receivers, 152 missing internal-import targets, 30 ambiguous internal targets, 20 self-references, and 6 missing callers. The next root work is field/property assignment flow, broader alias-aware internal-import coverage, and native resolution. Do not restore the old ratio through bare-name matching or denominator shaping.
-2. Native C/C++ object members, pointer members, namespace-qualified calls, and nested-call identities now have integration evidence. The remaining partial surface is template/dynamic member dispatch, function-pointer invocation, preprocessing beyond the current deterministic subset, and complete lexical shadowing.
+2. Native C/C++ object members, pointer members, namespace-qualified calls, nested-call identities, and lexical function-pointer invocations now have integration evidence. The remaining partial surface is template/dynamic member dispatch, non-lexical/imported function-pointer invocation, preprocessing beyond the current deterministic subset, and complete nested-block shadowing.
 3. ~~`tree-sitter-extractor.ts` and `discover.ts` are classified as generated.~~ Closed: generated-source detection now reads only the continuous leading metadata/comment preamble. Phrases inside executable code, regexes, strings, or comments after code no longer suppress semantic extraction; legitimate generated headers remain supported and regressions cover both boundaries.
 4. Team security and cross-platform installation gates still need reproducible clean-machine evidence.
 5. Tool semantic contracts, failure envelopes, expanded performance budgets, and privacy/telemetry gates must be exercised as a single release matrix.

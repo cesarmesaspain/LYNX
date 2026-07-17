@@ -260,6 +260,16 @@ export interface RunSnapshot {
   filesProcessed: number;
   filesSkipped: number;
   mode: string;
+  coverage: IndexRunCoverage | null;
+}
+
+export interface IndexRunCoverage {
+  callsExtracted: number;
+  callsResolved: number;
+  callsUnresolved: number;
+  unresolvedCallReasons: Record<string, number>;
+  callResolutionRate: number;
+  partialFiles: Array<{ file: string; reasons: string[] }>;
 }
 
 export function insertIndexRun(
@@ -269,8 +279,8 @@ export function insertIndexRun(
   const result = db.db
     .prepare(
       `INSERT INTO index_runs (project, total_nodes, total_edges, hotspot_count,
-         avg_complexity, files_processed, files_skipped, mode)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         avg_complexity, files_processed, files_skipped, mode, coverage_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       run.project,
@@ -280,7 +290,8 @@ export function insertIndexRun(
       run.avgComplexity,
       run.filesProcessed,
       run.filesSkipped,
-      run.mode
+      run.mode,
+      run.coverage ? JSON.stringify(run.coverage) : null,
     );
   return Number(result.lastInsertRowid);
 }
@@ -298,6 +309,7 @@ export function getLastRuns(
       id: number; project: string; run_at: string;
       total_nodes: number; total_edges: number; hotspot_count: number;
       avg_complexity: number; files_processed: number; files_skipped: number; mode: string;
+      coverage_json: string | null;
     }>;
 
   return rows.map((r) => ({
@@ -311,7 +323,29 @@ export function getLastRuns(
     filesProcessed: r.files_processed,
     filesSkipped: r.files_skipped,
     mode: r.mode,
+    coverage: parseIndexRunCoverage(r.coverage_json),
   }));
+}
+
+export function getLastIndexCoverage(
+  db: LynxDatabase,
+  project: string,
+): IndexRunCoverage | null {
+  const row = db.db
+    .prepare('SELECT coverage_json FROM index_runs WHERE project = ? ORDER BY id DESC LIMIT 1')
+    .get(project) as { coverage_json: string | null } | undefined;
+  return parseIndexRunCoverage(row?.coverage_json ?? null);
+}
+
+function parseIndexRunCoverage(value: string | null): IndexRunCoverage | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value) as IndexRunCoverage;
+    if (!Number.isFinite(parsed.callsExtracted) || !Number.isFinite(parsed.callsUnresolved)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
 // ── Trend analysis ───────────────────────────────────────────────

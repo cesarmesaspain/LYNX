@@ -31,6 +31,7 @@ import {
   countFilesWithGraphNodes,
   upsertFileHash,
   insertIndexRun,
+  getLastIndexCoverage,
   deleteFileHash,
   deleteFindingsByFile,
   getCachedLlmSummary,
@@ -244,6 +245,16 @@ export async function runPipeline(
     trueDeletions.length > 0
       ? "deleted_or_renamed_file_requires_full_relationship_resolution"
       : null;
+  const persistedCoverage = getLastIndexCoverage(db, project);
+  if (
+    requestedIncremental &&
+    fallbackReason === null &&
+    beforeNodes > 0 &&
+    (fileHashMap?.size || 0) > 0 &&
+    !persistedCoverage
+  ) {
+    fallbackReason = "missing_persisted_coverage_requires_full_rebuild";
+  }
   if (fileHashMap && discovery.files.some((file) =>
     isNativeCoreFile(file.relPath) && fileHashMap.get(file.relPath) !== hashFile(file.absPath))) {
     fallbackReason = "native_c_cpp_change_requires_full_relationship_resolution";
@@ -289,11 +300,6 @@ export async function runPipeline(
       )
       .get(project) as { count: number };
     const filesWithNodes = countFilesWithGraphNodes(db, project);
-    const callEdges = db.db
-      .prepare(
-        `SELECT COUNT(*) AS count FROM edges WHERE project = ? AND type = 'CALLS'`,
-      )
-      .get(project) as { count: number };
     const status: LynxIndexStatus = {
       project,
       totalNodes: architecture.totalNodes,
@@ -331,12 +337,12 @@ export async function runPipeline(
         files_with_nodes: filesWithNodes,
         excluded_directories: discovery.excludedDirs.slice(0, 100),
         functions_extracted: functionsExtracted.count,
-        calls_extracted: callEdges.count,
-        calls_resolved: callEdges.count,
-        calls_unresolved: 0,
-        unresolved_call_reasons: {},
-        call_resolution_rate: 1,
-        partial_files: [],
+        calls_extracted: persistedCoverage!.callsExtracted,
+        calls_resolved: persistedCoverage!.callsResolved,
+        calls_unresolved: persistedCoverage!.callsUnresolved,
+        unresolved_call_reasons: persistedCoverage!.unresolvedCallReasons,
+        call_resolution_rate: persistedCoverage!.callResolutionRate,
+        partial_files: persistedCoverage!.partialFiles,
       },
       incremental: {
         updateMode: "incremental",
@@ -614,6 +620,16 @@ export async function runPipeline(
         filesProcessed,
         filesSkipped,
         mode,
+        coverage: {
+          callsExtracted: stats.totalCalls,
+          callsResolved: Math.max(0, stats.totalCalls - stats.unresolvedCalls),
+          callsUnresolved: stats.unresolvedCalls,
+          unresolvedCallReasons: stats.unresolvedCallReasons,
+          callResolutionRate: stats.totalCalls === 0
+            ? 1
+            : Number(((stats.totalCalls - stats.unresolvedCalls) / stats.totalCalls).toFixed(4)),
+          partialFiles,
+        },
       });
       _mark("insert-run");
       const sacgInput = projectLegacyGraphToSacg(db, project, {

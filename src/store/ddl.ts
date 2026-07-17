@@ -129,7 +129,8 @@ export const CORE_SCHEMA = `
     avg_complexity REAL NOT NULL DEFAULT 0,
     files_processed INTEGER NOT NULL DEFAULT 0,
     files_skipped INTEGER NOT NULL DEFAULT 0,
-    mode TEXT NOT NULL DEFAULT 'full'
+    mode TEXT NOT NULL DEFAULT 'full',
+    coverage_json TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_index_runs_project ON index_runs(project);
@@ -186,8 +187,16 @@ export function migrateV02toV03(db: BetterSqlite3.Database): void {
   }
 }
 
+/** Persist resolution coverage so no-op runs can report the last graph truth. */
+export function migrateV03toV04(db: BetterSqlite3.Database): void {
+  if (!tableColumns(db, 'index_runs').has('coverage_json')) {
+    db.exec('ALTER TABLE index_runs ADD COLUMN coverage_json TEXT');
+  }
+}
+
 export const GRAPH_SCHEMA_MIGRATIONS: readonly SchemaMigration[] = [
   { version: 1, name: 'project freshness columns', up: migrateV01toV02 },
   { version: 2, name: 'project indexed commit', up: migrateV02toV03 },
   { version: 3, name: 'SACG vertical slice tables', up: createSacgVerticalSliceSchema },
+  { version: 4, name: 'index run resolution coverage', up: migrateV03toV04 },
 ];

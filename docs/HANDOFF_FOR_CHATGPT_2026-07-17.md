@@ -79,6 +79,10 @@ TypeScript, C, Python, Go, Rust, and Java fixtures now run through the real inde
 
 CI now runs a deterministic synthetic 40-module TypeScript workload, enforces p95 budgets for graph search and no-op incremental indexing, and always uploads the sanitized report with raw samples. The methodology is documented in `docs/PERFORMANCE_BUDGETS.md`. Full-index time, peak RSS, database growth, and large-repository budgets remain open.
 
+### Authoritative no-op resolution coverage
+
+No-op incremental indexing previously counted persisted `CALLS` edges as both extracted and resolved calls, discarded unresolved calls and their causes, and therefore reported a fabricated 100% resolution rate. Full and incremental runs now persist the complete resolution summary in `index_runs.coverage_json`; no-op responses reuse that authoritative snapshot exactly. Schema migration 4 adds the column idempotently. A legacy database without a stored snapshot performs one full rebuild instead of guessing, then subsequent no-ops remain read-only and truthful.
+
 ## Remaining gaps
 
 These are not release blockers for the current local installation, but they prevent a 10/10 claim:

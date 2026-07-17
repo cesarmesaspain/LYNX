@@ -367,6 +367,7 @@ describe("project indexed commit metadata", () => {
         { version: 1, name: "project freshness columns" },
         { version: 2, name: "project indexed commit" },
         { version: 3, name: "SACG vertical slice tables" },
+        { version: 4, name: "index run resolution coverage" },
       ]);
       db.upsertProject("legacy", dir);
       expect(db.getProject("legacy")?.indexedCommit).toBeNull();

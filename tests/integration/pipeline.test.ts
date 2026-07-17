@@ -159,7 +159,7 @@ describe("incremental pipeline safety", () => {
       fs.mkdirSync(path.join(root, "src"), { recursive: true });
       fs.writeFileSync(
         path.join(root, "src", "a.ts"),
-        "export function stable() { return 1; }",
+        "function helper() { return 1; } export function stable() { return helper(); }",
       );
       initGit(root);
       const first = await runPipeline(db, root, "noop", {
@@ -168,6 +168,7 @@ describe("incremental pipeline safety", () => {
       });
       expect(first.coverage.files_discovered).toBe(1);
       expect(first.coverage.files_with_nodes).toBe(1);
+      expect(first.coverage.calls_extracted).toBeGreaterThan(0);
       const runsBefore = (
         db.db
           .prepare("SELECT COUNT(*) AS count FROM index_runs WHERE project = ?")
@@ -190,6 +191,11 @@ describe("incremental pipeline safety", () => {
       expect(result.filesSkipped).toBe(1);
       expect(result.coverage.files_discovered).toBe(1);
       expect(result.coverage.files_with_nodes).toBe(1);
+      expect(result.coverage.calls_extracted).toBe(first.coverage.calls_extracted);
+      expect(result.coverage.calls_resolved).toBe(first.coverage.calls_resolved);
+      expect(result.coverage.calls_unresolved).toBe(first.coverage.calls_unresolved);
+      expect(result.coverage.unresolved_call_reasons).toEqual(first.coverage.unresolved_call_reasons);
+      expect(result.coverage.call_resolution_rate).toBe(first.coverage.call_resolution_rate);
       expect(result.incremental.reindexed).toEqual([]);
       expect(result.status.totalNodes).toBe(first.status.totalNodes);
       expect(result.status.totalEdges).toBe(first.status.totalEdges);
@@ -203,6 +209,33 @@ describe("incremental pipeline safety", () => {
             .get("noop") as { count: number }
         ).count,
       ).toBe(runsBefore);
+    } finally {
+      db.close();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }, 30000);
+
+  it("rebuilds once when a legacy index has no persisted resolution coverage", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "lynx-incremental-"));
+    const db = LynxDatabase.openMemory();
+    try {
+      fs.mkdirSync(path.join(root, "src"), { recursive: true });
+      fs.writeFileSync(path.join(root, "src", "a.ts"), "export function run() { return missingTarget(); }");
+      initGit(root);
+      await runPipeline(db, root, "legacy-coverage", { mode: "fast", testSkipProjectBrief: true });
+      db.db.prepare("UPDATE index_runs SET coverage_json = NULL WHERE project = ?").run("legacy-coverage");
+
+      const rebuilt = await runPipeline(db, root, "legacy-coverage", {
+        mode: "fast",
+        incremental: true,
+        testSkipProjectBrief: true,
+      });
+
+      expect(rebuilt.incremental.updateMode).toBe("full_fallback");
+      expect(rebuilt.incremental.fallbackReason).toBe("missing_persisted_coverage_requires_full_rebuild");
+      expect(rebuilt.coverage.calls_extracted).toBeGreaterThan(0);
+      expect(rebuilt.coverage.calls_unresolved).toBeGreaterThan(0);
+      expect(rebuilt.coverage.call_resolution_rate).toBeLessThan(1);
     } finally {
       db.close();
       fs.rmSync(root, { recursive: true, force: true });

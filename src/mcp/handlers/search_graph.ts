@@ -45,16 +45,6 @@ export function hasAmbiguousDeterministicRanking(
   return margin <= 1 || relativeMargin <= maxRelativeMargin;
 }
 
-function mayAutoRerank(candidates: readonly SearchNode[]): boolean {
-  const policy = readLynxConfig().decision_llm;
-  if (!policy || policy.mode === 'off') return false;
-  const minimum = policy.mode === 'conservative' ? 6 : 3;
-  if (candidates.length < minimum || policy.max_calls_per_hour < 1) return false;
-  if (!hasAmbiguousDeterministicRanking(candidates, policy.mode)) return false;
-  const hour = new Date().toISOString().slice(0, 13);
-  return (decisionLlmCalls.get(hour) || 0) < policy.max_calls_per_hour;
-}
-
 function recordAutoRerankCall(): void {
   const hour = new Date().toISOString().slice(0, 13);
   decisionLlmCalls.set(hour, (decisionLlmCalls.get(hour) || 0) + 1);
@@ -224,9 +214,10 @@ interface SearchGraphArgs {
 }
 
 function parseSearchGraphArgs(args: Record<string, unknown>): SearchGraphArgs | { error: string } {
+  const agentResponse = readLynxConfig().agent_response;
+  const savingsMode = agentResponse?.enabled && agentResponse.budget === 'max_savings';
   const query = args.query ? String(args.query) : undefined;
   if (query === '') return { error: 'query must not be empty. Provide at least one search term, or use name_pattern/qn_pattern for structural queries.' };
-  const savingsMode = readLynxConfig().agent_response?.enabled && readLynxConfig().agent_response?.budget === 'max_savings';
   const defaultLimit = savingsMode ? 5 : 10;
   const requestedLimit = args.limit !== undefined ? Number(args.limit) : defaultLimit;
   const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(Math.floor(requestedLimit), 1000)) : defaultLimit;

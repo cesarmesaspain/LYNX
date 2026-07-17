@@ -1,6 +1,6 @@
 # LYNX — Estrategia y Roadmap Técnico-Comercial
 
-> v1 — 2026-07-10. Documento interno de producto. No contractual.
+> v1. Documento interno de producto. No contractual.
 
 The verifiable standard for bringing the product to 10/10 is maintained in
 [`TEN_OUT_OF_TEN_STANDARD.md`](./TEN_OUT_OF_TEN_STANDARD.md). Its ten quality
@@ -244,7 +244,7 @@ El benchmark deja de ser el objetivo principal del desarrollo y pasa a utilizars
 
 ## Fases de implementación
 
-### Fase 11 — Consolidación de producto (2026-07 a 2026-08)
+### Fase 11 — Consolidación de producto
 
 Objetivo: LYNX Local es sólido y genera confianza.
 
@@ -263,7 +263,7 @@ Objetivo: LYNX Local es sólido y genera confianza.
 - [x] Aislamiento completo de tests: `LYNX_HOME` temporal, 0 escrituras reales, prueba contractual
 - [x] Dashboard: CSV export con descarga por ventana, proyecto seleccionado y escaping seguro
 
-### Fase 12 — LYNX Team MVP (2026-08 a 2026-10)
+### Fase 12 — LYNX Team MVP
 
 Objetivo: Un equipo de 5 puede compartir índice y métricas.
 
@@ -288,7 +288,7 @@ Objetivo: Un equipo de 5 puede compartir índice y métricas.
 - [ ] Métricas cross-repo: deduplicación de eventos entre repositorios
 - [ ] `lynx team init` — configura un proyecto team en <2 minutos
 
-### Fase 13 — Enterprise Lite (2026-10 a 2026-12)
+### Fase 13 — Enterprise Lite
 
 Objetivo: Una organización de 200+ devs puede desplegar en su VPC.
 
@@ -299,7 +299,7 @@ Objetivo: Una organización de 200+ devs puede desplegar en su VPC.
 - [ ] SLA 99.5% con health checks y métricas de disponibilidad
 - [ ] Licencias JWT: sin phone-home, validación offline con expiración
 
-### Fase 14 — Maduración (2027-01 en adelante)
+### Fase 14 — Maduración
 
 Objetivo: Ecosistema, adopción, y comunidad.
 
@@ -367,7 +367,7 @@ Objetivo: Ecosistema, adopción, y comunidad.
 
 ## Invariantes técnicos permanentes
 
-Establecidos durante la validación de métricas (2026-07-10) y aplicables a todo
+Establecidos durante la validación de métricas y aplicables a todo
 el desarrollo futuro:
 
 1. **Idempotencia**: `flushTodayEvents` reemplaza, no acumula. Dos llamadas

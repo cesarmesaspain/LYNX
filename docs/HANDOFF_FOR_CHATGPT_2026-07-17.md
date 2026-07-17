@@ -7,7 +7,7 @@ LYNX is installed, indexed, healthy, and ready for live MCP use. The working bra
 - `lynx doctor`: 11/11 checks passed.
 - MCP runtime: 33/33 tools exposed.
 - Dashboard: supervised service healthy at `http://127.0.0.1:9191`.
-- Main suite: 132 files, 1097/1097 tests passed with process-isolated native runtimes.
+- Main suite: 132 files, 1098/1098 tests passed with process-isolated native runtimes.
 - API suite: 5 files, 22/22 tests passed.
 - Root and API typechecks passed.
 - Full index at commit `406074c`: 446 files processed, 446 files with graph
@@ -75,7 +75,7 @@ The generated cross-tool contract derives the public surface from the canonical 
 
 ### Language golden truth sets and Go package resolution
 
-TypeScript, C, Python, Go, Rust, Java, Ruby, C#, and Swift fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All nine current fixtures require 1.0. The Go wave exposed and closed package-directory resolution; Rust added canonical `crate`/`self` use-path normalization; Java now preserves qualified method names and exposes methods from an imported class file to call resolution. Ruby exposed and closed missing `require_relative` imports and a broader defect where ordinary Ruby calls could be recorded as import metadata. C# exposed and closed missing `using` module identity and imported-file method visibility. Swift freezes same-module cross-file calls without inventing a file import that Swift semantics do not require.
+TypeScript, C, Python, Go, Rust, Java, Ruby, C#, Swift, and Kotlin fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All ten current fixtures require 1.0. The Go wave exposed and closed package-directory resolution; Rust added canonical `crate`/`self` use-path normalization; Java now preserves qualified method names and exposes methods from an imported class file to call resolution. Ruby exposed and closed missing `require_relative` imports and a broader defect where ordinary Ruby calls could be recorded as import metadata. C# exposed and closed missing `using` module identity and imported-file method visibility. Swift freezes same-module cross-file calls without inventing a file import that Swift semantics do not require. Kotlin exposed a registry/grammar contract mismatch: the grammar emits `import_header` and `simple_identifier`, while the shared extractor expected `import_declaration` and generic identifiers. The shared AST contract now recognizes those real node identities and the Kotlin golden is green at 1.0; complete-suite validation and commit remain pending for this active slice.
 
 ### Deterministic performance budget foundation
 
@@ -185,6 +185,20 @@ Acceptance: every advertised language has a frozen truth set; the complete
 golden suite and main suite pass; the capability matrix explicitly distinguishes
 unsupported constructs from extraction failures.
 
+Active slice at handoff time: Kotlin fixture and shared extractor correction.
+Files are `tests/golden/languages/kotlin/{App.kt,MathLib.kt}`,
+`tests/golden/languages/language-golden-wave2.test.ts`,
+`src/extraction/language-registry.ts`, and
+`src/extraction/tree-sitter-extractor.ts`. Reproduction before the fix produced
+zero methods and relations. Root cause: Kotlin's actual grammar uses
+`function_declaration`, `import_header`, `simple_identifier`, and
+`type_identifier`; the registry named the wrong import node and shared name,
+scope, usage, and enclosing-class discovery omitted `simple_identifier`.
+Focused golden evidence after the fix: 8/8 wave-two cases pass, Kotlin node and
+relation FP/FN are empty at precision/recall/F1 1.0. Root typecheck, 40/40
+extractor/registry unit tests, and the 132-file 1,098-test main suite pass.
+Commit, rebuild/reinstall, reindex, and installed-runtime doctor remain.
+
 ### P1 — remaining native C/C++ semantic gaps
 
 Workstreams, in recommended order:
@@ -225,6 +239,29 @@ Validate the actual CLI build identity, MCP handshake and 33-tool catalog,
 native artifact, hooks/config preservation, dashboard supervision, index/restart,
 and complete cleanup. Test in disposable machines/containers; never mutate a
 developer machine as the only proof. Save logs as sanitized CI artifacts.
+
+ChatGPT source audit received 2026-07-17 (not yet an end-to-end acceptance
+result): `install.sh` detects Linux/macOS on x64/arm64, downloads a GitHub release,
+makes it executable, and performs a CLI smoke test. It does not verify a checksum
+or signature and has no native Windows path. The TypeScript installer configures
+the supported agents, hooks, runtime config, skill, and supervised dashboard;
+uninstall removes those integrations, stops the dashboard, and deliberately
+retains indexed databases. `lynx upgrade` currently runs migrations, snapshot
+health, freshness, and doctor, but does not download or atomically replace the
+installed distribution. There is no install rollback owner. CI is Ubuntu-only
+and does not execute install/reinstall/upgrade/rollback/uninstall. Therefore
+idempotence is an implementation claim, not a completed gate.
+
+Root implementation order for this front: (1) define a signed/checksummed release
+manifest and build identity; (2) implement atomic version replacement with the
+previous artifact retained until post-install MCP/doctor acceptance succeeds;
+(3) make rollback restore binary, native artifact, and compatible configuration
+without deleting user indexes; (4) make `upgrade` own distribution replacement
+before migrations; (5) add same-version reinstall and v1→v2→rollback lifecycle
+fixtures; (6) add macOS and Windows CI, with a PowerShell-native installation
+strategy rather than pretending `install.sh` covers Windows. Do not implement
+download/rollback as shell-only behavior: the lifecycle contract must be shared
+by CLI and platform entry points.
 
 ### P1 — full functional MCP contract matrix
 

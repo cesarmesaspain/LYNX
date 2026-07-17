@@ -200,10 +200,11 @@ shown by CLI, MCP, CSV export, and dashboard.
 1. ✅ Build the generated 33-tool cross-contract matrix: registry/handler parity
    is startup-enforced and schemas generate required-field, branch, and type contracts.
 2. ◐ Establish language truth sets and precision/recall reports: TypeScript, C,
-   Python, Go, Rust, Java, Ruby, and C# now run through the real pipeline with
-   raw FP/FN and fixed 1.0 thresholds. Swift now joins the frozen set with
-   same-module cross-file call semantics; the remaining advertised languages still
-   need equivalent fixtures.
+   Python, Go, Rust, Java, Ruby, C#, Swift, and Kotlin now run through the real
+   pipeline with raw FP/FN and fixed 1.0 thresholds. Swift freezes same-module
+   cross-file call semantics; Kotlin freezes its real `import_header` and
+   `simple_identifier` AST contract. The remaining advertised semantic languages
+   still need equivalent fixtures.
 3. Close remaining native C/C++ gaps against Codebase Memory.
 4. ◐ Add performance regression CI and resource budgets: deterministic search
    and no-op incremental p95 budgets run in CI and retain raw samples; full-index

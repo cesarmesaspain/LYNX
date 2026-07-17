@@ -815,7 +815,9 @@ function findEnclosingClassName(node: SyntaxNode, config: LanguageConfig): strin
   let parent: SyntaxNode | null = node.parent;
   while (parent) {
     if (config.classTypes.includes(parent.type) || parent.type === 'class_declaration' || parent.type === 'interface_declaration' || parent.type === 'trait_declaration') {
-      const nameNode = parent.childForFieldName?.('name') || parent.children.find((c) => c.type === 'type_identifier' || c.type === 'identifier');
+      const nameNode = parent.childForFieldName?.('name') || parent.children.find((c) =>
+        c.type === 'type_identifier' || c.type === 'identifier' || c.type === 'simple_identifier'
+      );
       return nameNode?.text || null;
     }
     parent = parent.parent;
@@ -928,7 +930,13 @@ function extractDefinitionName(node: SyntaxNode, source: string, lang: string): 
   }
 
   // Fallback: find first identifier descendant
-  const identifiers = node.descendantsOfType(['identifier', 'property_identifier', 'word']);
+  const identifiers = node.descendantsOfType([
+    'identifier',
+    'simple_identifier',
+    'type_identifier',
+    'property_identifier',
+    'word',
+  ]);
   if (identifiers.length > 0) return identifiers[0].text;
 
   // Last resort: use first line of the node
@@ -979,7 +987,7 @@ function extractCallsAndUsages(
   usages: TSExtractedUsage[],
   maxUsages: number,
 ): boolean {
-  const identTypes = ['identifier', 'variable_name', 'type_identifier', 'binding_identifier'];
+  const identTypes = ['identifier', 'simple_identifier', 'variable_name', 'type_identifier', 'binding_identifier'];
   const identifierSet = new Set(identTypes);
   const callTypeSet = new Set(config.callTypes);
   const wantedTypes = [...new Set([...identTypes, ...config.callTypes])];
@@ -1105,6 +1113,17 @@ function extractImportInfos(
     const qualifiedName = using[1];
     return [{
       localName: qualifiedName.split('.').pop() || qualifiedName,
+      modulePath: qualifiedName.replace(/\./g, '/'),
+      startLine,
+    }];
+  }
+
+  if (lang === 'kotlin') {
+    const imported = text.match(/^\s*import\s+([A-Za-z_][\w.]*)\s*(?:as\s+([A-Za-z_][\w]*))?\s*$/);
+    if (!imported) return [];
+    const qualifiedName = imported[1];
+    return [{
+      localName: imported[2] || qualifiedName.split('.').pop() || qualifiedName,
       modulePath: qualifiedName.replace(/\./g, '/'),
       startLine,
     }];

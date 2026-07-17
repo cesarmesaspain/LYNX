@@ -134,7 +134,7 @@ const TOP_LANGUAGES: LanguageConfig[] = [
     functionTypes: ['function_declaration'],
     classTypes: ['class_declaration', 'object_declaration', 'interface_declaration'],
     callTypes: ['call_expression'],
-    importTypes: ['import_declaration'],
+    importTypes: ['import_header'],
     variableTypes: ['property_declaration', 'variable_declaration'],
     commentTypes: ['line_comment', 'block_comment'],
     hasImports: true,

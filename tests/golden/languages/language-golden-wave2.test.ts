@@ -64,6 +64,12 @@ const cases = [
     nodes: ['Function:main.swift:run', 'Function:math.swift:add', 'Function:math.swift:twice'],
     relations: ['CALLS:main.swift:run->math.swift:twice', 'CALLS:math.swift:twice->math.swift:add'],
   },
+  {
+    language: 'kotlin',
+    fixture: 'kotlin',
+    nodes: ['Method:App.kt:run', 'Method:MathLib.kt:add', 'Method:MathLib.kt:twice'],
+    relations: ['CALLS:App.kt:run->MathLib.kt:twice', 'CALLS:MathLib.kt:twice->MathLib.kt:add', 'IMPORTS:App.kt->MathLib.kt'],
+  },
 ] as const;
 
 describe('per-language golden truth sets wave 2', () => {

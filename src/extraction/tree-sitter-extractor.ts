@@ -254,42 +254,6 @@ async function loadWasmlanguage(
   return lang;
 }
 
-// Lazy-loaded native TS parser — only works in dev mode (not in pkg binary).
-// In pkg, node-gyp-build fails because pkg reports as 'electron' runtime.
-let _nativeParser: any = undefined;
-let _tsLanguages: any = undefined;
-let _nativeLoaded = false;
-
-async function getNativeParser(): Promise<{ NativeParser: any; tsLanguages: any } | null> {
-  if (_nativeLoaded) return _nativeParser && _tsLanguages ? { NativeParser: _nativeParser, tsLanguages: _tsLanguages } : null;
-  _nativeLoaded = true;
-  // Dynamic import() is not supported in pkg binaries — skip silently
-  if (isPkg()) return null;
-  try {
-    // @ts-ignore — optional native dep
-    const np = await import('tree-sitter');
-    // @ts-ignore — optional native dep
-    const ts = await import('tree-sitter-typescript');
-    _nativeParser = np.default || np;
-    _tsLanguages = ts;
-    return { NativeParser: _nativeParser, tsLanguages: _tsLanguages };
-  } catch {
-    return null;
-  }
-}
-
-async function createParser(tsLang: string): Promise<{ parser: any; dispose: () => void } | null> {
-  const native = await getNativeParser();
-  if (!native) return null;
-  if (tsLang === 'typescript' || tsLang === 'tsx') {
-    const parser = new native.NativeParser();
-    const lang = tsLang === 'tsx' ? native.tsLanguages.tsx : native.tsLanguages.typescript;
-    parser.setLanguage(lang);
-    return { parser, dispose: () => undefined };
-  }
-  return null;
-}
-
 // ── Main extraction function ──────────────────────────────────────
 
 export async function extractWithTreeSitter(
@@ -335,27 +299,10 @@ export async function extractWithTreeSitter(
         partialReasons: [`${generatedReason}: semantic extraction skipped`],
       };
     }
-    let native = await createParser(config.tsLang);
-    let parser: any;
-    if (native) {
-      parser = native.parser;
-    } else {
-      const lang = await loadWasmlanguage(config.tsLang);
-      parser = new Parser();
-      parser.setLanguage(lang);
-    }
-
-    let tree: any;
-    try {
-      tree = native ? parseNative(parser, source) : parser.parse(source);
-    } catch (err) {
-      if (!native) throw err;
-      const lang = await loadWasmlanguage(config.tsLang);
-      parser = new Parser();
-      parser.setLanguage(lang);
-      native = null;
-      tree = parser.parse(source);
-    }
+    const lang = await loadWasmlanguage(config.tsLang);
+    const parser = new Parser();
+    parser.setLanguage(lang);
+    const tree = parser.parse(source);
     if (!tree) {
       return {
         nodes, calls, imports, usages, channels, throws, decorators,
@@ -400,8 +347,7 @@ export async function extractWithTreeSitter(
     }
 
     // Cleanup
-    if (native) native.dispose();
-    else parser.delete();
+    parser.delete();
 
     return {
       nodes, calls, imports, usages, channels, throws, decorators,
@@ -593,10 +539,6 @@ function isTestFilePath(filePath: string): boolean {
     filePath.startsWith('tests/') ||
     /^(?:test|tests|spec)\.[^.]+$/.test(baseName)
   );
-}
-
-function parseNative(parser: any, source: string): any {
-  return parser.parse(source);
 }
 
 function createFileModuleNodes(

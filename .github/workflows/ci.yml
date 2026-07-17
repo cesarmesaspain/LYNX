@@ -2,7 +2,13 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -16,3 +22,23 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix api
       - run: npm run validate
+
+  impact:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Index LYNX
+        run: node dist/cli.js index . --name LYNX --mode fast --incremental || true
+      - name: Run assess_impact
+        run: bash scripts/ci-assess.sh LYNX main
+        env:
+          GH_TOKEN: ${{ github.token }}

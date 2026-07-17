@@ -138,6 +138,33 @@ function countFilesWithGraphNodes(db: LynxDatabase, project: string): number {
   return result.count;
 }
 
+type ExtractionBatch = Awaited<ReturnType<typeof extractAll>>[number];
+
+function persistDiscoveredFileMetadata(
+  db: LynxDatabase,
+  project: string,
+  batches: ExtractionBatch[],
+): void {
+  for (const batch of batches) {
+    if (!batch.sha256) continue;
+    let mtimeNs = 0;
+    let sha256 = batch.sha256;
+    let size = batch.file.size;
+    try {
+      const stat = fs.statSync(batch.file.absPath);
+      mtimeNs = Math.floor(stat.mtimeMs * 1_000_000);
+      size = stat.size;
+      if (!batch.skipped) {
+        const source = fs.readFileSync(batch.file.absPath, "utf-8");
+        sha256 = createHash("sha256").update(source).digest("hex");
+      }
+    } catch {
+      /* keep discovered metadata */
+    }
+    upsertFileHash(db, project, batch.file.relPath, sha256, mtimeNs, size);
+  }
+}
+
 /**
  * Run the complete indexing pipeline against a repository.
  */
@@ -263,6 +290,10 @@ export async function runPipeline(
       lightweight: true,
     });
     const gitCtx = getGitContext(repoPath, { refresh: true });
+    db.transaction(() => {
+      persistDiscoveredFileMetadata(db, project, batches);
+      db.setProjectIndexedCommit(project, gitCtx?.headSha ?? null);
+    });
     const functionsExtracted = db.db
       .prepare(
         `SELECT COUNT(*) AS count FROM nodes WHERE project = ? AND kind IN ('Function', 'Method')`,
@@ -546,31 +577,7 @@ export async function runPipeline(
       // This keeps the deterministic drift check accurate even when extraction
       // is skipped because the content hash has not changed.
       db.transaction(() => {
-        for (const batch of batches) {
-          if (!batch.sha256) continue;
-          let mtimeNs = 0;
-          let sha256 = batch.sha256;
-          let size = batch.file.size;
-          try {
-            const stat = fs.statSync(batch.file.absPath);
-            mtimeNs = Math.floor(stat.mtimeMs * 1_000_000);
-            size = stat.size;
-            if (!batch.skipped) {
-              const source = fs.readFileSync(batch.file.absPath, "utf-8");
-              sha256 = createHash("sha256").update(source).digest("hex");
-            }
-          } catch {
-            /* keep discovered metadata */
-          }
-          upsertFileHash(
-            db,
-            project,
-            batch.file.relPath,
-            sha256,
-            mtimeNs,
-            size,
-          );
-        }
+        persistDiscoveredFileMetadata(db, project, batches);
       });
       failIfRequested(opts, "hashes");
       _mark("file-hashes");

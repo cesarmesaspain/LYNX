@@ -174,6 +174,12 @@ describe("incremental pipeline safety", () => {
           .get("noop") as { count: number }
       ).count;
 
+      const file = path.join(root, "src", "a.ts");
+      const touchedAt = new Date(Date.now() + 2_000);
+      fs.utimesSync(file, touchedAt, touchedAt);
+      execFileSync("git", ["commit", "--allow-empty", "-m", "metadata-only"], { cwd: root });
+      const currentHead = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+
       const result = await runPipeline(db, root, "noop", {
         mode: "fast",
         incremental: true,
@@ -187,6 +193,7 @@ describe("incremental pipeline safety", () => {
       expect(result.incremental.reindexed).toEqual([]);
       expect(result.status.totalNodes).toBe(first.status.totalNodes);
       expect(result.status.totalEdges).toBe(first.status.totalEdges);
+      expect(db.getProject("noop")?.indexedCommit).toBe(currentHead);
       expect(
         (
           db.db

@@ -53,6 +53,10 @@ Live recovery proof:
 3. A fresh `lynx serve </dev/null` started PID 27284.
 4. `/api/health` returned HTTP 200 from PID 27284.
 
+### No-op freshness acknowledgement
+
+The incremental fast path used to return without refreshing filesystem metadata or the indexed commit. A content-identical mtime change or an empty/documentation commit could therefore leave `doctor` reporting drift after a successful no-op. The fast path now updates only canonical file metadata and the indexed commit in one transaction; graph nodes, edges, analysis, and run history remain untouched. A regression covers an mtime-only change plus an empty commit.
+
 ### Ten-out-of-ten objective
 
 `docs/TEN_OUT_OF_TEN_STANDARD.md` is the authoritative product-quality contract. It defines ten scored domains, hard gates, reproducible evidence requirements, and the 9.0 → 9.5 → 10.0 path. Scores must not be rounded up because features exist; every claim requires repeatable proof.

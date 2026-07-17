@@ -288,6 +288,25 @@ focused suites pass 7/7 with typecheck. Complete-suite validation and commit are
 pending for this sub-slice. `upgrade` download/manifest integration remains the
 next owner; do not duplicate the rollback transaction inside that command.
 
+Signed-manifest foundation is active in `src/install/release-manifest.ts` with
+tests in `tests/unit/install/release-manifest.test.ts`. Schema
+`lynx.release-manifest.v1` declares version, creation time, and one unique HTTPS
+asset per platform with positive byte size and SHA-256. Trust is established by
+Ed25519 verification of the exact raw manifest bytes before parsing or trusting
+any URL/checksum. Duplicate platforms, insecure URLs, malformed hashes, changed
+signed bytes, and absent running platforms fail closed. Together with
+distribution and rollback tests, typecheck and 11/11 focused lifecycle tests
+pass. Still pending: complete suite/commit, an embedded release public key and
+rotation policy, bounded downloader with exact size enforcement, and upgrade
+integration. Never accept a public key fetched only from the same untrusted
+release response.
+
+Continuous ChatGPT coordination is part of the active objective. Current task
+ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
+cross-platform CI acceptance design matching this root contract. It must not
+edit repository files or overlap Codex's manifest/transaction slice. Review its
+claims against source and tests before turning any proposal into code.
+
 ### P1 — full functional MCP contract matrix
 
 The 33/33 registry, handler, and generated argument contracts are complete.

@@ -251,6 +251,15 @@ above ten.
 
 Current practical assessment: **8.5/10**.
 
+Before the final score can become 10/10, run repeated dogfooding loops across
+all 33 canonical MCP tools on the installed runtime. Each loop must exercise
+success, empty, invalid, bounded, drifted, and restarted states where applicable;
+reconcile overlapping claims; record latency and output bounds; correct every
+reproducible functional defect at its owning contract; add a regression; rebuild,
+reinstall, and repeat. Stop only when a complete pass finds no reproducible
+functional anomaly or root-level improvement. Cosmetic churn cannot satisfy or
+extend this gate.
+
 Strongest areas are compact graph-guided discovery, local-first architecture,
 evidence inspection, working-tree analysis, and breadth of MCP workflows. The
 largest deductions are lifecycle consistency, project identity, diagnostic

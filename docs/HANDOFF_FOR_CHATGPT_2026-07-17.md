@@ -7,10 +7,10 @@ LYNX is installed, indexed, healthy, and ready for live MCP use. The working bra
 - `lynx doctor`: 11/11 checks passed.
 - MCP runtime: 33/33 tools exposed.
 - Dashboard: supervised service healthy at `http://127.0.0.1:9191`.
-- Main suite: 132 files, 1090/1090 tests passed.
+- Main suite: 132 files, 1095/1095 tests passed twice consecutively with process-isolated native runtimes.
 - API suite: 5 files, 22/22 tests passed.
 - Root and API typechecks passed.
-- Full index: 438 files processed, 438 files with graph nodes, 6,211 nodes, 30,982 edges, 2.16 s.
+- Full index: 440 files processed, 440 files with graph nodes, 6,241 nodes, 31,110 edges, 2.41 s.
 - No-op incremental baseline: 0 processed, 436 skipped, no graph mutations, 0.06 s; revalidation at 438 files is required after the current documentation commit.
 - The local branch contains newer validated commits than the last published GitHub state; do not claim synchronization until the branch is pushed.
 
@@ -73,7 +73,7 @@ The generated cross-tool contract derives the public surface from the canonical 
 
 ### Language golden truth sets and Go package resolution
 
-TypeScript, C, Python, Go, Rust, Java, and Ruby fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All seven current fixtures require 1.0. The Go wave exposed and closed package-directory resolution; Rust added canonical `crate`/`self` use-path normalization; Java now preserves qualified method names and exposes methods from an imported class file to call resolution. Ruby exposed and closed missing `require_relative` imports and a broader defect where ordinary Ruby calls could be recorded as import metadata.
+TypeScript, C, Python, Go, Rust, Java, Ruby, and C# fixtures now run through the real indexing pipeline and report precision, recall, F1, and raw false-positive/false-negative sets without reshaping denominators. All eight current fixtures require 1.0. The Go wave exposed and closed package-directory resolution; Rust added canonical `crate`/`self` use-path normalization; Java now preserves qualified method names and exposes methods from an imported class file to call resolution. Ruby exposed and closed missing `require_relative` imports and a broader defect where ordinary Ruby calls could be recorded as import metadata. C# exposed and closed missing `using` module identity and imported-file method visibility.
 
 ### Deterministic performance budget foundation
 
@@ -93,11 +93,15 @@ The first evidence-based receiver wave resolves `this/self` calls only against t
 
 Declared parameter names and types are now preserved for functions and methods across TypeScript, Python, Java, Go, and Rust syntax orders. The resolver uses that evidence for `parameter.method()` only when one concrete local/imported owner and one child callable agree. Runtime-owned typed receivers and dynamic local receiver bindings are classified separately without creating graph edges. This reduced the remaining unknown-receiver bucket from 11,968 to 9,799 while identifying 2,001 dynamic local bindings and 386 runtime built-ins.
 
+Scoped local-binding evidence is now carried separately from graph nodes. Explicit annotations and constructor assignments record their owner QN, declaration line, complete scope range, type, and evidence origin. They never enter global name indexes, imports, search, or traversal. A local receiver can resolve only after its declaration, inside the same owner and range, against one concrete local/imported class and one method. The live graph currently contains 10 `scoped-local-type`, 27 `declared-parameter-type`, 34 `lexical-receiver`, and 181 `imported-owner` resolutions.
+
+The full suite intermittently completed every assertion and then exited with `SIGSEGV` under Vitest worker threads. Every test family and a single-worker full run passed; the complete thread-pooled run reproduced the crash; the complete fork-pooled run passed. Native SQLite and tree-sitter/WASM lifecycles are now isolated by worker process. Two consecutive complete 1,095-test runs pass with exit code 0.
+
 ## Remaining gaps
 
 These are not release blockers for the current local installation, but they prevent a 10/10 claim:
 
-1. Full-index call resolution is 5,677/27,471 (20.67%) after receiver-preserving extraction, owner-aware resolution, and declared-parameter type flow. Unresolved calls now separate 9,799 unknown receiver targets, 6,811 external dependency targets, 2,001 dynamic local bindings, 1,815 absent targets, 774 native targets, 386 runtime built-in receivers, 152 missing internal-import targets, 30 ambiguous internal targets, 20 self-references, and 6 missing callers. The next root work is scoped local-variable/assignment type flow, broader alias-aware internal-import coverage, and native resolution. Do not restore the old ratio through bare-name matching or denominator shaping.
+1. Full-index call resolution is 5,706/27,560 (20.70%) after receiver-preserving extraction, owner-aware resolution, declared-parameter types, and scoped local-binding evidence. Unresolved calls now separate 9,810 unknown receiver targets, 6,830 external dependency targets, 2,029 dynamic local bindings, 1,818 absent targets, 774 native targets, 385 runtime built-in receivers, 152 missing internal-import targets, 30 ambiguous internal targets, 20 self-references, and 6 missing callers. The next root work is field/property assignment flow, broader alias-aware internal-import coverage, and native resolution. Do not restore the old ratio through bare-name matching or denominator shaping.
 2. Native C/C++ extraction still reports partial handling for member/qualified calls, function pointers, preprocessing, and lexical shadowing.
 3. ~~`tree-sitter-extractor.ts` and `discover.ts` are classified as generated.~~ Closed: generated-source detection now reads only the continuous leading metadata/comment preamble. Phrases inside executable code, regexes, strings, or comments after code no longer suppress semantic extraction; legitimate generated headers remain supported and regressions cover both boundaries.
 4. Team security and cross-platform installation gates still need reproducible clean-machine evidence.

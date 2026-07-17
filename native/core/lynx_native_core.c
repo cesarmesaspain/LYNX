@@ -645,11 +645,20 @@ typedef struct {
   bool any_taken;
 } ConditionalFrame;
 
-static bool macro_is_defined(char definitions[256][128], int count, const char *name) {
+typedef struct {
+  char name[128];
+  long long value;
+} MacroDefinition;
+
+static int macro_definition_index(MacroDefinition definitions[256], int count, const char *name) {
   for (int index = 0; index < count; index++) {
-    if (strcmp(definitions[index], name) == 0) return true;
+    if (strcmp(definitions[index].name, name) == 0) return index;
   }
-  return false;
+  return -1;
+}
+
+static bool macro_is_defined(MacroDefinition definitions[256], int count, const char *name) {
+  return macro_definition_index(definitions, count, name) >= 0;
 }
 
 static void directive_name(const char *text, char output[128]) {
@@ -662,23 +671,149 @@ static void directive_name(const char *text, char output[128]) {
   output[length] = '\0';
 }
 
-static bool evaluate_condition(const char *text, char definitions[256][128], int count) {
-  while (*text == ' ' || *text == '\t') text++;
-  bool negate = false;
-  if (*text == '!') { negate = true; text++; while (*text == ' ' || *text == '\t') text++; }
-  bool value = false;
-  if (*text == '1' && !isalnum((unsigned char)text[1]) && text[1] != '_') value = true;
-  else if (*text == '0' && !isalnum((unsigned char)text[1]) && text[1] != '_') value = false;
-  else if (strncmp(text, "defined", 7) == 0) {
-    text += 7;
-    while (*text == ' ' || *text == '\t' || *text == '(') text++;
-    char name[128]; directive_name(text, name);
-    value = macro_is_defined(definitions, count, name);
-  } else {
-    char name[128]; directive_name(text, name);
-    value = macro_is_defined(definitions, count, name);
+typedef struct {
+  const char *cursor;
+  const char *end;
+  MacroDefinition *definitions;
+  int definition_count;
+} PreprocessorExpression;
+
+static void expression_space(PreprocessorExpression *expression) {
+  while (expression->cursor < expression->end &&
+         (*expression->cursor == ' ' || *expression->cursor == '\t')) expression->cursor++;
+}
+
+static bool expression_take(PreprocessorExpression *expression, const char *token) {
+  expression_space(expression);
+  size_t length = strlen(token);
+  if ((size_t)(expression->end - expression->cursor) < length ||
+      strncmp(expression->cursor, token, length) != 0) return false;
+  expression->cursor += length;
+  return true;
+}
+
+static long long parse_preprocessor_or(PreprocessorExpression *expression);
+
+static long long parse_preprocessor_primary(PreprocessorExpression *expression) {
+  expression_space(expression);
+  if (expression_take(expression, "(")) {
+    long long value = parse_preprocessor_or(expression);
+    expression_take(expression, ")");
+    return value;
   }
-  return negate ? !value : value;
+  if ((size_t)(expression->end - expression->cursor) >= 7 &&
+      strncmp(expression->cursor, "defined", 7) == 0 &&
+      (expression->cursor + 7 == expression->end ||
+       !(isalnum((unsigned char)expression->cursor[7]) || expression->cursor[7] == '_'))) {
+    expression->cursor += 7;
+    expression_space(expression);
+    bool parenthesized = expression_take(expression, "(");
+    char name[128];
+    size_t length = 0;
+    expression_space(expression);
+    while (expression->cursor < expression->end &&
+           (isalnum((unsigned char)*expression->cursor) || *expression->cursor == '_')) {
+      if (length < sizeof(name) - 1) name[length++] = *expression->cursor;
+      expression->cursor++;
+    }
+    name[length] = '\0';
+    if (parenthesized) expression_take(expression, ")");
+    return macro_is_defined(expression->definitions, expression->definition_count, name) ? 1 : 0;
+  }
+  if (expression->cursor < expression->end &&
+      (isdigit((unsigned char)*expression->cursor))) {
+    char *parsed_end = NULL;
+    long long value = strtoll(expression->cursor, &parsed_end, 0);
+    if (parsed_end > expression->cursor && parsed_end <= expression->end) expression->cursor = parsed_end;
+    return value;
+  }
+  char name[128];
+  size_t length = 0;
+  while (expression->cursor < expression->end &&
+         (isalnum((unsigned char)*expression->cursor) || *expression->cursor == '_')) {
+    if (length < sizeof(name) - 1) name[length++] = *expression->cursor;
+    expression->cursor++;
+  }
+  name[length] = '\0';
+  int index = macro_definition_index(expression->definitions, expression->definition_count, name);
+  return index >= 0 ? expression->definitions[index].value : 0;
+}
+
+static long long parse_preprocessor_unary(PreprocessorExpression *expression) {
+  if (expression_take(expression, "!")) return !parse_preprocessor_unary(expression);
+  if (expression_take(expression, "+")) return parse_preprocessor_unary(expression);
+  if (expression_take(expression, "-")) return -parse_preprocessor_unary(expression);
+  return parse_preprocessor_primary(expression);
+}
+
+static long long parse_preprocessor_multiply(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_unary(expression);
+  for (;;) {
+    if (expression_take(expression, "*")) value *= parse_preprocessor_unary(expression);
+    else if (expression_take(expression, "/")) { long long right = parse_preprocessor_unary(expression); value = right ? value / right : 0; }
+    else if (expression_take(expression, "%")) { long long right = parse_preprocessor_unary(expression); value = right ? value % right : 0; }
+    else return value;
+  }
+}
+
+static long long parse_preprocessor_add(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_multiply(expression);
+  for (;;) {
+    if (expression_take(expression, "+")) value += parse_preprocessor_multiply(expression);
+    else if (expression_take(expression, "-")) value -= parse_preprocessor_multiply(expression);
+    else return value;
+  }
+}
+
+static long long parse_preprocessor_compare(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_add(expression);
+  for (;;) {
+    if (expression_take(expression, ">=")) value = value >= parse_preprocessor_add(expression);
+    else if (expression_take(expression, "<=")) value = value <= parse_preprocessor_add(expression);
+    else if (expression_take(expression, ">")) value = value > parse_preprocessor_add(expression);
+    else if (expression_take(expression, "<")) value = value < parse_preprocessor_add(expression);
+    else return value;
+  }
+}
+
+static long long parse_preprocessor_equality(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_compare(expression);
+  for (;;) {
+    if (expression_take(expression, "==")) value = value == parse_preprocessor_compare(expression);
+    else if (expression_take(expression, "!=")) value = value != parse_preprocessor_compare(expression);
+    else return value;
+  }
+}
+
+static long long parse_preprocessor_and(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_equality(expression);
+  while (expression_take(expression, "&&")) {
+    long long right = parse_preprocessor_equality(expression);
+    value = value && right;
+  }
+  return value;
+}
+
+static long long parse_preprocessor_or(PreprocessorExpression *expression) {
+  long long value = parse_preprocessor_and(expression);
+  while (expression_take(expression, "||")) {
+    long long right = parse_preprocessor_and(expression);
+    value = value || right;
+  }
+  return value;
+}
+
+static long long evaluate_expression(
+  const char *text, const char *end, MacroDefinition definitions[256], int count
+) {
+  PreprocessorExpression expression = { text, end, definitions, count };
+  return parse_preprocessor_or(&expression);
+}
+
+static bool evaluate_condition(
+  const char *text, const char *end, MacroDefinition definitions[256], int count
+) {
+  return evaluate_expression(text, end, definitions, count) != 0;
 }
 
 /* Select one deterministic preprocessor branch while preserving byte length and line numbers. */
@@ -689,9 +824,10 @@ static char *conditioned_source(const char *source, size_t length) {
   ConditionalFrame frames[64];
   int depth = 0;
   bool active = true;
-  char definitions[256][128];
+  MacroDefinition definitions[256];
   int definition_count = 0;
   bool continued_directive = false;
+  bool preserve_continuation = false;
   size_t line_start = 0;
   while (line_start < length) {
     size_t line_end = line_start;
@@ -701,8 +837,11 @@ static char *conditioned_source(const char *source, size_t length) {
     while (cursor < limit && (*cursor == ' ' || *cursor == '\t')) cursor++;
     bool directive = !continued_directive && cursor < limit && *cursor == '#';
     if (continued_directive) {
-      for (size_t index = line_start; index < line_end; index++) output[index] = ' ';
+      if (!preserve_continuation) {
+        for (size_t index = line_start; index < line_end; index++) output[index] = ' ';
+      }
     } else if (directive) {
+      bool preserve_directive = false;
       cursor++;
       while (cursor < limit && (*cursor == ' ' || *cursor == '\t')) cursor++;
       char command[32];
@@ -716,7 +855,7 @@ static char *conditioned_source(const char *source, size_t length) {
            strcmp(command, "if") == 0) && depth < 64) {
         char name[128]; directive_name(cursor, name);
         bool condition = strcmp(command, "if") == 0
-          ? evaluate_condition(cursor, definitions, definition_count)
+          ? evaluate_condition(cursor, limit, definitions, definition_count)
           : macro_is_defined(definitions, definition_count, name);
         if (strcmp(command, "ifndef") == 0) condition = !condition;
         frames[depth++] = (ConditionalFrame){ .parent_active = active,
@@ -724,7 +863,7 @@ static char *conditioned_source(const char *source, size_t length) {
         active = frames[depth - 1].active;
       } else if (strcmp(command, "elif") == 0 && depth > 0) {
         ConditionalFrame *frame = &frames[depth - 1];
-        bool condition = evaluate_condition(cursor, definitions, definition_count);
+        bool condition = evaluate_condition(cursor, limit, definitions, definition_count);
         frame->active = frame->parent_active && !frame->any_taken && condition;
         frame->any_taken = frame->any_taken || condition;
         active = frame->active;
@@ -738,25 +877,45 @@ static char *conditioned_source(const char *source, size_t length) {
         active = frame.parent_active;
       } else if (strcmp(command, "define") == 0 && active && definition_count < 256) {
         char name[128]; directive_name(cursor, name);
-        if (*name && !macro_is_defined(definitions, definition_count, name)) {
-          strcpy(definitions[definition_count++], name);
+        if (*name) {
+          int existing = macro_definition_index(definitions, definition_count, name);
+          MacroDefinition *definition = existing >= 0
+            ? &definitions[existing]
+            : &definitions[definition_count++];
+          strcpy(definition->name, name);
+          const char *value_text = cursor;
+          while (value_text < limit &&
+                 (isalnum((unsigned char)*value_text) || *value_text == '_')) value_text++;
+          while (value_text < limit && (*value_text == ' ' || *value_text == '\t')) value_text++;
+          definition->value = value_text < limit
+            ? evaluate_expression(value_text, limit, definitions,
+                existing >= 0 ? definition_count : definition_count - 1)
+            : 1;
         }
+        preserve_directive = true;
       } else if (strcmp(command, "undef") == 0 && active) {
         char name[128]; directive_name(cursor, name);
         for (int index = 0; index < definition_count; index++) {
-          if (strcmp(definitions[index], name) == 0) {
-            memcpy(definitions[index], definitions[--definition_count], 128);
+          if (strcmp(definitions[index].name, name) == 0) {
+            definitions[index] = definitions[--definition_count];
             break;
           }
         }
+        preserve_directive = true;
+      } else if (active && strcmp(command, "include") == 0) {
+        preserve_directive = true;
       }
-      for (size_t index = line_start; index < line_end; index++) output[index] = ' ';
+      if (!preserve_directive) {
+        for (size_t index = line_start; index < line_end; index++) output[index] = ' ';
+      }
+      preserve_continuation = preserve_directive;
     } else if (!active) {
       for (size_t index = line_start; index < line_end; index++) output[index] = ' ';
     }
     size_t tail = line_end;
     while (tail > line_start && (source[tail - 1] == ' ' || source[tail - 1] == '\t' || source[tail - 1] == '\r')) tail--;
     continued_directive = (directive || continued_directive) && tail > line_start && source[tail - 1] == '\\';
+    if (!continued_directive) preserve_continuation = false;
     line_start = line_end < length ? line_end + 1 : length;
   }
   return output;
@@ -1634,9 +1793,17 @@ static void process_file(WorkerBuffer *buffer, FileTask *task, int file_index) {
     buffer->errors++;
     return;
   }
-  TSTree *tree = ts_parser_parse_string(parser, NULL, source, (uint32_t)length);
+  char *conditioned = conditioned_source(source, length);
+  if (!conditioned) {
+    ts_parser_delete(parser);
+    free(source);
+    buffer->errors++;
+    return;
+  }
+  TSTree *tree = ts_parser_parse_string(parser, NULL, conditioned, (uint32_t)length);
   if (!tree) {
     ts_parser_delete(parser);
+    free(conditioned);
     free(source);
     buffer->errors++;
     return;
@@ -1646,25 +1813,22 @@ static void process_file(WorkerBuffer *buffer, FileTask *task, int file_index) {
   size_t global_length = strlen(module) + 9;
   char *global_scope = malloc(global_length);
   snprintf(global_scope, global_length, "%s._global", module);
-  walk_tree(buffer, file_index, source, ts_tree_root_node(tree), module, is_header(task->rel_path),
+  walk_tree(buffer, file_index, conditioned, ts_tree_root_node(tree), module, is_header(task->rel_path),
             strcmp(task->language, "cpp") == 0, global_scope);
   if (ts_node_has_error(ts_tree_root_node(tree))) {
-    char *conditioned = conditioned_source(source, length);
-    if (conditioned) {
-      TSTree *recovered_tree = ts_parser_parse_string(parser, NULL, conditioned, (uint32_t)length);
-      if (recovered_tree) {
-        walk_recovered_definitions(buffer, file_index, source, conditioned,
-          ts_tree_root_node(recovered_tree), module, is_header(task->rel_path),
-          strcmp(task->language, "cpp") == 0);
-        ts_tree_delete(recovered_tree);
-      }
-      free(conditioned);
+    TSTree *recovered_tree = ts_parser_parse_string(parser, NULL, conditioned, (uint32_t)length);
+    if (recovered_tree) {
+      walk_recovered_definitions(buffer, file_index, source, conditioned,
+        ts_tree_root_node(recovered_tree), module, is_header(task->rel_path),
+        strcmp(task->language, "cpp") == 0);
+      ts_tree_delete(recovered_tree);
     }
   }
   free(global_scope);
   free(module);
   ts_tree_delete(tree);
   ts_parser_delete(parser);
+  free(conditioned);
   free(source);
 }
 
@@ -2087,7 +2251,7 @@ static int write_staging(
   bind_text(run, 2, project); bind_text(run, 3, repo_root); sqlite3_step(run); sqlite3_finalize(run);
 
   sqlite3_stmt *file_stmt = NULL;
-  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial\",\"native-lexical-scope-partial-language-extensions\"]')", -1, &file_stmt, NULL);
+  sqlite3_prepare_v2(db, "INSERT INTO native_files(id,rel_path,language,sha256,size_bytes,status,partial_reasons_json) VALUES(?,?,?,?,?,'partial','[\"native-resolution-partial-member-and-qualified\",\"native-resolution-partial-nonlexical-function-pointer\",\"native-preprocessing-partial-cross-include-and-advanced-expressions\",\"native-lexical-scope-partial-language-extensions\"]')", -1, &file_stmt, NULL);
   for (int index = 0; index < file_count; index++) {
     sqlite3_bind_int(file_stmt, 1, index + 1);
     bind_text(file_stmt, 2, files[index].rel_path);

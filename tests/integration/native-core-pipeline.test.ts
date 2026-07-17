@@ -6,6 +6,10 @@ import { runPipeline } from '../../src/pipeline/orchestrator.js';
 import { LynxDatabase } from '../../src/store/database.js';
 
 const fixture = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/native-core');
+const preprocessorFixture = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../fixtures/native-preprocessor-expressions',
+);
 const nativeCore = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../native/lynx_native_core');
 
 describe.skipIf(!fs.existsSync(nativeCore))('native structural core publication', () => {
@@ -168,6 +172,41 @@ describe.skipIf(!fs.existsSync(nativeCore))('native structural core publication'
       const after = db.db.prepare("SELECT COUNT(*) AS nodes, (SELECT COUNT(*) FROM edges WHERE project='native-publication') AS edges FROM nodes WHERE project='native-publication'")
         .get();
       expect(after).toEqual(before);
+    } finally {
+      if (previousPath === undefined) delete process.env.LYNX_NATIVE_CORE_PATH;
+      else process.env.LYNX_NATIVE_CORE_PATH = previousPath;
+      db.close();
+    }
+  }, 30_000);
+
+  it('evaluates valued and compound preprocessor expressions before semantic extraction', async () => {
+    const db = LynxDatabase.openMemory();
+    const previousPath = process.env.LYNX_NATIVE_CORE_PATH;
+    process.env.LYNX_NATIVE_CORE_PATH = nativeCore;
+    try {
+      await runPipeline(db, preprocessorFixture, 'native-preprocessor-expressions', {
+        mode: 'full',
+        testSkipProjectBrief: true,
+      });
+      const symbols = db.db.prepare(`
+        SELECT name FROM nodes
+        WHERE project='native-preprocessor-expressions'
+          AND name IN ('add', 'run', 'forbidden_branch', 'forbidden_after_undef')
+        ORDER BY name
+      `).all() as Array<{ name: string }>;
+      expect(symbols.map(({ name }) => name)).toEqual(['add', 'add', 'run']);
+
+      const call = db.db.prepare(`
+        SELECT json_extract(edge.properties, '$.resolution') AS resolution,
+               json_extract(edge.properties, '$.evidence.include') AS included_header
+        FROM edges edge
+        JOIN nodes source ON source.id=edge.source_id
+        JOIN nodes target ON target.id=edge.target_id
+        WHERE edge.project='native-preprocessor-expressions' AND edge.type='CALLS'
+          AND source.qualified_name='main.run' AND target.qualified_name='api.add'
+      `).get() as { resolution: string; included_header: string } | undefined;
+      expect(call?.resolution).toBe('include_declaration_unique_implementation');
+      expect(call?.included_header).toBe('api.h');
     } finally {
       if (previousPath === undefined) delete process.env.LYNX_NATIVE_CORE_PATH;
       else process.env.LYNX_NATIVE_CORE_PATH = previousPath;

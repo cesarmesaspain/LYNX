@@ -1,0 +1,4 @@
+c	config.h	tests/fixtures/native-preprocessor-expressions/config.h
+c	api.h	tests/fixtures/native-preprocessor-expressions/api.h
+c	api.c	tests/fixtures/native-preprocessor-expressions/api.c
+c	main.c	tests/fixtures/native-preprocessor-expressions/main.c

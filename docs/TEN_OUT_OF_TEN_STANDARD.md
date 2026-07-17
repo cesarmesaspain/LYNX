@@ -256,5 +256,12 @@ identities, and resolution restores the outer binding after compound and
 control-initializer scopes. Only compiler-specific scope extensions remain
 classified as partial.
 
+Native preprocessing now applies a deterministic valued expression evaluator
+before semantic extraction, preserving active includes/macros while removing
+inactive branches. Golden integration evidence covers precedence, `defined`,
+comparisons, arithmetic, logical operators, redefinition, and `#undef`. The
+remaining preprocessing gate is cross-include macro propagation plus advanced
+expansion/operators, not basic branch selection.
+
 This score must be recalculated from the gates above after each release; it must
 not rise merely because new features were added.

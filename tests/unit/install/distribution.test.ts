@@ -105,4 +105,48 @@ describe('distribution lifecycle transaction', () => {
     expect(fs.readFileSync(destination, 'utf8')).toBe('v1');
     expect(fs.readFileSync(`${destination}.previous`, 'utf8')).toBe('v2');
   });
+
+  it('restores the current build if promoting previous fails after displacement', async () => {
+    const { destination } = fixture();
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, 'v2');
+    fs.writeFileSync(`${destination}.previous`, 'v1');
+    let renames = 0;
+
+    await expect(rollbackDistribution(destination, async () => undefined, {
+      exists: fs.existsSync,
+      rename: (from, to) => {
+        renames++;
+        if (renames === 2) throw new Error('simulated promotion failure');
+        fs.renameSync(from, to);
+      },
+    })).rejects.toThrow('simulated promotion failure');
+
+    expect(fs.readFileSync(destination, 'utf8')).toBe('v2');
+    expect(fs.readFileSync(`${destination}.previous`, 'utf8')).toBe('v1');
+  });
+
+  it('preserves the displaced recovery artifact if final rotation fails', async () => {
+    const { destination } = fixture();
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.writeFileSync(destination, 'v2');
+    fs.writeFileSync(`${destination}.previous`, 'v1');
+    let renames = 0;
+
+    await expect(rollbackDistribution(destination, async installed => {
+      expect(fs.readFileSync(installed, 'utf8')).toBe('v1');
+    }, {
+      exists: fs.existsSync,
+      rename: (from, to) => {
+        renames++;
+        if (renames === 3) throw new Error('simulated recovery rotation failure');
+        fs.renameSync(from, to);
+      },
+    })).rejects.toThrow('simulated recovery rotation failure');
+
+    expect(fs.readFileSync(destination, 'utf8')).toBe('v1');
+    const recovery = fs.readdirSync(path.dirname(destination)).find(name => name.startsWith('lynx.rollback-'));
+    expect(recovery).toBeTruthy();
+    expect(fs.readFileSync(path.join(path.dirname(destination), recovery!), 'utf8')).toBe('v2');
+  });
 });

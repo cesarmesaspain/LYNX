@@ -278,6 +278,18 @@ owner, download adapter, real MCP/doctor acceptance adapter, integration into
 `lynx upgrade`, explicit `lynx rollback`, source-linked runtime protection,
 complete suite, commit, install/reindex/doctor, and cross-platform acceptance.
 
+Rollback durability follow-up is fixed at the transaction owner. The prior
+`finally` unconditionally removed the displaced current build; if promoting
+`.previous` failed after displacement, that cleanup could delete the only
+recoverable current artifact. `rollbackDistribution` now uses an injectable
+rename/existence boundary and explicit state. Promotion failure restores current;
+acceptance failure restores both roles; final rotation failure deliberately
+leaves a named `.rollback-*` recovery artifact instead of deleting it. Two
+deterministic rename-failure regressions join the normal/acceptance cases;
+typecheck and 9/9 distribution+CLI rollback tests pass. ChatGPT identified the
+risk but its delayed edit overlapped Codex; the duplicate incomplete interface
+it inserted was removed exactly, and the validated state machine retained.
+
 CLI rollback is now wired as the first consumer in
 `src/cli/commands/rollback-cmd.ts` and the canonical CLI registry. It refuses a
 source-linked checkout before filesystem mutation, restores only the packaged

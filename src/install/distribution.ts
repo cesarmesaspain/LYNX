@@ -18,6 +18,16 @@ export interface DistributionReceipt {
   sha256: string;
 }
 
+export interface DistributionFileOps {
+  exists(filePath: string): boolean;
+  rename(from: string, to: string): void;
+}
+
+const defaultDistributionFileOps: DistributionFileOps = {
+  exists: filePath => fs.existsSync(filePath),
+  rename: (from, to) => fs.renameSync(from, to),
+};
+
 export function sha256File(filePath: string): string {
   const hash = crypto.createHash('sha256');
   const fd = fs.openSync(filePath, 'r');
@@ -115,25 +125,48 @@ export async function installDistributionArtifact(
 export async function rollbackDistribution(
   destinationPath: string,
   accept: (installedPath: string) => Promise<void>,
+  fileOps: DistributionFileOps = defaultDistributionFileOps,
 ): Promise<void> {
   const destination = path.resolve(destinationPath);
   const previous = `${destination}.previous`;
-  if (!fs.existsSync(previous)) throw new Error(`No previous LYNX distribution is available for ${destination}.`);
+  if (!fileOps.exists(previous)) throw new Error(`No previous LYNX distribution is available for ${destination}.`);
 
   const displaced = uniqueSibling(destination, 'rollback');
-  const hadCurrent = fs.existsSync(destination);
+  const hadCurrent = fileOps.exists(destination);
+  let displacedExists = false;
+  if (hadCurrent) {
+    fileOps.rename(destination, displaced);
+    displacedExists = true;
+  }
   try {
-    if (hadCurrent) fs.renameSync(destination, displaced);
-    fs.renameSync(previous, destination);
+    fileOps.rename(previous, destination);
+  } catch (error) {
+    if (displacedExists && fileOps.exists(displaced)) {
+      fileOps.rename(displaced, destination);
+      displacedExists = false;
+    }
+    throw error;
+  }
+
+  try {
     try {
       await accept(destination);
     } catch (error) {
-      fs.renameSync(destination, previous);
-      if (hadCurrent) fs.renameSync(displaced, destination);
+      fileOps.rename(destination, previous);
+      if (displacedExists && fileOps.exists(displaced)) {
+        fileOps.rename(displaced, destination);
+        displacedExists = false;
+      }
       throw error;
     }
-    if (hadCurrent) fs.renameSync(displaced, previous);
-  } finally {
-    removeIfPresent(displaced);
+    if (displacedExists) {
+      fileOps.rename(displaced, previous);
+      displacedExists = false;
+    }
+  } catch (error) {
+    // Never remove `displaced` here. If a filesystem operation failed it may
+    // be the only recoverable copy of the pre-rollback distribution. Leaving
+    // an explicitly named recovery artifact is safer than destructive cleanup.
+    throw error;
   }
 }

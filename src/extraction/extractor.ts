@@ -93,7 +93,7 @@ export async function extractFile(
   // Files use tree-sitter/native extraction where available and a conservative
   // textual fallback for languages whose grammar is not bundled locally.
   if (config) {
-    const result = await extractWithTreeSitter(source, relPath, project, config);
+    const result = await extractWithTreeSitter(source, relPath, project, config, moduleQn);
     return {
       nodes: result.nodes,
       calls: result.calls.map((c) => ({ ...c, loopDepth: 0 })),

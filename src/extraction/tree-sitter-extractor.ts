@@ -21,9 +21,10 @@ import type { LynxNode, LynxNodeKind } from '../types.js';
 import { resolveAssetPath, assetExists, isPkg } from '../paths.js';
 import {
   countLines, extractBaseNames, extractDecorators, extractEnumMembers, extractParamNames,
-  extractSignature, extractThrows, extractTypeAnnotation, filePathToModuleQn, findEnclosingClass,
+  extractSignature, extractThrows, extractTypeAnnotation, findEnclosingClass,
   findEnclosingFunction, isNodeExported,
 } from './tree-sitter-helpers.js';
+import { effectiveModuleQn } from './module-identity.js';
 
 
 // ── Types ────────────────────────────────────────────────────────
@@ -262,7 +263,8 @@ export async function extractWithTreeSitter(
   source: string,
   filePath: string,
   project: string,
-  config: LanguageConfig
+  config: LanguageConfig,
+  physicalModuleQn: string,
 ): Promise<TSExtractionResult> {
   const nodes: LynxNode[] = [];
   const calls: TSExtractedCall[] = [];
@@ -286,7 +288,7 @@ export async function extractWithTreeSitter(
   }
 
   try {
-    const moduleQn = filePathToModuleQn(filePath);
+    const moduleQn = effectiveModuleQn(physicalModuleQn, filePath);
     const fileLineCount = countLines(source);
     const generatedReason = generatedSourceReason(source);
     if (generatedReason) {
@@ -378,7 +380,7 @@ export async function extractWithTreeSitter(
     };
   } catch (err: any) {
     if (isMissingGrammarError(err)) {
-      return extractWithTextFallback(source, filePath, project, config);
+      return extractWithTextFallback(source, filePath, project, config, physicalModuleQn);
     }
     return {
       nodes, calls, imports, usages, channels, throws, decorators,
@@ -399,9 +401,10 @@ function extractWithTextFallback(
   source: string,
   filePath: string,
   project: string,
-  config: LanguageConfig
+  config: LanguageConfig,
+  physicalModuleQn: string,
 ): TSExtractionResult {
-  const moduleQn = filePathToModuleQn(filePath);
+  const moduleQn = effectiveModuleQn(physicalModuleQn, filePath);
   const fileLineCount = countLines(source);
   const nodes: LynxNode[] = createFileModuleNodes(project, filePath, moduleQn, fileLineCount);
   const calls: TSExtractedCall[] = [];

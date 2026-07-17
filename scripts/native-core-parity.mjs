@@ -49,9 +49,9 @@ if (run.status !== 0) throw new Error(run.stderr || `native core exited ${run.st
 
 function family(kind) {
   if (['Function', 'Method', 'Constructor', 'Destructor'].includes(kind)) return 'callable';
-  if (['Class', 'Struct', 'Union', 'TypeAlias', 'Enum'].includes(kind)) return 'type';
+  if (['Class', 'Struct', 'Union', 'TypeAlias', 'Type', 'Enum'].includes(kind)) return 'type';
   if (['Variable', 'FunctionPointer', 'Field', 'EnumMember'].includes(kind)) return 'value';
-  if (kind === 'Namespace') return 'namespace';
+  if (kind === 'Namespace' || kind === 'Module') return 'namespace';
   if (kind === 'Macro') return 'macro';
   return null;
 }
@@ -156,7 +156,7 @@ try {
   `).all().map((row) => ({ ...row, family: family(row.kind) })).filter((row) => row.family);
   const canonicalRows = canonicalDb.prepare(`
     SELECT file_path,kind,name,start_line,qualified_name
-    FROM nodes WHERE kind NOT IN ('File','Module')
+    FROM nodes WHERE kind != 'File'
       AND (file_path LIKE '%.c' OR file_path LIKE '%.h' OR file_path LIKE '%.cc' OR
            file_path LIKE '%.cpp' OR file_path LIKE '%.cxx' OR file_path LIKE '%.hh' OR
            file_path LIKE '%.hpp' OR file_path LIKE '%.hxx')
@@ -164,7 +164,7 @@ try {
   `).all().map((row) => ({ ...row, family: family(row.kind) })).filter((row) => row.family);
   const competitorRows = competitorDb ? competitorDb.prepare(`
     SELECT file_path,label AS kind,name,start_line,qualified_name
-    FROM nodes WHERE label NOT IN ('File','Module')
+    FROM nodes WHERE label != 'File'
       AND (file_path LIKE '%.c' OR file_path LIKE '%.h' OR file_path LIKE '%.cc' OR
            file_path LIKE '%.cpp' OR file_path LIKE '%.cxx' OR file_path LIKE '%.hh' OR
            file_path LIKE '%.hpp' OR file_path LIKE '%.hxx')

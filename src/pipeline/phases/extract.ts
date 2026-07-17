@@ -22,6 +22,7 @@ import { getNativeCorePath, getNativeExtractorPath, getProjectRoot } from '../..
 import { validateNativeStaging } from '../../native-core/staging.js';
 import type { DiscoveredFile } from './discover.js';
 import type { ExtractionResult } from '../../extraction/extractor.js';
+import { baseModuleQn, buildModuleIdentityMap, moduleIdentityForPath } from '../../extraction/module-identity.js';
 
 export interface ExtractionBatch {
   file: DiscoveredFile;
@@ -46,6 +47,7 @@ interface WorkerTask {
   id: number;
   file: DiscoveredFile;
   cachedHash?: string;
+  moduleQn: string;
   project: string;
 }
 
@@ -64,6 +66,7 @@ interface ProcessItem {
   cachedHash?: string;
   ext: string;
   sourceHash?: string;
+  moduleQn: string;
 }
 
 /**
@@ -94,11 +97,15 @@ export async function extractAll(
 
   const ordered: Array<ExtractionBatch | ProcessItem> = [];
   const toProcess: ProcessItem[] = [];
+  const supportedFiles = files.filter((file) => isSupportedFilePath(file.relPath));
+  const moduleIdentities = buildModuleIdentityMap(
+    supportedFiles.map((file) => file.relPath),
+  );
 
-  for (const file of files) {
+  for (const file of supportedFiles) {
     const ext = file.relPath.split('.').pop()?.toLowerCase() || '';
-    if (!isSupportedFilePath(file.relPath)) continue;
     const cachedHash = fileHashMap?.get(file.relPath);
+    const moduleQn = moduleIdentityForPath(moduleIdentities, file.relPath);
     let sourceHash: string | undefined;
     if (cachedHash) {
       try {
@@ -112,8 +119,7 @@ export async function extractAll(
         // Let the extractor report the read error in the normal path.
       }
     }
-
-    const item: ProcessItem = { file, cachedHash, ext, sourceHash };
+    const item: ProcessItem = { file, cachedHash, ext, sourceHash, moduleQn };
     ordered.push(item);
     toProcess.push(item);
   }
@@ -430,6 +436,7 @@ async function extractWithWorkers(
         id,
         file: item.file,
         cachedHash: item.cachedHash,
+        moduleQn: item.moduleQn,
         project,
       };
       worker.postMessage(task);

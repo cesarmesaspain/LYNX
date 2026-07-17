@@ -256,6 +256,32 @@ describe('passCalls', () => {
     expect(result?.confidence).toBeGreaterThan(0.95);
   });
 
+  it('resolves a receiver through its declared parameter type', () => {
+    const ownerFile = makeFileNode(1, 'src/store/database.ts');
+    const callerFile = makeFileNode(2, 'src/app.ts');
+    const owner = makeClassNode(3, 'LynxDatabase', 'src/store/database.ts');
+    const method = {
+      ...makeFuncNode(4, 'close', 'src/store/database.ts', 'LynxDatabase'),
+      kind: 'Method',
+    };
+    const caller = {
+      ...makeFuncNode(5, 'run', 'src/app.ts'),
+      properties: JSON.stringify({ paramTypes: { db: 'LynxDatabase' } }),
+    };
+    const idx = createEmptyIndexes();
+    populateIndex(db, idx, [ownerFile, callerFile, owner, method, caller]);
+    idx.importedQnByFile.set('src/app.ts', new Set([owner.qualified_name]));
+
+    const result = resolveCallee(idx, 'src/app.ts', 'db.close', caller.qualified_name);
+    expect(result?.node.id).toBe(method.id);
+    expect(result?.reason).toBe('declared-parameter-type');
+    expect(result?.confidence).toBeGreaterThan(0.95);
+
+    caller.properties = JSON.stringify({ paramTypes: { db: 'LynxDatabase | null' } });
+    populateIndex(db, idx, [caller]);
+    expect(resolveCallee(idx, 'src/app.ts', 'db.close', caller.qualified_name)).toBeUndefined();
+  });
+
   it('does not resolve an extracted bare method name globally without receiver evidence', () => {
     const fileNode = makeFileNode(1, 'src/cache.ts');
     const globalGet = { ...makeFuncNode(2, 'get', 'src/cache.ts'), kind: 'Method', is_exported: 1 };

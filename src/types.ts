@@ -47,6 +47,8 @@ export interface LynxFunction extends LynxNodeBase {
   signature: string | null;
   returnType: string | null;
   paramNames: string[];
+  /** Raw declared parameter types keyed by local parameter name. */
+  paramTypes?: Record<string, string>;
   cyclomaticComplexity: number;
   cognitiveComplexity: number;
   lineCount: number;
@@ -71,6 +73,8 @@ export interface LynxMethod extends LynxNodeBase {
   signature: string | null;
   returnType: string | null;
   paramNames: string[];
+  /** Raw declared parameter types keyed by local parameter name. */
+  paramTypes?: Record<string, string>;
   cyclomaticComplexity: number;
   cognitiveComplexity: number;
   lineCount: number;

@@ -20,7 +20,7 @@ import type { LanguageConfig } from './language-registry.js';
 import type { LynxNode, LynxNodeKind } from '../types.js';
 import { resolveAssetPath, assetExists, isPkg } from '../paths.js';
 import {
-  countLines, extractBaseNames, extractDecorators, extractEnumMembers, extractParamNames,
+  countLines, extractBaseNames, extractDecorators, extractEnumMembers, extractParamNames, extractParamTypes,
   extractSignature, extractThrows, extractTypeAnnotation, findEnclosingClass,
   findEnclosingFunction, isNodeExported,
 } from './tree-sitter-helpers.js';
@@ -752,8 +752,9 @@ function extractDefinitions(
     // Add kind-specific properties
     switch (kind) {
       case 'Function':
-        (baseNode as any).signature = extractSignature(node, source);
+        (baseNode as any).signature = extractSignature(node, source, config.tsLang);
         (baseNode as any).paramNames = extractParamNames(node, source, config.tsLang);
+        (baseNode as any).paramTypes = extractParamTypes(node);
         (baseNode as any).lineCount = lineCount;
         (baseNode as any).cyclomaticComplexity = 0; // Computed later
         break;
@@ -768,7 +769,9 @@ function extractDefinitions(
         break;
       case 'Method':
         (baseNode as any).parentClass = findEnclosingClass(node, config, source);
-        (baseNode as any).signature = extractSignature(node, source);
+        (baseNode as any).signature = extractSignature(node, source, config.tsLang);
+        (baseNode as any).paramNames = extractParamNames(node, source, config.tsLang);
+        (baseNode as any).paramTypes = extractParamTypes(node);
         (baseNode as any).lineCount = lineCount;
         break;
       case 'Variable':

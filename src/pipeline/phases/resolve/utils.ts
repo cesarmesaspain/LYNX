@@ -68,6 +68,24 @@ export function sameLanguageGroup(leftFile: string, rightFile: string): boolean 
   return languageGroup(leftFile) === languageGroup(rightFile);
 }
 
+function declaredParamOwner(properties: string | null, receiverName: string): string | undefined {
+  if (!properties) return undefined;
+  try {
+    const paramTypes = (JSON.parse(properties) as { paramTypes?: Record<string, unknown> }).paramTypes;
+    const raw = paramTypes?.[receiverName];
+    if (typeof raw !== 'string') return undefined;
+    const normalized = raw.trim().replace(/^[:*&\s]+/, '').replace(/[?\s]+$/, '');
+    // Union/intersection types do not identify one concrete owner.
+    if (!normalized || normalized.includes('|') || normalized.includes('&')) return undefined;
+    const withoutGenerics = normalized.replace(/<.*>$/, '').replace(/\[\]$/, '');
+    const parts = withoutGenerics.split(/\.|::/).filter(Boolean);
+    const owner = parts[parts.length - 1];
+    return /^[A-Za-z_$][\w$]*$/.test(owner || '') ? owner : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function resolveCallee(
   idx: ResolverIndexes,
   filePath: string,
@@ -78,6 +96,7 @@ export function resolveCallee(
   const isQualifiedCall = calleeName.includes('.');
 
   const callerLang = languageGroup(filePath);
+  const importedQns = idx.importedQnByFile.get(filePath);
 
   // `this.method()` / `self.method()` carry enough lexical evidence to bind
   // the call to the caller's own class. Match the complete parent QN so two
@@ -92,6 +111,33 @@ export function resolveCallee(
       );
       if (lexicalTarget) {
         return { node: lexicalTarget, reason: 'lexical-receiver', confidence: 0.98 };
+      }
+    }
+  }
+
+  // Resolve `parameter.method()` only when the caller records a concrete
+  // declared parameter type and that type identifies one local/imported owner
+  // with one matching child callable.
+  const simpleQualified = calleeName.match(/^([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)$/);
+  if (callerQn && simpleQualified) {
+    const callerId = idx.qnToId.get(callerQn);
+    const callerNode = callerId ? idx.idToRow.get(callerId) : undefined;
+    const ownerName = declaredParamOwner(callerNode?.properties || null, simpleQualified[1]);
+    if (ownerName) {
+      const owners = [
+        ...(idx.kindNameToRows.get(`Class:${ownerName}`) || []),
+        ...(idx.kindNameToRows.get(`Interface:${ownerName}`) || []),
+      ].filter((owner) =>
+        languageGroup(owner.file_path) === callerLang &&
+        (owner.file_path === filePath || importedQns?.has(owner.qualified_name)),
+      );
+      const typedTargets = owners.flatMap((owner) =>
+        (idx.kindNameToRows.get(`Method:${methodName}`) || []).filter((candidate) =>
+          candidate.qualified_name.startsWith(`${owner.qualified_name}.`),
+        ),
+      );
+      if (owners.length === 1 && typedTargets.length === 1) {
+        return { node: typedTargets[0], reason: 'declared-parameter-type', confidence: 0.97 };
       }
     }
   }
@@ -121,7 +167,6 @@ export function resolveCallee(
   // candidates that match those imports over global name matches. This
   // eliminates false-positive CALLS edges when two functions share a name
   // across different files — the file can only call what it imports.
-  const importedQns = idx.importedQnByFile.get(filePath);
   if (importedQns && importedQns.size > 0) {
     const importedCallables = callableByName.filter((node) => importedQns.has(node.qualified_name));
     if (importedCallables.length === 1) return { node: importedCallables[0], reason: 'imported-name', confidence: 0.92 };

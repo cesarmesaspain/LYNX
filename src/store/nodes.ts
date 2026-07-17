@@ -207,6 +207,7 @@ function extractProperties(node: LynxNode): Record<string, unknown> {
       props.signature = node.signature;
       props.returnType = node.returnType;
       props.paramNames = node.paramNames;
+      props.paramTypes = node.paramTypes || {};
       props.cyclomaticComplexity = node.cyclomaticComplexity;
       props.cognitiveComplexity = node.cognitiveComplexity;
       props.lineCount = node.lineCount;
@@ -227,6 +228,7 @@ function extractProperties(node: LynxNode): Record<string, unknown> {
       props.signature = node.signature;
       props.returnType = node.returnType;
       props.paramNames = node.paramNames;
+      props.paramTypes = node.paramTypes || {};
       props.cyclomaticComplexity = node.cyclomaticComplexity;
       props.cognitiveComplexity = node.cognitiveComplexity;
       props.lineCount = node.lineCount;

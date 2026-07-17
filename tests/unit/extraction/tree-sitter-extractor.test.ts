@@ -78,6 +78,24 @@ describe('tree-sitter JavaScript definition identity', () => {
     ]));
   });
 
+  it('preserves declared parameter names, types, and complete signatures', async () => {
+    const result = await extractFile(
+      `export function run(db: LynxDatabase, value?: string): Promise<void> {
+         db.close();
+       }`,
+      'fixture',
+      'typed.ts',
+      'typed',
+    );
+    const fn = result.nodes.find((node) => node.kind === 'Function' && node.name === 'run');
+
+    expect(fn).toMatchObject({
+      paramNames: ['db', 'value'],
+      paramTypes: { db: 'LynxDatabase', value: 'string' },
+      signature: 'function run(db: LynxDatabase, value?: string): Promise<void>',
+    });
+  });
+
   it('marks conventional root test files and all of their nodes as tests', async () => {
     const result = await extractFile(
       `function helper() { return true; }

@@ -123,6 +123,8 @@ export function passCalls(
       const caller = resolveCaller(idx, batch.file.relPath, call.enclosingFuncQn);
       if (!caller) {
         state.unresolvedCalls++;
+        state.unresolvedCallReasons.caller_not_found =
+          (state.unresolvedCallReasons.caller_not_found || 0) + 1;
         continue;
       }
 
@@ -140,8 +142,16 @@ export function passCalls(
       }
 
       const resolved = resolveCallee(idx, batch.file.relPath, call.calleeName);
-      if (!resolved || resolved.node.id === caller.id) {
+      if (!resolved) {
         state.unresolvedCalls++;
+        state.unresolvedCallReasons.target_not_found =
+          (state.unresolvedCallReasons.target_not_found || 0) + 1;
+        continue;
+      }
+      if (resolved.node.id === caller.id) {
+        state.unresolvedCalls++;
+        state.unresolvedCallReasons.self_reference =
+          (state.unresolvedCallReasons.self_reference || 0) + 1;
         continue;
       }
 

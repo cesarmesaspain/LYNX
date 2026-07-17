@@ -121,6 +121,7 @@ export interface PipelineResult {
     calls_extracted: number;
     calls_resolved: number;
     calls_unresolved: number;
+    unresolved_call_reasons: Record<string, number>;
     call_resolution_rate: number;
     partial_files: Array<{ file: string; reasons: string[] }>;
   };
@@ -333,6 +334,7 @@ export async function runPipeline(
         calls_extracted: callEdges.count,
         calls_resolved: callEdges.count,
         calls_unresolved: 0,
+        unresolved_call_reasons: {},
         call_resolution_rate: 1,
         partial_files: [],
       },
@@ -526,6 +528,11 @@ export async function runPipeline(
           nativeEdges.filter((edge) => edge.type === 'CALLS').length);
         stats.totalCalls += nativeCalls;
         stats.unresolvedCalls += nativeCalls - resolvedNativeCalls;
+        if (nativeCalls > resolvedNativeCalls) {
+          stats.unresolvedCallReasons.native_target_not_found =
+            (stats.unresolvedCallReasons.native_target_not_found || 0) +
+            nativeCalls - resolvedNativeCalls;
+        }
         stats.totalEdges += nativeEdges.length;
         for (const edge of nativeEdges) {
           stats.edgeTypeBreakdown[edge.type] = (stats.edgeTypeBreakdown[edge.type] || 0) + 1;
@@ -710,6 +717,7 @@ export async function runPipeline(
       calls_extracted: stats.totalCalls,
       calls_resolved: Math.max(0, stats.totalCalls - stats.unresolvedCalls),
       calls_unresolved: stats.unresolvedCalls,
+      unresolved_call_reasons: stats.unresolvedCallReasons,
       call_resolution_rate:
         stats.totalCalls === 0
           ? 1

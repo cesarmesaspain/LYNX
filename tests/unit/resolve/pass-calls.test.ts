@@ -22,7 +22,7 @@ function makeCallResult(calleeName: string, enclosingFuncQn: string, args: strin
 }
 
 function makeResolverState(): ResolverState {
-  return { totalCalls: 0, unresolvedCalls: 0 };
+  return { totalCalls: 0, unresolvedCalls: 0, unresolvedCallReasons: {} };
 }
 
 describe('passCalls', () => {
@@ -93,6 +93,7 @@ describe('passCalls', () => {
     expect(edges.length).toBe(0);
     expect(state.totalCalls).toBe(1);
     expect(state.unresolvedCalls).toBe(1);
+    expect(state.unresolvedCallReasons).toEqual({ caller_not_found: 1 });
   });
 
   it('increments unresolvedCalls when callee not resolved', () => {
@@ -110,6 +111,7 @@ describe('passCalls', () => {
 
     expect(state.totalCalls).toBe(1);
     expect(state.unresolvedCalls).toBe(1);
+    expect(state.unresolvedCallReasons).toEqual({ target_not_found: 1 });
   });
 
   it('skips HTTP_CALLS for non-HTTP client without URL', () => {

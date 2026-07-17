@@ -26,6 +26,7 @@ import { passRegistryDispatch } from './pass-registry-dispatch.js';
 
 export interface ResolutionStats {
   unresolvedCalls: number;
+  unresolvedCallReasons: Record<string, number>;
   totalCalls: number;
   totalEdges: number;
   edgeTypeBreakdown: Record<string, number>;
@@ -40,6 +41,7 @@ export function resolveAll(
   if (batches.length === 0) {
     return {
       unresolvedCalls: 0,
+      unresolvedCallReasons: {},
       totalCalls: 0,
       totalEdges: 0,
       edgeTypeBreakdown: {},
@@ -48,7 +50,11 @@ export function resolveAll(
   }
 
   const edges: LynxEdge[] = [];
-  const state: ResolverState = { totalCalls: 0, unresolvedCalls: 0 };
+  const state: ResolverState = {
+    totalCalls: 0,
+    unresolvedCalls: 0,
+    unresolvedCallReasons: {},
+  };
   const idx = buildIndexes(db, project);
   const passTimingsMs: Record<string, number> = {};
   const timed = (name: string, operation: () => void): void => {
@@ -90,6 +96,7 @@ export function resolveAll(
 
   return {
     unresolvedCalls: state.unresolvedCalls,
+    unresolvedCallReasons: state.unresolvedCallReasons,
     totalCalls: state.totalCalls,
     totalEdges: deduped.length,
     edgeTypeBreakdown,

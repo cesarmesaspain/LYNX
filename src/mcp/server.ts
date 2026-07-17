@@ -173,6 +173,50 @@ const HANDLERS: Record<string, Handler> = {
   check_rules: handleCheckRules,
 };
 
+export interface ToolRegistryIntegrity {
+  ok: boolean;
+  duplicate_registry_names: string[];
+  missing_handlers: string[];
+  unpublished_handlers: string[];
+}
+
+/**
+ * Compare the advertised MCP contract with the executable handler registry.
+ * Keeping this pure makes the failure modes testable without mutating globals.
+ */
+export function getToolRegistryIntegrity(
+  registryNames: readonly string[] = TOOLS.map((tool) => tool.name),
+  handlerNames: readonly string[] = Object.keys(HANDLERS),
+): ToolRegistryIntegrity {
+  const counts = new Map<string, number>();
+  for (const name of registryNames) counts.set(name, (counts.get(name) ?? 0) + 1);
+  const registry = new Set(registryNames);
+  const handlers = new Set(handlerNames);
+  const duplicateRegistryNames = [...counts.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([name]) => name)
+    .sort();
+  const missingHandlers = [...registry].filter((name) => !handlers.has(name)).sort();
+  const unpublishedHandlers = [...handlers].filter((name) => !registry.has(name)).sort();
+  return {
+    ok: duplicateRegistryNames.length === 0 && missingHandlers.length === 0 && unpublishedHandlers.length === 0,
+    duplicate_registry_names: duplicateRegistryNames,
+    missing_handlers: missingHandlers,
+    unpublished_handlers: unpublishedHandlers,
+  };
+}
+
+export function assertToolRegistryIntegrity(): void {
+  const integrity = getToolRegistryIntegrity();
+  if (!integrity.ok) {
+    throw new Error(`MCP tool registry integrity failure: ${JSON.stringify(integrity)}`);
+  }
+}
+
+// Fail at process startup rather than advertising a tool that cannot execute,
+// or silently retaining an executable handler outside the public contract.
+assertToolRegistryIntegrity();
+
 const CORE_TOOL_NAMES = new Set([
   "pack_context",
   "search_graph",

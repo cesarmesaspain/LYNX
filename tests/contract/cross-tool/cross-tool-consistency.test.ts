@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync }
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TOOLS } from "../../../src/mcp/tools.js";
-import { buildIndexContext, listMcpTools, setDb, unsetDb, validateToolArguments } from "../../../src/mcp/server.js";
+import { buildIndexContext, getToolRegistryIntegrity, listMcpTools, setDb, unsetDb, validateToolArguments } from "../../../src/mcp/server.js";
 import { LynxDatabase } from "../../../src/store/database.js";
 import { upsertFileHash } from "../../../src/store/memory.js";
 import { handleIndexStatus } from "../../../src/mcp/handlers/index_status.js";
@@ -75,10 +75,25 @@ describe("generated cross-tool consistency contracts", () => {
       for (const tool of listed) {
         expect(tool.inputSchema).toEqual(TOOLS.find(candidate => candidate.name === tool.name)?.inputSchema);
       }
+      expect(getToolRegistryIntegrity()).toEqual({
+        ok: true,
+        duplicate_registry_names: [],
+        missing_handlers: [],
+        unpublished_handlers: [],
+      });
     } finally {
       if (previous === undefined) delete process.env.LYNX_TOOL_PROFILE;
       else process.env.LYNX_TOOL_PROFILE = previous;
     }
+  });
+
+  it("rejects registry/handler drift before a broken tool can be advertised", () => {
+    expect(getToolRegistryIntegrity(["search", "search", "orphan"], ["search", "hidden"])).toEqual({
+      ok: false,
+      duplicate_registry_names: ["search"],
+      missing_handlers: ["orphan"],
+      unpublished_handlers: ["hidden"],
+    });
   });
 
   it("keeps identity and health/coverage claims consistent", async () => {

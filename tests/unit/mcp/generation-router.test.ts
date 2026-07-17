@@ -12,10 +12,10 @@ describe('MCP generation router', () => {
     const second = router.routeRequest(42);
     expect(second.generationId).toBe('v2');
     expect(router.routeCancellation(41)).toEqual(first);
-    expect(router.completeResponse('v1', first.internalId)).toEqual({ externalId: 41, owner: 'v1', retired: true });
-    expect(router.completeResponse('v2', second.internalId)).toEqual({ externalId: 42, owner: 'v2', retired: false });
+    expect(router.completeResponse('v1', first.internalId)).toEqual({ externalId: 41, owner: 'v1', standby: true });
+    expect(router.completeResponse('v2', second.internalId)).toEqual({ externalId: 42, owner: 'v2', standby: false });
     expect(router.snapshot()).toEqual([
-      { id: 'v1', state: 'retired', inFlight: 0 },
+      { id: 'v1', state: 'standby', inFlight: 0 },
       { id: 'v2', state: 'active', inFlight: 0 },
     ]);
   });
@@ -48,7 +48,7 @@ describe('MCP generation router', () => {
     router.promote('v2');
     expect(router.routeNotification()).toBe('v2');
     expect(router.routeCancellation(999)).toBeNull();
-    expect(router.snapshot()[0]).toEqual({ id: 'v1', state: 'retired', inFlight: 0 });
+    expect(router.snapshot()[0]).toEqual({ id: 'v1', state: 'standby', inFlight: 0 });
   });
 
   it('assigns collision-free internal IDs and rejects responses from the wrong generation', () => {
@@ -60,5 +60,18 @@ describe('MCP generation router', () => {
     const second = router.routeRequest(1);
     expect(first.internalId).not.toBe(second.internalId);
     expect(() => router.completeResponse('v2', first.internalId)).toThrow('no routed request owner');
+  });
+
+  it('rolls back a failed active generation to its warm predecessor, then finalizes standby explicitly', () => {
+    const router = new McpGenerationRouter();
+    router.startInitial('v1');
+    router.beginPreparation('v2');
+    router.promote('v2');
+    expect(router.rollbackActive('v2')).toBe('v1');
+    expect(router.routeNotification()).toBe('v1');
+    router.beginPreparation('v3');
+    router.promote('v3');
+    expect(router.finalizeStandby()).toEqual(['v1']);
+    expect(router.snapshot().find(item => item.id === 'v1')?.state).toBe('retired');
   });
 });

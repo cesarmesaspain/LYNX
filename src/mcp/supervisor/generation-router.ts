@@ -1,4 +1,4 @@
-export type GenerationState = 'preparing' | 'active' | 'draining' | 'retired' | 'failed';
+export type GenerationState = 'preparing' | 'active' | 'draining' | 'standby' | 'retired' | 'failed';
 
 export interface GenerationSnapshot {
   id: string;
@@ -42,7 +42,7 @@ export class McpGenerationRouter {
   promote(generationId: string): string {
     if (this.states.get(generationId) !== 'preparing') throw new Error(`MCP generation is not ready for promotion: ${generationId}.`);
     const previous = this.requireActive();
-    this.states.set(previous, this.inFlightFor(previous) === 0 ? 'retired' : 'draining');
+    this.states.set(previous, this.inFlightFor(previous) === 0 ? 'standby' : 'draining');
     this.states.set(generationId, 'active');
     this.activeId = generationId;
     return previous;
@@ -67,18 +67,41 @@ export class McpGenerationRouter {
     return owner ? { generationId: owner.generationId, internalId: owner.internalId } : null;
   }
 
-  completeResponse(generationId: string, internalId: string): { externalId: string | number; owner: string; retired: boolean } {
+  completeResponse(generationId: string, internalId: string): { externalId: string | number; owner: string; standby: boolean } {
     const key = this.internalKey(generationId, internalId);
     const request = this.internalOwners.get(key);
     if (!request) throw new Error(`JSON-RPC response has no routed request owner: ${generationId}/${internalId}.`);
     this.internalOwners.delete(key);
     this.requestOwners.delete(request.externalId);
-    let retired = false;
+    let standby = false;
     if (this.states.get(generationId) === 'draining' && this.inFlightFor(generationId) === 0) {
-      this.states.set(generationId, 'retired');
-      retired = true;
+      this.states.set(generationId, 'standby');
+      standby = true;
     }
-    return { externalId: request.externalId, owner: generationId, retired };
+    return { externalId: request.externalId, owner: generationId, standby };
+  }
+
+  rollbackActive(failedGenerationId: string): string {
+    if (this.activeId !== failedGenerationId || this.states.get(failedGenerationId) !== 'active') {
+      throw new Error(`MCP generation is not active: ${failedGenerationId}.`);
+    }
+    const candidates = [...this.states].filter(([, state]) => state === 'standby' || state === 'draining');
+    if (candidates.length !== 1) throw new Error('No unique MCP predecessor is available for generation rollback.');
+    const previous = candidates[0][0];
+    this.states.set(failedGenerationId, 'failed');
+    this.states.set(previous, 'active');
+    this.activeId = previous;
+    return previous;
+  }
+
+  finalizeStandby(): string[] {
+    const retired: string[] = [];
+    for (const [id, state] of this.states) {
+      if (state !== 'standby') continue;
+      this.states.set(id, 'retired');
+      retired.push(id);
+    }
+    return retired;
   }
 
   snapshot(): GenerationSnapshot[] {

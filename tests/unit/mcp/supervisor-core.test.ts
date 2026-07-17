@@ -35,6 +35,8 @@ describe('MCP supervisor core', () => {
     expect(v2.sent.at(-1).id).toMatch(/^lynx-supervisor\//);
     core.handleWorkerMessage('v1', { jsonrpc: '2.0', id: oldInternalId, result: { ok: true } });
     expect(host).toEqual([{ jsonrpc: '2.0', id: 41, result: { ok: true } }]);
+    expect(v1.retire).not.toHaveBeenCalled();
+    core.finalizePromotion();
     expect(v1.retire).toHaveBeenCalledOnce();
   });
 
@@ -50,5 +52,21 @@ describe('MCP supervisor core', () => {
     expect(broken.terminate).toHaveBeenCalledOnce();
     await core.routeHost({ jsonrpc: '2.0', id: 1, method: 'tools/list' });
     expect(v1.sent).toHaveLength(1);
+  });
+
+  it('restores a warm predecessor when the promoted active worker fails', async () => {
+    const core = new McpSupervisorCore(vi.fn());
+    const v1 = endpoint();
+    const v2 = endpoint();
+    core.startInitial('v1', v1);
+    const prepared = core.prepare('v2', v2, { toolNames: ['a'] });
+    await waitForProbe(v2);
+    for (const response of probeResponses(v2, ['a'])) core.handleWorkerMessage('v2', response);
+    await prepared;
+    core.handleWorkerFailure('v2', new Error('post-promotion crash'));
+    expect(v2.terminate).toHaveBeenCalledOnce();
+    await core.routeHost({ jsonrpc: '2.0', id: 9, method: 'tools/list' });
+    expect(v1.sent).toHaveLength(1);
+    expect(core.snapshot().find(item => item.id === 'v1')?.state).toBe('active');
   });
 });

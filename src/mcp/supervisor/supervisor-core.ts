@@ -84,7 +84,20 @@ export class McpSupervisorCore {
   }
 
   handleWorkerFailure(generationId: string, error: Error): void {
-    if (this.probes.has(generationId)) this.failProbe(generationId, error);
+    if (this.probes.has(generationId)) {
+      this.failProbe(generationId, error);
+      return;
+    }
+    if (this.generations.stateOf(generationId) === 'active') {
+      this.generations.rollbackActive(generationId);
+      this.workers.get(generationId)?.terminate();
+      this.workers.delete(generationId);
+    }
+  }
+
+  finalizePromotion(): void {
+    this.generations.finalizeStandby();
+    this.retireCompletedWorkers();
   }
 
   snapshot() {

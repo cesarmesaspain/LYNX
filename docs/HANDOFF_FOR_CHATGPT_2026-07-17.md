@@ -418,7 +418,17 @@ and gracefully retires a drained predecessor. Probe handling now distinguishes
 unrelated traffic from a handled-but-incomplete response. Typecheck and the
 combined probe/core suite pass 5/5. Complete suite/commit remain. Deliberately
 not yet claimed: automatic generation rollback if a newly promoted active worker
-dies later; implement that as an explicit state transition before wiring `serve`.
+dies later.
+
+Post-promotion rollback is now active in the generation/core state machines. A
+drained predecessor becomes `standby`, not destroyed; a predecessor with old
+in-flight work moves `draining→standby` when its final response arrives. If the
+new active worker fails during stabilization, it becomes `failed`, the unique
+warm predecessor returns to `active`, and new host traffic resumes there without
+restarting Codex. Only `finalizePromotion()` retires standby after explicit
+stabilization. Typecheck and 12/12 combined generation/protocol/core tests pass.
+Complete suite/commit remain. The process layer must schedule stabilization and
+must treat “no unique predecessor” as fatal rather than guessing.
 
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and

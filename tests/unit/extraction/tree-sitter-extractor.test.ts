@@ -96,6 +96,26 @@ describe('tree-sitter JavaScript definition identity', () => {
     });
   });
 
+  it('preserves declared parameter types across language syntax orders', async () => {
+    const fixtures = [
+      ['sample.py', 'def run(db: LynxDatabase, value: str):\n    db.close()'],
+      ['Sample.java', 'class Sample { void run(LynxDatabase db, String value) { db.close(); } }'],
+      ['sample.go', 'package sample\nfunc run(db *LynxDatabase, value string) { db.Close() }'],
+      ['sample.rs', 'fn run(db: &LynxDatabase, value: String) { db.close(); }'],
+    ] as const;
+
+    for (const [file, source] of fixtures) {
+      const result = await extractFile(source, 'fixture', file, 'sample');
+      const callable = result.nodes.find((node) =>
+        (node.kind === 'Function' || node.kind === 'Method') && node.name === 'run',
+      );
+      expect(callable, file).toMatchObject({
+        paramNames: ['db', 'value'],
+        paramTypes: expect.objectContaining({ db: expect.stringContaining('LynxDatabase') }),
+      });
+    }
+  });
+
   it('marks conventional root test files and all of their nodes as tests', async () => {
     const result = await extractFile(
       `function helper() { return true; }

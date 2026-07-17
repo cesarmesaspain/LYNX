@@ -754,7 +754,7 @@ function extractDefinitions(
       case 'Function':
         (baseNode as any).signature = extractSignature(node, source, config.tsLang);
         (baseNode as any).paramNames = extractParamNames(node, source, config.tsLang);
-        (baseNode as any).paramTypes = extractParamTypes(node);
+        (baseNode as any).paramTypes = extractParamTypes(node, config.tsLang);
         (baseNode as any).lineCount = lineCount;
         (baseNode as any).cyclomaticComplexity = 0; // Computed later
         break;
@@ -771,7 +771,7 @@ function extractDefinitions(
         (baseNode as any).parentClass = findEnclosingClass(node, config, source);
         (baseNode as any).signature = extractSignature(node, source, config.tsLang);
         (baseNode as any).paramNames = extractParamNames(node, source, config.tsLang);
-        (baseNode as any).paramTypes = extractParamTypes(node);
+        (baseNode as any).paramTypes = extractParamTypes(node, config.tsLang);
         (baseNode as any).lineCount = lineCount;
         break;
       case 'Variable':

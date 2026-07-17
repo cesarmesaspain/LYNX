@@ -95,7 +95,7 @@ export function extractParamNames(node: SyntaxNode, source: string, lang: string
   }).filter(Boolean);
 }
 
-export function extractParamTypes(node: SyntaxNode): Record<string, string> {
+export function extractParamTypes(node: SyntaxNode, lang?: string): Record<string, string> {
   const result: Record<string, string> = {};
   for (const param of node.descendantsOfType(parameterNodeTypes)) {
     const text = param.text.split('\n')[0].trim();
@@ -105,7 +105,12 @@ export function extractParamTypes(node: SyntaxNode): Record<string, string> {
       result[named || colon[1]] = colon[2].trim();
       continue;
     }
-    const typeFirst = text.match(/^(?:final\s+)?([A-Za-z_$][\w$.:<>?\[\]]*)\s+([A-Za-z_$][\w$]*)\s*(?:=.*)?$/);
+    if (lang === 'go') {
+      const nameFirst = text.match(/^([A-Za-z_$][\w$]*)\s+(.+?)\s*(?:=.*)?$/);
+      if (nameFirst) result[named || nameFirst[1]] = nameFirst[2].trim();
+      continue;
+    }
+    const typeFirst = text.match(/^(?:final\s+)?([*&]*[A-Za-z_$][\w$.:<>?\[\]]*)\s+([A-Za-z_$][\w$]*)\s*(?:=.*)?$/);
     if (typeFirst) result[named || typeFirst[2]] = typeFirst[1].trim();
   }
   return result;

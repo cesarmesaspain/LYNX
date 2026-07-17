@@ -340,6 +340,18 @@ pass. A fresh built MCP process proves `initialize` reports `0.2.0` and
 as null. Build-time commit/hash/timestamp injection and supervisor generation
 activation remain pending.
 
+Hot-swap Stage 2 core is active in
+`src/mcp/supervisor/generation-router.ts` with focused tests in
+`tests/unit/mcp/generation-router.test.ts`. The pure router owns generation state
+(`preparing/active/draining/retired/failed`) and external JSON-RPC request IDs.
+Promotion atomically sends new requests/notifications to the new active worker
+while old requests and their cancellations remain routed to the old owner until
+its final response retires it. Failed preparation never changes active state;
+request-ID reuse while in flight is rejected. Typecheck and 4/4 focused tests
+pass. Still pending: complete suite/commit, child process framing/backpressure,
+candidate handshake/build-identity verification, control channel, drain timeout,
+and end-to-end no-Codex-restart proof.
+
 Continuous ChatGPT coordination is part of the active objective. Current task
 ID `20260717T213513Z-5db6be68bc7d`: read-only Windows PowerShell lifecycle and
 cross-platform CI acceptance design matching this root contract. It must not

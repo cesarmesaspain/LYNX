@@ -7,11 +7,11 @@ LYNX is installed, indexed, healthy, and ready for live MCP use. The working bra
 - `lynx doctor`: 11/11 checks passed.
 - MCP runtime: 33/33 tools exposed.
 - Dashboard: supervised service healthy at `http://127.0.0.1:9191`.
-- Main suite: 128 files, 1054/1054 tests passed.
+- Main suite: 132 files, 1081/1081 tests passed.
 - API suite: 5 files, 22/22 tests passed.
 - Root and API typechecks passed.
-- Full index: 415 files processed, 415 files with graph nodes, 5,934 nodes, 29,645 edges, 2.11 s.
-- No-op incremental: 0 processed, 415 skipped, no graph mutations, 0.13 s.
+- Full index: 436 files processed, 436 files with graph nodes, 6,187 nodes, 30,565 edges, 2.14 s.
+- No-op incremental: 0 processed, 436 skipped, no graph mutations, 0.06 s.
 - GitHub is synchronized through the handoff commit on `codex/harden-and-operationalize`; the coverage and dashboard commits listed below are published.
 
 ## Work completed
@@ -85,11 +85,15 @@ No-op incremental indexing previously counted persisted `CALLS` edges as both ex
 
 Partial incremental runs also used to replace project-wide coverage with statistics from only the changed files. Schema migration 5 adds `file_call_coverage`, including zero-call files and partial-resolution reasons. Changed, deleted, and renamed files update that table transactionally, and every non-no-op run recomposes the project summary from all current per-file rows before writing `index_runs`. A legacy database without a complete snapshot or one coverage row per indexed file performs one full rebuild instead of guessing; subsequent partial updates and no-ops remain truthful.
 
+### Receiver-preserving call identity
+
+The tree-sitter extractor previously discarded the receiver of member calls before resolution. Calls such as `db.prepare()`, `items.map()`, and `expect(value).toBe()` became the misleading bare names `prepare`, `map`, and `toBe`. This both inflated `target_absent` and allowed accidental cross-file matches to look resolved. Member and chained calls now retain their complete receiver expression. On the current full index, `target_absent` fell from 14,219 to 1,807 and `ambiguous_internal_target` from 1,858 to 29, while 11,936 calls are now honestly classified as `receiver_target_unknown`. Resolved calls fell from 5,527 to 5,414 because 113 unsupported name-only matches are no longer reported as graph evidence.
+
 ## Remaining gaps
 
 These are not release blockers for the current local installation, but they prevent a 10/10 claim:
 
-1. Full-index call resolution is 5,649/26,815 (21.07%) after causal classification. Raw totals remain unchanged. Unresolved calls now separate 13,974 absent targets, 4,545 external dependency targets, 1,598 ambiguous internal targets, 774 native targets, 188 dynamic local bindings, 59 unknown receivers, 19 self-references, 6 missing callers, and 3 missing relative-import targets. Caller attribution and relative-import coverage are healthy; the next root work is built-in/framework classification for absent targets plus ambiguity and native resolution, without denominator shaping.
+1. Full-index call resolution is 5,414/27,300 (19.83%) after receiver-preserving extraction. Unresolved calls now separate 11,936 unknown receiver targets, 6,794 external dependency targets, 1,807 absent targets, 774 native targets, 331 missing internal-import targets, 189 dynamic local bindings, 29 ambiguous internal targets, 20 self-references, and 6 missing callers. The next root work is evidence-based receiver/type resolution, internal-import coverage, and native resolution. Do not restore the old ratio through bare-name matching or denominator shaping.
 2. Native C/C++ extraction still reports partial handling for member/qualified calls, function pointers, preprocessing, and lexical shadowing.
 3. ~~`tree-sitter-extractor.ts` and `discover.ts` are classified as generated.~~ Closed: generated-source detection now reads only the continuous leading metadata/comment preamble. Phrases inside executable code, regexes, strings, or comments after code no longer suppress semantic extraction; legitimate generated headers remain supported and regressions cover both boundaries.
 4. Team security and cross-platform installation gates still need reproducible clean-machine evidence.

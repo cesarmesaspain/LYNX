@@ -1,7 +1,7 @@
 # LYNX — Code Analysis & Exploration with Semantic Architecture Reasoning
 
 MCP server that builds a knowledge graph of codebases for AI assistants.
-44+ TypeScript source files, 24 MCP tools, 159 active language configs.
+33 MCP tools backed by one canonical registry, with 159 active language configs.
 
 LYNX gives AI coding agents a local code intelligence layer: index once, query the graph
 instead of grep/read loops. Persistent SQLite knowledge graph with 20+ edge types covering
@@ -10,7 +10,7 @@ definitions, calls, imports, data flow, HTTP routes, channels, dependencies, and
 ## Architecture
 
 ```
-Query → MCP Server (stdio JSON-RPC, 24 handlers)
+Query → MCP Server (stdio JSON-RPC, 33 registry-verified handlers)
           ↓
      SQLite Graph Store
      (~/.lynx/dbs/{project}.db)
@@ -52,7 +52,7 @@ lynx agent-ab --history  # historical hygiene, aggregate savings and Wilson inte
 lynx agent-ab --history --history-index /path/to/_index.jsonl  # analyze an alternate or missing history index
 ```
 
-## Tools (24)
+## Tools (33)
 
 | Tool | Description |
 |------|-------------|
@@ -62,18 +62,27 @@ lynx agent-ab --history --history-index /path/to/_index.jsonl  # analyze an alte
 | `trace_path` | BFS callers/callees with risk labels and pagination |
 | `get_code_snippet` | Symbol source + callers + callees |
 | `batch_get_code` | Read multiple symbols in one call |
+| `tool_catalog` | Canonical tool inventory, profiles, and safety metadata |
 | `get_architecture` | Languages, hotspots, clusters, file tree |
 | `query_graph` | Cypher-to-SQL queries with MATCH support |
 | `explain_symbol` | Deep-dive: source, callers, callees, complexity, risk, findings |
 | `smart_review` | Automated code review with graph intelligence |
 | `find_tests` | Find test functions covering a symbol |
+| `find_dead_code` | Graph-verified dead-code candidates |
 | `index_repository` | Full pipeline with SHA256 incremental mode |
 | `index_status` | Node/edge counts + git info |
-| `detect_changes` | Git diff → impact analysis + severity + narrative ; returns a recoverable diagnostic when the indexed root is not a Git work tree ; returns a recoverable diagnostic when the indexed root is not a Git work tree ; returns a recoverable diagnostic when the indexed root is not a Git work tree |
+| `diagnose` | Runtime, freshness, lock, and configuration health |
+| `detect_changes` | Git diff → scoped impact analysis and structured diagnostics |
+| `assess_impact` | Cross-reference changes, graph dependencies, tests, and rules |
+| `check_invariants` | Discover sibling-call invariants and flag violations |
+| `check_rules` | Enforce architecture rules from `lynx-rules.json` |
 | `compare_runs` | Delta between last two index runs |
 | `pack_memory` | Persistent findings CRUD |
 | `analyze_hotspots` | Risk ranking with narrative explanations |
 | `search_code` | grep + graph enrichment |
+| `get_edge_evidence` | Explain the captured evidence behind a graph edge |
+| `investigate_symbol` | One-call symbol search, explanation, trace, source, and tests |
+| `usage_summary` | Local usage and clearly labelled savings estimates |
 | `manage_adr` | Architecture Decision Records |
 | `ingest_traces` | Runtime trace ingestion for graph enhancement |
 | `delete_project` | Delete index |
@@ -97,7 +106,7 @@ src/
 │   ├── search.ts, traverse.ts, memory.ts, schema.ts
 ├── mcp/                 # MCP server
 │   ├── server.ts, tools.ts
-│   └── handlers/        # 17 handlers
+│   └── handlers/        # canonical handlers for all 33 public tools
 ├── server/              # Dashboard + API server
 ├── llm/                 # Hybrid LLM (heuristic + optional DeepSeek)
 ├── install/             # Onboarding (install, init, doctor, uninstall)

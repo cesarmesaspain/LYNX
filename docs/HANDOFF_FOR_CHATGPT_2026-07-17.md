@@ -346,8 +346,12 @@ Hot-swap Stage 2 core is active in
 (`preparing/active/draining/retired/failed`) and external JSON-RPC request IDs.
 Promotion atomically sends new requests/notifications to the new active worker
 while old requests and their cancellations remain routed to the old owner until
-its final response retires it. Failed preparation never changes active state;
-request-ID reuse while in flight is rejected. Typecheck and 4/4 focused tests
+its final response retires it. External host IDs are never forwarded directly:
+each receives a monotonically unique supervisor ID, responses translate only
+through their generation-qualified owner, and cancellations use the same mapping.
+This prevents host/internal/cross-generation collisions and rejects a response
+from the wrong worker. Failed preparation never changes active state; external
+request-ID reuse while in flight is rejected. Typecheck and 5/5 focused tests
 pass. Still pending: complete suite/commit, child process framing/backpressure,
 candidate handshake/build-identity verification, control channel, drain timeout,
 and end-to-end no-Codex-restart proof.

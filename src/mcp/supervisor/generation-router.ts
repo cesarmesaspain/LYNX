@@ -6,10 +6,21 @@ export interface GenerationSnapshot {
   inFlight: number;
 }
 
+export interface RoutedRequest {
+  generationId: string;
+  internalId: string;
+}
+
+interface RequestOwner extends RoutedRequest {
+  externalId: string | number;
+}
+
 export class McpGenerationRouter {
   private readonly states = new Map<string, GenerationState>();
-  private readonly requestOwners = new Map<string | number, string>();
+  private readonly requestOwners = new Map<string | number, RequestOwner>();
+  private readonly internalOwners = new Map<string, RequestOwner>();
   private activeId: string | null = null;
+  private nextInternalId = 1;
 
   startInitial(generationId: string): void {
     if (this.states.size > 0) throw new Error('Initial MCP generation is already established.');
@@ -37,31 +48,37 @@ export class McpGenerationRouter {
     return previous;
   }
 
-  routeRequest(requestId: string | number): string {
+  routeRequest(requestId: string | number): RoutedRequest {
     if (this.requestOwners.has(requestId)) throw new Error(`JSON-RPC request id is already in flight: ${String(requestId)}.`);
-    const owner = this.requireActive();
+    const generationId = this.requireActive();
+    const internalId = `lynx-supervisor/${this.nextInternalId++}`;
+    const owner = { externalId: requestId, generationId, internalId };
     this.requestOwners.set(requestId, owner);
-    return owner;
+    this.internalOwners.set(this.internalKey(generationId, internalId), owner);
+    return { generationId, internalId };
   }
 
   routeNotification(): string {
     return this.requireActive();
   }
 
-  routeCancellation(requestId: string | number): string | null {
-    return this.requestOwners.get(requestId) ?? null;
+  routeCancellation(requestId: string | number): RoutedRequest | null {
+    const owner = this.requestOwners.get(requestId);
+    return owner ? { generationId: owner.generationId, internalId: owner.internalId } : null;
   }
 
-  completeRequest(requestId: string | number): { owner: string; retired: boolean } {
-    const owner = this.requestOwners.get(requestId);
-    if (!owner) throw new Error(`JSON-RPC request id is not in flight: ${String(requestId)}.`);
-    this.requestOwners.delete(requestId);
+  completeResponse(generationId: string, internalId: string): { externalId: string | number; owner: string; retired: boolean } {
+    const key = this.internalKey(generationId, internalId);
+    const request = this.internalOwners.get(key);
+    if (!request) throw new Error(`JSON-RPC response has no routed request owner: ${generationId}/${internalId}.`);
+    this.internalOwners.delete(key);
+    this.requestOwners.delete(request.externalId);
     let retired = false;
-    if (this.states.get(owner) === 'draining' && this.inFlightFor(owner) === 0) {
-      this.states.set(owner, 'retired');
+    if (this.states.get(generationId) === 'draining' && this.inFlightFor(generationId) === 0) {
+      this.states.set(generationId, 'retired');
       retired = true;
     }
-    return { owner, retired };
+    return { externalId: request.externalId, owner: generationId, retired };
   }
 
   snapshot(): GenerationSnapshot[] {
@@ -75,7 +92,11 @@ export class McpGenerationRouter {
 
   private inFlightFor(generationId: string): number {
     let count = 0;
-    for (const owner of this.requestOwners.values()) if (owner === generationId) count++;
+    for (const owner of this.requestOwners.values()) if (owner.generationId === generationId) count++;
     return count;
+  }
+
+  private internalKey(generationId: string, internalId: string): string {
+    return `${generationId}\0${internalId}`;
   }
 }

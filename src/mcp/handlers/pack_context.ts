@@ -30,6 +30,7 @@ import { rerankSearchWithMeta, type RerankMeta } from '../../llm/client.js';
 import { readLynxConfig } from '../../config/runtime.js';
 import { hasCapability } from '../../commercial/gate.js';
 import { getNodeEdgeEvidence } from '../../store/edge-evidence.js';
+import { detectGraphDrift } from '../../store/graph-drift.js';
 
 interface GraphCandidate {
   name: string;
@@ -347,8 +348,10 @@ evidence_count: row.evidence_count,
   if (memoryEnriched > 0) {
     nextCalls.push({ tool: 'pack_memory', why: `${memoryEnriched} candidate(s) have prior review findings — check memory before editing` });
   }
-  if (!indexHealth.is_fresh && indexHealth.hours_since_index !== null) {
-    nextCalls.push({ tool: 'index_repository', why: `Index is ${indexHealth.hours_since_index}h old — re-index before relying on stale graph` });
+  if (!indexHealth.is_fresh && indexHealth.graph_drift && (indexHealth.graph_drift as { status?: string }).status === 'drifted') {
+    nextCalls.push({ tool: 'index_repository', why: 'Indexed graph drifted from working tree -- re-index before relying on graph evidence' });
+  } else if (!indexHealth.is_fresh && indexHealth.hours_since_index !== null) {
+    nextCalls.push({ tool: 'index_repository', why: `Index is ${indexHealth.hours_since_index}h old -- re-index before relying on stale graph` });
   }
 
   return {
@@ -516,7 +519,7 @@ function extractTerms(text: string, _isSpanish: boolean): string[] {
 
 function getIndexHealth(
   db: LynxDatabase, project: string,
-): { total_nodes: number; total_edges: number; hours_since_index: number | null; is_fresh: boolean } {
+): { total_nodes: number; total_edges: number; hours_since_index: number | null; is_fresh: boolean; graph_drift?: unknown } {
   try {
     const nodeCount = (db.db
       .prepare('SELECT COUNT(*) as cnt FROM nodes WHERE project = ?')
@@ -533,8 +536,10 @@ function getIndexHealth(
     const now = Date.now();
     const hoursSinceIndex = indexedAt ? Math.round((now - indexedAt) / (1000 * 60 * 60)) : null;
     const isFresh = nodeCount > 0 && hoursSinceIndex !== null && hoursSinceIndex < 24;
+    const meta = db.getProject(project);
+    const graphDrift = meta && nodeCount > 0 ? detectGraphDrift(db, meta) : null;
 
-    return { total_nodes: nodeCount, total_edges: edgeCount, hours_since_index: hoursSinceIndex, is_fresh: isFresh };
+    return { total_nodes: nodeCount, total_edges: edgeCount, hours_since_index: hoursSinceIndex, is_fresh: isFresh && graphDrift?.status !== 'drifted', graph_drift: graphDrift };
   } catch {
     return { total_nodes: 0, total_edges: 0, hours_since_index: null, is_fresh: false };
   }

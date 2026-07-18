@@ -226,6 +226,23 @@ describe('pack_context decision mode', () => {
   });
 });
 
+it('marks index_health as drifted when indexed files changed', async () => {
+    const db = LynxDatabase.openMemory();
+    const root = '/tmp/lynx-pack-drift-' + Date.now();
+    const fs = await import('node:fs');
+    fs.mkdirSync(root + '/src', { recursive: true });
+    fs.writeFileSync(root + '/src/app.ts', 'export const app = 1;\n');
+    db.upsertProject(PROJECT, root);
+    db.db.prepare("INSERT INTO nodes (project, kind, name, qualified_name, file_path, start_line, end_line, properties) VALUES (?, 'Function', 'app', 'app.fn', 'src/app.ts', 1, 1, '{}')").run(PROJECT);
+    db.db.prepare("INSERT INTO file_hashes (project, rel_path, sha256, mtime_ns, size) VALUES (?, 'src/app.ts', 'old', 1, 1)").run(PROJECT);
+    setDb(PROJECT, db);
+    fs.writeFileSync(root + '/src/app.ts', 'export const app = 2;\n');
+    const result = await handlePackContext({ project: PROJECT, task: 'review app changes' });
+    expect(result.index_health.graph_drift.status).toBe('drifted');
+    expect(result.index_health.is_fresh).toBe(false);
+    db.close();
+  });
+
 describe('pack_context context selection', () => {
   it('detects only close deterministic candidate scores as ambiguous', () => {
     expect(hasAmbiguousCandidatePool([{ score: 10 }, { score: 9 }, { score: 2 }])).toBe(true);

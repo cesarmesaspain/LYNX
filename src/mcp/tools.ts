@@ -247,7 +247,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'investigate_symbol',
     description:
-      'Investigate one symbol and return a unified context pack.',
+      'Investigate symbol and return unified context.',
     inputSchema: {
       type: 'object',
       properties: {

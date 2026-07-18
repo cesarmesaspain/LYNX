@@ -440,7 +440,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'find_dead_code',
     description:
-      'Find dead-code candidates by missing incoming graph edges; excludes tests/entry points and remains candidate-only.',
+      'Find dead-code candidates by missing incoming edges; excludes tests/entries.',
     inputSchema: {
       type: 'object',
       properties: {

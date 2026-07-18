@@ -336,7 +336,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'detect_changes',
     description:
-      'Detect git changes and graph impact tiers: confirmed=CALLS/IMPORTS, probable=module, nominal=name.',
+      'Detect git changes with impact tiers: confirmed=CALLS/IMPORTS, probable=module, nominal=name.',
     inputSchema: {
       type: 'object',
       properties: {

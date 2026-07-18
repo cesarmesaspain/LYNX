@@ -177,7 +177,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'query_graph',
     description:
-      'Execute a Cypher-like query against the knowledge graph for complex multi-hop patterns and aggregations.',
+      'Run graph queries for multi-hop patterns and aggregations.',
     inputSchema: {
       type: 'object',
       properties: {

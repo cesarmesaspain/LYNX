@@ -191,7 +191,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'index_repository',
     description:
-      'Index repository into graph; incremental mode skips unchanged files.',
+      'Index repository graph; incremental mode skips unchanged files.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -356,7 +356,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'assess_impact',
     description:
-      'Cross-reference changes with graph/tests: coverage, untested changes, missing callers, deleted live symbols, and unindexed files. Returns confidence-backed findings.',
+      'Assess changes against graph/tests; returns confidence-backed impact findings.',
     inputSchema: {
       type: 'object',
       properties: {

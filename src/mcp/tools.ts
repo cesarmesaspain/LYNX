@@ -123,7 +123,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'trace_path',
     description:
-      'Trace callers, callees, references, and flows; modes control traversal strategy.',
+      'Trace callers, callees, references, and flows; mode selects traversal.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -191,7 +191,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'index_repository',
     description:
-      'Index repository into knowledge graph; incremental mode skips unchanged SHA256 files.',
+      'Index repository into graph; incremental mode skips unchanged files.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -336,7 +336,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'detect_changes',
     description:
-      'Detect git changes and impact tiers: confirmed=CALLS/IMPORTS, probable=module, nominal=name.',
+      'Detect git changes and graph impact tiers: confirmed=CALLS/IMPORTS, probable=module, nominal=name.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -426,8 +426,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'analyze_hotspots',
     description:
-      'Snapshot largest files, complexity, coupling, hotspots, averages, and large components. ' +
-      'Use for quality, scalability, or risk, not as a first overview; for small projects prefer get_architecture plus targeted snippets.',
+      'Analyze file size, complexity, coupling, hotspots, and large components for quality/risk review.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -460,8 +459,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'compare_runs',
     description:
-      'Compare the last two index runs for a project. Returns deltas (nodes, edges, hotspots, ' +
-      'avg complexity) and a narrative summary of what changed between indexing runs.',
+      'Compare recent index runs; returns graph deltas and change summary.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -473,8 +471,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'explain_symbol',
     description:
-      'Get a detailed explanation of a code symbol (function, class, method). Returns source code, ' +
-      'callers, callees, complexity metrics, risk assessment, related findings, and a concise narrative.',
+      'Explain a code symbol with source, relations, metrics, risks, and findings.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -372,7 +372,7 @@ export function listMcpTools(): Array<
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
-      annotations: tool.annotations,
+      ...(tool.annotations ? { annotations: tool.annotations } : {}),
     }));
 }
 

@@ -72,8 +72,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'pack_context',
     description:
-      'Build a task-oriented context pack with likely areas, safety constraints, recommended graph/search calls, and validation steps. ' +
-      'Use early when scope or risks are still unclear.',
+      'Build task context pack with areas, constraints, graph/search calls, and validation steps; use early for unclear scope.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -145,8 +144,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'get_code_snippet',
     description:
-      'Read one symbol. include_neighbors adds callers/callees with file paths, signatures, and test coverage, replacing separate trace_path and find_tests calls. ' +
-      'For 3+ symbols, use batch_get_code.',
+      'Read one symbol; include_neighbors adds callers/callees, evidence, and tests. Use batch_get_code for multiple symbols.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -161,8 +159,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'get_architecture',
     description:
-      'Get architecture: languages, hotspots, clusters, file tree, and node/edge counts. ' +
-      'Start compact, request only missing aspects, reuse results, and verify only needed symbols with get_code_snippet.',
+      'Get architecture summary: languages, hotspots, clusters, tree, and graph counts; request only missing aspects.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -194,9 +191,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'index_repository',
     description:
-      'Index a repository into the knowledge graph. ' +
-      'Incremental mode (default) skips files whose SHA256 hash matches the last indexed run, ' +
-      'making re-indexes orders of magnitude faster.',
+      'Index repository into knowledge graph; incremental mode skips unchanged SHA256 files.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -252,7 +247,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'investigate_symbol',
     description:
-      'Investigate one symbol via search, explain, trace, snippet, and tests; returns one context pack.',
+      'Investigate one symbol and return a unified context pack.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -322,8 +317,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'search_code',
     description:
-      'Grep text, enriched by the graph. Modes: compact=signatures, full=source, files=paths. ' +
-      'Combine equivalent spellings or conventions in one regex; after a conclusive miss, stop unless new evidence changes scope.',
+      'Graph-enriched text search; modes: compact=signatures, full=source, files=paths.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -448,8 +442,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'find_dead_code',
     description:
-      'Find function, method, or class candidates with zero incoming CALLS, USAGE, READS, or TESTS edges, excluding tests and entry points. ' +
-      'Prefer this to query_graph plus per-symbol loops; results remain candidates and exported symbols carry a public-API caveat.',
+      'Find dead-code candidates by missing incoming graph edges; excludes tests/entry points and remains candidate-only.,
     inputSchema: {
       type: 'object',
       properties: {
@@ -496,8 +489,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'smart_review',
     description:
-      'Review a file or symbol using graph signals for complexity, size, coupling, test coverage, and performance risk. ' +
-      'Findings are heuristic; verify before claiming runtime impact or Big-O complexity.',
+      'Review file/symbol with graph risk signals; findings are heuristic and require verification.,
     inputSchema: {
       type: 'object',
       properties: {
@@ -513,8 +505,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'semantic_search',
     description:
-      'Search code from natural-language intent using fuzzy names plus graph-aware scoring. ' +
-      'Prefer over search_graph when exact symbol names are unknown.',
+      'Natural-language code search with fuzzy names and graph-aware scoring; use when symbols are unknown.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -535,8 +526,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'watch_project',
     description:
-      'Start/stop/status the real-time file watcher for a project. The watcher re-indexes ' +
-      'changed files automatically so the code graph stays up-to-date without manual re-indexing.',
+      'Manage project watcher; re-index changed files automatically to keep graph updated.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -554,8 +544,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'find_tests',
     description:
-      'Find tests covering a symbol by reversing TESTS edges (test → production). ' +
-      'Returns all matching test functions, avoiding manual grep/read loops.',
+      'Find tests covering a symbol via TESTS edges; avoids manual search loops.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -569,8 +558,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'batch_get_code',
     description:
-      'Read multiple symbols at once when 3+ search results all need inspection; do not add symbols just to fill a batch. ' +
-      'Each snippet is capped at 60 lines, reducing round-trips.',
+      'Read multiple symbols when several results need inspection; snippets are capped to reduce round-trips.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -588,9 +576,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'check_rules',
     description:
-      'Check architecture rules defined in lynx-rules.json against the indexed dependency graph. ' +
-      'Detects forbidden cross-layer imports and returns violations with source/target file and symbol details. ' +
-      'Use to enforce layer boundaries (e.g. domain must not import infrastructure).',
+      'Check lynx-rules.json architecture rules against dependency graph; returns layer violations.',
     inputSchema: {
       type: 'object',
       properties: {

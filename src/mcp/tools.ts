@@ -72,7 +72,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'pack_context',
     description:
-      'Build task context pack with areas, constraints, graph/search calls, and validation steps; use early for unclear scope.',
+      'Build task context with areas, constraints, graph calls, and validation; use early for unclear scope.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -317,7 +317,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'search_code',
     description:
-      'Graph-enriched text search; modes: compact=signatures, full=source, files=paths.',
+      'Graph text search; modes: compact=signatures, full=source, files=paths.',
     inputSchema: {
       type: 'object',
       properties: {

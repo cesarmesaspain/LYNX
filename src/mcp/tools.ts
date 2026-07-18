@@ -144,7 +144,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'get_code_snippet',
     description:
-      'Read one symbol; include_neighbors adds callers/callees, evidence, and tests. Use batch_get_code for multiple symbols.',
+      'Read symbol snippets; include_neighbors adds callers, callees, evidence, and tests. Use batch_get_code for multiple.',
     inputSchema: {
       type: 'object',
       properties: {

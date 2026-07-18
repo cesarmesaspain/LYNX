@@ -501,7 +501,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'semantic_search',
     description:
-      'Natural-language code search with fuzzy names and graph-aware scoring; use when symbols are unknown.',
+      'Semantic code search with fuzzy names and graph scoring; use when symbols are unknown.',
     inputSchema: {
       type: 'object',
       properties: {

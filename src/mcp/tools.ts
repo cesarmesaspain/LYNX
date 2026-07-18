@@ -159,7 +159,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'get_architecture',
     description:
-      'Get architecture summary: languages, hotspots, clusters, tree, and graph counts; request only missing aspects.',
+      'Get architecture: languages, hotspots, clusters, tree, and graph counts; request missing aspects only.',
     inputSchema: {
       type: 'object',
       properties: {

@@ -344,7 +344,7 @@ export const TOOLS: LynxToolDef[] = [
         base_branch: { type: 'string', description: 'Diff base; default main.' },
         since: { type: 'string', description: 'Git ref/tag.' },
         include_committed: { type: 'boolean', description: 'Include committed changes.' },
-        scope: { type: 'string', enum: ['files', 'symbols'], description: 'files=paths; symbols=paths plus impacted functions.' },
+        scope: { type: 'string', enum: ['files', 'symbols'], description: 'files=paths; symbols=paths+functions.' },
         depth: { type: 'integer', description: 'Impact depth; default 2.' },
         files: { type: 'array', items: { type: 'string' }, description: 'File scope.' },
         include_diff: { type: 'boolean', description: 'Include diff; opt-in.' },
@@ -374,7 +374,7 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        files: { type: 'array', items: { type: 'string' }, description: 'Optional files; omit to return invariants only.' },
+        files: { type: 'array', items: { type: 'string' }, description: 'Files; omit for invariants only.' },
         min_confidence: { type: 'number', description: 'Minimum confidence threshold (0.0–1.0, default 0.8).' },
         limit: { type: 'integer', description: 'Max invariants returned (default 30, max 100).' },
       },
@@ -577,7 +577,7 @@ export const TOOLS: LynxToolDef[] = [
       type: 'object',
       properties: {
         project: { type: 'string' },
-        files: { type: 'array', items: { type: 'string' }, description: 'Optional files; omit to check all indexed files.' },
+        files: { type: 'array', items: { type: 'string' }, description: 'Files; omit to check all.' },
       },
       required: ['project'],
     },

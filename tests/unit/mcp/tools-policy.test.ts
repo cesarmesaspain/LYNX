@@ -7,7 +7,7 @@ describe('MCP tool guidance policy', () => {
     const descriptions = TOOLS.map((tool) => tool.description).join('\n');
     expect(descriptions).not.toContain('before editing code');
     expect(descriptions).not.toContain('INSTEAD OF grep/glob');
-    expect(descriptions).toContain('when graph evidence is useful');
+    expect(descriptions).toContain('Use for quality, scalability, or risk, not as a first overview');
   });
 
   it('keeps strict hook messaging focused without universal replacements', () => {

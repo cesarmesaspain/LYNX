@@ -518,7 +518,7 @@ function metricsToCsv(data: WindowedMetrics, project: string): string {
     'label', 'value', 'unit', 'provenance', 'formula', 'confidence',
     'sample_size', 'status', 'notes',
   ];
-  const lines = [header.join(',')];
+  const lines = ['# LYNX Metrics Export', 'metric,value,unit,provenance,category', header.join(',')];
   const englishLabels: Record<string, string> = {
     tokens_saved: 'Tokens saved',
     files_avoided: 'Files avoided',

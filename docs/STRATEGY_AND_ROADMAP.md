@@ -1,11 +1,6 @@
 # LYNX — Estrategia y Roadmap Técnico-Comercial
 
-> v1. Documento interno de producto. No contractual.
-
-The verifiable standard for bringing the product to 10/10 is maintained in
-[`TEN_OUT_OF_TEN_STANDARD.md`](./TEN_OUT_OF_TEN_STANDARD.md). Its ten quality
-domains and acceptance gates take precedence over subjective ratings or feature
-counts.
+> v1 — 2026-07-10. Documento interno de producto. No contractual.
 
 ## Resumen ejecutivo
 
@@ -26,16 +21,16 @@ velocidad de puesta en marcha y no depender de infraestructura externa.**
 
 ### Lo que LYNX hace mejor (ventajas estructurales)
 
-| Dimensión                  | LYNX                                                     | Sourcegraph                                          |
-| -------------------------- | -------------------------------------------------------- | ---------------------------------------------------- |
-| Working tree no commiteado | Nativo — índice local + watcher en tiempo real           | Requiere commit/push o configuración adicional       |
-| Instalación                | `npm install -g lynx && lynx install` — 30s              | Despliegue de servidor, PG, Redis, MinIO             |
-| Privacidad                 | Todo local, nada sale del dispositivo sin permiso        | SaaS o self-hosted con infraestructura significativa |
-| Métricas auditables        | Provenance en cada métrica (measured/estimated/scenario) | Métricas agregadas sin trazabilidad por evento       |
-| Integración MCP            | 33 herramientas MCP nativas con hook auto-aumentado      | MCP requiere configuración y servidor externo        |
-| Contexto compacto          | `pack_context` genera briefs de ~400 tokens              | Sin equivalente directo para agentes                 |
-| Análisis de impacto        | `detect_changes` + `assess_impact` sobre diff real       | Depende de indexación completa del servidor          |
-| Coste operativo            | Cero infraestructura para modo local                     | Mínimo ~$200/mes en cloud para self-hosted           |
+| Dimensión | LYNX | Sourcegraph |
+|---|---|---|
+| Working tree no commiteado | Nativo — índice local + watcher en tiempo real | Requiere commit/push o configuración adicional |
+| Instalación | `npm install -g lynx && lynx install` — 30s | Despliegue de servidor, PG, Redis, MinIO |
+| Privacidad | Todo local, nada sale del dispositivo sin permiso | SaaS o self-hosted con infraestructura significativa |
+| Métricas auditables | Provenance en cada métrica (measured/estimated/scenario) | Métricas agregadas sin trazabilidad por evento |
+| Integración MCP | 25 herramientas MCP nativas con hook auto-aumentado | MCP requiere configuración y servidor externo |
+| Contexto compacto | `pack_context` genera briefs de ~400 tokens | Sin equivalente directo para agentes |
+| Análisis de impacto | `detect_changes` + `assess_impact` sobre diff real | Depende de indexación completa del servidor |
+| Coste operativo | Cero infraestructura para modo local | Mínimo ~$200/mes en cloud para self-hosted |
 
 ### Lo que NO hacemos (y por qué está bien)
 
@@ -62,22 +57,22 @@ velocidad de puesta en marcha y no depender de infraestructura externa.**
 
 **Precio indicativo**: Free (open-core), Pro $9–12/mes.
 
-| Capacidad                                            | Free               | Pro        |
-| ---------------------------------------------------- | ------------------ | ---------- |
-| Indexación local (fast/moderate/full)                | Hasta 50K archivos | Ilimitado  |
-| search_graph, trace_path, get_code_snippet           | Sí                 | Sí         |
-| pack_context                                         | Sí                 | Sí         |
-| Web dashboard local (métricas, action graph 3D)      | Sí                 | Sí         |
-| Reordenamiento semántico (DeepSeek o API propia)     | No                 | Sí         |
-| Rerank semántico medido (proveedor, latencia, coste) | No                 | Sí         |
-| Watcher automático                                   | Sí                 | Sí         |
-| Doctor, install, upgrade                             | Sí                 | Sí         |
-| Métricas con procedencia (measured/estimated)        | Sí                 | Sí         |
-| Export JSON/CSV de métricas                          | Sí                 | Sí         |
-| report HTML                                          | No                 | Sí         |
-| Savings Lab (escenarios editables)                   | No                 | Sí         |
-| Nº máximo de proyectos indexados                     | 5                  | Ilimitado  |
-| Soporte                                              | Comunidad (GitHub) | Email, 48h |
+| Capacidad | Free | Pro |
+|---|---|---|
+| Indexación local (fast/moderate/full) | Hasta 50K archivos | Ilimitado |
+| search_graph, trace_path, get_code_snippet | Sí | Sí |
+| pack_context | Sí | Sí |
+| Web dashboard local (métricas, action graph 3D) | Sí | Sí |
+| Reordenamiento semántico (DeepSeek o API propia) | No | Sí |
+| Rerank semántico medido (proveedor, latencia, coste) | No | Sí |
+| Watcher automático | Sí | Sí |
+| Doctor, install, upgrade | Sí | Sí |
+| Métricas con procedencia (measured/estimated) | Sí | Sí |
+| Export JSON/CSV de métricas | Sí | Sí |
+| report HTML | No | Sí |
+| Savings Lab (escenarios editables) | No | Sí |
+| Nº máximo de proyectos indexados | 5 | Ilimitado |
+| Soporte | Comunidad (GitHub) | Email, 48h |
 
 ### Nivel 2 — LYNX Team
 
@@ -85,19 +80,19 @@ velocidad de puesta en marcha y no depender de infraestructura externa.**
 
 **Precio indicativo**: $15–25/usuario/mes. Team Starter: $99/mes hasta 5 usuarios.
 
-| Capacidad                                                      | Incluido                    |
-| -------------------------------------------------------------- | --------------------------- |
-| Todo LYNX Pro                                                  | Sí                          |
-| Índice compartido (lectura, opcional)                          | Sí                          |
-| Gateway MCP único con procedencia y autorización               | Sí                          |
-| Multirrepo básico (cross-repo trace_path, search_graph)        | Sí                          |
-| Integración GitHub/GitLab (PR comments, status checks)         | Sí                          |
-| Roles: admin, member, viewer                                   | Sí                          |
-| Dashboard de equipo (métricas agregadas, líderes por proyecto) | Sí                          |
-| Reportes compartidos                                           | Sí                          |
-| Deduplicación cross-repo (mismo símbolo en N repos)            | Sí                          |
-| Auditoría básica (quién buscó qué, cuándo)                     | Sí                          |
-| Soporte                                                        | Slack compartido, 24h hábil |
+| Capacidad | Incluido |
+|---|---|
+| Todo LYNX Pro | Sí |
+| Índice compartido (lectura, opcional) | Sí |
+| Gateway MCP único con procedencia y autorización | Sí |
+| Multirrepo básico (cross-repo trace_path, search_graph) | Sí |
+| Integración GitHub/GitLab (PR comments, status checks) | Sí |
+| Roles: admin, member, viewer | Sí |
+| Dashboard de equipo (métricas agregadas, líderes por proyecto) | Sí |
+| Reportes compartidos | Sí |
+| Deduplicación cross-repo (mismo símbolo en N repos) | Sí |
+| Auditoría básica (quién buscó qué, cuándo) | Sí |
+| Soporte | Slack compartido, 24h hábil |
 
 ### Nivel 3 — LYNX Enterprise Lite
 
@@ -105,18 +100,18 @@ velocidad de puesta en marcha y no depender de infraestructura externa.**
 
 **Precio indicativo**: $30–45/usuario/mes. Descuento por volumen desde 100 usuarios.
 
-| Capacidad                                                | Incluido                                     |
-| -------------------------------------------------------- | -------------------------------------------- |
-| Todo LYNX Team                                           | Sí                                           |
-| SSO (SAML/OIDC)                                          | Sí                                           |
-| Permisos por repositorio (RBAC)                          | Sí                                           |
-| Despliegue privado (VPC del cliente, sin datos externos) | Sí                                           |
-| Auditoría completa (query log, access log, export SIEM)  | Sí                                           |
-| Índice compartido (lectura/escritura)                    | Sí                                           |
-| Retención de métricas configurable                       | Sí                                           |
-| SLA: 99.5% disponibilidad gateway                        | Sí                                           |
-| Soporte                                                  | Slack dedicado + email prioritario, 4h hábil |
-| Onboarding asistido                                      | 2 sesiones incluidas                         |
+| Capacidad | Incluido |
+|---|---|
+| Todo LYNX Team | Sí |
+| SSO (SAML/OIDC) | Sí |
+| Permisos por repositorio (RBAC) | Sí |
+| Despliegue privado (VPC del cliente, sin datos externos) | Sí |
+| Auditoría completa (query log, access log, export SIEM) | Sí |
+| Índice compartido (lectura/escritura) | Sí |
+| Retención de métricas configurable | Sí |
+| SLA: 99.5% disponibilidad gateway | Sí |
+| Soporte | Slack dedicado + email prioritario, 4h hábil |
+| Onboarding asistido | 2 sesiones incluidas |
 
 ### Lo que queda fuera (por ahora)
 
@@ -244,7 +239,7 @@ El benchmark deja de ser el objetivo principal del desarrollo y pasa a utilizars
 
 ## Fases de implementación
 
-### Fase 11 — Consolidación de producto
+### Fase 11 — Consolidación de producto (2026-07 a 2026-08)
 
 Objetivo: LYNX Local es sólido y genera confianza.
 
@@ -261,9 +256,24 @@ Objetivo: LYNX Local es sólido y genera confianza.
 - [x] Tiers y capacidades locales: matriz Free/Pro/Team/Enterprise con `tierSatisfies()` y gating
 - [x] Licencias locales: detección de tier, `TierGateError`, 33 capacidades gated
 - [x] Aislamiento completo de tests: `LYNX_HOME` temporal, 0 escrituras reales, prueba contractual
-- [x] Dashboard: CSV export con descarga por ventana, proyecto seleccionado y escaping seguro
+- [ ] Dashboard: CSV export con descarga por ventana (paginación y JSON ya funcionan; CSV pendiente)
+- [ ] **Graph Drift Detector**: comparar `git rev-parse HEAD` + timestamps de `file_hashes` contra `stat()` del disco antes de devolver resultados. Alerta si el índice está desactualizado respecto al working tree (~50–100ms, sin reindexar). Red de seguridad que evita decisiones sobre datos stale.
+- [ ] **RRF Búsqueda Híbrida Unificada**: fusionar BM25 (`search_graph`) + vectores (`semantic_search`) + rerank LLM en una sola llamada con Reciprocal Rank Fusion. Las piezas ya existen por separado; unificarlas reduce round-trips del agente y mejora precisión.
+- [ ] **Recorte Inteligente de Contexto en `investigate_symbol`**: colapsar o resumir cuerpos de funciones que superen un presupuesto de tokens, conservando solo firmas y tipos. Evita que God Objects saturen el contexto del agente.
+- [ ] **Filtro de Impacto Activo (`only_diff_intersect`)**: parámetro booleano en `trace_path`, `search_graph` y `query_graph` que filtra resultados para mostrar solo caminos/nodos que intersectan archivos modificados en `git diff`. Intersección de arrays entre nodos del grafo y diff real — ~50 líneas, ahorro de tokens del ~80-90% en trazados sobre cambios activos. Conecta `detect_changes` con las herramientas de grafo.
+- [ ] **Esqueleto AST (`skeleton` mode)**: modo de lectura en `get_code_snippet` que devuelve la función objetivo completa pero colapsa el cuerpo de todas las demás funciones del archivo a una sola línea (`{ ... }`). Usa los line ranges ya indexados en `nodes`. Conserva el contexto estructural del archivo (firmas, herencia) consumiendo ~10% de los tokens. Sinergia directa con Recorte Inteligente de Contexto.
+- [ ] **Entrypoint Mapping — Extracción multienfoque**: ampliar el extractor de entrypoints más allá de Next.js App Router. Añadir patrones AST para Express (`app.get('/path', handler)`), Fastify (`fastify.get('/path', handler)`), NestJS (`@Get('/path')`), Koa, y Hono. Cada framework ~30-50 líneas de extractor. La columna `is_entry_point` ya existe en `nodes`; `passRoutes` ya crea nodos `Route` para Next.js. Esto generaliza el concepto. (~200 líneas total.)
+- [ ] **Entrypoint Mapping — Tool + enriquecimiento**: nueva tool `list_entrypoints(project, method?, path_pattern?)` que consulta `SELECT * FROM nodes WHERE is_entry_point = 1`. Enriquecer `trace_path` para que cada nodo devuelva su `entrypoint_path` cuando es alcanzable transitivamente desde un entrypoint: `"POST /api/checkout (src/controllers/checkout.controller.ts:24)"`. Enriquecer `search_graph` con filtro `is_entry_point` y badge visual en resultados. (~100 líneas.)
+- [ ] **Blast Radius — `queryDownstreamDependents` en `assess_impact`**: sexta consulta en el pipeline de `assess_impact` que responde la pregunta más común tras un cambio: "¿qué archivos importan o llaman a los símbolos que he modificado?" Una sola query SQL — `SELECT target_file FROM edges WHERE source_file IN (modified_files) AND type IN ('CALLS','IMPORTS','USAGE')` — resuelve el radio de impacto en <20ms. Añade el campo `direct_dependent_files` al output. Cierra el ciclo de edición: el agente sabe instantáneamente qué rompe antes de commitear. (~50 líneas.)
+- [ ] **Sibling Call Invariant Checker (`check_invariants`)**: herramienta independiente que detecta "reglas invisibles" del código — pares de llamadas que co-ocurren en el mismo ámbito (misma función contenedora) con alta frecuencia. Algoritmo en 3 pasos SQL puro: (1) encontrar padres que llaman al símbolo A, (2) encontrar qué otros símbolos B llaman esos mismos padres, (3) si ≥85% de los padres de A también llaman a B, se ha descubierto un invariante arquitectónico implícito. Filtros anti-ruido: excluir nodos con fan-out >5% del proyecto (utilidades transversales como `logger.info`) y restringir co-ocurrencia al mismo nodo padre (scope de función). Tool nueva `check_invariants(project, file?)` — no sobrecarga `assess_impact`. Output: `"Has añadido charge() pero te falta recordTransaction() (94% confianza, 17/18 casos)"`. (~150-200 líneas.) Sinergia directa con Context-Flow: `pack_context` precargará invariantes de los símbolos en la zona de enfoque.
+- [ ] **Event-Bridge Edge Resolver — Trazador de Flujos Asíncronos (`TRIGGERS`)**: tres cambios quirúrgicos sobre infraestructura ya existente: (1) Upgrade de `passSemanticLight` para asociar `EMITS`/`LISTENS_ON` a la función contenedora, no al archivo (~40 líneas). (2) Nuevo pass post-resolución: `JOIN publishers p JOIN subscribers s ON p.channelName = s.channelName → INSERT TRIGGERS edge` con confianza 0.7 (~50 líneas). (3) Activar `TRIGGERS`, `EMITS` y `LISTENS_ON` en los modos `data_flow` y `cross_service` de `trace_path` (~5 líneas). Resultado: `trace_path` ya no se detiene en `.emit()` o `.add()` — sigue el flujo completo a través de eventos, colas y dispatchers. `registerUser()` → `[TRIGGERS]` → `sendWelcomeEmail()`. Determinista, offline, <15ms en consulta. (~100 líneas total.)
+- [ ] **Architecture Drift Prevention — Validador de Fronteras Arquitectónicas (`lynx-rules.json`)**: séptima consulta en el pipeline de `assess_impact` que cruza los edges del diff contra reglas de capas definidas por el usuario. Archivo de configuración `lynx-rules.json` con formato simple: `"layers": { "view": ["controller"], "controller": ["service"], "service": ["db"] }` donde cada entrada declara qué capas puede llamar cada capa. Mapeo de archivos a capas por glob: `"layerMap": { "view": "src/ui/**", "controller": "src/controllers/**", "service": "src/services/**", "db": "src/data/**" }`. Al ejecutar `assess_impact`, LYNX cruza `modified_files` × `edges` × `layer_rules` y emite violaciones: `"src/ui/login.ts → src/services/auth.ts VIOLA la regla 'view no puede llamar a service'"`. Convierte a LYNX en el primer "Linter de Arquitectura para IAs" — ningún desarrollador senior querrá trabajar con un agente que no garantice que el código generado respeta las fronteras del diseño. (~250-350 líneas.) Sinergia directa con SACG-027 (Blast Radius) y SACG-028 (Sibling Invariants) — la Trinidad Definitiva de Validación de Contexto para Agentes.
+- [ ] **Mapa de Fronteras (`lynx-services.json`)**: archivo de configuración opcional que mapea endpoints HTTP/gRPC/GraphQL a repositorios externos. Cuando `trace_path` en modo `cross_service` detecta una llamada mapeada, sugiere al agente continuar el trazado en el repositorio destino. LYNX ya extrae `CROSS_HTTP_CALLS`, `CROSS_GRPC_CALLS`, etc.; esto añade la capa de resolución multi-repo sin analizar red. (~100 líneas, requiere adopción del usuario.)
+- [ ] **Context-Flow: evolución activa de `pack_context` (Fase 1 — pre-computo de trazas)**: `pack_context` ejecuta `trace_path(depth=2)` automáticamente sobre los top 2-3 candidatos y devuelve el critical path resuelto en vez de solo sugerirlo. Elimina 2-3 round-trips del agente. Depende de: `only_diff_intersect` (priorizar zona caliente del diff), Graph Drift Detector (alertar índice stale), y Skeleton mode (referenciar snippets plegados en vez de duplicar lógica de lectura). (~150 líneas.)
+- [ ] **Context-Flow: Fase 2 — cruce con diff activo**: `pack_context` consulta `detect_changes` internamente para priorizar candidatos en archivos modificados. Si el diff actual toca `pool.ts`, los candidatos en ese archivo reciben boost automático. Elimina la necesidad de que el agente correlacione diff + grafo manualmente. (~60 líneas.)
+- [ ] **Context-Flow: Fase 3 — co-change mining (opcional, flag `include_cochange=true`)**: `pack_context` analiza `git log --follow` para detectar archivos modificados juntos históricamente. Fuera del hot path por defecto — solo bajo flag explícito para no degradar latencia. (~200 líneas. Pendiente de validación de señal/ruido antes de activar por defecto.)
 
-### Fase 12 — LYNX Team MVP
+### Fase 12 — LYNX Team MVP (2026-08 a 2026-10)
 
 Objetivo: Un equipo de 5 puede compartir índice y métricas.
 
@@ -288,7 +298,7 @@ Objetivo: Un equipo de 5 puede compartir índice y métricas.
 - [ ] Métricas cross-repo: deduplicación de eventos entre repositorios
 - [ ] `lynx team init` — configura un proyecto team en <2 minutos
 
-### Fase 13 — Enterprise Lite
+### Fase 13 — Enterprise Lite (2026-10 a 2026-12)
 
 Objetivo: Una organización de 200+ devs puede desplegar en su VPC.
 
@@ -299,7 +309,7 @@ Objetivo: Una organización de 200+ devs puede desplegar en su VPC.
 - [ ] SLA 99.5% con health checks y métricas de disponibilidad
 - [ ] Licencias JWT: sin phone-home, validación offline con expiración
 
-### Fase 14 — Maduración
+### Fase 14 — Maduración (2027-01 en adelante)
 
 Objetivo: Ecosistema, adopción, y comunidad.
 
@@ -314,15 +324,15 @@ Objetivo: Ecosistema, adopción, y comunidad.
 
 ## Riesgos
 
-| Riesgo                                                      | Probabilidad | Impacto | Mitigación                                                                                                                     |
-| ----------------------------------------------------------- | ------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Sourcegraph lanza producto local ligero                     | Media        | Alto    | Ventaja de foso: MCP nativo + métricas + working tree. Competir en integración con agentes, no en búsqueda pura                |
-| Adopción lenta por falta de marca                           | Alta         | Medio   | Crecer por boca a boca en comunidades de agentes (Claude Code, Codex, Cursor). El producto gratuito es el mejor marketing      |
-| Dependencia de APIs de terceros para rerank                 | Media        | Medio   | DeepSeek como fallback local; modo determinista siempre disponible; rerank no es crítico para el core                          |
-| Fragmentación del ecosistema MCP                            | Media        | Bajo    | LYNX ya soporta 8 agentes; el formato MCP es estable; añadir nuevos agentes es ~20 líneas de configuración                     |
-| Complejidad de la sincronización federada                   | Alta         | Medio   | Empezar con read-only compartido; la consistencia eventual es suficiente para el 90% de casos; no prometer tiempo real         |
-| Fatiga del equipo (proyecto de una persona)                 | Alta         | Alto    | Priorizar 80/20 sin piedad; decir que no a features; automatizar release/testing/doctor; construir comunidad de contribuidores |
-| Competencia de GitHub Copilot/Cody con code graph integrado | Media        | Medio   | Diferenciación: LYNX es multi-agente, multi-LLM, local-first. Copilot está atado a GitHub y VS Code                            |
+| Riesgo | Probabilidad | Impacto | Mitigación |
+|---|---|---|---|
+| Sourcegraph lanza producto local ligero | Media | Alto | Ventaja de foso: MCP nativo + métricas + working tree. Competir en integración con agentes, no en búsqueda pura |
+| Adopción lenta por falta de marca | Alta | Medio | Crecer por boca a boca en comunidades de agentes (Claude Code, Codex, Cursor). El producto gratuito es el mejor marketing |
+| Dependencia de APIs de terceros para rerank | Media | Medio | DeepSeek como fallback local; modo determinista siempre disponible; rerank no es crítico para el core |
+| Fragmentación del ecosistema MCP | Media | Bajo | LYNX ya soporta 8 agentes; el formato MCP es estable; añadir nuevos agentes es ~20 líneas de configuración |
+| Complejidad de la sincronización federada | Alta | Medio | Empezar con read-only compartido; la consistencia eventual es suficiente para el 90% de casos; no prometer tiempo real |
+| Fatiga del equipo (proyecto de una persona) | Alta | Alto | Priorizar 80/20 sin piedad; decir que no a features; automatizar release/testing/doctor; construir comunidad de contribuidores |
+| Competencia de GitHub Copilot/Cody con code graph integrado | Media | Medio | Diferenciación: LYNX es multi-agente, multi-LLM, local-first. Copilot está atado a GitHub y VS Code |
 
 ---
 
@@ -367,7 +377,7 @@ Objetivo: Ecosistema, adopción, y comunidad.
 
 ## Invariantes técnicos permanentes
 
-Establecidos durante la validación de métricas y aplicables a todo
+Establecidos durante la validación de métricas (2026-07-10) y aplicables a todo
 el desarrollo futuro:
 
 1. **Idempotencia**: `flushTodayEvents` reemplaza, no acumula. Dos llamadas

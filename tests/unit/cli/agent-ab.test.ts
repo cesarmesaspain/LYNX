@@ -2620,10 +2620,10 @@ describe("suite contract", () => {
     const tools = makeLynxToolsRealistic();
     for (const tool of tools) {
       const description = tool.function.description || "";
-      expect(description).toContain("Use the smallest focused call");
-      expect(description).toContain("broaden only if evidence is insufficient");
-      expect(description).toContain("Reuse prior evidence");
-      expect(description).toContain("stop once the answer is supported");
+      expect(description).toContain("Use the smallest sufficient call");
+      expect(description).toContain("broaden only if needed");
+      expect(description).toContain("reuse evidence");
+      expect(description).toContain("stop when supported");
       expect(description).not.toMatch(/\bUse FIRST\b/);
       expect(description).not.toMatch(/\bALWAYS use\b/i);
     }

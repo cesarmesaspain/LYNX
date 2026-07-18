@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { renderDashboard } from '../../../src/server/dashboard/html.js';
 import { metricsTabScript } from '../../../src/server/dashboard/scripts/metrics-tab.js';
 import { tabScript } from '../../../src/server/dashboard/scripts/tabs.js';
 
@@ -39,6 +40,15 @@ describe('dashboard metrics interaction', () => {
     expect(script).not.toContain('Bar length is relative');
     expect(script).toContain('data-tooltip=');
     expect(script).toContain('tabindex="0"');
+  });
+
+  it('exports the selected project and window as CSV', () => {
+    const script = metricsTabScript(false, [], 0, 0);
+    const html = renderDashboard([]);
+
+    expect(html).toContain('id="exportMetricsCsv"');
+    expect(script).toContain("document.getElementById('exportMetricsCsv')");
+    expect(script).toContain("'&format=csv'");
   });
 
   it('restores the metrics tab after a reload', () => {

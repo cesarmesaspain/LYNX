@@ -257,7 +257,7 @@ export const TOOLS: LynxToolDef[] = [
         qualified_name: { type: 'string', description: 'Alias.' },
         depth: { type: 'integer', description: 'Trace depth; default 2.' },
         include_evidence: { type: 'boolean', description: 'Trace evidence.' },
-        verbose: { type: 'boolean', description: 'Include metrics, LLM usage, and index context; default false.' },
+        verbose: { type: 'boolean', description: 'Metrics, LLM usage, index context; default false.' },
       },
       required: ['project'],
       anyOf: [

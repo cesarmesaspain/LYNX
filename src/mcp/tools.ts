@@ -91,7 +91,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'search_graph',
     description:
-      'Search definitions and relationships: query=BM25; name/qn_pattern=regex; name/qn_like=SQL LIKE; semantic_query=vector. Use include_snippets for previews.',
+      'Search graph definitions/relations: BM25, regex, LIKE, semantic query; snippets opt-in.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -123,7 +123,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'trace_path',
     description:
-      'Trace callers, callees, and references. Modes: calls=control flow; references=bindings; data_flow=both; auto=fallback.',
+      'Trace callers, callees, references, and flows; modes control traversal strategy.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -336,8 +336,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'detect_changes',
     description:
-      'Detect staged, unstaged, untracked, deleted, and renamed files plus impact tiers: confirmed=CALLS/IMPORTS, probable=same module, nominal=name only. ' +
-      'Use files to scope analysis.',
+      'Detect git changes and impact tiers: confirmed=CALLS/IMPORTS, probable=module, nominal=name.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -442,7 +441,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'find_dead_code',
     description:
-      'Find dead-code candidates by missing incoming graph edges; excludes tests/entry points and remains candidate-only.,
+      'Find dead-code candidates by missing incoming graph edges; excludes tests/entry points and remains candidate-only.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -489,7 +488,7 @@ export const TOOLS: LynxToolDef[] = [
   {
     name: 'smart_review',
     description:
-      'Review file/symbol with graph risk signals; findings are heuristic and require verification.,
+      'Review file/symbol with graph risk signals; findings are heuristic and require verification.',
     inputSchema: {
       type: 'object',
       properties: {
